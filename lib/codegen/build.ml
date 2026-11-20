@@ -960,7 +960,7 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
              if optimize then rewrites tm m
-             else if Held_late.on () then rewrite tm m "held late" Held_late.run Held_late.again;
+             else if Held_late.on () then Held_late.run m;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
