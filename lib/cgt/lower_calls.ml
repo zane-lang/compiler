@@ -62,8 +62,11 @@ let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
           let inner = { ctx with env; expanding = v.decl :: ctx.expanding } in
           let label = fresh st in
           let result = fresh st in
+          (* The body's own storage: a subscript names where its element
+             is, and an `&` element is where the reference is held, which
+             the caller reads (Lower.expr, Subscript). *)
           let place =
-            match w.addr st inner span e with
+            match w.storage st inner span e with
             | Some p -> p
             | None -> Diagnostic.bug ~span "lowering expected a subscript's body to name a place"
           in
