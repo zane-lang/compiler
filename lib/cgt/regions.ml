@@ -339,9 +339,9 @@ let keeping funcs =
 
    A local function nothing takes the address of is rewritten in place, and
    every call copies a place it passes there instead. Any other function
-   with a body keeps the calls it was compiled for: one other objects call,
-   one whose body is only available here, or one called through its
-   address. Such a function gets a local copy that takes the parameter
+   with a body keeps the calls it was compiled for: a function other objects
+   call, a function whose body is only available here, or a function called
+   through its address. Such a function gets a local copy that takes the parameter
    ([taking]), and a call that passes a fresh argument there calls the copy
    instead. *)
 let taken_params funcs ~keeps =
@@ -385,8 +385,8 @@ let taken_params funcs ~keeps =
   (* A taken parameter keeps a fresh argument too: the callee, or its
      taking copy, is given the value itself. *)
   and taken_keeps fn j = keeps fn j || Hashtbl.mem table (fn, j) in
-  (* Each parameter found taken can let its callers' parameters be taken
-     too, so the search runs until it finds no more. *)
+  (* Each parameter found to be taken can let its callers' parameters be
+     taken too, so the search runs until it finds no more. *)
   let rec search () =
     let before = Hashtbl.length table in
     List.iter
@@ -410,8 +410,8 @@ let taken_params funcs ~keeps =
    parameters. *)
 let taking symbol = symbol ^ ".taken"
 
-(* The argument a borrowed fresh value was held in by its caller, before
-   the call read it (Lower.borrow): the value itself. *)
+(* For an argument that its caller held a borrowed fresh value in before the
+   call read it (Lower.borrow): the value itself. *)
 let borrowed (e : Expr.t) =
   match e.Expr.node with
   | Expr.Expand
@@ -444,12 +444,12 @@ let take_params funcs (table, cloned) =
       else None
     in
     let used = Hashtbl.create 16 in
-    (* A call to [fn], each argument passed as the parameter takes it. A
-       function rewritten in place takes a borrowed fresh value as itself
-       and copies anything else in. A cloned one is called as it is unless
-       a fresh value is passed to a taken parameter; then its copy is
-       called, and takes the arguments as a function rewritten in place
-       does. *)
+    (* A call to [fn], each argument passed as its parameter takes it. A
+       function rewritten in place takes a borrowed fresh value as the value
+       itself and copies any other argument in. A cloned function is called
+       unchanged unless a fresh value is passed to a taken parameter; then
+       its copy is called, and takes the arguments as a function rewritten
+       in place does. *)
     let rec call_site ~own (e : Expr.t) =
       match e.Expr.node with
       | Expr.Call { fn; args } ->
@@ -476,14 +476,15 @@ let take_params funcs (table, cloned) =
     let rewrite ~own (f : Func.t) =
       { f with Func.body = map_stats (call_site ~own) (fun _ -> None) f.Func.body }
     in
-    (* A copy is made from the body as it was, whose taken copies are the
-       ones the table names: a rewrite builds every node anew. *)
+    (* A copy is made from the body as it was, whose taken copies are those
+       the table names: a rewrite builds every node anew. *)
     let by_symbol = Hashtbl.create 64 in
     List.iter (fun (f : Func.t) -> Hashtbl.replace by_symbol f.Func.symbol f) funcs;
     let funcs =
       List.map (fun (f : Func.t) -> rewrite ~own:(not (Hashtbl.mem cloned f.Func.symbol)) f) funcs
     in
-    (* Each copy a call reaches, itself rewritten, which may reach more. *)
+    (* Each copy a call reaches, itself rewritten, which may reach more
+     copies. *)
     let made = Hashtbl.create 16 in
     let rec copies_of acc =
       let next =
@@ -504,8 +505,7 @@ let take_params funcs (table, cloned) =
           copies_of (List.rev_append fresh acc)
     in
     let funcs = funcs @ copies_of [] in
-    (* Each copy answers for what its function's arenas keep as the
-       function does. *)
+    (* Each copy keeps the same arenas as its function does. *)
     let origin = Hashtbl.create 16 in
     Hashtbl.iter (fun s () -> Hashtbl.replace origin (taking s) s) made;
     (funcs, fun s -> Option.value ~default:s (Hashtbl.find_opt origin s))
@@ -534,11 +534,11 @@ let prune ~wants ~keeps (f : Func.t) =
   { f with Func.body = map_stats (fun _ -> None) fs f.Func.body }
 
 (* A function whose whole body is one arena, which holds only owners that
-   every way out moves on, needs no arena when nothing else does: no spawn,
-   no reservation, no arena nested in it, no fresh owner it must keep for a
-   callee, and no callee lent one of its slots that opens an arena of its
-   own, since a slot outside every arena is taken to be in the innermost
-   one's region (runtime/arena.c). *)
+   every way out moves on, needs no arena when nothing else needs one: no
+   spawn, no reservation, no arena nested in it, no fresh owner it must keep
+   for a callee, and no callee that is lent one of its slots and opens an
+   arena of its own, since a slot outside every arena is taken to be in the
+   innermost arena's region (runtime/arena.c). *)
 let foldable ~wants ~keeps ~arenaless (f : Func.t) =
   match f.Func.body with
   | [ Stat.Scope { id; body } ] when has_body f ->
@@ -554,8 +554,8 @@ let foldable ~wants ~keeps ~arenaless (f : Func.t) =
         | None -> false
       in
       (* The slots whose address a callee must not be lent, the locals
-         that hold such an address, and whether a callee is lent one. A
-         slot's value moved out is not its address. *)
+         that hold such an address, and whether a callee is lent such an
+         address. A value moved out of a slot is not the slot's address. *)
       let slots = ref holds and pointers = ref [] in
       let rec names (e : Expr.t) =
         match e.Expr.node with
@@ -591,8 +591,8 @@ let foldable ~wants ~keeps ~arenaless (f : Func.t) =
       && List.for_all (fun h -> moved_on f h ~keeps) holds
   | _ -> false
 
-(* The function's owners held in slots of its own: a hold is a `let`, and a
-   move out of it reads it. *)
+(* The function's owners held in slots of its own: a hold becomes a `let`,
+   and a move out of the hold becomes a read of it. *)
 let fold (f : Func.t) =
   match f.Func.body with
   | [ Stat.Scope { body; _ } ] ->
@@ -610,9 +610,9 @@ let fold (f : Func.t) =
       { f with Func.body = map_stats fe fs body }
   | _ -> f
 
-(* Whether a function, and everything it calls, opens no arena: the
-   greatest such answer, so that functions calling one another and opening
-   none are arenaless together. *)
+(* Whether a function, and every function it calls, opens no arena: the
+   greatest such answer, so that functions that call one another and open no
+   arena are arenaless together. *)
 let arenaless_of funcs =
   let table = Hashtbl.create 64 in
   List.iter
@@ -646,7 +646,8 @@ let arenaless_of funcs =
 (* A value a `return` copies out of a slot of the function's own is moved
    out instead, since the return ends the slot and nothing reads it again
    (memory.md §2.3): out of any held slot for a return from the function,
-   and out of one held in an arena the expansion opens for a return to it.
+   and out of a slot held in an arena the expansion opens for a return to
+   the expansion.
    A function that spawns keeps its copies, since a spawned call may still
    read the slot until the drain joins it. *)
 let returned_moves (f : Func.t) =
@@ -692,7 +693,8 @@ let returned_moves (f : Func.t) =
       | _ -> None
     in
     (* [exits] is each expansion the code is in: its label, the local its
-       result is stored in, and the slots held in arenas it opens. *)
+       result is stored in, and the slots held in arenas the expansion
+       opens. *)
     let rec stats exits = function
       | Stat.Assign ({ place = { Expr.local; deref = false; path = []; _ }; value } as a)
         :: (Stat.Leave l :: _ as rest) ->
@@ -726,10 +728,11 @@ let returned_moves (f : Func.t) =
 (* A hold read once, as an argument of the call the next statement makes,
    held in that argument instead, as lowering holds a fresh argument
    (Lower.borrow): then a callee that takes the parameter is given the value
-   itself. Only arguments that read no memory and no local the hold's value
-   mentions and no local whose address the function takes run before it, so
-   the copy running later sees what it saw: an initializer can write any
-   memory, and a local through any pointer to it. *)
+   itself. Only arguments that read no memory, no local the hold's value
+   mentions and no local whose address the function takes may run before the
+   held argument, so the copy, which now runs later, sees the same values:
+   an initializer can write any memory, and a local through any pointer to
+   it. *)
 let sink_holds (f : Func.t) =
   let top = ref 0 in
   let see i = if i > !top then top := i in
@@ -842,8 +845,8 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
       | Expr.Copy _ -> take_whole h value
       | Expr.Call ({ fn; args } as c) -> (
           (* A copy passed to a parameter its callee owns is a fresh owner
-             the callee receives, so a last read passed as one moves, when
-             no other argument reads it. *)
+             the callee receives, so a last read passed to such a parameter
+             moves, when no other argument reads it. *)
           let reads a = mentions h [ Stat.Eval a ] in
           match List.partition reads args with
           | [ _ ], _ -> (
@@ -859,7 +862,8 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
     (* [stats], after which nothing reads [h], with the last read of [h]
        in them a move when it is a copy. *)
     let rec last h stats =
-      (* From the end: the first statement that mentions [h] is its last. *)
+      (* Searching from the end: the first statement found that mentions [h]
+       holds its last read. *)
       let rec split after = function
         | [] -> None
         | s :: earlier -> if mentions h [ s ] then Some (List.rev earlier, s, after) else split (s :: after) earlier
@@ -903,7 +907,8 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
             | [] -> None
             | Stat.Let { id; value = { Expr.node = Expr.Expand ({ body; result = Some r; _ } as x); _ } as v } :: earlier
               when id = f ->
-                (* A write to the flag between them could run both. *)
+                (* A write to the flag between the two branches could run
+                   both. *)
                 let flag_written =
                   exists_in after ~expr:(fun _ -> false)
                     ~stat:(function Stat.Assign { place = { Expr.local; _ }; _ } -> local = f | _ -> false)
@@ -947,7 +952,7 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
                   exists_in inner ~expr:(fun e -> match e.Expr.node with Expr.Address x -> x = h | _ -> false) ~stat:(fun _ -> false)
                 in
                 let after = if addressed_before then inner else last h inner in
-                (* Only a hold this pass gave its move: one a return
+                (* Only a hold this pass gave its move: a hold a return
                    already moved is left to fold. *)
                 let moved_here = after != inner && after <> inner in
                 (* Taken once and otherwise only read: no slot is needed,
@@ -961,9 +966,9 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
                     | _ -> ())
                   (fun _ -> ())
                   after;
-                (* The hold goes only when the move happens on every path:
-                   a take in an `if` body leaves the skipped path with the
-                   block, which the hold drains. *)
+                (* The hold is removed only when the move happens on every
+                   path: a take in an `if` body leaves the skipped path with
+                   the block, which the hold drains. *)
                 let unconditional =
                   let outside_ifs =
                     map_stats (fun _ -> None)
@@ -975,13 +980,15 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
                         match e.Expr.node with Expr.Take { address = { Expr.node = Expr.Address x; _ }; _ } -> x = h | _ -> false)
                       ~stat:(fun _ -> false)
                   in
-                  (* Nothing before the statement that moves it may leave:
-                     a return there would leave with the block unmoved. *)
+                  (* No statement before the statement that moves the hold
+                     may leave: a return there would leave with the block
+                     unmoved. *)
                   let rec reached = function
                     | [] -> false
                     | s :: rest -> if takes_h [ s ] then reaches s else (not (leaves [ s ])) && reached rest
-                  (* The statement that moves it: a block's body is followed
-                     inside, and any other statement holds no way out. *)
+                  (* The statement that moves the hold: a block's body is
+                     followed inside, and any other statement has no way
+                     out. *)
                   and reaches (s : Stat.t) =
                     match s with
                     | Stat.Scope { body; _ } | Stat.Eval { Expr.node = Expr.Expand { body; _ }; _ } -> reached body
@@ -1038,9 +1045,9 @@ let run ~wants (p : Nodes.Program.t) =
   let keeps = keeping funcs in
   let ((table, cloned) as taken) = taken_params funcs ~keeps in
   let funcs, origin = take_params funcs taken in
-  (* A parameter its callee owns: one a function rewritten in place takes,
-     or one its taking copy does. A cloned function, called as it is,
-     borrows. *)
+  (* A parameter its callee owns: a parameter that a function rewritten in
+     place takes, or that its taking copy takes. A cloned function, called
+     unchanged, borrows. *)
   let owned fn j = (not (Hashtbl.mem cloned fn)) && Hashtbl.mem table (origin fn, j) in
   let funcs = List.map (assigned_moves ~owned) funcs in
   let keeps fn j = keeps (origin fn) j in
