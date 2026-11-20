@@ -660,7 +660,7 @@ void zane_workers_publish(char *event, int64_t size, int64_t id) {
 	if (p->last) p->last->next = e;
 	else p->first = e;
 	p->last = e;
-	int queue = !p->funnel_busy;
+	int queue = !__atomic_load_n(&p->funnel_busy, __ATOMIC_ACQUIRE);
 	if (queue) {
 		__atomic_store_n(&p->funnel_busy, 1, __ATOMIC_RELEASE);
 		pthread_mutex_lock(&zane_ready);
@@ -676,6 +676,13 @@ void zane_workers_publish(char *event, int64_t size, int64_t id) {
    copied into the innermost scope, as a fresh value's are made. */
 static _Thread_local char *zane_state_buffer;
 static _Thread_local int64_t zane_state_room;
+
+/* Frees this thread's snapshot buffer, as the thread stops. */
+void zane_workers_thread_stop(void) {
+	free(zane_state_buffer);
+	zane_state_buffer = NULL;
+	zane_state_room = 0;
+}
 
 char *zane_workers_state(char *handle) {
 	zane_workers *p = zane_workers_at(handle);

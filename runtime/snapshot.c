@@ -187,6 +187,7 @@ __attribute__((cold, noinline)) void zane_callback_attach(void) {
 __attribute__((cold, noinline)) void zane_callback_detach(void) {
 	zane_context_release(zane_self);
 	zane_self = NULL;
+	zane_workers_thread_stop();
 	zane_thread_stop();
 }
 

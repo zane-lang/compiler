@@ -268,7 +268,8 @@ let call w (callee : T.Verb_ref.t) (a : T.Arg.t list) =
   if pool_start callee then begin
     List.iter
       (function
-        | T.Arg.Value { T.Expr.node = T.Expr.Lambda { body; _ }; _ } -> w.steps <- body :: w.steps
+        | T.Arg.Value { T.Expr.node = T.Expr.Lambda { body; _ }; _ } ->
+            if not (List.memq body w.steps) then w.steps <- body :: w.steps
         | _ -> ())
       a;
     List.iter

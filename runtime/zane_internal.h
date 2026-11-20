@@ -382,6 +382,7 @@ extern int64_t zane_jobs, zane_sleepers;
 struct zane_workers;
 int zane_workers_run_one(struct zane_workers *only);
 int64_t zane_workers_next_deadline(void);
+void zane_workers_thread_stop(void);
 void zane_wait_until(pthread_cond_t *cond, pthread_mutex_t *lock, int64_t deadline);
 void zane_pool_wake(void);
 void zane_islands_drained(zane_context *c, zane_mark *m);
