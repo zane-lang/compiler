@@ -162,8 +162,8 @@ let assembly ~header (source : Compile.source) =
   else Ok source
 
 (* The sections of an object whose names are linker sets, each refused as
-   a module's are ([linker_sets]): [what] names the construct that places a section in
-   the object, and [file] is the file the diagnostic names. *)
+   a module's are ([linker_sets]): [what] names the construct that places
+   a section in the object, and [file] is the file the diagnostic names. *)
 let object_linker_sets ~file ~what (contents : Objects.contents) =
   match List.sort_uniq compare (List.filter Settings.is_linker_set contents.Objects.sections) with
   | [] -> Ok contents
@@ -182,7 +182,7 @@ let object_linker_sets ~file ~what (contents : Objects.contents) =
         }
 
 (* An object holding a symbol renaming cannot reach, refused, [what]
-   saying what the object is: a Mach-O global without the `_` every C name
+   describing the object: a Mach-O global without the `_` every C name
    takes there, which has no C name to rename it by, so two versions of the
    package would define it twice. *)
 let unreachable_symbols ~file ~what (contents : Objects.contents) =
@@ -205,8 +205,8 @@ let unreachable_symbols ~file ~what (contents : Objects.contents) =
 (* [assembled] and [archives] refused when a linker directive one of them
    holds names a symbol of [renamed], the C names the package renames,
    whichever of its modules or objects defines it: renaming rewrites an
-   object's symbol table, not its directives, which would ask the link for
-   the old name. *)
+   object's symbol table, not its directives, so a directive would still
+   ask the link for the old name. *)
 let directed_renamed ~renamed assembled archives =
   let table = Hashtbl.create 64 in
   List.iter (fun n -> Hashtbl.replace table n ()) renamed;
@@ -509,9 +509,9 @@ let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation m
 let glue_unwritten message = glue_refused (Printf.sprintf "the glue could not be written: %s" message)
 
 (* One glue file, [text] for [header], written into [work] and compiled
-   with [maps] and [flags], with the real path of [header]. What it is
-   refused for names the header as the package's directory was given,
-   [dir] being where it lies. *)
+   with [maps] and [flags], with the real path of [header]. A refusal
+   names the header by the path the package's directory was given as,
+   [dir] being where the header lies. *)
 let glue_file p ~dir ~work ~maps ~flags (header, text) =
   let path = Filename.concat work (Filename.remove_extension (Filename.basename header) ^ ".glue.c") in
   match Out_channel.with_open_bin path (fun oc -> output_string oc text) with
@@ -543,13 +543,13 @@ let glue_files p ~dir files =
    unless several of [p]'s sources that include one header define private
    state its glue module does: the glue's copy of that state is the one
    source's including the header (Foreign_c), and C itself gives each
-   including source a copy of its own, so no one copy is the header's
-   (docs/design/ffi.md F9). One source assembled apart that defines it, or
-   a private constant or function of the header's whose address the
-   program can see, is refused too, since its copy is in an object the glue's cannot share,
-   and so is an archive one of whose members holds a variable or function
-   of its own of such a name, which an archive's object holds for a header it
-   includes. *)
+   including source a copy of its own, so no single copy belongs to the
+   header (docs/design/ffi.md F9). One source assembled apart that defines
+   that state, or a private constant or function of the header's whose
+   address the program can see, is refused too, since its copy is in an
+   object the glue's module cannot share, and so is an archive one of whose
+   members holds a variable or function of its own of such a name, which
+   an archive's object holds for a header it includes. *)
 let shared_state (p : package) compiled =
   let listed paths =
     match List.rev_map (fun path -> "`" ^ path ^ "`") paths with
@@ -586,7 +586,7 @@ let shared_state (p : package) compiled =
         let named a = List.exists (fun v -> List.exists (copy v) seen) a.held.Objects.locals in
         (* A member that defines the header's external definitions, whose
            copies the glue drops for its, compiled the header, so it holds
-           a copy of the state whatever its symbols say: stripping an
+           a copy of the state whatever its symbols show: stripping an
            archive takes its local symbols' names away. *)
         let defined = fst (Clang.definitions glue.bitcode) in
         let shares a = seen <> [] && List.exists (fun n -> List.mem n a.held.Objects.defined) defined in
@@ -626,7 +626,7 @@ let shared_state (p : package) compiled =
    copy uses. The glue's copies of what the archive defines
    are dropped for the archive's (Foreign_c), but which of the header's
    constructors a member runs, and whether that member is linked at all,
-   the archive does not say, so the glue's could run beside them or in
+   the archive does not record, so the glue's could run beside them or in
    their place (docs/design/ffi.md F9). *)
 let archived_constructors (p : package) compiled =
   let refused (header, (glue : Compile.source)) =
@@ -668,11 +668,11 @@ let directed_glue (p : package) compiled =
 
 (* [p]'s glue for [entries] (Glue), each file compiled as its sources
    were, from the cache when it holds it, beside the real path of the
-   interface header it compiles. The files are written to a
-   directory of their own, named `/zane/glue` in the module and the hash
-   as the package's directory is named `/zane/pkg`, and each includes its
-   header by the absolute path the package's directory map names; a path
-   holding a double quote or a line break cannot be a quoted header name, and is
+   interface header it compiles. The files are written to a directory of
+   their own, named `/zane/glue` in the module and the hash as the
+   package's directory is named `/zane/pkg`, and each includes its header
+   by the absolute path the package's directory map names; a path holding
+   a double quote or a line break cannot be a quoted header name, and is
    refused. *)
 let glue p (entries : Glue.entry list) =
   let dir = if Filename.is_relative p.dir then Source.Files.in_directory (Sys.getcwd ()) p.dir else p.dir in
@@ -691,8 +691,8 @@ let glue p (entries : Glue.entry list) =
 
 (* The C entries of the function values C can call
    (docs/design/ffi.md F11, Glue.callbacks_file), compiled for [target] and
-   [cpu] by the linked clang, from the cache when it holds them. The file includes
-   nothing, so it needs no C library's headers. *)
+   [cpu] by the linked clang, from the cache when it holds them. The file
+   includes nothing, so it needs no C library's headers. *)
 let callbacks ?(cache = Cache.dir ()) ~cpu ~target (entries : Glue.callback list) =
   let triple = triple target in
   match Filename.temp_dir "zane-callbacks-" "" with

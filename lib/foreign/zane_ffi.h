@@ -6,7 +6,7 @@
    in share/ of its releases, holds both. */
 
 /* What the toolchain gives every package's C code (spec ffi.md §3.4,
-   §3.5): the views a string, an array or a list crosses into C as, and
+   §3.5): the views a string, an array or a list is passed to C as, and
    the allocator for the bytes of a string C returns. */
 #ifndef ZANE_FFI_H
 #define ZANE_FFI_H

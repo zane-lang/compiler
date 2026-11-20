@@ -61,7 +61,7 @@ extern "C" {
 
 namespace {
 
-/* One error the front end reported. A note or a warning is not one: a
+/* One error the front end reported. A note or a warning is not an error: a
    package's C is held only to what makes it fail to compile. */
 struct Problem {
   std::string file;
@@ -73,8 +73,8 @@ struct Problem {
 class Collector : public clang::DiagnosticConsumer {
 public:
   std::vector<Problem> problems;
-  /* Warnings, kept apart: they refuse nothing, and the caller chooses
-     which to show. */
+  /* Warnings, kept apart: they never fail the compile, and the caller
+     chooses which to show. */
   std::vector<Problem> warnings;
 
   void HandleDiagnostic(clang::DiagnosticsEngine::Level level, const clang::Diagnostic &info) override {
@@ -207,13 +207,15 @@ value to_value(const Run &r) {
 
 /* What a header declares, written as text for interface.ml to read: a
    stream of words, each a bare token or, for a name, its length, `:` and
-   its bytes. A C type is written canonical, so a typedef reads as what it
-   names: `V` void, `B` bool, `I` an integer (sign, size and width in bits,
-   its name, and the standard typedef it was written through or nothing), `F` a floating type (size, whether it is IEEE, its name), `P`
+   its bytes. A C type is written canonical, so a typedef is written as the
+   type it names: `V` void, `B` bool, `I` an integer (sign, size and width
+   in bits, its name, and the standard typedef it was written through or
+   nothing), `F` a floating type (size, whether it is IEEE, its name), `P`
    a pointer (whether its pointee is const, the pointee), `R` a struct or
-   union (kind and identity, below), `A` an array (count and element), `N` a function
-   with a prototype (whether variadic, the parameters, the result), `K` one
-   without, and `O` any other, by its spelling. */
+   union (kind and identity, below), `A` an array (count and element), `N`
+   a function with a prototype (whether variadic, the parameters, the
+   result), `K` a function without a prototype, and `O` any other type, by
+   its spelling. */
 class Writer {
 public:
   explicit Writer(clang::ASTContext &ctx) : ctx(ctx) {}
@@ -483,8 +485,9 @@ struct Marked_alias {
 /* What the source's `ZANE_ALIAS` marks name, each refused with an error
    where it is written unless it is a declaration of a function or variable,
    not its definition, whose target is defined in the source with external
-   linkage and is of the same kind, neither has an `__asm__` label, and the declaration is not weak. Each declaration of a name counts once,
-   since a redeclaration inherits the mark. */
+   linkage and is of the same kind, where neither has an `__asm__` label
+   and the declaration is not weak. Each declaration of a name counts
+   once, since a redeclaration inherits the mark. */
 class Alias_marks : public clang::ASTConsumer {
 public:
   explicit Alias_marks(std::vector<Marked_alias> &marks) : marks(marks) {}
@@ -591,12 +594,13 @@ private:
    on the targets that have it: the name's declaration, where the source
    uses it, gives its uses to the alias, and the alias has the declaration's
    linkage, internal for a `static` one, so two sources can each have one
-   of the same name. Mach-O's C has no `alias`, and an
-   alias in LLVM is one on every target. */
+   of the same name. Mach-O's C has no `alias` attribute, and an LLVM alias
+   works on every target. */
 void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) {
   for (const Marked_alias &m : marks) {
     /* A target the source defines but clang emits no body for, as C99's
-       `inline` alone, is left out, and the link names what is missing. */
+       `inline` alone, is left out, and the link reports the missing
+       symbol. */
     llvm::GlobalValue *target = module.getNamedValue(m.target);
     if (!target || target->isDeclaration()) continue;
     auto *alias = llvm::GlobalAlias::create(target->getValueType(), target->getAddressSpace(),
@@ -629,9 +633,9 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
    name none, so the target machine's processor and features stand for
    theirs: on AArch64 the base architecture, `+v8a`, besides the processor,
    as clang names it on every function and LLVM's `generic` lacks
-   (Build.features), and the check below takes the same. The compile is for the
-   program's own processor (Compile.processor_flags), so a body that loses
-   it is emitted for the processor it was compiled for; one whose features
+   (Build.features), and the check below takes the same. The compile is
+   for the program's own processor (Compile.processor_flags), so a body
+   that loses it is emitted for the processor it was compiled for; one whose features
    that processor lacks, as a package's `-mavx2` adds, keeps them, and so
    does a function given a processor of its own
    (`__attribute__((target))`). */

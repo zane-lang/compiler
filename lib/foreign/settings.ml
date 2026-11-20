@@ -4,9 +4,9 @@
    `--package` directory itself (docs/design/ffi.md F5).
 
    Every path a row names stays inside the package's directory, and a
-   `source` pattern that applies to the build matches some file. What a
-   row is wrong about is reported against the file, naming the row by its
-   number, counted from one below the header. *)
+   `source` pattern that applies to the build matches some file. A problem
+   with a row is reported against the file, naming the row by its number,
+   counted from one below the header. *)
 
 type setting = Source | Include | Define | Archive | System
 
@@ -149,9 +149,9 @@ let checked path (number, setting, value, target) =
       in
       match check with Ok () -> Ok (target, { number; setting; value }) | Error why -> Error (problem why))
 
-(* What Coda said is wrong with the file, under the place it points at.
-   Its message starts with the file and position and goes on to draw the
-   line, which the diagnostic draws itself. *)
+(* The error Coda reported for the file, under the place the error points
+   at. Its message starts with the file and position and goes on to draw
+   the line, which the diagnostic draws itself. *)
 let parse_problem path (e : Coda.error) =
   let first = match String.index_opt e.message '\n' with Some i -> String.sub e.message 0 i | None -> e.message in
   let marker = " error: " in

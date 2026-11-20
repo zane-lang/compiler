@@ -23,12 +23,13 @@
 type headers = { root : string; resource : string; ffi : string }
 
 (* Every file [files] lists, written under [dir] unless already there: the
-   name of the directory is a hash of their contents, so one that exists
-   holds them. Each is written to a temporary of its own, created
-   exclusively, and renamed into place, so builds writing one directory at
-   once never see half a file. A rename that fails once the file is in
-   place lost to another build's, which wrote the same: Windows refuses to
-   replace a file another process has open. Raises [Sys_error] when [dir]
+   name of the directory is a hash of their contents, so a directory that
+   exists already holds them. Each is written to a temporary file of its
+   own, created exclusively, and renamed into place, so builds writing one
+   directory at once never see half a file. A rename that fails while the
+   file is already in place lost a race to another build's rename, which
+   wrote the same bytes: Windows refuses to replace a file another process
+   has open. Raises [Sys_error] when [dir]
    cannot be written. *)
 let write_files dir files =
   let random = Random.State.make_self_init () in
@@ -154,7 +155,7 @@ let search_root = if Sys.win32 then Some {|C:\zane-fixed|} else None
    the directory it stands for holds, so a path C spells through
    `__FILE__`, such as a source's `#include __FILE__`, names a file that
    exists. It is written once into [dir], named by a hash of its text,
-   which the maps decide whole. *)
+   and the maps alone determine that text. *)
 let overlay ~dir maps =
   let root name from =
     Printf.sprintf {|{"name":%s,"type":"directory-remap","external-contents":%s}|} (json_string name) (json_string from)
@@ -199,7 +200,7 @@ let rec without_overlays args =
 (* [path] with the longest mapped directory it starts with replaced by its
    fixed name. A directory is a prefix only up to a separator, so `inc`
    does not map `include`; on Windows `\` separates too. A path under
-   [search_root] is the fixed name it ends with. *)
+   [search_root] maps to the fixed name it ends with. *)
 let mapped_path maps path =
   let starts from =
     let n = String.length from in
@@ -275,7 +276,7 @@ let mapped maps text =
   in
   String.concat "\n" (List.map line (String.split_on_char '\n' text))
 
-(* One C source compiled, or what the front end said was wrong with it,
+(* One C source compiled, or the errors the front end reported for it,
    and the files its code came from, each by its real path. *)
 type source = { path : string; bitcode : string; key : string; includes : string list; warnings : Clang.problem list }
 
@@ -321,8 +322,8 @@ let warnings_of_text text =
       | _ -> None)
     (String.split_on_char '\n' text)
 
-(* [path] with every link and `.` or `..` resolved, or as it is when it
-   names nothing. *)
+(* [path] with every link and `.` or `..` resolved, or unchanged when no
+   file exists at [path]. *)
 let real path = try Unix.realpath path with Unix.Unix_error _ -> path
 
 (* The files [text], preprocessed C, names in its line markers, by their
@@ -415,7 +416,8 @@ let compile_source ?cache ~maps flags path =
     match Option.bind kept Cache.read with
     | Some bitcode ->
         (* The warnings are kept with their files mapped, as the key is,
-           so a module compiled in another directory names this one's. *)
+           so the warnings of a module compiled in another directory
+           name this directory's files. *)
         let warnings = Option.fold ~none:[] ~some:warnings_of_text (Option.bind warned Cache.read) in
         let warnings = List.map (fun (w : Clang.problem) -> { w with file = unmapped_path maps w.file }) warnings in
         Ok { path; bitcode; key; includes; warnings }

@@ -15,7 +15,7 @@
    as the package's sources are, with its settings, and kept in the cache
    alike. *)
 
-(* How a value crosses, as the slot holding it is read: a scalar of the
+(* How a value is passed to C, as the slot holding it is read: a scalar of the
    Zane type whose C type is given, which C converts to its own, a `Bool`
    as a byte, `Unit` as no value, a string's handle as a `const char *` to
    its bytes and a NUL, a string C returns as a `zane_bytes`, and any other
@@ -24,7 +24,7 @@ type kind = Scalar of string | Bool | Unit | Terminated | Text | Same
 
 (* A thunk: its label, which is its symbol after the target's global
    prefix, the C function it calls, and how each argument and the result
-   cross. *)
+   are passed. *)
 type entry = { label : string; c_function : string; params : kind list; result : kind }
 
 (* [s] as a C string literal's contents. *)

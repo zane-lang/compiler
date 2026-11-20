@@ -12,7 +12,7 @@
 type dir = System of string | Framework of string
 
 (* What kind of C compiler `ZANE_CC` is, as its `--version` (or, for
-   `cl.exe`, its `/?`) says. A GCC builds for the one target it was
+   `cl.exe`, its `/?`) output shows. A GCC builds for the one target it was
    configured for; a clang or `zig cc` takes `--target=`. *)
 type kind = Gcc | Clang | Msvc
 
