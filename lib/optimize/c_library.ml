@@ -1,11 +1,12 @@
-(* The C library functions whose meaning is exact, which the C evaluator
-   runs where C calls them with no body in the build (docs/design/ffi.md
-   F16). Any other is unknown, and the fold stops there.
+(* The C library functions whose results are exactly defined, which the C
+   evaluator runs where C calls them with no body in the build
+   (docs/design/ffi.md F16). Any other function is unknown, and the fold
+   stops at a call of it.
 
    `memcmp`, `strcmp` and `strncmp` promise only the sign of their
-   result, which is what they give. An allocation of zero bytes may or may
-   not be null, so making one stops; any other succeeds while it fits the
-   budget, `malloc`'s bytes unwritten and `calloc`'s zero. *)
+   result, and the evaluator gives only that sign. An allocation of zero
+   bytes may or may not be null, so making one stops; any other succeeds
+   while it fits the budget, `malloc`'s bytes unwritten and `calloc`'s zero. *)
 
 open Value
 open C_memory
@@ -123,8 +124,8 @@ let abs = function
       int bits (Int64.abs v)
   | _ -> stop "an absolute value of something not an integer"
 
-(* The function [name] called with [args], when it is one of the C
-   library's this models. *)
+(* The function [name] called with [args], when [name] is one of the C
+   library functions this module models. *)
 let call ~spend name args =
   match (name, args) with
   | "memcpy", [ d; s; n ] -> Some (memcpy spend d s n)

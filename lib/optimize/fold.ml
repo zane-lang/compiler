@@ -427,8 +427,8 @@ let holds_any (e : Expr.t) =
   !found
 
 (* A value that owns a block, made again in place of [e]: held as [e] held
-   it, or not made at all when a hold in [e] would end a block the
-   replacement cannot say which. *)
+   it, or not made at all when a hold in [e] would end a block and the
+   replacement cannot tell which block. *)
 let kept_held fn (e : Expr.t) c (value : Expr.t) =
   if not (V.owns_block c) then value
   else
@@ -450,7 +450,7 @@ let kept_held fn (e : Expr.t) c (value : Expr.t) =
     | None when holds_any e -> V.stop "a block a hold in the expression ends"
     | None -> value
 
-(* An expression evaluated where it is, and what replaces it. *)
+(* An expression evaluated in place, and what replaces it. *)
 let attempt fn (env : known) (e : Expr.t) : Expr.t option =
   let run = Eval.start fn.prog in
   let fr = frame env in
@@ -488,7 +488,7 @@ let attempt fn (env : known) (e : Expr.t) : Expr.t option =
       Option.iter (fun k -> V.Key.replace fn.failed k ()) (call_key e);
       None
 
-(* A statement run where it is, and the statements that replace it. *)
+(* A statement run in place, and the statements that replace it. *)
 let attempt_stat fn (env : known) (s : Stat.t) : Stat.t list option =
   let run = Eval.start fn.prog in
   let fr = frame env in
@@ -529,7 +529,8 @@ let last_named stats =
   last
 
 (* Whether a type holds a handle or an address anywhere: a value of it
-   lives in part somewhere a constant written as a [Let] does not say. *)
+   lives in part somewhere that a constant written as a [Let] cannot
+   describe. *)
 let rec holds_ref (t : Ty.t) =
   match t with
   | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> true

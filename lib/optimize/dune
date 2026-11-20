@@ -1,6 +1,6 @@
 ; Stage 5: optimization, the CGT to a faster CGT (docs/design/optimization.md),
-; run only for an optimized build. [Intrinsics] says what each runtime
-; function the tree calls is to a fold, [Value] is what the evaluator
+; run only for an optimized build. [Intrinsics] gives how a fold evaluates
+; each runtime function the tree calls, [Value] is what the evaluator
 ; computes with, [Eval] runs CGT at compile time, [Materialize] turns what it
 ; computed back into CGT, [Constants] finds the package constants that fold,
 ; [Fold] rewrites each function from the leaves up, and [Peel], an

@@ -1,5 +1,4 @@
-(* A
-   local held in a scope's arena whose value folded to a string literal
+(* A local held in a scope's arena whose value folded to a string literal
    bound by a plain [Let], and the scope it leaves empty dropped.
 
    `lut String=String(".-+*XM")` is a `String`, a type that can own a

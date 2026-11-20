@@ -1,7 +1,7 @@
-(* Stage 5 (docs/design/optimization.md): every value the program can have at
-   compile time computed there. The package constants that fold are found
-   first, so that a read of one folds wherever it is; then each function is
-   folded from the leaves up. A call into C runs on the C modules [c]
+(* Stage 5 (docs/design/optimization.md): every value the program can
+   compute at compile time, computed then. The package constants that
+   fold are found first, so that a read of one folds wherever it is; then
+   each function is folded from the leaves up. A call into C runs on the C modules [c]
    (docs/design/ffi.md F16), which live while [run] does. *)
 
 open Cgt.Nodes

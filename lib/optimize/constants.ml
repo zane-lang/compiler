@@ -1,9 +1,10 @@
 (* The package constants that fold (docs/design/optimization.md O9). A
    constant's maker (docs/design/lowering.md L16) is run as the program would
-   run it the first time the constant is read. One that finishes with a
-   value that can be written as code, and makes no output, has that value:
-   a read of it anywhere folds to it. Making one may read another, so the
-   search repeats until a pass finds no new one. *)
+   run it the first time the constant is read. A constant whose maker
+   finishes with a value that can be written as code, and makes no output,
+   folds: a read of the constant anywhere folds to that value. Making one
+   constant may read another, so the search repeats until a pass finds no
+   new constant that folds. *)
 
 open Cgt.Nodes
 module V = Value

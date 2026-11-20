@@ -55,8 +55,8 @@ and list_ = { mutable items : cell array; mutable count : int; mutable stride : 
 
 (* [ty] is the type of what the cell holds, which the layouts it is walked
    with are laid out over, and [layout] the layout it was placed with, when
-   it was. [origin] says whose the cell is: one the evaluation made, a local
-   of the function being folded, or a variable of the program. *)
+   it was. [origin] gives the cell's owner: the evaluation made it, it is a
+   local of the function being folded, or it is a variable of the program. *)
 and cell = { mutable value : v; mutable ty : Ty.t; mutable layout : Layout.t option; origin : origin }
 
 and origin = Made | Outer of int | Global of string
@@ -124,7 +124,7 @@ let rec ty_at (t : Ty.t) path =
 
 (* A value's own structs, arrays and cases, so that what holds it can be
    written in place without changing anything else that read it. Lists and
-   boxes are not copied: they are where they are, as at run time. *)
+   boxes are not copied: they stay in place, as at run time. *)
 let rec own = function
   | VRecord a -> VRecord (Array.map own a)
   | VCase (i, p) -> VCase (i, own p)
@@ -342,8 +342,8 @@ let rec export = function
       Option.map (fun payload -> Box { ty = c.ty; layout = c.layout; payload }) (export c.value)
   | VPtr _ | VNull | VLayout _ | VForeign _ -> None
 
-(* Whether two constants are the same in every bit: [=] takes a zero for
-   its negative, which a division tells apart. *)
+(* Whether two constants are the same in every bit: [=] treats a zero and
+   its negative as equal, and a division tells them apart. *)
 let rec same a b =
   match (a, b) with
   | Float x, Float y -> Int64.equal (Int64.bits_of_float x) (Int64.bits_of_float y)
@@ -381,7 +381,8 @@ let rec size = function
   | List { items; _ } -> List.fold_left (fun n c -> n + 24 + size c) 24 items
   | Box { payload; _ } -> 8 + size payload
 
-(* Whether a constant owns a list or a box, which building costs a block. *)
+(* Whether a constant owns a list or a box, each of which costs a block to
+   build. *)
 let rec owns_block = function
   | List _ | Box _ -> true
   | Record a -> Array.exists owns_block a

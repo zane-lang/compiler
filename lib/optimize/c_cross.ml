@@ -4,9 +4,10 @@
    evaluator's laid out as codegen lays out the slot (F10), padding bytes
    zero; the thunk runs; and the result slot is read back. A string,
    array or list C reads is a read-only copy of its bytes standing for
-   storage whose identity is unknown, so C comparing its address with
-   another's stops. A function value C takes is its C entry (F11), and the
-   entry's call of the lambda's adapter is the Zane evaluator's. *)
+   storage whose identity is unknown, so the fold stops where C compares
+   its address with another address. A function value C takes is its C
+   entry (F11), and the Zane evaluator runs the entry's call of the
+   lambda's adapter. *)
 
 open Cgt.Nodes
 open Value
@@ -53,14 +54,14 @@ let rec write prog c (p : M.ptr) (t : Ty.t) (v : v) =
   | Ty.I1, VBool b -> scalar (C_ir.Int 8) (M.Int (8, if b then 1L else 0L))
   | Ty.I32, VInt i -> scalar (C_ir.Int 32) (M.int 32 i)
   | Ty.I64, VInt i -> scalar (C_ir.Int 64) (M.Int (64, i))
-  (* A NaN of the Zane side has whatever bits the running program gave it,
-     which no Zane program can tell apart (O5) and C can. *)
+  (* A NaN of the Zane side has whatever bits the running program gave it:
+     no Zane program can tell those bits apart (O5), but C can. *)
   | Ty.F32, VFloat x -> scalar C_ir.Float (C_ops.of_float false x)
   | Ty.F64, VFloat x -> scalar C_ir.Double (C_ops.of_float true x)
   | Ty.Ptr, VNull -> scalar C_ir.Ptr M.Null
   | Ty.Ptr, VForeign (C x) -> scalar C_ir.Ptr x
   | Ty.Ptr, VFunc s -> scalar C_ir.Ptr (entry prog c s)
-  (* An array lent where it is (F10): C reads a copy of its elements. *)
+  (* An array lent in place (F10): C reads a copy of its elements. *)
   | Ty.Ptr, VPtr q -> (
       match ty_at q.cell.ty q.path with
       | Ty.Array (e, n) ->
@@ -123,7 +124,7 @@ let rec read c (p : M.ptr) (t : Ty.t) =
      a step for each 64 as a view's are. *)
   | Ty.Handle -> (
       let size = number (M.load p.M.alloc (p.M.off + 8) (C_ir.Int 64)) in
-      (* Read unsigned: a length past any allocation names no bytes. *)
+      (* Read unsigned: a length larger than any allocation covers no bytes. *)
       if Int64.unsigned_compare size 0x1_0000_0000_0000L > 0 then stop "a string longer than any allocation";
       let n = Int64.to_int size in
       if n = 0 then VText ""
