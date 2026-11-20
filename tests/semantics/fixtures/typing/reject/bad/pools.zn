@@ -1,0 +1,33 @@
+package bad;
+
+/// Worker pools (concurrency.md §6): one rejection per rule.
+alias Pool<T Type, S Type, E Type> = @primitives$WorkerPool<T, S, E>;
+
+type PoolBox = #struct { n Int; }
+PoolBox() => init{ n = Int(0); }
+
+/// An `&` to an object the program builds and can write.
+type Pointing = #struct { poolBox &PoolBox; }
+
+/// An `&` to the console, a capability, beside an owned crate: allowed.
+type Speaking = #struct {
+	out &@runtime$Console;
+	poolBox PoolBox;
+}
+
+Unit pools() {
+	// The state and the events are values (§6.1).
+	owned Pool<Int, PoolBox, Int> = @primitives$WorkerPool(Int, PoolBox(), Unit(this PoolBox, event Int) mut => Unit());
+	sent Pool<Int, Int, PoolBox> = @primitives$WorkerPool(Int, Int(0), Unit(this Int, event PoolBox) mut => Unit());
+	// An element's `&` names a capability (§6.4).
+	pointing Pool<Pointing, Unit, Unit> = @primitives$WorkerPool(Pointing);
+	speaking Pool<Speaking, Unit, Unit> = @primitives$WorkerPool(Speaking);
+	// `elements` copies, so it reads value-typed elements only (§6.6).
+	speaking:elements();
+	// A step's result converts to `@primitives$Bool`; an `Int` does not.
+	counts Pool<Int, Unit, Unit> = @primitives$WorkerPool(Int);
+	counts!start(Int(1), Int(this Int) mut => this);
+	// The publish function the checker supplies is not named.
+	@primitives$publish(Int(1));
+	return Unit();
+}

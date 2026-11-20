@@ -477,7 +477,9 @@ let fresh_param env ~name ~kind =
    told apart by its own parameters, which the call's instance fills: a
    list's methods are one overload on `List` and one on `ListRef`. *)
 let intrinsic_signatures =
-  Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions
+  Intrinsics.methods
+  @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions
+  @ [ ("publish", Intrinsics.publish_function) ]
 
 let signature_of env (r : Nodes.Verb_ref.t) =
   match r.Nodes.Verb_ref.owner with

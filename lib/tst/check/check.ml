@@ -716,6 +716,83 @@ and worker_test env span result =
          implicit constructor between them (control-flow.md §4.1)"
         (quote (Ty.to_string result)) (quote (Ty.to_string (Intrinsics.prim "Bool"))))
 
+(* A pool's `start` without the parameters the checker supplies, which is
+   what a call resolves against. *)
+and pool_view (s : S.t) =
+  match Intrinsics.pool_start_hidden s with
+  | Some n -> { s with S.params = List.filteri (fun i _ -> i < List.length s.S.params - n) s.S.params }
+  | None -> s
+
+(* A call to a pool's method, resolved (concurrency.md §6.2, §6.6). `start`
+   gets its whole signature back and the arguments the checker supplies:
+   `test`, the step result's conversion to `@primitives$Bool`, as a
+   worker's call gets it, and for a pool with state the publish function
+   value (pool_publish). `elements` copies each element, so it reads a pool
+   of value-typed elements only. *)
+and pool_method env span (o : outcome) =
+  match (Intrinsics.pool_start_hidden o.sig_, o.sig_.S.owner) with
+  | Some _, owner -> (
+      let full = List.find_map (fun (_, (s : S.t)) -> if s.S.owner = owner then Some s else None) Intrinsics.pool_methods in
+      let full = Option.get full in
+      let step = List.nth o.sig_.S.params (List.length o.sig_.S.params - 1) in
+      match Ty.subst o.subst step.S.ty with
+      | Ty.Verb v ->
+          let test = worker_test env span v.Ty.ret in
+          let publish =
+            match v.Ty.params with
+            | [ _; Ty.Verb { Ty.params = [ e ]; ret; _ } ] -> [ Some (T.Arg.Value (pool_publish env span e ret)) ]
+            | _ -> []
+          in
+          { o with sig_ = full; converted = o.converted @ (Some (T.Arg.Value test) :: publish) }
+      | _ -> { o with sig_ = full })
+  | None, S.Intrinsic "@primitives$elements" ->
+      (match Ty.subst o.subst (List.hd o.sig_.S.params).S.ty with
+      | Ty.Intrinsic { args = Ty.Type t :: _; _ } when Type_decls.is_reference env t ->
+          error env span
+            (Printf.sprintf
+               "`elements` copies each element, and %s is a reference type, which its pool alone owns \
+                and which is never copied (concurrency.md §6.6)"
+               (quote (Ty.to_string t)))
+      | _ -> ());
+      o
+  | None, _ -> o
+
+(* The publish function value a stateful pool's step is given (§6.5):
+   `P(event E) { return @primitives$publish(event); }`, its return
+   converting the `@primitives$Unit` to `P` by the one implicit constructor
+   between them. *)
+and pool_publish env span e p =
+  let local = fresh_local env "event" e span in
+  let read = mk (T.Expr.Var (T.Name_ref.Local local)) e span in
+  let unit = Intrinsics.prim "Unit" in
+  let f = Intrinsics.publish_function in
+  let callee = verb_ref f (List.map (fun (q : Ty.param) -> (q.Ty.id, Ty.Type e)) f.S.generics) in
+  let call = mk (T.Expr.Call { callee; args = [ T.Arg.Value read ]; handler = None }) unit span in
+  let converted =
+    if Ty.assignable ~dst:p ~src:unit || p = Ty.Error then call
+    else
+      match implicit_constructors env ~src:unit ~dst:p with
+      | [ ((s, subst) as found) ] ->
+          request env s subst span;
+          coerce_value call found
+      | [] ->
+          error env span
+            (Printf.sprintf
+               "a pool's step takes a publish function returning %s, and a publish returns %s, with no \
+                implicit constructor between them (concurrency.md §6.2)"
+               (quote (Ty.to_string p)) (quote (Ty.to_string unit)));
+          call
+      | several ->
+          error env span
+            (Printf.sprintf "more than one implicit constructor converts %s to %s: %s" (quote (Ty.to_string unit))
+               (quote (Ty.to_string p))
+               (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
+          call
+  in
+  let body = { T.Block.stats = [ { T.Stat.node = T.Stat.Return converted; span } ]; span } in
+  let v = { Ty.this_ = None; params = [ e ]; ret = p; abort = None; is_mut = false } in
+  mk (T.Expr.Lambda { params = [ local ]; body }) (Ty.Verb v) span
+
 (* The `index` of `ArrayRef.fill`: `I(position @primitives$I64) { return
    position; }`, its return converting by the one implicit constructor to
    `I`, the type `make` takes its position as (generics.md §8.4). *)
@@ -856,6 +933,9 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   let resolve_in stages name =
     if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
     else
+      (* A pool's `start` is resolved without the parameters the checker
+         supplies (pool_start). *)
+      let stages = List.map (List.map pool_view) stages in
       let all = List.concat stages in
       let rec try_stages = function
         | [] -> No_match
@@ -907,6 +987,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
         | Some o ->
             check_marker o.sig_;
             if o.sig_.is_mut && is_mut then write_subject env ctx subject;
+            let o = pool_method env span o in
             finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
                 T.Expr.Call { callee; args; handler })
   in

@@ -54,6 +54,13 @@ let types =
        whose elements are owners. Both are a handle to one block. *)
     t ~params:[ Ty.Type_kind ] "primitives" "List";
     t ~params:[ Ty.Type_kind ] ~reference:true "primitives" "ListRef";
+    (* A worker pool (concurrency.md §6.1): its elements `T`, its shared
+       state `S` and the events `E` its steps publish. A reference type,
+       which only a scope's local or an owner's field holds. *)
+    t ~params:[ Ty.Type_kind; Ty.Type_kind; Ty.Type_kind ] ~reference:true "primitives" "WorkerPool";
+    (* A worker's event source (§6.3): a timer, its interval in
+       nanoseconds. *)
+    t "primitives" "EventSource";
     t ~reference:true "runtime" "Console";
     t ~reference:true "runtime" "Runtime";
   ]
@@ -63,6 +70,7 @@ let find_type namespace name =
 
 let prim ?(args = []) name = Ty.Intrinsic { namespace = "primitives"; name; args }
 let runtime name = Ty.Intrinsic { namespace = "runtime"; name; args = [] }
+let pool t s e = prim "WorkerPool" ~args:[ Ty.Type t; Ty.Type s; Ty.Type e ]
 
 (* `@program$console` and `@program$runtime` (effects.md §6.6). *)
 let values = [ ("program", "console", runtime "Console"); ("program", "runtime", runtime "Runtime") ]
@@ -270,6 +278,31 @@ let constructors =
       ctor ~generics:[ list_element ] "List"
         [ param ~binds:list_element "T" (Ty.Concept Ty.Type_value) ]
         (prim "List" ~args:[ Ty.Type (Ty.Param list_element) ]);
+      (* A worker pool (concurrency.md §6.1), with shared state and the
+         funnel that writes it, or with none. `E` is read off the funnel's
+         parameter. The funnel's result is any `F`, so that `core` can pass
+         a funnel returning its own `Unit`; the runtime drops it. *)
+      (let t = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind
+       and st = Ty.fresh_param ~name:"S" ~kind:Ty.Type_kind
+       and e = Ty.fresh_param ~name:"E" ~kind:Ty.Type_kind
+       and f = Ty.fresh_param ~name:"F" ~kind:Ty.Type_kind in
+       ctor ~generics:[ t; st; e; f ] "WorkerPool"
+         [
+           param ~binds:t "T" (Ty.Concept Ty.Type_value);
+           param "state" (Ty.Param st);
+           param "funnel"
+             (Ty.Verb
+                { Ty.this_ = Some (Ty.Param st); params = [ Ty.Param e ]; ret = Ty.Param f; abort = None; is_mut = true });
+         ]
+         (pool (Ty.Param t) (Ty.Param st) (Ty.Param e)));
+      (let t = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+       ctor ~generics:[ t ] "WorkerPool"
+         [ param ~binds:t "T" (Ty.Concept Ty.Type_value) ]
+         (pool (Ty.Param t) (prim "Unit") (prim "Unit")));
+      (* A timer (§6.3), ready each time `interval` nanoseconds have passed
+         since it was last ready, and always when the interval is below
+         1. *)
+      ctor ~member:"every" "EventSource" [ param "interval" (prim "I64") ] (prim "EventSource");
       ctor ~generics:[ list_ref_element ] "ListRef"
         [ param ~binds:list_ref_element "T" (Ty.Concept Ty.Type_value) ]
         (prim "ListRef" ~args:[ Ty.Type (Ty.Param list_ref_element) ]);
@@ -458,6 +491,82 @@ let methods =
             (Ty.Roaming (Ty.Param list_element));
         ])
       [ "List"; "ListRef" ]
+
+(* A worker pool's methods (concurrency.md §6.2, §6.6). `start` has four
+   overloads, with state or without and with event sources or without,
+   each spelled apart so that the checker finds the whole signature again
+   once it has resolved a call without the parameters it supplies itself
+   (Check.pool_start). As a worker's does, the step returns any `R`, and
+   the checker supplies `test`, its conversion to `@primitives$Bool`. A
+   stateful step's publish function returns any `P`, and the checker
+   supplies `publish`, the function value itself, which calls
+   [publish_function] and converts its `@primitives$Unit` to `P`. The
+   stateless overloads take any pool; `core` keeps them to a pool whose
+   state and events are its `Unit`. *)
+let pool_methods =
+  let start ~stateful ~sources spelling =
+    let t = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind
+    and st = Ty.fresh_param ~name:"S" ~kind:Ty.Type_kind
+    and e = Ty.fresh_param ~name:"E" ~kind:Ty.Type_kind
+    and r = Ty.fresh_param ~name:"R" ~kind:Ty.Type_kind
+    and pr = Ty.fresh_param ~name:"P" ~kind:Ty.Type_kind in
+    let publish = Ty.Verb { Ty.this_ = None; params = [ Ty.Param e ]; ret = Ty.Param pr; abort = None; is_mut = false } in
+    let step =
+      Ty.Verb
+        {
+          Ty.this_ = Some (Ty.Param t);
+          params = (if stateful then [ Ty.Param st; publish ] else []);
+          ret = Ty.Param r;
+          abort = None;
+          is_mut = true;
+        }
+    in
+    let test = Ty.Verb { Ty.this_ = None; params = [ Ty.Param r ]; ret = prim "Bool"; abort = None; is_mut = false } in
+    ( "start",
+      verb
+        ~generics:([ t; st; e; r ] @ if stateful then [ pr ] else [])
+        ~is_mut:true ~namespace:"primitives" ~kind:S.Method ~name:"start" ~spelling
+        ([ param "this" (pool (Ty.Param t) (Ty.Param st) (Ty.Param e)); param "element" (Ty.Roaming (Ty.Param t)) ]
+        @ (if sources then [ param "sources" (prim "List" ~args:[ Ty.Type (prim "EventSource") ]) ] else [])
+        @ [ param "step" step; param "test" test ]
+        @ if stateful then [ param "publish" publish ] else [])
+        (prim "Unit") )
+  in
+  let read name ret =
+    let t = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind
+    and st = Ty.fresh_param ~name:"S" ~kind:Ty.Type_kind
+    and e = Ty.fresh_param ~name:"E" ~kind:Ty.Type_kind in
+    ( name,
+      verb ~generics:[ t; st; e ] ~namespace:"primitives" ~kind:S.Method ~name ~spelling:("@primitives$" ^ name)
+        [ param "this" (pool (Ty.Param t) (Ty.Param st) (Ty.Param e)) ]
+        (ret t st) )
+  in
+  [
+    start ~stateful:true ~sources:false "@primitives$start";
+    start ~stateful:true ~sources:true "@primitives$startOn";
+    start ~stateful:false ~sources:false "@primitives$startAlone";
+    start ~stateful:false ~sources:true "@primitives$startAloneOn";
+    read "state" (fun _ st -> Ty.Param st);
+    read "elements" (fun t _ -> prim "List" ~args:[ Ty.Type (Ty.Param t) ]);
+  ]
+
+let methods = methods @ pool_methods
+
+(* Whether [s] is one of `start`'s overloads, and how many of its last
+   parameters the checker supplies. *)
+let pool_start_hidden (s : S.t) =
+  match s.S.owner with
+  | S.Intrinsic ("@primitives$start" | "@primitives$startOn") -> Some 2
+  | S.Intrinsic ("@primitives$startAlone" | "@primitives$startAloneOn") -> Some 1
+  | _ -> None
+
+(* What a publish function value calls (§6.5): the event goes to the
+   funnel of the pool whose work is running. No program names it; the
+   checker writes the call (Check.pool_publish). *)
+let publish_function =
+  let e = Ty.fresh_param ~name:"E" ~kind:Ty.Type_kind in
+  verb ~generics:[ e ] ~namespace:"primitives" ~kind:S.Function ~name:"@primitives$publish"
+    ~spelling:"@primitives$publish" [ param "event" (Ty.Param e) ] (prim "Unit")
 
 (* `@math$` (math.md §2): the math functions on scalar primitives, one
    overload per scalar each function takes, with every operand of that one
