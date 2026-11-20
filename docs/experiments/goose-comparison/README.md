@@ -12,7 +12,7 @@ memory model it ended with, and how that differs from v0.20.
   built with `goose build -O2 --cc clang`. It has data stacks, no heap,
   reusable pools, 4-byte self-relative links, and threads that share nothing.
 - **Tests**: the spec repo's `langbench/` (16 tests, `tests.py` gives the
-  sizes and expected outputs), with Goose ports in this directory
+  sizes and expected outputs), with Goose ports in `programs/`
   (`*.goose`). Every port matches the expected output at both the check size
   and the full size. treecopy's port copies with a recursive `copy_tree` into
   a fresh pool, because Goose's `copy()` does not support an array of
@@ -785,7 +785,7 @@ the node stores, and one store of the count per frame.
 
 `fixtures.sh` runs the codegen fixtures with pooled variants under
 `ZANE_CHECK=1`, plain and with each switch: every affected fixture gives
-the same output. `stress/main.zn` builds and folds an `Expr` variant with
+the same output. `programs/stress/main.zn` builds and folds an `Expr` variant with
 nested pools, appends and copies; it gives the same result (`571557 31802
 136097 853`) under six combinations of the switches. With registers on, the
 IR of binarytrees has no `zane_pool_push` call left.
@@ -1185,7 +1185,7 @@ reference can name is in a frame or a block, both inside the cage.
 
 Every fixture gives the same output under the switch. Four of them store
 references in members (`references`, `replayed`, `longChain`, `settled`)
-and `probed` in elements. No suite test does, so `edges/main.zn` is one that
+and `probed` in elements. No suite test does, so `programs/edges/main.zn` is one that
 does: a `ListRef` of 2N edges, each `{from &Person; to &Person; weight
 Int}` naming one of four owners, scanned 50 times through both
 references. An edge is 24 bytes without the switch and 16 with it. At
@@ -1546,7 +1546,7 @@ The compute-bound tests, startup and primes are level, as before (nbody's
 
 Goose's ntree holds a node's children in a list inside the node with room
 for four (`(Node&<u32>)[..4]`); Zane's holds them in a `ListRef` on the
-heap, grown push by push. `ntreearray/main.zn` holds them as Goose does, in
+heap, grown push by push. `programs/ntreearray/main.zn` holds them as Goose does, in
 an `ArrayRef<Node, 4>`. An `ArrayRef`'s elements are all present from
 construction (generics.md §8.4), so a leaf cannot be a node with an empty
 array; it is a case of its own:
@@ -1664,10 +1664,10 @@ statement of the body naming the list. A reference to the list taken
 before the loop, pushed through inside it, would use the room made for the
 loop's own pushes; the prototype does not look for one.
 
-## A loop of one load and one add (`sumloop/`)
+## A loop of one load and one add (`programs/sumloop/`)
 
 Whether Zane's loop shape costs anything shows best in a loop that does
-almost nothing else: `sumloop/` sums a list of N `Int`s 200000 times, writing
+almost nothing else: `programs/sumloop/` sums a list of N `Int`s 200000 times, writing
 the total into the first element after each round so that no round repeats
 the one before (the same program in Zane, Goose and C).
 
@@ -1745,7 +1745,7 @@ fixed arrays of 32 on the stack. Two things cost:
   so its swap runs a counted loop with `j` computed from `i`, from which
   LLVM does not derive `i`'s bound.
 
-`fannkucharray/` is the port at Goose's layout, `ArrayRef<Int, 32>`: 138 M
+`programs/fannkucharray/` is the port at Goose's layout, `ArrayRef<Int, 32>`: 138 M
 instructions, the copy gone from the hot code, and in time ahead of Goose
 and level with C (0.226 / 0.239 s, Goose 0.241 / 0.263 s, C 0.223 / 0.242 s,
 the list port 0.247 / 0.252 s, at 10). The swap's second check remains.
@@ -1802,10 +1802,10 @@ environment change the first two.
 | test: function | Zane ÷ best | cause |
 | --- | --- | --- |
 | trialdiv: `main` | 1.24 (C) | 21 instructions a division to C's 17: the check for a zero or −1 divisor (3), and the port's `k == k / p * p` where C tests the remainder (1). Goose runs the same as Zane. |
-| fannkuch: `main` | 1.87 (C) | index checks and handle reloads in the copy, above; `fannkucharray/` is level |
+| fannkuch: `main` | 1.87 (C) | index checks and handle reloads in the copy, above; `programs/fannkucharray/` is level |
 | entities: `main` | 1.25 (C) | the 1-based loop's exit test, above; costs no time |
 | listgrowth: `main` | 1.28 (Goose) | Goose unrolls the push loop twice; Zane keeps a second counter |
-| ntree: `grow` | 2.52 (Goose) | the suite port's `ListRef` children; `ntreearray/` is ahead |
+| ntree: `grow` | 2.52 (Goose) | the suite port's `ListRef` children; `programs/ntreearray/` is ahead |
 | allocfree: `main` | 1.64 (Goose) | a region per pass of a loop, and the push's room check; fixed below |
 
 **allocfree.** Each pass of the release loop opens a scope region and
@@ -1896,13 +1896,13 @@ removes cost about 10: 159 M in `main` and 0.267 / 0.296 s. It stays off.
 
 Every fixture gives the same output with `ZANE_HOIST_HANDLES=1`, and with
 both switches (`ALL=1`), and `just test-compiler` passes with both on.
-`fannkucharray/`, the port at Goose's layout, remains the way to Goose's
+`programs/fannkucharray/`, the port at Goose's layout, remains the way to Goose's
 instruction count.
 
 ## All switches together
 
 The suite built twice from the same compiler, run in one pass
-(`results-all-switches.txt`, 7 runs, medians): with no switch, and with
+(`results/results-all-switches.txt`, 7 runs, medians): with no switch, and with
 `ZANE_ONE_BOX=1 ZANE_PARTIAL_INLINE=1 ZANE_LOOP_PUSHES=1
 ZANE_LIGHT_SCOPES=1 ZANE_HOIST_HANDLES=1 ZANE_REF32=1 ZANE_NICHE_SUMS=1`.
 Instructions are Callgrind's at `mechanisms.py`'s sizes; "five" is the
@@ -2002,7 +2002,7 @@ whole elements that fit the size it had, so the runtime and the emitted
 first block agree. A pool is a list of bytes, stride 1, so it counts the
 same either way; the cage keeps counting bytes.
 
-`biglist/` pushes N `Int`s and sums them back. At 600000000, 4.6 GB, the
+`programs/biglist/` pushes N `Int`s and sums them back. At 600000000, 4.6 GB, the
 switch's build before this change stops with "a list past 4 GiB"; after
 it, plain, frame references, and the five with frame references all print
 the right sum (8.7, 8.7 and 4.3 s).
@@ -2234,7 +2234,7 @@ assertions now expect a 16-byte handle and a room of 4 elements on Linux,
 and the old values elsewhere. Validated: `test-compiler` passes; the 63
 fixtures (`ALL=1`) give the same output with the defaults (with
 `ZANE_FRAME_REFS_CHECK=1`) and with all eight set to `0`; all 15 suite
-outputs match (`results-defaults.txt`, 3 runs each); the perf programs print their golden output; a
+outputs match (`results/results-defaults.txt`, 3 runs each); the perf programs print their golden output; a
 `--target x86_64-windows-gnu` or `aarch64-apple-darwin` build emits the
 24-byte handle and no `__ehdr_start`.
 
@@ -2315,7 +2315,7 @@ symbol differ.
 | ntree | ~1.6× with 24-byte handles; ~1.3× with the default 16-byte one, in less memory than Goose (23.5 MB against 24.7) | The list handle was the gap: 24 bytes against Goose's 17-byte node. The removed cage's 12-byte handle reached 18 MB. |
 | treecopy | ~0.5× with the defaults (it was ~1.2×; pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed: no region opened for a pass of a loop that boxes nothing, and the `ListRef` push loop's room made once. |
-| fannkuch | level; 1.4× Goose's instructions with `ZANE_HOIST_HANDLES=1` | The copy runs unchecked; each swap of the short flips still checks both indices. `fannkucharray/` matches Goose's layout. |
+| fannkuch | level; 1.4× Goose's instructions with `ZANE_HOIST_HANDLES=1` | The copy runs unchecked; each swap of the short flips still checks both indices. `programs/fannkucharray/` matches Goose's layout. |
 | listgrowth | level with `ZANE_LOOP_PUSHES=1` | Closed: room made before a loop of pushes, and the count kept in a register through it. |
 
 The default build (above) is the best so far: the five, frame references,

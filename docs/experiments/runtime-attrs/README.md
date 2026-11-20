@@ -1,8 +1,8 @@
 # Runtime declarations' attributes: measurements
 
 What the runtime's declarations tell LLVM (`lib/codegen/runtime_facts.ml`;
-[`design/lowering.md`](../design/lowering.md) §9, "What LLVM is told", and
-[`optimizations.md`](../optimizations.md)): `main`'s attributes
+[`design/lowering.md`](../../design/lowering.md) §9, "What LLVM is told", and
+[`optimizations.md`](../../optimizations.md)): `main`'s attributes
 (`zane_out_of_range` and `zane_too_deep` `noreturn cold nounwind`,
 `zane_text_equal` reads only), kept now in an optimized or tiered build
 too, whose linked runtime bodies used to replace the declarations and drop
@@ -11,13 +11,13 @@ them, and `captures(address)` on the handle of `zane_list_push`,
 [`experiments/llvm-facts`](https://github.com/zane-lang/compiler/tree/experiment/llvm-facts/docs/experiments/llvm-facts),
 "What remains" item 3.
 
-Measured with [`perf-unroll/`](../perf-unroll/README.md)'s `perf.py`,
+Measured with [`unroll-thresholds/`](../unroll-thresholds/README.md)'s `perf.py`,
 `langbench.py` and `compare.py`: estimated cycles, instructions, mispredicted
 branches, I1 misses and `.text` of every `tests/perf` program optimized,
 tiered and plain, and of the 10 langbench programs this compiler builds,
-optimized and tiered, at 1/50 of langbench's size. `before.tsv` is `main` at
-b8de490, `after.tsv` this change. Counts measure work, not time (see
-`perf-unroll/`).
+optimized and tiered, at 1/50 of langbench's size. `results/before.tsv` is `main` at
+b8de490, `results/after.tsv` this change. Counts measure work, not time (see
+`unroll-thresholds/`).
 
 ## tests/perf (rows moving at least 0.3%)
 
@@ -39,38 +39,38 @@ push, which goes straight to the runtime, and the loop's first round loses
 its check (`grow` is 286 lines of optimized IR before, 267 after).
 
 `main`'s own attributes kept through the link move nothing alone
-(`only-relink.tsv`: this change without `captures(address)`): the calls they
+(`results/only-relink.tsv`: this change without `captures(address)`): the calls they
 describe are cold or rare.
 
 ## Langbench (the 10 of 16 programs the current compiler builds)
 
-No program moves by 0.3% (`lb-before.tsv`, `lb-after.tsv`). Under Callgrind
+No program moves by 0.3% (`results/lb-before.tsv`, `results/lb-after.tsv`). Under Callgrind
 `concscan`, the one that spawns threads, sometimes stops on Valgrind's own
-assertion (`vgCallgrind_post_signal`), in either build: `lb-after.tsv` has
+assertion (`vgCallgrind_post_signal`), in either build: `results/lb-after.tsv` has
 no `concscan` optimized row for that reason, and runs of the larger set
-(`lb-all-attrs.tsv`) measured it unchanged.
+(`results/lb-all-attrs.tsv`) measured it unchanged.
 
 ## Measured and left out
 
 Every attribute below holds of the runtime's C, and none gained anything, so
 none is given; each would have been one more rule the runtime's C must keep.
-`all-attrs.tsv` and `lb-all-attrs.tsv` are all of them together;
+`results/all-attrs.tsv` and `results/lb-all-attrs.tsv` are all of them together;
 `only-*.tsv` turn on one group alone, over `nounwind` on every function.
 
-- `nounwind` on every function (`only-nounwind.tsv`).
+- `nounwind` on every function (`results/only-nounwind.tsv`).
 - `noalias nonnull align 8` on the blocks `zane_alloc`, `zane_alloc_held`
-  and `zane_box` return (`only-ret.tsv`): no hot loop calls an allocator
+  and `zane_box` return (`results/only-ret.tsv`): no hot loop calls an allocator
   without inlining its body.
 - `readonly`, `writeonly` and `captures(none)` on the pointers of
   `zane_print`, the `zane_text_*` and `zane_parse_*` functions,
   `zane_arguments`, `zane_list_new`, the removals, `zane_pool_root` and
   `zane_link`, and `captures(address)` on `zane_region_at` and
-  `zane_leaves` (`only-param.tsv` with the push's: its row is the push's
+  `zane_leaves` (`results/only-param.tsv` with the push's: its row is the push's
   alone).
 - Memory effects, `willreturn`, `nosync` and `nofree` on `zane_text_expect`,
   `zane_list_new`, the removals, `zane_pool_root`, `zane_link` and
   `zane_handle_made`; `noreturn cold` on `zane_no_object` and `cold` on
-  `zane_hold` (`only-fn.tsv`).
+  `zane_hold` (`results/only-fn.tsv`).
 
 With all of them, `texts` tiered rose 1.3% at the same instruction count:
 tier 1's `texts$main` was byte for byte the same, but its library's sections

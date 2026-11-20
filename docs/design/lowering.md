@@ -509,7 +509,11 @@ so that it stays outside the walk's recursion (`lower_intrinsics.ml`,
 and the walks and rewrites every pass over the tree uses, and
 `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
-`llvm_extra.ml` binds what they lack (`llvm_stubs.c`), and `build.ml` writes the object file and links it with the runtime. The
+with what it builds from in the parts it includes (`emit_types.ml`,
+`emit_runtime.ml`, `emit_frames.ml` and `emit_lists.ml`), `llvm_extra.ml`
+binds what they lack (`llvm_stubs.c`), and `build.ml` writes the object file
+and links it with the runtime, reading a failed link's errors with
+`link_errors.ml`. The
 runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
 `region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls,
 `zane_abi.h` as the offsets and sizes emitted code relies on, which codegen
@@ -1514,7 +1518,7 @@ test passing.
   - **Measuring.** `just bench-abi` (`dev/bin/abi-bench`) builds the spec
     repo's `langbench/` programs, the binarytrees reference among them
     (depth 16, as in
-    [`binarytrees-reference-results.json`](binarytrees-reference-results.json)),
+    [`../experiments/cross-package-optimization/results/binarytrees-reference.json`](../experiments/cross-package-optimization/results/binarytrees-reference.json)),
     and `dev/bench/calls`, which makes non-inlined calls on a 16-byte
     two-field struct, a three-byte struct, a string handle and a variant with
     a 64-byte payload. It builds them with the compiler before this rule
@@ -1659,7 +1663,7 @@ test passing.
     attributes included, so they are added again once the bodies are linked
     (`Runtime_bodies`). Further attributes the C would justify were
     measured and left out, gaining nothing
-    ([`perf-runtime-attrs`](../perf-runtime-attrs/README.md)).
+    ([`experiments/runtime-attrs`](../experiments/runtime-attrs/README.md)).
   - *The list operations small enough to see.* A new list is the constant
     empty handle, and a `remove` or `swapRemove` moves the elements with
     LLVM's `memmove` or `memcpy` of the element's own stride, and lowers
@@ -1851,7 +1855,7 @@ test passing.
   prologue and guards that the loop's few iterations never reach, so each
   step runs 63 more instructions (+10.4%, +6.8% cycles; at 100, +6.4% and
   +3.0%). Turning runtime unrolling off, or capping the factor at 2, loses
-  `borrows`' gain ([`perf-unroll/nbody.md`](../perf-unroll/nbody.md)). In
+  `borrows`' gain ([`experiments/unroll-thresholds/nbody.md`](../experiments/unroll-thresholds/nbody.md)). In
   estimated cycles against the options without them: `paths` 42.8% fewer,
   `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
   `entities` 3.4%, `repeats` 3.1%; `removal` 1.1% more, where the cold
@@ -1859,9 +1863,9 @@ test passing.
   items pointer on every iteration, and `nbody` 3.0% more. The price is
   code: a `tests/perf` executable's `.text` grows up to 10.5%, tier 1 of
   `kept` 8% and of `repeats` 25%. The langbench programs that build
-  (`perf-unroll`) grow 2% to 14% (11% for the two tiny ones) and run within
+  (`experiments/unroll-thresholds`) grow 2% to 14% (11% for the two tiny ones) and run within
   0.2% of before except `entities` (8.6% fewer) and `nbody`, and compiling
-  takes as long ([`perf-unroll`](../perf-unroll/README.md)).
+  takes as long ([`experiments/unroll-thresholds`](../experiments/unroll-thresholds/README.md)).
 
   For an AArch64 target, `-O2`'s loop unswitching also copies a loop whose
   body branches on a condition the loop does not change, once for each

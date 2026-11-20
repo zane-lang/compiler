@@ -5,7 +5,7 @@
 #   runner: macos-latest, toolchain: true, timeout: 90,
 #   command: docs/experiments/tight-layouts/arm64.sh
 #
-# Builds the compiler, checks that bench/niches prints the same in every
+# Builds the compiler, checks that programs/niches prints the same in every
 # mode, unoptimized and optimized, and runs measure.py over the modes.
 #
 # The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in
@@ -29,7 +29,7 @@ D=docs/experiments/tight-layouts
 for mode in default ZANE_PACK=structs ZANE_PACK=all ZANE_PACK=niche; do
   for opt in "" --optimize; do
     if [ "$mode" = default ]; then e=(); else e=("$mode"); fi
-    env ${e[@]+"${e[@]}"} "$Z" --build "$W/niches" $opt --package "$D/bench/niches"
+    env ${e[@]+"${e[@]}"} "$Z" --build "$W/niches" $opt --package "$D/programs/niches"
     ZANE_CHECK=1 "$W/niches" > "$W/out"
     if [ ! -f "$W/expected" ]; then cp "$W/out" "$W/expected"; fi
     if cmp -s "$W/out" "$W/expected"; then echo "niches, $mode $opt: same"; else echo "niches, $mode $opt: DIFFERENT"; exit 1; fi

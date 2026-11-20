@@ -60,7 +60,7 @@ def build(name, tid):
         # Only this variant's switches: none inherited from the caller.
         env = {**CLEAN, **ZANE[name]}
     else:
-        cmd = [GOOSE, "build", os.path.join(HERE, f"{tid}{GOOSE_FORMS[name]}.goose"), "-o", exe,
+        cmd = [GOOSE, "build", os.path.join(HERE, "programs", f"{tid}{GOOSE_FORMS[name]}.goose"), "-o", exe,
                "-O2", "--cc", clang]
         env = CLEAN
     r = subprocess.run(cmd, capture_output=True, text=True, env=env)

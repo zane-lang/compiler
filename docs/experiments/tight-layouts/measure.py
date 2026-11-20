@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds bench/layouts once per mode with --optimize, checks that every
+"""Builds programs/layouts once per mode with --optimize, checks that every
 mode prints the same checksum, and reports each shape's median wall time
 and peak resident memory over RUNS runs, the modes' runs interleaved.
 
@@ -51,7 +51,7 @@ for i, (name, switches) in enumerate(modes):
     env = {k: v for k, v in os.environ.items() if not k.startswith("ZANE_PACK")}
     env.update(s.split("=", 1) for s in switches)
     exe = os.path.join(work, f"layouts{i}{suffix}")
-    subprocess.run([zanec, "--build", exe, "--optimize", "--package", os.path.join(here, "bench/layouts")], env=env, check=True)
+    subprocess.run([zanec, "--build", exe, "--optimize", "--package", os.path.join(here, "programs/layouts")], env=env, check=True)
     exes[name] = exe
 
 def run(exe, shape):

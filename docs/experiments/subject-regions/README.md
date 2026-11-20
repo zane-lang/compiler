@@ -55,7 +55,7 @@ underlying arena").
 
 **Results.** `fixtures.sh OUT spawns spawned` (codegen fixtures, plain and
 optimized, checked and unchecked, under the switch): all match their golden
-files. `race/` (three spawned `deepen` calls and one in the spawner, 20
+files. `programs/race/` (three spawned `deepen` calls and one in the spawner, 20
 rounds) prints 20 `yes` with the switch, making 60 subject regions; the
 control stops at its first spawn with "experiment: another thread's scopes
 searched".
@@ -69,7 +69,7 @@ difference is `tests/codegen/golden/spawns.cgt`, the lowering dump, which
 shows the pointer member a copied subject is now read through. No test
 stopped on the runtime's cross-thread check.
 
-**The race, measured.** `race/` takes the depth from its first argument
+**The race, measured.** `programs/race/` takes the depth from its first argument
 (so the optimizer cannot fold it). Optimized builds, compiler at this
 step's commit:
 
@@ -127,7 +127,7 @@ yet looked at.
 
 ## Step 3: a local subject is copied, not moved
 
-**The defect.** `reader/` spawns `depth(a)` and then `a!deepen(n)` in one
+**The defect.** `programs/reader/` spawns `depth(a)` and then `a!deepen(n)` in one
 block. The checker accepts it, and the reader's frame holds a shallow copy
 of `a`'s handle, so it walks the blocks `a` owns. Step 1 moved `a` into its
 subject region, which returned those blocks to `a`'s home region: each
@@ -200,7 +200,7 @@ the check, as the 30-of-30 crash run did.
 
 ## Step 5: a local keeps its region
 
-**The defect.** `big/` deepens a subject 10,000 levels, then spawns one
+**The defect.** `programs/big/` deepens a subject 10,000 levels, then spawns one
 level onto it per round, from a function called in a loop (the checker
 rejects a spawned `mut` call in a loop body on storage declared outside
 it, concurrency.md §4.3, so a loop reaches one subject again only through

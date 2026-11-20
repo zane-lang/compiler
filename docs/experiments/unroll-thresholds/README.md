@@ -2,22 +2,22 @@
 
 `-unroll-threshold=250` and `-unroll-partial-threshold=100` in
 `Passes.llvm_options` (the decision and the loops it wins on are in
-[`design/lowering.md`](../design/lowering.md) §9, "The passes", and
-[`optimizations.md`](../optimizations.md)). The choice came from
-[`experiments/llvm-facts`](../experiments/llvm-facts/README.md)
+[`design/lowering.md`](../../design/lowering.md) §9, "The passes", and
+[`optimizations.md`](../../optimizations.md)). The choice came from
+[`experiments/llvm-facts`](../llvm-facts/README.md)
 (step 1 and step 5), which swept the budgets, and from the langbench `nbody`
 loss at a partial budget of 150 ([`nbody.md`](nbody.md)).
 
 `perf.py ZANEC LABEL` measures every `tests/perf` program optimized, tiered
 and plain with `tests/perf/run`'s own build and Callgrind code and writes
-`LABEL.tsv`: estimated cycles, instructions, mispredicted branches,
+`results/LABEL.tsv`: estimated cycles, instructions, mispredicted branches,
 instruction-cache (I1) misses and `.text` bytes (the executable's, or tier 1's
 library for tiered). `langbench.py ZANEC LABEL LANGBENCH CORE` does the same
 for the spec repository's langbench programs, optimized and tiered, at 1/50
 of langbench's size (sizes under 1000 as they are). `compare.py BEFORE AFTER`
 prints the tables; `compile_time.py` times `--optimize` and `--tier-up`
-builds (median of five, the two compilers alternating). `before*.tsv` is
-`main` at 90ebb2b, `after*.tsv` this change. Counts measure work, not time:
+builds (median of five, the two compilers alternating). `results/before*.tsv` is
+`main` at 90ebb2b, `results/after*.tsv` this change. Counts measure work, not time:
 Callgrind does not model store forwarding or any out-of-order effect, and its
 predictor has no history, so a mispredict win overstates what hardware gains.
 

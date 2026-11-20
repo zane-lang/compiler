@@ -6,8 +6,8 @@ with `available_externally` linkage, so it can inline them while residual
 calls still link against the dependency object. Unoptimized builds kept
 declarations only when these were measured; they now take the bodies in as
 well, for their own inlining (O12). The implementation is C12 in
-[`separate-compilation.md`](separate-compilation.md) and O10 in
-[`optimization.md`](optimization.md).
+[`../../design/separate-compilation.md`](../../design/separate-compilation.md) and O10 in
+[`../../design/optimization.md`](../../design/optimization.md).
 
 ## Runtime results
 
@@ -80,7 +80,7 @@ subtree copies does not eliminate all tree-construction overhead.
 Every variant matched the expected output at depths 0, 6 and 10, and every
 timed run matched at depth 16. Both Zane compiler versions linked the exact
 same separately compiled core object. Raw samples are in
-[`binarytrees-reference-results.json`](binarytrees-reference-results.json).
+[`results/binarytrees-reference.json`](results/binarytrees-reference.json).
 The spec's pinned multi-language results remain historical results from the
 old value-based source; its README, explanations and generated page identify
 that distinction rather than combining timings from different runs.
@@ -96,7 +96,7 @@ that distinction rather than combining timings from different runs.
 - The same core object used the stamp `v0.0%0123456789abcdef%` in both builds.
 
 The raw runtime samples are in
-[`cross-package-optimization-results.json`](cross-package-optimization-results.json).
+[`results/cross-package.json`](results/cross-package.json).
 
 ## Reproduction
 

@@ -283,7 +283,7 @@ became of each:
 - Items 1 and 2: taken in PR 359 as two global budgets, not a per-loop mark:
   `-unroll-threshold=250` and `-unroll-partial-threshold=100`. Langbench's
   `nbody` lost 6.8% at a partial budget of 150, so the budget is 100.
-  Measurements are in `docs/perf-unroll/`.
+  Measurements are in `docs/experiments/unroll-thresholds/`.
 - Item 3: being audited on branch `perf/runtime-attrs`.
 - Item 4: done: `tests/codegen/fixtures/intWrapping` wraps at the type's limits
   and is held to its golden output in the plain, optimized and tiered builds.

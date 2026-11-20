@@ -21,7 +21,7 @@ committed as each step lands, so it survives a context compaction.
   the port; the port may take Goose's structure where that is the design,
   not a dodge.
 
-## Baseline (step 19, `step19-goose.json`)
+## Baseline (step 19, `results/step19-goose.json`)
 
 Zane / Goose-clang 1.31 geomean. Worst: LZWDecode 6.2, Sort::Self 5.8,
 CSV::Parse 4.0, Calculator::Ast 3.9, LZWEncode 3.2, LogParser 2.4, SHA256 2.4,
@@ -148,7 +148,7 @@ Maze::Generator 1.8, Words 1.7, Interpreter 1.6, Sort::Merge 1.5.
   sorts per round, as C. 32-bit counts: no change. Matching Goose needs a
   comparator (or key-pair) stable sort in core; left.
 
-## Re-measure (step 20, `step20-goose.json`, before NGram)
+## Re-measure (step 20, `results/step20-goose.json`, before NGram)
 
 Zane / Goose-clang 1.15 geomean (was 1.31), faster on 15; Zane /
 Goose-gcc 0.94 (was 1.08), faster on 26. Worst vs clang now: LZWDecode
@@ -204,7 +204,7 @@ Maze::Generator 1.5, Template::Parse 1.5, LZWEncode 1.4.
   as compressed 32-bit references); `adjacentOpen` compiles to a tight
   unrolled count. Bound by the scattered cell loads; left.
 
-## Re-measure (step 21, `step21-goose.json`)
+## Re-measure (step 21, `results/step21-goose.json`)
 
 Zane / Goose-clang 1.14 geomean (step 19: 1.31), faster on 17; Zane /
 Goose-gcc 0.91 (1.08), faster on 28. Worst vs clang: LZWDecode 2.8,
@@ -246,7 +246,7 @@ fast as Goose, or faster, on every test.
   first run).
 - Report: `rep.py STEP.json` prints the table, worst ratio first.
 
-## Baseline (step 22, `step22-goose.json`, `step22-goose.md`)
+## Baseline (step 22, `results/step22-goose.json`, `results/step22-goose.md`)
 
 Zane (v0.37 + switches) / Goose-clang 1.106 geomean, faster on 16; Zane /
 Goose-gcc 0.950, faster on 23. Worst vs clang: LZWDecode 3.1, LogParser 3.0,
@@ -356,7 +356,7 @@ New switch this run: `ZANE_ARM_CHECKS=1` (below); `SW` plus it is the build.
   nothing else changes; a list from 128 KiB to 1 MiB uses more address
   space, but only its touched pages use RAM. With N = 131072: 0.21–0.24 s.
 
-## Re-measure (step 23, `step23-goose.json`, `step23-goose.md`)
+## Re-measure (step 23, `results/step23-goose.json`, `results/step23-goose.md`)
 
 All switches so far, `ZANE_REHOME=1` and `ZANE_LIST_SPANS=131072` included,
 against the step-22 binary (`old` in the JSON) and Goose, three interleaved
@@ -447,7 +447,7 @@ rounds, minimum of each:
   whole. `whitespace`'s position is a field `advance()` moves, which
   `scans` cannot see.
 
-## Re-measure (step 24, `step24-goose.json`, `step24-goose.md`)
+## Re-measure (step 24, `results/step24-goose.json`, `results/step24-goose.md`)
 
 Everything through `ZANE_IDLE_SEARCH`, against the step-23 binary (`old`):
 
@@ -531,7 +531,7 @@ only by luck of inlining. New bisecting switches: `ZANE_FRAME_SHADOW_ONLY`
   (Goose/clang 1.03). Its risk is a loop whose divisor changes every
   time; step 25 measures the whole suite with it.
 
-## Re-measure (step 25, `step25-goose.json`, `step25-goose.md`)
+## Re-measure (step 25, `results/step25-goose.json`, `results/step25-goose.md`)
 
 Everything through `ZANE_DIV_CACHE` (first form) plus the GameOfLife,
 BitWriter, Spectralnorm and NeuralNet port changes, against the step-24
@@ -627,7 +627,7 @@ handle or an address.
   qualifies (codec's `pattern` scope also holds a buffer; csvbench's
   `truth` is assigned).
 
-## Re-measure (step 26, `step26-goose.json`, `step26-goose.md`)
+## Re-measure (step 26, `results/step26-goose.json`, `results/step26-goose.md`)
 
 Every switch so far plus `ZANE_LITERAL_LOCALS=1`, 3 interleaved rounds
 against Goose's clang and gcc builds.
@@ -691,7 +691,7 @@ The machine swings ±25% between batches today, so these are medians of
 
 - HuffDecode (12 runs): step 26 1.497, 16-byte node only 1.450, biased
   base only 1.371, both 1.236 (−17%). Both stay.
-- All 50, 3 rounds (`biased-base.json`): geomean 1.006 against step 26,
+- All 50, 3 rounds (`results/biased-base.json`): geomean 1.006 against step 26,
   inside the noise. The extremes, again by medians of 7:
   Brainfuck::Recursion 2.242 → 1.981, NeuralNet 1.474 → 1.307, Words
   0.710 → 0.633; Sort::Self 0.415 → 0.406 and Template::Regex 1.538 →
@@ -713,14 +713,14 @@ The machine swings ±25% between batches today, so these are medians of
   8, as C's `#pragma unroll`: 0.807 (Goose 0.737). 50/50 checks pass.
 - With `ZANE_BIASED_BASE` and the 16-byte node, step 26's 1.497 is now
   0.807: 2.2× → 1.1×.
-- All 50, 3 rounds (`unroll-small.json`, medians): geomean 0.996
+- All 50, 3 rounds (`results/unroll-small.json`, medians): geomean 0.996
   against the same build without it; HuffDecode 0.80×, Json::Generate,
   Maze::Generator and TextRaytracer 0.82–0.88×. The worst, by medians of
   9 more: Base64::Decode 0.149 vs 0.150, CacheSimulation 1.104 vs 1.107,
   Json::Generate 0.240 vs 0.245 (all the same); Graph::AStar 1.140 vs
   1.228 by median with the same minimum (1.123 vs 1.120). On from here.
 
-## Re-measure (step 27, `step27-goose.json`, `step27-goose.md`)
+## Re-measure (step 27, `results/step27-goose.json`, `results/step27-goose.md`)
 
 Step 26's switches plus `ZANE_BIASED_BASE=1` and `ZANE_UNROLL_SMALL=8`,
 HuffDecode's 16-byte node and whole-byte loop; 3 interleaved rounds.
@@ -807,7 +807,7 @@ Session of 2026-11-15. Medians of 7–9 interleaved runs from here on
   Goose's `gs_memeq_long`); our hash is about a third more samples than
   Goose's for the same instruction count.
 
-## Re-measure (step 28, `step28-goose.json`, `step28-goose.md`)
+## Re-measure (step 28, `results/step28-goose.json`, `results/step28-goose.md`)
 
 Step 27's switches plus `ZANE_LOOP_INLINE=128`, the growing `BytesMap`
 and the rotating hash; 3 interleaved rounds, minimums. A new container
@@ -925,7 +925,7 @@ Against the step-28 build plus `ZANE_LEAF_PEEL`:
   inlined into `step`) and CSV::Parse noisy. Off: a budget that takes
   `emit` but not the heap's push would be fitted to the benchmark.
 
-## Re-measure (step 29, `step29-goose.json`, `step29-goose.md`)
+## Re-measure (step 29, `results/step29-goose.json`, `results/step29-goose.md`)
 
 Step 28's switches plus `ZANE_LEAF_PEEL=1` and `ZANE_SHADOW_REFILL=1`,
 and the `rx` byte-set fix; 3 interleaved rounds, minimums, same container
@@ -1072,8 +1072,8 @@ does) and the probe loop. 50/50 checks pass.
 
 The binary after the LZW hash change, with the switches of `sw.sh`
 (`ZANE_SHADOW_REFILL` and `ZANE_NO_COPY_IDIOM` now on), against both of
-Goose's builds: three interleaved rounds, in `step30-goose.json` and
-`step30-goose.md`. Geomean Zane / Goose-clang 0.973 (faster on 20 of 50;
+Goose's builds: three interleaved rounds, in `results/step30-goose.json` and
+`results/step30-goose.md`. Geomean Zane / Goose-clang 0.973 (faster on 20 of 50;
 step 29 0.984, 19), Zane / Goose-gcc 0.834 (faster on 34; step 29 0.833).
 
 Since step 29: Sieve 1.21 → 0.92, Fannkuchredux 1.20 → 1.07, Matmul::T16
@@ -1149,7 +1149,7 @@ The port as a user builds it: compiler v0.39 (the release, no switches),
 core v0.14 as a `source` dependency. Against Goose v2026.4 (the release
 archive; the port's C at `-O2` by gcc 13 and clang 18) and LangArena's C
 (`make prod`). All 50 checks pass on all four. `tri.py 3`, pinned to CPU 2,
-interleaved; `step31-goose.json`, table by `rep4.py` in `step31-goose.md`.
+interleaved; `results/step31-goose.json`, table by `rep4.py` in `results/step31-goose.md`.
 Geomeans: Zane / Goose-clang 0.974 (faster on 22 of 50), Zane / Goose-gcc
 0.792 (faster on 36), Zane / C 0.642 (faster on 32).
 

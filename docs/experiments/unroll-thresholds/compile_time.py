@@ -2,7 +2,7 @@
 --tier-up build times of two zanec builds, alternating."""
 import atexit, shutil, subprocess, time, statistics, sys, tempfile
 from pathlib import Path
-R = str(Path(__file__).resolve().parents[2])
+R = str(Path(__file__).resolve().parents[3])
 if len(sys.argv) != 5: sys.exit(__doc__)
 zmain, znew, bench, core = sys.argv[1:]
 progs={"stress":f"{R}/tests/perf/stress","longChain":f"{R}/tests/codegen/fixtures/longChain","wideSum":f"{R}/tests/codegen/fixtures/wideSum",

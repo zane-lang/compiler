@@ -3,6 +3,8 @@
 What each document here is for. The [spec](https://github.com/zane-lang/spec)
 defines the language; these describe how this compiler implements it.
 
+- [`development.md`](development.md) and [`releasing.md`](releasing.md): how
+  to set up, build and test the compiler, and how releases are published.
 - [`spec-divergences.md`](spec-divergences.md): where the compiler does
   something other than the spec says, or settles what the spec leaves open.
   Read it before relying on a spec section.
@@ -32,6 +34,9 @@ One document per stage, in the order the compiler runs them.
 - [`design/optimization.md`](design/optimization.md): stage 5, what an
   optimized build evaluates at compile time and how, and its decisions
   (O1…).
+- [`design/tiers.md`](design/tiers.md): tiered builds, as `zane run` and
+  `zane test` make them: a program starts unoptimized and moves to optimized
+  code while it runs (T1…).
 - [`design/memoization.md`](design/memoization.md): the calls remembered
   while the program runs, which functions get a table, and how a function
   stops looking when looking does not pay (M1…).
@@ -55,6 +60,15 @@ One document per stage, in the order the compiler runs them.
 - [`design/ffi.md`](design/ffi.md): the C interface: compiling a package's
   C with a clang of the compiler's own LLVM, checking foreign verbs, calling
   C through generated glue, and folding C by interpreting its IR (F1…).
+
+## Experiments and audits
+
+- [`experiments/README.md`](experiments/README.md): every measurement and
+  prototype that informed a design decision, one directory each with its
+  scripts, programs and raw results, and what came of it.
+- [`audit/`](audit/): the October 2026 audit: the report
+  ([`2026-10-17-report.md`](audit/2026-10-17-report.md)), the working notes
+  behind it, and the remediation plan.
 
 ## Ambiguity
 

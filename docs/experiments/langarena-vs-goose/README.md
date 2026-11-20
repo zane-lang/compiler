@@ -24,8 +24,8 @@ LANGARENA=../LangArena TRI_OUT=/tmp/tri.json python3 docs/experiments/langarena-
 ```
 
 `tri.py` writes the times to `$TRI_OUT`, by default `tri.json` in the
-current directory; run from this folder without `TRI_OUT`, it overwrites the
-recorded `tri.json`.
+current directory; run from `results/` without `TRI_OUT`, it overwrites the
+recorded `results/tri.json`.
 
 `build.sh` runs inside a copy of the **v0.37** release toolchain, so
 `zane toolchain install v0.37` first. The steps before the second run in
@@ -65,7 +65,7 @@ are where things were when each step ran.
 
 ## Step 0: baseline
 
-`baseline.md` (table) and `baseline.json` (every round's times), 3 rounds:
+`results/baseline.md` (table) and `results/baseline.json` (every round's times), 3 rounds:
 **geomean 0.934** (the earlier run on another machine: 0.93). Tests at 1.2× C
 or slower here: BWTDecode 1.87, Brainfuck::Recursion 1.70, BWTEncode 1.54,
 Matmul::T4 1.54 (threads; noisy), Brainfuck::Array 1.45, Json::ParseDom
@@ -357,7 +357,7 @@ three kept switches): `ZANE_SIZED_TBAA=1` Maze::Generator −9.5%, Maze::BFS
 ## Step 12: a three-way wall-clock re-bench
 
 `rebench3.py` runs three binaries on `run.js`, interleaved, and appends each
-round to `rebench3.json`. This step used 5 rounds and takes each test's median
+round to `results/rebench3.json`. This step used 5 rounds and takes each test's median
 time. Wall time only; no Callgrind.
 
 - **C:** `make -j4 prod`.
@@ -546,12 +546,12 @@ s). Step 12's runs were unpinned, on all four CPUs.
 unpinned:
 
 - `zane-perf` port, v0.36 against the branch with every switch off
-  (`step14-ab-v036-vs-branch-off.md`): geomean 1.027. Two branch changes
+  (`results/step14-ab-v036-vs-branch-off.md`): geomean 1.027. Two branch changes
   apply with the switches off: f577873's `moved_here` condition in the
   default assign-moves pass, and the U8 runtime function, which makes
   `build.sh` bundle the runtime itself.
 - This step's port, switches off against the step-9 set with
-  `LENT_OWNERS` (`step14-ab-off-vs-switches.md`): geomean 1.007.
+  `LENT_OWNERS` (`results/step14-ab-off-vs-switches.md`): geomean 1.007.
 
 The tests that came out slowest (Graph::AStar +28%/+32%, Maze::AStar
 +24%, Calculator::Interpreter +26%/+19%), run again with `bench1.py`, 8
@@ -562,7 +562,7 @@ regression stood out from the noise, so nothing on the branch was
 reverted. Template::Regex, GameOfLife and Words keep step 12's two levels.
 
 **All 50 tests against C** (`measure.py --rounds 5`, best of 5,
-`step14.md`, `step14.json`), the step-9 set with `LENT_OWNERS` and this
+`results/step14.md`, `results/step14.json`), the step-9 set with `LENT_OWNERS` and this
 step's port: **geomean 0.880**. At 1.10× C or slower: Brainfuck::Array
 1.46, Brainfuck::Recursion 1.44, BWTEncode 1.29, Graph::DFS 1.27,
 NeuralNet 1.25, HuffDecode 1.25, Matmul::T16/T4/T8 1.19/1.17/1.17,
@@ -646,14 +646,14 @@ list count before each compare.
 `LLVM_OPTIONS` (unset keeps every option). Compiler 53f09ab, port at this
 step; all 50 checksums pass.
 
-- Against C (`measure.py --rounds 5`, `step15.md`, `step15.json`):
+- Against C (`measure.py --rounds 5`, `results/step15.md`, `results/step15.json`):
   **geomean 0.863** (step 14's run with the step-9 set and `LENT_OWNERS`:
   0.880). At 1.10× C or slower: HuffDecode 1.65, NeuralNet 1.28,
   Sort::Merge 1.23, Brainfuck::Recursion 1.22, Matmul::T16 1.19,
   Brainfuck::Array 1.14, Sort::Quick 1.14, TextRaytracer 1.13,
   CacheSimulation 1.13, BWTEncode 1.13, Matmul::T8 1.12.
 - Against the step-9 set with `LENT_OWNERS` on the same port (`ab.py`, 4
-  rounds, `step15-ab-base-vs-all.md`): geomean 0.992. Sieve −22%,
+  rounds, `results/step15-ab-base-vs-all.md`): geomean 0.992. Sieve −22%,
   GameOfLife −18%, Graph::DFS −14%, Matmul::Single −12%; HuffDecode
   +29%, Template::Parse +23%, Binarytrees::Obj +17%. Pinned (`bench1.py`,
   6 rounds), Template::Parse and Binarytrees::Obj are within noise and
@@ -707,8 +707,8 @@ store in their function, 105 one.
 
 Both rules fix most of HuffDecode and make HuffEncode slower than both no
 shadow and full shadow. Over all 50 tests (`ab.py`, 4 rounds),
-`WRITTEN=1` is 1.024 against full shadow (`step16-ab-shadow-vs-written.md`)
-and 0.985 against no shadow (`step16-ab-noshadow-vs-written.md`). Graph::DFS,
+`WRITTEN=1` is 1.024 against full shadow (`results/step16-ab-shadow-vs-written.md`)
+and 0.985 against no shadow (`results/step16-ab-noshadow-vs-written.md`). Graph::DFS,
 whose −10% under the shadow step 13 measured, shows no gain from it in
 these pinned runs.
 
@@ -761,7 +761,7 @@ indices where C has pointers (NeuralNet, HuffDecode), bounds checks
 
 **C again.** Step 15's set rebuilt with compiler 5c95fa1 is byte-identical
 to step 15's binary (the switches added since are off unless set).
-`measure.py --rounds 5` (`step18.md`, `step18.json`): **geomean 0.863**,
+`measure.py --rounds 5` (`results/step18.md`, `results/step18.json`): **geomean 0.863**,
 as in step 15. At 1.10× C or slower: HuffDecode 1.56, Matmul::T4 1.30,
 NeuralNet 1.24, Matmul::T8 1.22, Matmul::T16 1.19, Brainfuck::Recursion
 1.18, Sort::Merge 1.17, Brainfuck::Array 1.15, TextRaytracer 1.13,
@@ -773,8 +773,8 @@ Between the two runs Matmul::T4 moved 1.07 → 1.30, Template::Regex 0.84 →
 (`goose -O2 --standalone`, the Makefile's `prod`) and its C compiled at
 `-O2` by gcc 13 and by clang 18. All 50 checksums pass. `tri.py 3`
 interleaves Goose/gcc, Goose/clang, Zane (the set above) and C, pinned
-to one core, rotating the order each round (`step18-goose.md`,
-`step18-goose.json`). Geomeans: Zane / Goose-gcc **1.041**, Zane /
+to one core, rotating the order each round (`results/step18-goose.md`,
+`results/step18-goose.json`). Geomeans: Zane / Goose-gcc **1.041**, Zane /
 Goose-clang **1.258**, Goose-gcc / C 0.807, Goose-clang / C 0.668
 (published: 0.79 and 0.66), Zane / C 0.841. Goose is far ahead on
 Sort::Self (×5.7), Calculator::Ast (×7.3), LZWDecode (×5.7), CSV::Parse
@@ -825,7 +825,7 @@ goes into the list as it is. `expression`, `term` and `factor` shrink to
 about half (inlined `add`s, no holds).
 
 Baseline: zane-lang/compiler#377's head with the fix below (`pr`).
-`tri.py 3` on both, pinned, interleaved (`step19.json`): **Calculator::Ast
+`tri.py 3` on both, pinned, interleaved (`results/step19.json`): **Calculator::Ast
 0.831 → 0.421 s** (Goose/clang 0.115: 7.2× → 3.7×). All 50 tests pass
 checked (`ZANE_CHECK=1`) and unchecked; `just test-compiler` passes with
 and without the switch.
@@ -846,7 +846,7 @@ cycles (particles; flips 3.05%). Main's order (4551d99) puts every plain row
 within 0.1% of main.
 
 **Against Goose again.** `tri.py 3` with this step's build (every
-switch, compiler 59810c8), Goose/gcc and Goose/clang (`step19-goose.json`):
+switch, compiler 59810c8), Goose/gcc and Goose/clang (`results/step19-goose.json`):
 Zane / Goose-gcc **1.08** (Zane faster on 21 of 50), Zane / Goose-clang
 **1.31** (12 of 50). Both are above step 18's 1.041 and 1.258, whose build
 had the LZWEncode leak. Furthest behind (× Goose/clang): LZWDecode 6.2,
