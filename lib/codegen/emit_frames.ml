@@ -242,8 +242,11 @@ let drain_scope env fr b m =
   ignore (Llvm.build_store outer (open_scope env) b);
   ignore (Llvm.build_br drained b);
   Llvm.position_at_end runtime_ b;
-  (* With checked drains, the scope's held allocas (Held_spills) are listed
-     here, as their values stand, rather than where they were held. *)
+  (* With checked drains, the frame slot of each of the scope's held
+     allocas (Held_spills), listed where it was held, is given the value
+     the alloca holds, which the drain then ends. A slot whose local was not
+     held on the way here was never listed, so what is stored there is
+     never read. *)
   (match List.filter (fun (_, h) -> listed env h.Held_spills.layout) (Held_spills.of_arena m) with
   | [] -> ()
   | held ->
@@ -258,8 +261,7 @@ let drain_scope env fr b m =
       Llvm.position_at_end listing b;
       List.iter
         (fun (a, (h : Held_spills.held)) ->
-          ignore (Llvm.build_store (Llvm.build_load h.ty a "" b) h.slot b);
-          ignore (call_runtime env b Cgt.Runtime.Hold [| h.slot; layout env h.layout |]))
+          ignore (Llvm.build_store (Llvm.build_load h.ty a "" b) h.slot b))
         held;
       ignore (Llvm.build_br after b);
       Llvm.position_at_end after b);
@@ -278,9 +280,9 @@ let frame_slot env fr b scope id =
 
 (* The place of held local [id] of LLVM type [t] and layout [l]: its slot
    in its scope's frame, or, under the experiment (Held_spills), an alloca
-   that keeps the slot for the calls it is given to. The alloca is zeroed
-   and the slot's address computed where the scope's code starts, so that
-   a drain on any way out finds both. A scope whose frame is itself an
+   that keeps the slot for the calls it is given to. The slot's address is
+   computed where the scope's code starts, so that a drain on any way out
+   finds it. A scope whose frame is itself an
    alloca (a light scope) keeps its slots there, and so does a local that
    may hold a foreign handle, which its scope's drain ends whether or not
    drains are checked. *)
@@ -293,7 +295,6 @@ let held_slot env fr b scope id ~bytes ~layout:l t =
     let a = Llvm.build_alloca t "" top in
     let start = Held_spills.at_entry env.ctx arena b in
     let slot = byte_at env start arena (Hashtbl.find fr.offsets id) in
-    ignore (Llvm.build_store (Llvm.const_null t) a start);
     Held_spills.record a { Held_spills.slot; ty = t; arena; layout = l };
     a
   end
@@ -304,8 +305,10 @@ let held_slot env fr b scope id ~bytes ~layout:l t =
    value may hold a foreign handle is listed whether or not drains are
    checked, so the drain ends the handle (docs/design/ffi.md F12). *)
 let hold env fr b slot l =
-  if Held_spills.find slot <> None then ()
-  else if Walks.holds_handle (walks env) l then
+  (* A held alloca (Held_spills) is listed by its frame slot, which its
+     scope's checked drain fills from it first. *)
+  let slot = match Held_spills.find slot with Some h -> h.Held_spills.slot | None -> slot in
+  if Walks.holds_handle (walks env) l then
     ignore (call_runtime env b Cgt.Runtime.Hold [| slot; layout env l |])
   else if listed env l then begin
     let on =
