@@ -1,0 +1,37 @@
+/// A program that starts workers on a pool `poollibrary` makes, built
+/// apart from it: each step publishes the library's event type, which the
+/// pool's funnel applies. It prints the sum once every event has arrived.
+package pooluser;
+
+import poollibrary$;
+
+alias String = @primitives$String;
+
+/// The pool's state once `events` events are applied, read while the
+/// workers run.
+Total applied(made @primitives$WorkerPool<Task, Total, Tick>, events Int) {
+	@controlflow$repeat(Int(1000000000), {
+		now Total = made:state();
+		@controlflow$branch(@operators$equal(now.events, events), {
+			return now;
+		});
+	});
+	return made:state();
+}
+
+Unit main() {
+	@controlflow$branch(true, {
+		made ^@primitives$WorkerPool<Task, Total, Tick> = pool(Int(3));
+		step @primitives$Bool[this Task, Total, Unit[Tick]] mut = @primitives$Bool(this Task, total Total, publish Unit[Tick]) mut {
+			publish(Tick(this.n));
+			this.n = @operators$add(this.n, @operators$negate(Int(1)));
+			return @operators$lessThan(Int(0), this.n);
+		}
+		made!start(Task(Int(3)), step);
+		made!start(Task(Int(4)), step);
+		// 1 + 4 + 9 from the first worker, 1 + 4 + 9 + 16 from the second.
+		seen Total = applied(made, Int(7));
+		@program$console!print(@operators$concat(String(seen.sum), String.escaped("\n")));
+	});
+	return Unit();
+}

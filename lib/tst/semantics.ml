@@ -31,6 +31,7 @@ let check ?(interfaces = []) (packages : Assembly.package list) =
   Expansions.run env program;
   Literal_ranges.run env program;
   Spawns.run env ~multi program;
+  Pool_elements.run env program;
   Borrows.run env program;
   let diagnostics =
     List.sort_uniq

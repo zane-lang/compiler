@@ -159,7 +159,9 @@ plain case.
 the spawning scope may not touch it
 ([`concurrency.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/concurrency.md)
 §4.3), and a spawned call writes only through a value-typed subject
-(§4.2). So nothing the loop reads changes under it while it runs, and
+(§4.2). A worker pool's step writes only its element, which the pool
+owns, and its funnel only the pool's state (§6.4, §6.5), so neither writes
+a place the loop can read. So nothing the loop reads changes under it while it runs, and
 reading a node earlier than the plain loop would read it sees the same
 value. This is what C cannot prove about a pointer it was given: in Zane
 the walked structure is read-only for the loop's whole run by

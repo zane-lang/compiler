@@ -11,8 +11,8 @@
 ; - check/     pass 5, [Check], and the parts of it that are not the
 ;              recursive walk, with [Program] running it over the build;
 ; - analyses/  [Repeats], [Read_only], [States], [References], [Moves],
-;              [Scopes], [Exits], [Expansions], [Literal_ranges], [Spawns]
-;              and [Borrows], over the tree pass 5 builds;
+;              [Scopes], [Exits], [Expansions], [Literal_ranges], [Spawns],
+;              [Pool_elements] and [Borrows], over the tree pass 5 builds;
 ; - render/    [To_tree_graph] and [To_span_text].
 ;
 ; [Semantics] runs them in order, and [Tst] is the entry module.

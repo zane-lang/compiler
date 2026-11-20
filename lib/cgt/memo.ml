@@ -69,7 +69,8 @@ let fits (f : Func.t) =
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Sleep | Runtime.Arguments
   | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
-  | Runtime.Main_aborted ->
+  | Runtime.Main_aborted | Runtime.Workers_new | Runtime.Workers_start | Runtime.Workers_publish
+  | Runtime.Workers_state | Runtime.Workers_elements ->
       false
   | _ -> true
 
@@ -525,7 +526,8 @@ let version remembered outside next body =
 
 (* The program with each memoized function replaced by its two copies, and
    the memoized functions, whose dispatchers codegen emits. In a program that
-   spawns, and in a library, whose functions a program that spawns may call,
+   spawns or makes a worker pool, and in a library, whose functions such a
+   program may call,
    threads share each table, whose entries are guarded by their tags
    (Memos), and each thread keeps its own dispatcher state; a memoized
    function reads only its arguments and constants, so a result that any

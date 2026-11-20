@@ -244,21 +244,31 @@ let roots_of_glue st (pkg : T.Package.t) =
       | _ -> ())
     pkg.T.Package.decls
 
-(* Every call the program spawns: a spawn anywhere in any package of the
-   build, a stamped dependency's included, since its objects are built from
-   the source checked here (docs/design/separate-compilation.md C2). A spawn
-   whose value is read where it is written runs at once, but counts too. *)
+(* Every call the program spawns, and every worker pool it makes: a spawn or
+   a pool anywhere in any package of the build, a stamped dependency's
+   included, since its objects are built from the source checked here
+   (docs/design/separate-compilation.md C2). A spawn whose value is read
+   where it is written runs at once, but counts too. *)
 let spawned (p : T.Program.t) =
   let found = ref [] in
   let call (e : T.Expr.t) =
     found := (match e.T.Expr.node with T.Expr.Spawn inner -> inner | _ -> e) :: !found
+  in
+  (* A worker pool runs its work on the pool's threads (concurrency.md
+     §6), so a program that makes one runs on more than one thread; its
+     constructor counts, as its owner is no subject a spawned call writes
+     back. *)
+  let pooled (e : T.Expr.t) =
+    match e.T.Expr.node with
+    | T.Expr.Construct { ctor = { owner = S.Intrinsic "@primitives$WorkerPool"; _ }; _ } -> found := e :: !found
+    | _ -> ()
   in
   let rec block (b : T.Block.t) = List.iter stat b.T.Block.stats
   and stat (s : T.Stat.t) =
     (match s.T.Stat.node with T.Stat.Spawn e -> call e | _ -> ());
     List.iter expr (Tst.Traverse.stat_exprs s)
   and expr (e : T.Expr.t) =
-    (match e.T.Expr.node with T.Expr.Spawn inner -> call inner | _ -> ());
+    (match e.T.Expr.node with T.Expr.Spawn inner -> call inner | _ -> pooled e);
     List.iter
       (function
         | Tst.Traverse.Same x -> expr x
@@ -405,9 +415,9 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
   let exports p = library && own p in
   let stamp p = if library && own p && root = "" then "!" else "" in
   let stamped p = (not (own p)) && stamp_of p <> "" in
-  (* A program none of whose code spawns runs on one thread, so nothing
-     writes back while the program reads (lowering.md §9). A library's code
-     may run in a program that spawns. *)
+  (* A program none of whose code spawns or makes a worker pool runs on one
+     thread, so nothing writes back while the program reads (lowering.md
+     §9). A library's code may run in a program that spawns. *)
   let calls = spawned p in
   (* A table filled for a program built earlier in this process does not
      apply to this program; only the optimizer refills it. *)

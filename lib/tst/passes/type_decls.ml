@@ -167,7 +167,7 @@ let rec check_function_types env span (t : Ty.t) =
    themselves, which were checked where they were written. The walk returns
    the slot that rejects the type, as the path that reaches the slot, and
    the rejected type. *)
-type slot = Value_slot | Under_reference | Under_take | List_element | Bare_result
+type slot = Value_slot | Under_reference | Under_take | List_element | Bare_result | Pool_value
 
 type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 
@@ -272,6 +272,47 @@ let holds_reference env (ft : Ty.t) =
   | Ty.Param _ | Ty.Error | Ty.Roaming _ -> false
   | ft -> is_reference env ft
 
+(* Whether [t] is a capability (effects.md §6): a foreign handle type of
+   the capability kind, or the program's console or runtime. *)
+let is_capability env (t : Ty.t) =
+  match Ty.strip_mode t with
+  | Ty.Named (tid, _) -> (
+      (* A handle with no free function (ffi.md §4.1). *)
+      match type_info_of_id env tid with
+      | Some { definition = Some (Handle h); _ } -> h.Nodes.Handle.free = None
+      | _ -> false)
+  | Ty.Intrinsic { namespace = "runtime"; name = "Console" | "Runtime"; _ } -> true
+  | _ -> false
+
+(* The first `&` a value of [t] reaches, through the fields and elements it
+   owns at any depth, that names no capability; [t] itself when it is an
+   `&`. A function value captures nothing, so it reaches nothing. A worker
+   pool's element may hold such an `&` only to a package constant
+   (concurrency.md §6.4, Pool_elements). *)
+let stray_reference env (t : Ty.t) =
+  (* Each instance of a type is examined once: a generic type may hold
+     another instance of itself, whose arguments differ. The growing-argument
+     rule keeps the instances finite; [budget] ends the walk of a program
+     that breaks it, which is reported elsewhere. *)
+  let seen = Hashtbl.create 16 in
+  let budget = ref 100_000 in
+  let rec walk (t : Ty.t) =
+    match t with
+    | Ty.Reference target -> if is_capability env target then None else Some t
+    | Ty.Roaming t -> walk t
+    | Ty.Named (tid, args) when not (Hashtbl.mem seen t) && !budget > 0 -> (
+        Hashtbl.add seen t ();
+        decr budget;
+        match type_info_of_id env tid with
+        | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
+            List.find_map (fun (_, ft) -> walk (Ty.instantiate info.params args ft)) fs
+        | Some ({ definition = Some (Distinct u); _ } as info) -> walk (Ty.instantiate info.params args u)
+        | _ -> None)
+    | Ty.Intrinsic { args; _ } -> List.find_map (function Ty.Type a -> walk a | Ty.Number _ -> None) args
+    | _ -> None
+  in
+  walk t
+
 (* A type argument of the wrong kind found inside a part of a type, reached
    through [step]. *)
 let through step = Option.map (fun found -> { found with path = step :: found.path })
@@ -287,6 +328,18 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       | Some ({ definition = Some (Distinct u); _ } as info) ->
           wrong_kind env ~seen (Ty.instantiate info.params args u)
       | _ -> None)
+  (* A worker pool's state and events are values (concurrency.md §6.1).
+     What its element's `&`s name is a property of each element, not of its
+     type (Pool_elements). *)
+  | Ty.Intrinsic { namespace = "primitives"; name = "WorkerPool"; args = [ Ty.Type el; Ty.Type st; Ty.Type ev ] } -> (
+      let part what x = Printf.sprintf "the %s of %s" what (quote (Ty.to_string t)) |> fun p -> (p, x) in
+      let not_value (p, x) = if holds_reference env x then Some { path = [ p ]; bad = x; slot = Pool_value } else None in
+      match List.find_map not_value [ part "state" st; part "events" ev ] with
+      | Some found -> Some found
+      | None ->
+          List.find_map
+            (fun (p, x) -> through p (wrong_kind env ~seen (Ty.strip_mode x)))
+            [ (elements (), el); part "state" st; part "events" ev ])
   | Ty.Intrinsic
       { namespace = "primitives"; name = "ListRef"; args = Ty.Type (Ty.Reference x as e) :: _ }
     when not (is_value env x) ->
@@ -337,6 +390,11 @@ let describe_wrong_kind { path; bad; slot } =
       Printf.sprintf
         "%s is %s, and it fills %s, written bare; a borrow is never returned or aborted, so \
          that position needs `^` or `&` to take this type"
+        (quote (Ty.to_string bad)) what (String.concat ", then " path)
+  | Pool_value ->
+      Printf.sprintf
+        "%s is %s, and it fills %s; a worker pool's state and events are values, since its workers \
+         read the state by snapshot and an event waits in the funnel's queue (concurrency.md §6.1)"
         (quote (Ty.to_string bad)) what (String.concat ", then " path)
   | Value_slot ->
       Printf.sprintf

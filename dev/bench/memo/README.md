@@ -201,6 +201,6 @@ above +1%, all tiered, run about 1.1 million cycles, and theirs is a fixed
 cost of 13,000 to 20,000 cycles: the lookups made before the function stops, and last-level misses
 on the code and the table that tier 1 adds.
 
-A program that spawns, and a library, which a program that spawns may call,
-share each table between threads
+A program that spawns or makes a worker pool, and a library, which such a
+program may call, share each table between threads
 ([`docs/design/memoization.md`](../../../docs/design/memoization.md) M1).

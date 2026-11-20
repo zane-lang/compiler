@@ -206,6 +206,17 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 /* A spawned call's subject goes into a region of its own (docs/design/lowering.md §9). */
 void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied);
 
+/* workers.c: worker pools (concurrency.md §6). */
+void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const zane_type *state_type, void *funnel,
+                       void (*funnel_thunk)(char *), int64_t event_size, const zane_type *event_type,
+                       int64_t event_id);
+void zane_workers_start(char *handle, char *element, int64_t size, const zane_type *type, void (*thunk)(char *),
+                        void *step, void *test, void *publish, int64_t has_sources, const zane_list *sources);
+void zane_workers_publish(char *event, int64_t size, int64_t id);
+char *zane_workers_state(char *handle);
+void zane_workers_elements(zane_list *out, char *handle, int64_t stride, const zane_type *type);
+void zane_workers_free(void *const *args, void *result);
+
 /* snapshot.c */
 void zane_snapshot(char *out, const char *from, int64_t size);
 void zane_writeback(char *at, char *copy, int64_t size, const zane_type *type);

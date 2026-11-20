@@ -730,6 +730,58 @@ File "fixtures/typing/reject/bad/overloads.zn", line 44, characters 1-18:
 44 | Int?Unit main() {
    | ^^^^^^^^^^^^^^^^^
 Error: `main`'s one abort type is `@primitives$String`, the message the program reports when `main` aborts
+File "fixtures/typing/reject/bad/pools.zn", line 37, characters 21-28:
+37 |     owned Pool<Int, PoolBox, Int> = @primitives$WorkerPool(Int, PoolBox(), Unit(this PoolBox, event Int) mut => Unit());
+   |                     ^^^^^^^
+Error: `bad$PoolBox` is a reference type, and it fills the state of `@primitives$WorkerPool<@primitives$I64, bad$PoolBox, @primitives$I64>`; a worker pool's state and events are values, since its workers read the state by snapshot and an event waits in the funnel's queue (concurrency.md §6.1)
+File "fixtures/typing/reject/bad/pools.zn", line 37, characters 65-74:
+37 |     owned Pool<Int, PoolBox, Int> = @primitives$WorkerPool(Int, PoolBox(), Unit(this PoolBox, event Int) mut => Unit());
+   |                                                                 ^^^^^^^^^
+Error: `bad$PoolBox` is a reference type, and it fills the state of `@primitives$WorkerPool<@primitives$I64, bad$PoolBox, @primitives$I64>`; a worker pool's state and events are values, since its workers read the state by snapshot and an event waits in the funnel's queue (concurrency.md §6.1)
+File "fixtures/typing/reject/bad/pools.zn", line 38, characters 25-32:
+38 |     sent Pool<Int, Int, PoolBox> = @primitives$WorkerPool(Int, Int(0), Unit(this Int, event PoolBox) mut => Unit());
+   |                         ^^^^^^^
+Error: `bad$PoolBox` is a reference type, and it fills the events of `@primitives$WorkerPool<@primitives$I64, @primitives$I64, bad$PoolBox>`; a worker pool's state and events are values, since its workers read the state by snapshot and an event waits in the funnel's queue (concurrency.md §6.1)
+File "fixtures/typing/reject/bad/pools.zn", line 38, characters 72-115:
+38 |     sent Pool<Int, Int, PoolBox> = @primitives$WorkerPool(Int, Int(0), Unit(this Int, event PoolBox) mut => Unit());
+   |                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `bad$PoolBox` is a reference type, and it fills the events of `@primitives$WorkerPool<@primitives$I64, @primitives$I64, bad$PoolBox>`; a worker pool's state and events are values, since its workers read the state by snapshot and an event waits in the funnel's queue (concurrency.md §6.1)
+File "fixtures/typing/reject/bad/pools.zn", line 43, characters 20-35:
+43 |     pointing!start(Pointing(local), Bool(this Pointing) mut => false);
+   |                    ^^^^^^^^^^^^^^^
+Error: a worker pool's element may hold an `&` only to a package constant or a capability, since nothing else it could name is safe from the writes of the program while its workers run (concurrency.md §6.4), and the `&` taken at line 43 names `local`, a local of the program
+File "fixtures/typing/reject/bad/pools.zn", line 45, characters 22-27:
+45 |     pointing!pointAt(local);
+   |                      ^^^^^
+Error: this argument reaches the element of a worker pool in `pointAt`, which may hold an `&` only to a package constant or a capability (concurrency.md §6.4), and the `&` taken at line 45 names `local`, a local of the program
+File "fixtures/typing/reject/bad/pools.zn", line 46, characters 27-42:
+46 |     pointing!pointAs(Int, Pointing(local));
+   |                           ^^^^^^^^^^^^^^^
+Error: this argument reaches the element of a worker pool in `pointAs`, which may hold an `&` only to a package constant or a capability (concurrency.md §6.4), and the `&` taken at line 46 names `local`, a local of the program
+File "fixtures/typing/reject/bad/pools.zn", line 54, characters 20-25:
+54 |     pointing!start(aimed, Bool(this Pointing) mut => false);
+   |                    ^^^^^
+Error: a worker pool's element may hold an `&` only to a package constant or a capability, since nothing else it could name is safe from the writes of the program while its workers run (concurrency.md §6.4), and the `&` taken at line 53 names `local`, a local of the program
+File "fixtures/typing/reject/bad/pools.zn", line 64, characters 21-35:
+64 |         inner!start(Pointing(near), Bool(this Pointing) mut => false);
+   |                     ^^^^^^^^^^^^^^
+Error: a worker pool's element may hold an `&` only to a package constant or a capability, since nothing else it could name is safe from the writes of the program while its workers run (concurrency.md §6.4), and the `&` taken at line 64 names `near`, a local of the program
+File "fixtures/typing/reject/bad/pools.zn", line 69, characters 5-13:
+69 |     speaking:elements();
+   |     ^^^^^^^^
+Error: `bad$Speaking` is a reference type, and it reaches the elements of `@primitives$List<bad$Speaking>`, a value type's slot; a value type holds only values, all the way down
+File "fixtures/typing/reject/bad/pools.zn", line 69, characters 5-24:
+69 |     speaking:elements();
+   |     ^^^^^^^^^^^^^^^^^^^
+Error: `elements` copies each element, and `bad$Speaking` is a reference type, which its pool alone owns and which is never copied (concurrency.md §6.6)
+File "fixtures/typing/reject/bad/pools.zn", line 72, characters 5-52:
+72 |     counts!start(Int(1), Int(this Int) mut => this);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a worker's step returns `@primitives$I64`, and it must convert to `@primitives$Bool`, as a condition does, with no implicit constructor between them (control-flow.md §4.1)
+File "fixtures/typing/reject/bad/pools.zn", line 74, characters 5-24:
+74 |     @primitives$publish(Int(1));
+   |     ^^^^^^^^^^^^^^^^^^^
+Error: no intrinsic operation named `@primitives$publish`
 File "fixtures/typing/reject/bad/privacy.zn", line 8, characters 37-44:
 8 | Int peekThing(thing Thing) => thing._hidden;
   |                                     ^^^^^^^

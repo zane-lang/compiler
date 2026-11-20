@@ -199,8 +199,9 @@ class MemoTests(unittest.TestCase):
     def test_a_program_that_spawns_shares_its_tables(self):
         # Its spawned calls run `fib` on threads of the pool at once. They
         # share one table, whose entries' versions guard them, and each thread
-        # keeps its own state and count of work.
-        for name, spawns in [("spawning", True), ("fib", False)]:
+        # keeps its own state and count of work. A program whose only other
+        # thread work is a worker pool's steps does the same.
+        for name, spawns in [("spawning", True), ("pooling", True), ("fib", False)]:
             for build in ["plain", "optimized"]:
                 with self.subTest(name=name, build=build):
                     result = subprocess.run([ZANEC, "--ll", *BUILDS[build], "--package", FIXTURES / name],
@@ -209,6 +210,12 @@ class MemoTests(unittest.TestCase):
                     self.assertEqual(memo_variables(result.stdout), {
                         "state": spawns, "table": False, "calls": spawns}, name)
                     self.assertEqual("fence acquire" in result.stdout, spawns)
+
+    def test_a_pool_reaches_its_funnel(self):
+        # Both steps' results reach the funnel, which prints their sum.
+        for memoize in (False, True):
+            with self.subTest(memoize=memoize):
+                self.assertEqual(run_program(self.build("pooling", "plain", memoize), "15"), "987\n")
 
     def test_a_library_shares_its_tables(self):
         # A program that links the library may call `fib` from its threads.

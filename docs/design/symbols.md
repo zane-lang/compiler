@@ -131,7 +131,9 @@ What the compiler makes for itself, with no declaration behind it, is named
 under `zane.`: the function each spawned call runs through (`zane.spawn.N`),
 the function a spawned call to a verb expanded where it is called
 (`zane.expanded.N`) or to an intrinsic (`zane.intrinsic.N`) is made into
-([`lowering.md`](lowering.md) §9), each string literal's bytes
+([`lowering.md`](lowering.md) §9), the functions through which the runtime
+calls a worker pool's step and its funnel (`zane.step.N`, `zane.funnel.N`,
+[`lowering.md`](lowering.md) §8, step 13), each string literal's bytes
 (`zane.text`), the entry that makes a program's constants and then calls
 `main` (`zane.start`), and the variable whose address a reference to a
 program value such as `@program$console` holds (`zane.value.@program$console`).

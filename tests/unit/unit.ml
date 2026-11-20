@@ -337,12 +337,15 @@ let runtime_abi () =
             && List.for_all2 (fun c t -> abi c = Some t) params params'))
     R.all;
   (* `zane_main` is the one function the program defines rather than calls,
-     and `zane_tier_up` the function codegen calls without a node of the tree:
-     tier 0 of a tiered build calls it first (docs/design/tiers.md). *)
+     `zane_tier_up` the function codegen calls without a node of the tree:
+     tier 0 of a tiered build calls it first (docs/design/tiers.md), and
+     `zane_workers_free` a worker pool's free thunk, which a drain calls
+     through the pool's layout (Type_layout.pool_free). *)
   List.iter
     (fun (name, _, _) ->
       check (name ^ " in zane.h is a function the compiler knows")
-        (name = "zane_main" || name = "zane_tier_up" || List.exists (fun fn -> R.name fn = name) R.all))
+        (name = "zane_main" || name = "zane_tier_up" || name = Cgt__Type_layout.pool_free
+        || List.exists (fun fn -> R.name fn = name) R.all))
     declared
 
 (* What LLVM is told about each runtime function (Codegen__Runtime_facts):

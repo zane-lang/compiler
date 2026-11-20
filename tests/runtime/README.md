@@ -141,6 +141,16 @@ two. A write-back that stored such a subject a byte at a time failed it on
 every run. It then writes back every size from 1 to 19 bytes at each offset
 from 0 to 7 and checks the bytes arrived.
 
+`workers.c` holds worker pools (concurrency.md §6) to their rules, over
+hand-written step and funnel thunks: fifty counters each count to a
+thousand with no two steps of one element at once; twenty publishers' events
+reach the funnel in each publisher's order; the state can be read while the
+workers run; elements that own a string grow it in their own regions and are
+read whole; a worker on a 5 ms timer takes at least 45 ms for ten calls; a
+worker started with no source wakes when the funnel changes the state; and
+with one thread an ending pool runs its own work. Drains are checked
+throughout.
+
 `work.c` covers the copies, moves, overwrites and ends whose walks hand
 on more jobs than a work keeps in itself (`ZANE_LOCAL_JOBS` in
 `zane_internal.h`), so the work moves to a heap buffer: a list of twenty

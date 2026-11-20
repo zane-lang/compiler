@@ -319,21 +319,97 @@ abortable.
 
 ---
 
-## 11. A spawned worker's wait holds its pool thread
+## 11. A spawned worker's wait, and a pool step's, holds its pool thread
 
-**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
-§3.4: a stalling call made with `spawn` "is parked by the runtime so it does
-not consume a worker thread while waiting".
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+§3.4: a stalling call made with `spawn`, "or made in a worker pool's step
+(§6.3), is parked by the runtime so it does not consume a worker thread
+while waiting"; §6.3 repeats it for a step.
 
-**Compiler** — the runtime parks nothing. `@controlflow$workEvery` waits
+**Compiler** — the runtime parks no call that waits. `@controlflow$workEvery` waits
 between steps with `zane_sleep`, which suspends the thread that runs the
 worker, so a spawned `setInterval` keeps its pool thread for every wait, and
 a pool of `n` threads runs at most `n` waiting workers at once; the rest
-wait for a thread. Unspawned, the wait is ordinary blocking, as §3.5 says.
-`runtime/spawn.c` (`zane_sleep`) is the decision.
+wait for a thread. A worker pool's step that waits inside its body, on a
+sleep, a join or a blocking call into C, keeps its thread the same way.
+Between two calls of its step, a pool's worker that waits on its event
+sources holds no thread, as §6.3 says: the runtime keeps it in a heap of
+deadlines (`runtime/workers.c`). Unspawned, a wait is ordinary blocking, as
+§3.5 says. `runtime/spawn.c` (`zane_sleep`) is the decision.
+
+Only a program whose waits depend on each other observes the difference:
+steps that block in C on what only another step provides, more of them than
+the pool has threads, never finish, where parked steps would. A join of a
+spawned call never waits that way, since a call no thread has taken runs on
+the joining thread.
 
 Reconciling means a runtime that parks a waiting task and resumes it on a
-timer, or the spec saying which calls stall.
+timer or when what it waits for is ready, or the spec saying which calls
+stall.
+
+---
+
+## 12. A read of a pool's state or elements waits for a writer
+
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+§4.4: a read of a value another live spawn is mutating "observes a coherent
+snapshot of the value rather than blocking", so "a real-time reader never
+waits on a writer"; §6.2 and §6.6 take a pool's state and each element by
+coherent snapshot.
+
+**Compiler** — the funnel applies an event while it holds the pool's state
+lock, and a step's snapshot and `state` copy the state under the same lock,
+so a reader waits for at most the one event being applied. `elements`
+copies each element while it holds that element's lock, which its step
+holds while it runs, so the read waits for a running step of that element.
+Each copy is coherent, as §6.6 requires. `runtime/workers.c`
+(`zane_run_step`, `zane_workers_state`, `zane_workers_elements`) is the
+decision.
+
+Reconciling means reads validated and retried against the funnel's writes,
+as `zane_snapshot` does for a spawned call's write-back, including the
+bounded walk §4.4 gives a value that owns boxed members.
+
+---
+
+## 13. A publish function called outside its pool's work stops the program
+
+**Spec** — silent.
+[`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+§6.2 gives each step call "a function value that publishes an event to the
+funnel", and a function value captures nothing (§5.2).
+
+**Compiler** — the function value is the same for every pool of one event
+type, and the runtime finds its pool through the work that is running: a
+step or funnel call of that pool, or a call spawned from one
+(`zane_context.workers`). A program that stores the function value and calls
+it later, from code outside that pool's work, stops with `a worker pool's
+publish function was called outside the work of its pool` and status 1.
+Called from another pool's work with the same event type, it publishes to
+that pool; with another event type, it stops the program the same way. The
+runtime compares event types by a hash of the type's symbol, which is the
+same in every object. `runtime/workers.c` (`zane_workers_publish`) is the
+decision.
+
+Reconciling means the spec stating what such a call does, or making the
+function value carry its pool.
+
+---
+
+## 14. Missed timer ticks merge
+
+**Spec** — silent.
+[`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+§6.3: a timer "is ready each time that interval has passed since it was last
+ready", which leaves open what a step slower than its interval sees.
+
+**Compiler** — a timer is ready at most once per call of its step. When a
+call runs with the timer ready, the timer's next deadline becomes the first
+whole interval after the time of the call, so a step that ran past several
+intervals is called once more, not once for each interval it missed.
+`runtime/workers.c` (`zane_consume`) is the decision.
+
+Reconciling means the spec stating whether missed ticks merge or queue.
 
 ---
 

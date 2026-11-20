@@ -147,6 +147,10 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
     else spelling
   in
   match (name, args) with
+  | ("WorkerPool" | "EventSource.every"), _ -> (
+      match Lower_workers.construct w st ctx span name args t with
+      | Some e -> e
+      | None -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   | "Unit", [] -> { Expr.node = Expr.Unit; ty = Nodes.Ty.Void }
   (* A new list is empty, and owns no block until its first `push`. *)
   | ("List" | "ListRef"), [ _ ] ->

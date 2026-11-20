@@ -10947,6 +10947,128 @@
   (diff golden/wideSum.out wideSum.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/workerPools))
+ (targets workerPools.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build workerPools.exe --package fixtures/workerPools)))
+
+(rule
+ (deps (source_tree fixtures/workerPools))
+ (targets workerPools.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build workerPools.optimized.exe --optimize --package fixtures/workerPools)))
+
+(rule
+ (deps (source_tree fixtures/workerPools))
+ (targets workerPools.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build workerPools.tiered.exe --tiered --package fixtures/workerPools)))
+
+(rule
+ (deps (source_tree fixtures/workerPools))
+ (targets workerPools.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up workerPools.tier1 --package fixtures/workerPools)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    workerPools.checked.out.actual
+    (run ./workerPools.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workerPools.out workerPools.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    workerPools.unchecked.out.actual
+    (run ./workerPools.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workerPools.out workerPools.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    workerPools.optimized.checked.out.actual
+    (run ./workerPools.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workerPools.out workerPools.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    workerPools.optimized.unchecked.out.actual
+    (run ./workerPools.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workerPools.out workerPools.optimized.unchecked.out.actual)))
+
+(rule
+ (deps workerPools.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./workerPools.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    workerPools.tiered.checked.out.actual
+    (run ./workerPools.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workerPools.out workerPools.tiered.checked.out.actual)))
+
+(rule
+ (deps workerPools.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./workerPools.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    workerPools.tiered.unchecked.out.actual
+    (run ./workerPools.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/workerPools.out workerPools.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/workers))
  (targets workers.exe)
  (action

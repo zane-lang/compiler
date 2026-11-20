@@ -731,6 +731,15 @@
  (action
   (run python3 %{dep:memo_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
+; A program built apart from a library's object starts workers on a pool
+; the library made, and publishes events whose walk tables differ between
+; the two objects (runtime/workers.c).
+(rule
+ (alias runtest)
+ (deps pools_test.py (source_tree fixtures/poollibrary) (source_tree fixtures/pooluser))
+ (action
+  (run python3 %{dep:pools_test.py} %{exe:../../bin/zanec/zanec.exe})))
+
 ; What zanec accepts for the options that name and stamp packages: Unicode
 ; package names, as source spells them, and only a well-formed stamp.
 (rule

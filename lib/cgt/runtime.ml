@@ -115,8 +115,16 @@ type fn =
   | Callback_detach
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
+  (* A worker pool's runtime (concurrency.md §6, runtime/workers.c): a new
+     pool, a worker started, an event published, and the reads of the state
+     and of the elements. *)
+  | Workers_new
+  | Workers_start
+  | Workers_publish
+  | Workers_state
+  | Workers_elements
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Sleep; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Sleep; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
 
 let name = function
   | Print -> "zane_print"
@@ -199,6 +207,11 @@ let name = function
   | Callback_attach -> "zane_callback_attach"
   | Callback_detach -> "zane_callback_detach"
   | Island -> "zane_island_make"
+  | Workers_new -> "zane_workers_new"
+  | Workers_start -> "zane_workers_start"
+  | Workers_publish -> "zane_workers_publish"
+  | Workers_state -> "zane_workers_state"
+  | Workers_elements -> "zane_workers_elements"
 
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
@@ -282,6 +295,11 @@ let signature = function
   | Handle_set -> (Void, [ Ptr; Ptr; Ptr ])
   | Callback_attach | Callback_detach -> (Void, [])
   | Island -> (Void, [ Ptr; I64; Ptr; I64 ])
+  | Workers_new -> (Ptr, [ I64; Ptr; I64; Ptr; Ptr; Ptr; I64; Ptr; I64 ])
+  | Workers_start -> (Void, [ Ptr; Ptr; I64; Ptr; Ptr; Ptr; Ptr; Ptr; I64; Ptr ])
+  | Workers_publish -> (Void, [ Ptr; I64; I64 ])
+  | Workers_state -> (Ptr, [ Ptr ])
+  | Workers_elements -> (Void, [ Ptr; Ptr; I64; Ptr ])
 
 (* The size of the range each context reserves for its frames, the main
    context's and each spawned call's, when the root manifest gives no size

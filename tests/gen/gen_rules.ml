@@ -346,7 +346,7 @@ let semantics () =
 
 (* runtime *)
 
-let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "handle"; "spawn"; "snapshot"; "tier" ]
+let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "handle"; "spawn"; "workers"; "snapshot"; "tier" ]
 
 let runtime () =
   let sources = String.concat " " (List.map (Printf.sprintf "../../runtime/%s.c") parts) in
