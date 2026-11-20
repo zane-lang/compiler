@@ -241,6 +241,9 @@ type walk = {
   expr : state -> ctx -> T.Expr.t -> Expr.t;
   value_of : state -> ctx -> T.Expr.t -> Expr.t;
   addr : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t option;
+  (* A place's own storage: for an `&` place, where its reference is held,
+     not what the reference names, which [addr] gives. *)
+  storage : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t option;
   borrow : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   lend : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
   reference_to : state -> ctx -> Source.Span.t -> T.Expr.t -> Expr.t;
