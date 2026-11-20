@@ -350,6 +350,11 @@ package app
                 expr Call @operators$multiply | @operators$multiply(n, n)
                   expr Var n | n
                   expr Var n | n
+          expr Lambda | @primitives$ArrayRef.fill( … @operators$multiply(n, n))
+            param position | @primitives$ArrayRef.fill( … @operators$multiply(n, n))
+            block | @primitives$ArrayRef.fill( … @operators$multiply(n, n))
+              stat Return | @primitives$ArrayRef.fill( … @operators$multiply(n, n))
+                expr Var position | @primitives$ArrayRef.fill( … @operators$multiply(n, n))
       stat Let | corners @primitives$ArrayR … rrayRef([Int(1), Int(2)]);
         local corners | corners
         expr Construct @primitives$ArrayRef | @primitives$ArrayRef([Int(1), Int(2)])

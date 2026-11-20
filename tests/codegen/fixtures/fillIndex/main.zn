@@ -1,0 +1,81 @@
+/// `@primitives$ArrayRef.fill`'s lambda takes its position as
+/// `@primitives$I64` or as a type with an implicit constructor from it,
+/// here `Slot`, and each position reaches the lambda through that
+/// constructor (generics.md §8.4). A slot of a function type introduces a
+/// type parameter of the verb it is written in (generics.md §3.2): `Box.fill`
+/// reads `T` off the return of the lambda it is passed, and `applied` reads
+/// `T` off a parameter. Each check prints `yes` when it holds and `no` when
+/// it does not.
+package fillIndex;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+/// A position, which a `@primitives$I64` converts to implicitly.
+type Slot = struct {
+	at Int;
+}
+
+implicit Slot(at Int) => init{ at; }
+
+type Player = #struct {
+	score Int;
+	name String;
+}
+
+Player(score Int) => init{ score; name = String("p"); }
+
+/// A wrapper whose `fill` introduces its element type at the return slot of
+/// `make`'s type, as `core`'s `ArrayRef.fill` does.
+type Box<T Type, n @concepts$Int> = #struct {
+	_items @primitives$ArrayRef<T, n>;
+}
+
+Box<T, n>.fill(n @concepts$Int, make ^T Type[Slot]) => init{
+	_items = @primitives$ArrayRef.fill(n, make);
+}
+
+(this Box<T Type, n @concepts$Int>)[index Int] => this._items[index];
+
+/// `T` introduced at a parameter slot of `f`'s type.
+Int applied(f Int[T Type], value T) => f(value);
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	// The primitive, its lambda taking a `Slot`.
+	squares @primitives$ArrayRef<Int, 3> = @primitives$ArrayRef.fill(3, Int(s Slot) => @operators$multiply(s.at, s.at));
+	check(@operators$equal(squares[Int(1)], Int(1)));
+	check(@operators$equal(squares[Int(3)], Int(9)));
+
+	// Through the wrapper: values, then owners moved in.
+	tens Box<Int, 4> = Box.fill(4, Int(s Slot) => @operators$add(s.at, Int(10)));
+	check(@operators$equal(tens[Int(4)], Int(14)));
+	team Box<Player, 2> = Box.fill(2, ^Player(s Slot) => Player(@operators$multiply(s.at, Int(5))));
+	check(@operators$equal(team[Int(1)].score, Int(5)));
+	check(@operators$equal(team[Int(2)].score, Int(10)));
+
+	// Many filled and dropped: each pass returns every block it made.
+	total Int(0);
+	@controlflow$repeat(Int(500), {
+		row Box<Player, 3> = Box.fill(3, ^Player(s Slot) => Player(s.at));
+		total = @operators$add(total, row[Int(3)].score);
+	});
+	check(@operators$equal(total, Int(1500)));
+
+	// `T` read off a function value's parameter.
+	check(@operators$equal(applied(Int(s Slot) => s.at, Slot(Int(7))), Int(7)));
+	return Unit();
+}

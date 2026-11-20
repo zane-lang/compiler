@@ -866,8 +866,25 @@ instance and the call that required it, from any analysis.
 
 **Where `^` is written, beyond what the spec shows.**
 - A function type's `^T` result over a type parameter is filled by a value
-  type's result written bare: `ArrayRef.fill`'s lambda is `^T[Int]`, and an
+  type's result written bare: `ArrayRef.fill`'s lambda is `^T[I]`, and an
   `Int(n Int)` lambda fills it with `T` = `Int`.
+
+**`ArrayRef.fill`'s position.** Its lambda takes the position as `I`, read
+off the lambda: `@primitives$I64` or a type with an implicit constructor
+from it (spec generics.md §8.4). The checker resolves the call without the
+intrinsic's last parameter, `index`, and supplies it as a lambda that
+returns its `@primitives$I64` parameter converted to `I` (`Check.fill_index`),
+as it supplies a worker's `test` (`Check.worker_test`); both are built by
+`Check.conversion_lambda`.
+
+**Introductions in a function type.** A function type's return or parameter
+slot may introduce a type parameter, `^T Type[Int]` (spec generics.md §3.2).
+The grammar takes one only in a parameter's or field's own type
+(`field_type`) and in a function type's parameter slots (`verb_type_param`);
+the return slot's introduction is `Ret_type.Introduced`. Both are found with
+the signature's other introductions (`Verb_signatures.scan_ret`,
+`scan_param_type`), and belong to the verb, so a lambda that writes one is
+refused as any lambda introduction is.
 
 **`main`** is not required, since a library built on its own is also a root.
 When the root declares one, it takes no parameters, and it may return any

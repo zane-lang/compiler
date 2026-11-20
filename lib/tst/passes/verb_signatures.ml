@@ -68,6 +68,7 @@ and ret_number_refs (r : N.Ret_type.t) =
   match r.N.Ret_type.node with
   | N.Ret_type.Safe t -> number_refs t
   | N.Ret_type.Abort { ok; abort } -> number_refs ok @ number_refs abort
+  | N.Ret_type.Introduced _ -> []
 
 let rec scan_type env intro (te : N.Type_expr.t) =
   match te.N.Type_expr.node with
@@ -109,6 +110,8 @@ and scan_ret env intro (r : N.Ret_type.t) =
   | N.Ret_type.Abort { ok; abort } ->
       scan_type env intro ok;
       scan_type env intro abort
+  | N.Ret_type.Introduced { name; _ } ->
+      ignore (introduce env intro r.N.Ret_type.span name.N.Name.text Ty.Type_kind)
 
 and scan_param_type env intro (pt : N.Param_type.t) =
   match pt.N.Param_type.node with

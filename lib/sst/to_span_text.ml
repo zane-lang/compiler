@@ -166,6 +166,10 @@ and ret_type d (x : Ret_type.t) =
       line d "ret_type Abort" x.Ret_type.span;
       type_expr (deeper d) ok;
       type_expr (deeper d) abort
+  | Ret_type.Introduced { name = n; concept = c; _ } ->
+      line d "ret_type Introduced" x.Ret_type.span;
+      name (deeper d) "name" n;
+      concept (deeper d) c
 
 and param_type d (x : Param_type.t) =
   match x.Param_type.node with

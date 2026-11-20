@@ -653,6 +653,11 @@ and ret_type_of env scope (r : N.Ret_type.t) =
   match r.N.Ret_type.node with
   | N.Ret_type.Safe t -> (resolve env scope t, None)
   | N.Ret_type.Abort { ok; abort } -> (resolve env scope ok, Some (resolve env scope abort))
+  | N.Ret_type.Introduced { name; concept; marker } ->
+      (* The introduction reads as one in a parameter slot does. *)
+      ( param_type env scope
+          { N.Param_type.node = N.Param_type.InferredType { name; concept; marker }; span = r.N.Ret_type.span },
+        None )
 
 and param_type env scope (p : N.Param_type.t) : Ty.t =
   match p.N.Param_type.node with
