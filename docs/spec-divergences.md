@@ -321,7 +321,7 @@ abortable.
 
 ## 11. A wait holds its pool thread when the pool has none to spare
 
-**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/d9f0525/spec/concurrency.md)
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/concurrency.md)
 §3.4: "A waiting call holds back only its caller [...]. Every other spawned
 call, and every worker of every worker pool (§6), keeps running while the
 wait lasts."
@@ -403,7 +403,7 @@ call runs with the timer ready, the timer's next deadline becomes the first
 whole interval after the time of the call, so a step that ran past several
 intervals is called once more, not once for each interval it missed. A
 `register` on a timer
-([`control-flow.md`](https://github.com/zane-lang/spec/blob/d9f0525/spec/control-flow.md)
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/control-flow.md)
 §3.7) does the same. `runtime/workers.c` (`zane_consume`, `zane_tick`) is
 the decision.
 
@@ -605,7 +605,7 @@ gave a waiting pool thread a stand-in.
   the thread that ran it, so a pool of `n` threads ran at most `n` waiting
   workers. Spec [#292](https://github.com/zane-lang/spec/pull/292) dropped
   parking for "A waiting call holds back only its caller"
-  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/d9f0525/spec/concurrency.md)
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/concurrency.md)
   §3.4) and replaced `workEvery` with `register`. The runtime now gives a
   pool thread a stand-in while it waits in a join or a `register`, so the
   pool keeps its threads for the work that does not wait. What remains is
