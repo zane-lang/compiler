@@ -85,11 +85,11 @@ archive by hand, and for how releases are published, see
 | `runtime/` | The C runtime every program links with |
 | `grammar/` | The grammar and lexer, from which the parser and editor grammars are generated ([`grammar/README.md`](grammar/README.md)) |
 | `tests/` | The test suites, one directory each ([`tests/README.md`](tests/README.md)) |
-| `docs/` | Design documents ([`docs/README.md`](docs/README.md)) |
+| `docs/` | Design documents ([`docs/README.md`](docs/README.md)); `docs/experiments/` keeps the measurements behind them ([`docs/experiments/README.md`](docs/experiments/README.md)) |
 | `editors/` | Generated Tree-sitter and Typst grammars; Neovim support is the [`zane-nvim`](https://github.com/zane-lang/zane-nvim) plugin |
 | `formal/` | The Lean proof that the grammar is unambiguous |
 | `tools/` | Developer tools: the ambiguity checker, grammar generator, `inspect`, nesting check |
-| `dev/` | The pixi environment's commands and setup scripts |
+| `dev/` | The pixi environment's commands (`dev/bin/`), setup scripts, release packaging and the maintained benchmarks (`dev/bench/`) |
 | `vendor/coda` | The [Coda](https://github.com/zane-lang/coda) parser, as a Git submodule |
 
 ## Contributing

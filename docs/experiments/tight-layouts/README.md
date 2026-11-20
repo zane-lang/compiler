@@ -37,9 +37,9 @@ Tools here, run from the repository root after `pixi run just build`:
   compared.
 - `ffi.sh SWITCHES…`: every FFI fixture built with the switches and
   compared with its golden output.
-- `measure.py [N] [PASSES] [RUNS] [MODE…]`: `bench/layouts` built once per mode,
+- `measure.py [N] [PASSES] [RUNS] [MODE…]`: `programs/layouts` built once per mode,
   timed and its peak memory read (`SHAPES=1,2` picks shapes).
-- `bench/niches`: a program that builds, matches, copies and stores sums
+- `programs/niches`: a program that builds, matches, copies and stores sums
   of every niche kind; every mode must print the same.
 - `arm64.sh`: the check and the measurements on another machine, through
   the Shell workflow (step 5).
@@ -75,7 +75,7 @@ and `noObject`, which the script cannot run as their rules do (an archive
 step, an expected abort) and which differ without the switch too.
 `pixi run just test-compiler` passes with the switch unset.
 
-**Results.** `bench/layouts` builds a list of 10,000,000 values pushed one
+**Results.** `programs/layouts` builds a list of 10,000,000 values pushed one
 at a time and reads every one 10 times; shapes 7 and 8 read in a scattered
 order (a stride of 7919 mod N). `measure.py` builds it with `--optimize`
 once per mode, checks the three print the same checksum, and takes the
@@ -96,7 +96,7 @@ up to 3%):
 | 7 `Trio`, scattered | 16 → 13 | 1.113 s, 155 MiB | 1.132 s, 127 MiB | 1.152 s, 127 MiB |
 | 8 `Wide`, scattered | 16 → 16 | 1.605 s, 155 MiB | 1.660 s, 155 MiB | 1.682 s, 155 MiB |
 
-(`results-step1.txt` holds the script's own table.)
+(`results/results-step1.txt` holds the script's own table.)
 
 - **Memory falls by the bytes saved**, to within the list's growth: a
   quarter for `Pair`, 43% for `Flagged` and `Maybe`, a third for `Outer`,
@@ -135,8 +135,8 @@ is read through the room's address, so nothing else changed.
 results as before it.
 
 **Results.** `tests/perf/run --build optimized`, cycles against the
-default build (`perf-default.txt`, `perf-structs.txt` and `perf-all.txt`
-hold the script's output; `perf-all-byte-room.txt` the first run's):
+default build (`results/perf-default.txt`, `results/perf-structs.txt` and `results/perf-all.txt`
+hold the script's output; `results/perf-all-byte-room.txt` the first run's):
 
 | program | default cycles | `structs` | `all` | `all`: instructions, L1 misses, LL misses |
 | --- | --- | --- | --- | --- |
@@ -157,7 +157,7 @@ hold the script's output; `perf-all-byte-room.txt` the first run's):
 | texts | 55,596,650 | +0.0% | -0.0% | +0.0%, -0.4%, +0.0% |
 | trees | 24,473,022 | +0.0% | +0.0% | +0.0%, +0.1%, +0.0% |
 
-`measure.py 10000000 10 5` again (`results-step2.txt`) gives step 1's
+`measure.py 10000000 10 5` again (`results/results-step2.txt`) gives step 1's
 picture within the container's noise, which this run puts at about 5% on
 the scattered control: memory down by the bytes saved, sequential passes
 11% (`Pair`) to 32% (`Flagged`) faster, `Maybe` 30% faster under `all`,
@@ -188,7 +188,7 @@ element of a list whose stride keeps it aligned, while an element of a
 but are said only under `ZANE_PACK`, so the default build is unchanged;
 `ZANE_PACK_HINTS=0` leaves them unsaid, as step 2 did.
 
-In `bench/layouts`'s optimized IR under `structs`, reads and writes marked
+In `programs/layouts`'s optimized IR under `structs`, reads and writes marked
 at any byte go from 362 (of 854) to 111. What is left is the members of
 packed values, which are at any byte, and reads through a pointer loaded
 from a place whose own alignment is unknown.
@@ -198,7 +198,7 @@ with `ZANE_PACK=all`: the same results as in step 1. `pixi run just
 test-compiler` passes with the switches unset.
 
 **Results.** `measure.py 10000000 10 5` with five modes interleaved
-(`results-step3.txt`):
+(`results/results-step3.txt`):
 
 | shape | default | `structs`, no facts | `structs` | `all`, no facts | `all` |
 | --- | --- | --- | --- | --- | --- |
@@ -217,7 +217,7 @@ fewer with them in each shape: the facts change the runtime's bookkeeping
 code, not the loops.
 
 `tests/perf/run --build optimized` with the facts
-(`perf-structs-hints.txt`, `perf-all-hints.txt`) against step 2's runs
+(`results/perf-structs-hints.txt`, `results/perf-all-hints.txt`) against step 2's runs
 without them: `scopes` 1.1% fewer cycles (all of it instructions), `removal`
 0.3% more (instructions too), every other program within 0.12%, and the
 same under `structs` and `all`.
@@ -254,7 +254,7 @@ What had to follow:
   byte's offset and its range of values (`Layout.byte_niche_tag`), which a
   walk tests (`Walks.present`) and the optimizer decodes (`Layout.tag_case`).
 
-**Correctness.** `bench/niches` prints the same in all eight builds
+**Correctness.** `programs/niches` prints the same in all eight builds
 (default, `structs`, `all`, `niche`, each unoptimized and optimized) under
 `ZANE_CHECK=1`; its lists' elements, as `--cgt` reports them:
 
@@ -269,10 +269,10 @@ What had to follow:
 `fixtures.sh ZANE_PACK=niche`: all 140 builds the same as without it.
 `ffi.sh ZANE_PACK=niche`: as in step 1.
 
-**Results.** Two shapes join `bench/layouts`: 9, `Chosen { some Flagged;
+**Results.** Two shapes join `programs/layouts`: 9, `Chosen { some Flagged;
 none }`, a third of them none; and 10, `Nested { inner Chosen; outer }`, a
 fifth of them outer. `measure.py 10000000 10 5 default ZANE_PACK=all
-ZANE_PACK=niche` (`results-step4.txt`):
+ZANE_PACK=niche` (`results/results-step4.txt`):
 
 | shape | default | `all` | `niche` |
 | --- | --- | --- | --- |
@@ -297,7 +297,7 @@ a piece at a time, so it runs barely faster than the default build for all
 its smaller footprint. Without a tag at all, `niche` reads it as one
 `Flagged` and runs 2.2 times as fast as `all`.
 
-`tests/perf/run --build optimized` under `niche` (`perf-niche.txt`): the
+`tests/perf/run --build optimized` under `niche` (`results/perf-niche.txt`): the
 same as `all` to within 0.04% in every program, none of which has a sum a
 byte niche fits (`copies`'s `Tree` has a payload in both cases).
 
@@ -309,15 +309,15 @@ byte niche fits (`copies`'s `Tree` has a payload in both cases).
 command in the pixi environment; on this branch it takes a `runner` input,
 and on macOS runs the command through `pixi run`, since macOS's bash 3.2
 cannot read the bash completions the shell hook sources. `arm64.sh` builds
-the compiler, checks `bench/niches` in every mode and runs `measure.py`.
+the compiler, checks `programs/niches` in every mode and runs `measure.py`.
 Dispatched as runner `macos-latest`, command
 `docs/experiments/tight-layouts/arm64.sh`, against this branch.
 
-**Correctness.** `bench/niches` printed the same in all eight builds, under
+**Correctness.** `programs/niches` printed the same in all eight builds, under
 `ZANE_CHECK=1` (run 43071348356).
 
 **Results.** `measure.py 10000000 10 5` over five modes (run 43071348356,
-`results-arm64.txt`); time, then peak memory, which is the same as on x86:
+`results/results-arm64.txt`); time, then peak memory, which is the same as on x86:
 
 | shape | default | `structs`, no facts | `structs` | `all` | `niche` |
 | --- | --- | --- | --- | --- | --- |
@@ -366,7 +366,7 @@ Dispatched as runner `macos-latest`, command
 ## Step 6: `Trio`'s loss is its loop, and unswitching fixes it
 
 **Isolating.** Shape 12 is `Trio` in a loop of its own, with no scattered
-branch (run 43074938173, AArch64, 9 runs, `results-arm64.txt`):
+branch (run 43074938173, AArch64, 9 runs, `results/results-arm64.txt`):
 
 | shape | default | `structs` |
 | --- | --- | --- |
@@ -394,7 +394,7 @@ sequential reads step a pointer by 13, two elements a turn.
 
 **Correctness.** `fixtures.sh` with `ZANE_PACK=structs` and with
 `ZANE_PACK=niche`, which now unswitch: all 140 builds the same.
-`bench/niches` the same under both.
+`programs/niches` the same under both.
 
 **Results, AArch64** (run 43076494289, 7 runs; this runner was noisy:
 `Pair`, whose loop unswitching does not touch, moves by 20% between two
@@ -410,7 +410,7 @@ modes, so only differences larger than that count):
 
 Packed `Trio` goes from 28% slower than the default build to 18% faster.
 
-**Results, x86** (`results-step6-x86.txt`, 5 runs):
+**Results, x86** (`results/results-step6-x86.txt`, 5 runs):
 
 | shape | default | default, unswitched | `structs`, not unswitched | `structs` |
 | --- | --- | --- | --- | --- |
@@ -421,7 +421,7 @@ Packed `Trio` goes from 28% slower than the default build to 18% faster.
 
 The shapes whose loop is shared gain 15-20% from unswitching on both
 machines, packed or not; the others do not move. On the perf programs
-(`perf-default-unswitch.txt`, the default build with `ZANE_UNSWITCH=1`),
+(`results/perf-default-unswitch.txt`, the default build with `ZANE_UNSWITCH=1`),
 `division` takes 1.2% fewer cycles and `kept` 0.3% more; no other program
 moves by more than 0.11%.
 
@@ -470,7 +470,7 @@ knew.
 
 ## Step 8: what packing costs at the C boundary
 
-`bench/ffi` passes structs to C by value, 100 million times in a loop.
+`programs/ffi` passes structs to C by value, 100 million times in a loop.
 The C functions are `noinline` and hide one input behind an empty `asm`,
 so LLVM cannot fold the calls away. Four shapes:
 
@@ -484,7 +484,7 @@ so LLVM cannot fold the calls away. Four shapes:
   The default passes it as it is. Packing makes it 12 bytes against C's
   16, so only the packed layout converts it.
 
-On x86 (`results-step8-ffi.txt`), best of 7, then best of 15
+On x86 (`results/results-step8-ffi.txt`), best of 7, then best of 15
 interleaved for the two that moved:
 
 | Shape | Plain | Optimized |
@@ -521,7 +521,7 @@ stub, `Llvm_extra.is_atomic`. Atomic accesses still keep their
 alignment: `memo/spawning`'s eight atomic accesses stay `align 8`. The
 niche suite's failure list is unchanged.
 
-After the fix (`results-step9-compile.txt`, x86):
+After the fix (`results/results-step9-compile.txt`, x86):
 
 | Mode | Plain time | Plain size | Optimized time | Optimized size |
 | --- | --- | --- | --- | --- |
@@ -576,9 +576,9 @@ Six of the 16 fail to compile in every mode: `trialdiv`, `ntree`,
 `spectralnorm`, `allocfree`, `gameloop` and `particles`. langbench has
 not been migrated to the compiler's current ownership rules and syntax,
 so these failures have nothing to do with packing. The wall clock here moved rows by up to
-±20% between runs (`results-step10-langbench-x86.txt`; a rerun at 21
+±20% between runs (`results/results-step10-langbench-x86.txt`; a rerun at 21
 runs put `listgrowth`'s +16.6% at −2.8%). The Callgrind counts
-(`results-step10-langbench-cycles.txt`) are the reliable ones:
+(`results/results-step10-langbench-cycles.txt`) are the reliable ones:
 
 | Test | Default + unswitch | Niche |
 | --- | --- | --- |
@@ -591,7 +591,7 @@ runs put `listgrowth`'s +16.6% at −2.8%). The Callgrind counts
 
 `platform.sh` ran through the Shell workflow on each runner. It builds
 the compiler, then:
-- checks `bench/niches` in every mode;
+- checks `programs/niches` in every mode;
 - runs `measure.py` (medians of 5) over default, `ZANE_UNSWITCH=1` and
   niche;
 - times the perf programs by wall clock (`programs.py`, best of 7);
@@ -609,12 +609,12 @@ Results, by machine:
 
 | Machine | File |
 | --- | --- |
-| Linux, AMD EPYC 7763 (Zen 3) | `results-step11-linux-x86.txt`, `results-step11-linux-unswitch-split.txt` |
-| Linux, AMD EPYC 9V45 (Zen 5) | `results-step11-linux-epyc-scaled.txt` |
-| Windows x86-64 | `results-step11-windows-x86.txt` |
-| macOS, Apple M1 | `results-step11-macos-arm64.txt` |
+| Linux, AMD EPYC 7763 (Zen 3) | `results/results-step11-linux-x86.txt`, `results/results-step11-linux-unswitch-split.txt` |
+| Linux, AMD EPYC 9V45 (Zen 5) | `results/results-step11-linux-epyc-scaled.txt` |
+| Windows x86-64 | `results/results-step11-windows-x86.txt` |
+| macOS, Apple M1 | `results/results-step11-macos-arm64.txt` |
 
-On every machine, `bench/niches` prints the same in every mode,
+On every machine, `programs/niches` prints the same in every mode,
 unoptimized and optimized.
 
 **Layouts (`measure.py`).** Packed values take 25–71% less peak memory
@@ -685,10 +685,10 @@ Under `aligned`:
 - all 140 fixture builds print the same;
 - the FFI fixtures match, apart from the three `ffi.sh` cannot run in
   any mode;
-- `bench/niches` prints the same;
+- `programs/niches` prints the same;
 - every perf program matches its golden.
 
-In Callgrind (`perf12-aligned.txt`, unswitching off), `entities`,
+In Callgrind (`results/perf12-aligned.txt`, unswitching off), `entities`,
 `paths` and `copies` count exactly the default's cycles: their sums are
 laid out as the default lays them out. `particles` (−5.1%) and `tokens`
 (−2.1%) keep their gains.
@@ -836,8 +836,8 @@ conditional branch's mispredicts read from `--dump-instr=yes`:
   `extractvalue`.
 
 What was tried, as estimated cycles against `main`, every program and
-build (`perf14-main.txt` against `perf14-no-sinking.txt`,
-`perf14-freeze.txt` and `perf14-early-simplifycfg.txt`):
+build (`results/perf14-main.txt` against `results/perf14-no-sinking.txt`,
+`results/perf14-freeze.txt` and `results/perf14-early-simplifycfg.txt`):
 
 | Change | `entities` tiered | `entities` optimized | Other rows past 0.3% |
 | --- | --- | --- | --- |

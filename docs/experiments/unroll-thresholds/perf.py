@@ -3,7 +3,7 @@
 import importlib.machinery, importlib.util, os, shutil, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 spec = importlib.util.spec_from_loader("perfrun", importlib.machinery.SourceFileLoader("perfrun", str(ROOT / "tests/perf/run")))
 run = importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 def text(p):
@@ -28,4 +28,4 @@ with tempfile.TemporaryDirectory() as work, ThreadPoolExecutor(3) as pool:
     for n,b,r,err in pool.map(one,jobs):
         if err: print(n,b,"ERROR",err[:300]); continue
         print(n,b,*r,flush=True); rows.append("\t".join([n,b,*map(str,r)])+"\n")
-Path(sys.argv[0]).parent.joinpath(f"{label}.tsv").write_text("program\tbuild\tcycles\tinstructions\tmispredicts\ti1_misses\ttext\tgolden\n"+"".join(rows))
+Path(sys.argv[0]).parent.joinpath("results", f"{label}.tsv").write_text("program\tbuild\tcycles\tinstructions\tmispredicts\ti1_misses\ttext\tgolden\n"+"".join(rows))

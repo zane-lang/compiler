@@ -247,7 +247,7 @@ snapshot when it is built for none.
 - **Where:** `lib/cgt/program.ml` (`import_bodies`), `lib/driver/driver.ml`
 - **Design:** [`design/optimization.md`](design/optimization.md) O10,
   [`design/separate-compilation.md`](design/separate-compilation.md) C12
-- **Effect:** [`design/cross-package-optimization-results.md`](design/cross-package-optimization-results.md):
+- **Effect:** [`experiments/cross-package-optimization/README.md`](experiments/cross-package-optimization/README.md):
   mandelbrot 7.6×, trialdiv 3.0×, fannkuch 1.9×, entities and listgrowth
   1.6× faster
 
@@ -915,7 +915,7 @@ that the predictor cannot learn.
   `borrows` 11.9%, `returns` 10.0%, `kept` tiered 5.2%, `particles` 3.6%,
   `entities` 3.4%, `repeats` 3.1% fewer; `removal` 1.1% more; langbench
   `entities` 8.6% fewer, `nbody` 3.0% more; `.text` up to 10.5% more, tier 1
-  of `repeats` 25% ([`perf-unroll`](perf-unroll/README.md))
+  of `repeats` 25% ([`experiments/unroll-thresholds`](experiments/unroll-thresholds/README.md))
 
 LLVM is given a full-unroll budget of 250, against `-O2`'s 150, and a
 partial-unroll budget of 100. A loop of a few constant iterations whose
@@ -1136,7 +1136,7 @@ frames.
   told"
 - **Effect:** `tests/perf/returns` −1.4% estimated cycles optimized and
   tiered; nothing else in `tests/perf` or langbench moves
-  ([`perf-runtime-attrs/`](perf-runtime-attrs/README.md))
+  ([`experiments/runtime-attrs/`](experiments/runtime-attrs/README.md))
 
 `zane_out_of_range`, `zane_too_deep` and `zane_main_aborted` are
 `noreturn`, `cold` and `nounwind`, so the paths to them are laid out of the way. `zane_text_equal`

@@ -2,7 +2,7 @@
 
 Which experimental `ZANE_*` switches of the compiler (branch
 `experiment/zane-vs-goose`) the LangArena builds use, as of step 30
-(`step30-goose.md`, geomean Zane / Goose-clang 0.973). The measurements
+(`results/step30-goose.md`, geomean Zane / Goose-clang 0.973). The measurements
 behind each are in `goose-progress.md`, or in the compiler's
 `docs/experiments/` where noted.
 

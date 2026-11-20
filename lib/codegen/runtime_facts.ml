@@ -3,7 +3,7 @@
    attribute is a contract on the C body, not a hint: one the body breaks is
    a miscompile, so each below is one the body in runtime/*.c is known to
    keep. Only those that change what LLVM makes of a program are given;
-   docs/perf-runtime-attrs/ records the ones measured and left out.
+   docs/experiments/runtime-attrs/ records the ones measured and left out.
 
    How each attribute is spelled inside LLVM changes between releases, so
    LLVM's parser makes them, from a declaration written as text ([text]).

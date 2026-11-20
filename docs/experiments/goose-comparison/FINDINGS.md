@@ -19,7 +19,7 @@ themselves).
 
 Median wall time and peak memory. The baseline ratio is v0.20 against Goose
 in the same run; the final numbers are the default build at the end of the
-experiment (`results-defaults.txt`, 3 runs each, a cloud container whose
+experiment (`results/results-defaults.txt`, 3 runs each, a cloud container whose
 wall clock moves by about ±15%). A ratio below 1 means Zane is faster.
 
 | test | v0.20 ÷ Goose | final Zane | final Goose | final C | final ÷ Goose |
@@ -44,7 +44,7 @@ Zane now matches or beats Goose everywhere except ntree, and listgrowth by
 6%. ntree's remaining gap is the 16-byte list handle each node is, against
 Goose's 4-byte links. Even so, Zane's ntree takes less memory than Goose's.
 A port that holds a node's children in an `ArrayRef` the way Goose's does
-(`ntreearray/`) is level with Goose in a plain build, and was 1.5× faster
+(`programs/ntreearray/`) is level with Goose in a plain build, and was 1.5× faster
 in 40% of its memory with the cage build (`ZANE_REF32`, since removed;
 README, "ntree with an `ArrayRef` of children"), so the gap is the
 program's container, not the language. gameloop is left out of the comparison: it

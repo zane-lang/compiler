@@ -6,7 +6,7 @@ instructions, mispredicts, I1 misses, .text."""
 import importlib.machinery, importlib.util, os, shutil, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 spec = importlib.util.spec_from_loader("perfrun", importlib.machinery.SourceFileLoader("perfrun", str(ROOT / "tests/perf/run")))
 run = importlib.util.module_from_spec(spec); spec.loader.exec_module(run)
 zanec, label, bench, core = sys.argv[1], sys.argv[2], *map(os.path.abspath, sys.argv[3:5])
@@ -42,4 +42,4 @@ with tempfile.TemporaryDirectory() as w, ThreadPoolExecutor(3) as pool:
     for tid, b, r in pool.map(lambda j: one(j[0], Path(w), j[1]), jobs):
         if isinstance(r, str): print(tid, b, "ERROR", r); continue
         print(tid, b, *r, flush=True); rows.append("\t".join([tid, b, *map(str, r)]) + "\n")
-Path(__file__).parent.joinpath(f"{label}.tsv").write_text("program\tbuild\tcycles\tinstructions\tmispredicts\ti1_misses\ttext\n" + "".join(rows))
+Path(__file__).parent.joinpath("results", f"{label}.tsv").write_text("program\tbuild\tcycles\tinstructions\tmispredicts\ti1_misses\ttext\n" + "".join(rows))

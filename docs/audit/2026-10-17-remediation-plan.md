@@ -317,7 +317,7 @@ address.
     is a further variant to measure only if packing is kept.
 - **Measuring.** On each first-tier target, run three builds of the spec
   repo's `langbench/` programs and the binarytrees reference
-  (`docs/design/binarytrees-reference-results.json`), optimized and
+  (`docs/experiments/cross-package-optimization/results/binarytrees-reference.json`), optimized and
   unoptimized: the current compiler, the register rule, and the rule
   with packing.
   - **An added benchmark.** Non-inlined calls on a 16-byte two-field
@@ -732,7 +732,7 @@ contexts.
 - **Counts.** A per-context warm count, and warm and cold counts for the
   pool, are kept beside the lists, so every limit is O(1).
 - **A delay, as a measured step.** Measure the change above with the
-  binarytrees reference (`docs/design/binarytrees-reference-results.json`),
+  binarytrees reference (`docs/experiments/cross-package-optimization/results/binarytrees-reference.json`),
   the memory bench and the spec repo's `langbench/`, before and after, on
   the maintainer's machine.
   - **When to add it.** Only if returning pages at once is slower there.

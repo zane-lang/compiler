@@ -2,7 +2,7 @@
 
 `nbody` +6.8% cycles at 150 (+10.4% instructions, mispredicts -92%) comes from
 `-unroll-partial-threshold=150` alone; `-unroll-threshold=250` alone moves
-it under 0.3% (`t250.tsv`). Everything is inlined into `zane_main`. The loop
+it under 0.3% (`results/t250.tsv`). Everything is inlined into `zane_main`. The loop
 `j!to(n)` in `advance` runs `n - i` times, 1 to 4 for five bodies, ten times
 a step. With the budget it is runtime-unrolled four times, with a prologue
 that runs the first `(n-i) mod 4` iterations and a guard before the 4-wide

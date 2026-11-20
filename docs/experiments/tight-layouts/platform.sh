@@ -6,7 +6,7 @@
 #   toolchain: true, timeout: 120,
 #   command: docs/experiments/tight-layouts/platform.sh
 #
-# Builds the compiler; checks that bench/niches prints the same in every
+# Builds the compiler; checks that programs/niches prints the same in every
 # mode, unoptimized and optimized; runs measure.py over the modes, the
 # tests/perf programs by wall clock (programs.py, the realistic ones
 # scaled up), and langbench's Zane programs against core (langbench.py).
@@ -34,7 +34,7 @@ X=; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) X=.exe;; esac
 for mode in default ZANE_PACK=niche; do
   for opt in "" --optimize; do
     if [ "$mode" = default ]; then e=(); else e=("$mode"); fi
-    env ${e[@]+"${e[@]}"} "$Z" --build "$W/niches$X" $opt --package "$D/bench/niches"
+    env ${e[@]+"${e[@]}"} "$Z" --build "$W/niches$X" $opt --package "$D/programs/niches"
     ZANE_CHECK=1 "$W/niches$X" | tr -d '\r' > "$W/out"
     if [ ! -f "$W/expected" ]; then cp "$W/out" "$W/expected"; fi
     if cmp -s "$W/out" "$W/expected"; then echo "niches, $mode $opt: same"; else echo "niches, $mode $opt: DIFFERENT"; exit 1; fi

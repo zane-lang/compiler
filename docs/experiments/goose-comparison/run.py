@@ -33,7 +33,7 @@ def build(lang, tid):
                "--package", f"math={CORE}/math"]
     elif lang.startswith("goose"):
         form = lang[len("goose"):].replace("-", "_")
-        cmd = [GOOSE, "build", os.path.join(HERE, f"{tid}{form}.goose"), "-o", exe,
+        cmd = [GOOSE, "build", os.path.join(HERE, "programs", f"{tid}{form}.goose"), "-o", exe,
                "-O2", "--cc", clang]
     else:
         cmd = ["clang", "-O2", "-o", exe, f"{LB}/c/{tid}.c", "-lm", "-lpthread"]
@@ -88,7 +88,7 @@ for test in tests.TESTS:
     for lang in langs:
         # A Goose form other than the main port runs where it has a file.
         if lang.startswith("goose-") and not os.path.exists(
-                os.path.join(HERE, f"{tid}{lang[len('goose'):].replace('-', '_')}.goose")):
+                os.path.join(HERE, "programs", f"{tid}{lang[len('goose'):].replace('-', '_')}.goose")):
             continue
         exe, bt = build(lang, tid)
         out, _ = run_once(exe, args)
