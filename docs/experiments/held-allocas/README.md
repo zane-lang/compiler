@@ -92,3 +92,68 @@ or not drains are checked.
 **Results.** In `subjects`, `refills`, `workers` and `handover`, every held
 local is now an alloca, and each prints its golden output with and
 without `ZANE_CHECK=1`.
+
+## Step 4: deterministic rewrites
+
+**Design.** `Held_spills` kept its allocas in hash tables keyed by LLVM
+values. An LLVM value hashes by its address, so the order of the rewrites,
+and so the code, differed between runs of the compiler: a tiered build of
+`interp`, `automaton` or `refills` sometimes stopped with "tier 1 did not
+take every function", and `refills` tiered counted 33.9M or 42.4M cycles
+from one build to the next. The tables are lists now, compared by `==` and
+reset for each function. The numbers of steps 2 and 3 were taken before
+this fix and are only indicative.
+
+## Step 5: Zane calls take the frame slot
+
+**Design.** Only the runtime's calls (`zane_*`) are given the frame slot
+around the call. A held local given to a Zane function takes its frame slot
+for good, as without the experiment: LLVM may inline the function, after
+which the copies go round code that works on the frame slot, and a loop
+that makes the call copies the local there and back on every pass.
+
+**Results.** `lent`, whose loop passes a held `Doc`'s string to a function,
+went from +65% to the baseline.
+
+## Step 6: listing where held, and the slot computed there
+
+**Design.** Two details of step 3 cost the locals that take their frame
+slot again: zeroing the alloca where its scope's code starts (`flags` +5%),
+and computing the slot's address there, which became a phi where LLVM
+threads the scope's entry into its fast and slow paths, so `frame_shadow`
+left that frame in memory (`lent` +52%). Now a held alloca is listed by its
+frame slot where it is held, as without the experiment (the listing takes
+the slot's address, not the alloca's), and the checked drain's path stores
+the alloca's value into the slot, computed from the scope's record, before
+the drain. When the local takes its slot again, those stores are removed.
+
+**Results.** Every program printed its golden output; `just test-compiler`
+passed with the switch on. Against the baseline
+([`step6-on.txt`](step6-on.txt)):
+
+| build | geomean |
+| --- | ---: |
+| optimized | −0.36% |
+| tiered | −0.68% |
+| plain | +0.01% (the experiment is off there) |
+
+| program | build | change |
+| --- | --- | ---: |
+| pushes | optimized | −13.4% |
+| pushes | tiered | −13.2% |
+| bits | tiered | −16.7% |
+| paths | optimized | −5.4% |
+| refills | optimized | +3.8% |
+| scopes | optimized | +3.2% |
+
+`scopes` loses the copies around the growth that each call of `gather`
+makes; `refills` passes its `Writer` to a Zane function, so it takes its
+frame slot, and two more locals are copied around a growth.
+
+**`frame_shadow`.** With `ZANE_FRAME_SHADOW=0` as well
+([`step6-on-no-shadow.txt`](step6-on-no-shadow.txt)), optimized is +0.94%
+against the baseline (`handover` +13.5%, `subjects` +9.0%, `cursor`
++7.7%); without the experiment, turning it off costs +1.63%
+([`baseline-no-shadow.txt`](baseline-no-shadow.txt)). The locals it keeps in
+registers are given to Zane functions, `mut` subjects mostly, so they take
+their frame slots here. `frame_shadow` still gains, so it stays.
