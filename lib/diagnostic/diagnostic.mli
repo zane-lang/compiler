@@ -1,5 +1,6 @@
-(** What a stage reports when it refuses its input, how it is rendered for a
-    person, and the internal error a broken invariant raises. *)
+(** The report a stage returns when it refuses its input, how a report is
+    rendered for a person, and the internal error a broken invariant
+    raises. *)
 
 include module type of struct
   include Report

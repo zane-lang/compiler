@@ -166,8 +166,9 @@ let pieces line =
             let spaces = tab_width - (column mod tab_width) in
             { first; next; shown = String.make spaces ' '; cells = spaces }
         | _ when List.exists (fun u -> escape u <> None) chars ->
-            (* A control is a cluster of its own, so this is that one
-               character; the rest are shown one by one all the same. *)
+            (* A control character forms a cluster of its own, so this
+               cluster is that single character. Any other characters in
+               the cluster are still shown one by one. *)
             let one u =
               match escape u with
               | Some e -> (e, String.length e)
@@ -196,7 +197,7 @@ let pieces line =
 
 (* The cell a byte offset starts at, counting the pieces wholly before it, and
    the cell it ends at, counting every piece it reaches into. A span that starts
-   or ends inside a piece so covers all of it. *)
+   or ends inside a piece therefore covers the whole piece. *)
 let cells_before pieces idx =
   List.fold_left (fun n p -> if p.next <= idx then n + p.cells else n) 0 pieces
 
@@ -276,9 +277,10 @@ let at_span ~source severity span message =
 (* [s] with the stamp each package name carries in a symbol left out, so
    `v0.8%f35c10ff8d86c042%core$String` reads `core$String`: a stamp, a
    version tag of letters, digits, `.`, `_`, `+` and `-`, then `%`, 16
-   lowercase hexadecimal digits and `%`, is the compiler's way of telling
-   two versions apart. A package the text names under two stamps keeps
-   them, so the versions still read apart. *)
+   lowercase hexadecimal digits and `%`, is how the compiler tells two
+   versions of a package apart. When [s] names one package under two
+   different stamps, both stamps stay, so the reader can still tell the
+   versions apart. *)
 let unstamped s =
   let n = String.length s in
   let is_tag c = match c with 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '_' | '+' | '-' -> true | _ -> false in
@@ -319,8 +321,8 @@ let unstamped s =
   copy 0 found;
   Buffer.contents buf
 
-(* A report about a file or a directory has no source excerpt: the same two
-   lines a report about text starts with, minus the excerpt. *)
+(* A report about a file or a directory has no source excerpt: it is the same
+   two lines that a report about text starts with, without the excerpt. *)
 let render ~source ({ Report.severity; location; message } : Report.t) =
   let label = Report.Severity.label severity in
   let message = escaped (unstamped message) in

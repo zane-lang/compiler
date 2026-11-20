@@ -1,6 +1,6 @@
-(** The pipeline as a front end runs it (docs/design/stages.md): each step a
-    result whose failure is every problem it found, with the text of the
-    files they point into. *)
+(** The pipeline as a front end runs it (docs/design/stages.md). Each step
+    returns a result whose failure holds every problem the step found, with
+    the text of the files the problems point into. *)
 
 type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
@@ -10,11 +10,12 @@ val fail : ?sources:Source.Files.t -> Diagnostic.t list -> ('a, failure) result
 (** Each diagnostic as a person reads it, in order. *)
 val render : failure -> string list
 
-(** The packages of the build, the first the root unless [root] is false,
-    as in a library build, which has none (packages.md §6.1). [stamps]
-    gives a package its stamp by path, and must name exactly one package
-    each with a value that is a stamp; [imports] gives each package's
-    import keys (docs/design/separate-compilation.md C6, C10). *)
+(** The packages of the build. The first package is the root, unless
+    [root] is false, as in a library build, which has no root (packages.md
+    §6.1). [stamps] gives packages their stamps by path: each entry must
+    name exactly one package and give a value that is a stamp. [imports]
+    gives each package's import keys (docs/design/separate-compilation.md
+    C6, C10). *)
 val assemble :
   ?root:bool ->
   ?imports:(string * string * string) list ->
@@ -22,25 +23,25 @@ val assemble :
   Tst.Assembly.request list ->
   (Tst.Assembly.package list, failure) result
 
-(** Each package's C compiled for [target], the host when it is absent:
-    its `c.coda` read, and its C sources compiled by the linked clang
-    (docs/design/ffi.md §1). *)
+(** Each package's C compiled for [target], or for the host when [target]
+    is absent: the package's `c.coda` is read, and its C sources are
+    compiled by the linked clang (docs/design/ffi.md §1). *)
 val c_code : ?target:string -> Tst.Assembly.package list -> (Foreign.package list, failure) result
 
-(** The compilation database of the C sources of the packages without a
-    stamp, as `compile_commands.json` holds one, written to the file given
-    (docs/design/ffi.md F2). *)
+(** Writes the compilation database of the C sources of the packages
+    without a stamp, in the format of `compile_commands.json`, to the given
+    file (docs/design/ffi.md F2). *)
 val compile_commands : ?target:string -> Tst.Assembly.package list -> string -> (unit, failure) result
 
-(** Semantics, which gives no tree when it found a problem. *)
+(** Semantics, which returns no tree when it finds a problem. *)
 val check : ?c:Foreign.package list -> Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
 
-(** That the root declares a `main`: the one check for it, which lowering
-    takes as given. *)
+(** Checks that the root declares a `main`. This is the only check for
+    `main`; lowering assumes it. *)
 val require_main : Tst.Nodes.Program.t -> (unit, failure) result
 
-(** That a build with [root], as `--root` or `--no-root` gives it, may be
-    built into an executable: one without a root may not. *)
+(** Checks that a build with [root], as `--root` or `--no-root` sets it, may
+    be built into an executable: a build without a root may not. *)
 val buildable : bool option -> (unit, failure) result
 
 (** The size in bytes of the range each context reserves for its frames:
@@ -49,9 +50,10 @@ val buildable : bool option -> (unit, failure) result
 type regions = { fixed : int option; spawned : int option }
 
 (** Stage 4, with the bodies of stamped dependencies' functions taken in
-    for LLVM to inline. Without [root], it lowers from every function the
-    build declares rather than from the root's `main`. A type no main
-    context's range of [regions] could hold is refused where it is named.
+    for LLVM to inline. Without [root], lowering starts from every function
+    the build declares rather than from the root's `main`. A type that the
+    main context's range in [regions] could not hold is refused where the
+    type is named.
     With [compare_glue], every thunk of a stamped dependency's glue is
     lowered too, for [c_modules] to write that glue again and compare it
     with its release's (docs/design/ffi.md F13). A library given
@@ -67,19 +69,20 @@ val lower :
   Tst.Nodes.Program.t ->
   (Cgt.Nodes.Program.t, failure) result
 
-(** The places the program writes back into, written to [output] as the
-    file a library built for it alone reads (`--write-backs`). *)
+(** Writes the places the program writes back into to [output], as the file
+    that a library built for this program alone reads (`--write-backs`). *)
 val write_backs : Tst.Assembly.package list -> Tst.Nodes.Program.t -> output:string -> (unit, failure) result
 
 (** The C code each unstamped package of the build compiles into this
     object, with the glue for the thunks the tree's foreign calls go through
-    (docs/design/ffi.md F8, F9), for [target], the host when it is absent:
-    [c] is [c_code]'s for the packages. A build without [root] is a
-    library's, whose C globals are renamed for fetching to stamp. A stamped
-    dependency's archives are renamed after the C names [link]'s objects
-    define with its prefix (docs/design/ffi.md F15), and the modules of
-    its C whose hashes agree with [hashes], the rows its release
-    published, are retained for an optimized build to inline (F13). *)
+    (docs/design/ffi.md F8, F9), for [target], or for the host when
+    [target] is absent. [c] is the result of [c_code] for the packages. A
+    build without [root] builds a library, whose C globals are renamed for
+    fetching to stamp. A stamped dependency's archives are renamed after
+    the C names that [link]'s objects define with the dependency's prefix
+    (docs/design/ffi.md F15). The modules of the dependency's C whose hashes
+    match [hashes], the rows its release published, are retained for an
+    optimized build to inline (F13). *)
 val c_modules :
   ?target:string ->
   ?link:string list ->
@@ -90,8 +93,8 @@ val c_modules :
   Cgt.Nodes.Program.t ->
   (Codegen.c_package list, failure) result
 
-(** Stage 5 when [optimize], and the tree as it is otherwise. A call into
-    C folds by running [c], the packages' C code for [target]
+(** Stage 5 when [optimize] is true; otherwise the tree unchanged. A call
+    into C is folded by running [c], the packages' C code for [target]
     (docs/design/ffi.md F16). *)
 val optimize :
   ?target:string ->
@@ -100,8 +103,9 @@ val optimize :
   Cgt.Nodes.Program.t ->
   (Cgt.Nodes.Program.t, failure) result
 
-(** The LLVM module's text. Each of these builds for [target], the host when
-    it is absent, and with [pack] passes small aggregates as packed words
+(** The LLVM module's text. Each of these functions builds for [target], or
+    for the host when [target] is absent, and with [pack] passes small
+    aggregates as packed words
     (docs/design/lowering.md §9, `--pack-aggregates`). *)
 val ir :
   ?target:string ->
@@ -140,17 +144,18 @@ val tier_up :
   string ->
   (unit, failure) result
 
-(** The rows of the files of C module hashes [paths] name
-    (Foreign.Hashes), which `--c-hashes` gives. *)
+(** The rows of the C module hash files in [paths] (Foreign.Hashes), which
+    `--c-hashes` gives. *)
 val read_hashes : string list -> (Foreign.Hashes.row list, failure) result
 
-(** The rows for the packages [c] (as [c_code] made them) that the object
-    holds, from [c_modules]' packages: what `--object` writes beside it
-    (docs/design/ffi.md F15). *)
+(** The hash rows for those packages of [c] (as [c_code] made them) that
+    the object holds, taken from the packages [c_modules] returned. `--object`
+    writes these rows beside the object (docs/design/ffi.md F15). *)
 val hashes_of : Tst.Assembly.package list -> Foreign.package list -> Codegen.c_package list -> Foreign.Hashes.row list
 
-(** [rows] written beside the object [output] as `STEM.c.hashes`, after one
-    an earlier build wrote there is removed; none when [rows] is empty. *)
+(** Writes [rows] beside the object [output] as `STEM.c.hashes`, after
+    removing any such file an earlier build wrote there. No file is written
+    when [rows] is empty. *)
 val write_hashes : output:string -> Foreign.Hashes.row list -> (unit, failure) result
 
 val object_file :
@@ -164,21 +169,23 @@ val object_file :
   string ->
   (unit, failure) result
 
-(** The runtime compiled for the target into a released toolchain's
-    directory of them (`--bundle-runtime`, docs/design/lowering.md §7). *)
+(** Compiles the runtime for the target into a released toolchain's
+    directory of runtimes (`--bundle-runtime`, docs/design/lowering.md
+    §7). *)
 val bundle_runtime : target:string -> optimize:bool -> string -> (unit, failure) result
 
-(** The name of a file beside the output to write it under first, drawn
-    from the random source. *)
+(** A temporary file name beside the output, drawn from the random source:
+    the contents are written under this name first. *)
 val temporary_name : Random.State.t -> string -> string
 
 (** [rewrite_object ~stamps ~rewrite ~input ~output] writes [output] as
-    [rewrite] makes it from [input]'s contents, once each of [stamps] is a
-    stamp and, for two, they are versions of one package (`--rewrite` and
-    `--remap`, docs/design/separate-compilation.md C9, C11). The object is
-    written beside [output] under a name drawn from [random] and renamed into
-    place, so a failure leaves an existing [output] as it was; a name that
-    is already taken is left alone and another drawn, up to eight. *)
+    [rewrite] makes it from [input]'s contents, after checking that each of
+    [stamps] is a stamp and, when there are two, that both are versions of one
+    package (`--rewrite` and `--remap`, docs/design/separate-compilation.md
+    C9, C11). The object is written beside [output] under a name drawn from
+    [random] and renamed into place, so a failure leaves an existing [output]
+    unchanged. A drawn name that is already taken is left alone and another
+    name is drawn, up to eight names in all. *)
 val rewrite_object :
   random:Random.State.t ->
   stamps:string list ->

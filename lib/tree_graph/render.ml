@@ -33,8 +33,8 @@ let rec collect ~name node =
           collect ~name:element_name v
         ) list |> List.flatten
 
-(* Renders into [buf] so callers decide where the tree goes: stdout, a file, or
-   a test assertion. *)
+(* Renders into [buf] so that callers choose where the tree goes: stdout, a
+   file, or a test assertion. *)
 let render_to_buffer buf root_node =
   let items = collect ~name:"" root_node in
   let rec add_items prefix items =

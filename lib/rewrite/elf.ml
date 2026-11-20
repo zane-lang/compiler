@@ -1,5 +1,5 @@
-(* An ELF relocatable object with its symbols renamed. A symbol names itself
-   by an offset into a string table, and a stamped name is longer than the
+(* An ELF relocatable object with its symbols renamed. A symbol refers to its
+   name by an offset into a string table, and a stamped name is longer than the
    placeholder it replaces, so the new names cannot go where the old ones
    are. Instead the string table is copied to the end of the file with the
    new names after it, its section header points there, and each renamed
@@ -51,7 +51,8 @@ let sections l b =
         entsize = word l b (h + if l.wide then 56 else 36);
       }
     in
-    (* With 0xff00 sections or more, the count is the first header's size. *)
+    (* With 0xff00 sections or more, the section count is stored in the size
+   field of the first section header. *)
     let shnum = if shnum = 0 then (at 0).size else shnum in
     if shoff > Bytes.length b || shnum > (Bytes.length b - shoff) / shentsize then
       malformed "the section headers run past the end of the file";
@@ -80,12 +81,13 @@ let rewrite ~rename input =
   if u16 l b 16 <> et_rel then malformed "the file is not a relocatable object";
   let sections = sections l b in
   let within t = Field.within b ~offset:t.offset ~size:t.size "a section" in
-  (* Each string table some symbol table names: the strings to append to it,
-     and the end of the table they are appended after. *)
+  (* Each string table that some symbol table refers to: the strings to
+     append to it, and the end of the table, after which they are
+     appended. *)
   let tables = Hashtbl.create 1 in
   let renamed = ref [] in
-  (* The symbol at [entry] given its new name, appended to [added], when
-     [rename] renames it. *)
+  (* When [rename] renames the symbol at [entry], gives the symbol its new
+     name and appends that name to [added]. *)
   let rename_entry strtab added entry =
     let old = u32 l b entry in
     if old <> 0 then
@@ -95,8 +97,9 @@ let rewrite ~rename input =
   in
   Array.iter
     (fun symtab ->
-      (* A relocatable object a library is built into has no dynamic symbols.
-         One that does is not rewritten, rather than rewritten in part. *)
+      (* A relocatable object that a library is built into has no dynamic
+         symbols. An object with dynamic symbols is not rewritten at all,
+         rather than rewritten in part. *)
       if symtab.kind = sht_dynsym then malformed "it has a dynamic symbol table";
       if symtab.kind = sht_symtab then begin
         within symtab;

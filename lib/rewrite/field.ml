@@ -1,7 +1,7 @@
-(* Reading and writing an object file's fixed-width fields, every read
-   bounds-checked, and the string table a rewrite appends its new names to.
-   A file that does not hold together raises [Malformed], which [Rewrite]
-   reports rather than lets escape. *)
+(* Reading and writing an object file's fixed-width fields, with every read
+   bounds-checked, and the string table that a rewrite appends its new names
+   to. A malformed file raises [Malformed], which [Rewrite] catches and
+   reports. *)
 
 exception Malformed of string
 
@@ -54,8 +54,8 @@ let cstring b ~table ~size ~at what =
   | _ -> malformed (what ^ " is not terminated within its string table")
 
 (* The names a rewrite appends to a string table that is [size] bytes long,
-   each once: [add] gives the offset a new name will have in the grown
-   table. *)
+   each name once: [add] returns the offset a new name will have in the
+   grown table. *)
 module Appended = struct
   type t = { text : Buffer.t; mutable size : int; seen : (string, int) Hashtbl.t }
 

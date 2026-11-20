@@ -1,8 +1,8 @@
 (* A COFF object with its symbols renamed, in either header form: the
    standard one, or the "big object" one an object with very many sections
    uses. A symbol keeps a name of up to 8 bytes in its own record, and a
-   longer one as an offset into the string table, which directly follows the
-   symbol table and is the last thing in the file. A stamped name is always
+   longer name as an offset into the string table, which directly follows the
+   symbol table and is the last part of the file. A stamped name is always
    longer than 8 bytes, so each renamed symbol gets an offset, and the new
    names grow the string table at the file's end. Nothing else moves, since
    relocations name a symbol by its index. *)
@@ -48,7 +48,7 @@ let rewrite ~rename input =
       malformed "something follows the string table";
     let added = Appended.create size in
     let renamed = ref [] in
-    (* Each symbol's auxiliary records, which follow it, are skipped. *)
+    (* The auxiliary records that follow each symbol are skipped. *)
     let rec walk i =
       if i < h.count then begin
         let entry = h.symbols + (i * h.record) in

@@ -1,16 +1,16 @@
 (* Reading a span back out of the source it points at.
 
-   A span is only ever wrong by pointing somewhere, and the cheapest way to see
-   where is to print the text between its two positions. [Cst.To_span_text] and
-   [Sst.To_span_text] both do that, and they do it the same way, so the doing
-   of it lives here rather than twice. This is to the span side what
+   A wrong span points at the wrong text, and the cheapest way to see which
+   text is to print the text between its two positions. [Cst.To_span_text] and
+   [Sst.To_span_text] both do that in the same way, so the printing code lives
+   here rather than in both. This module is to the span side what
    [Tree_graph] is to the structure side: the shared rendering, with the walk
    over a stage's own nodes left to that stage.
 
-   That is not tidiness. The cut logic below has to respect UTF-8, and it got
-   that wrong once already: an elision landing mid-character wrote invalid
-   bytes into an expectation file. A second copy is a second place for that to
-   come back. *)
+   Sharing the code matters for more than tidiness. The cut logic below has to
+   respect UTF-8, and it got that wrong once already: an elision landing
+   mid-character wrote invalid bytes into an expectation file. A second copy
+   would be a second place for that bug to come back. *)
 
 type t = {
   source : string;
@@ -42,14 +42,14 @@ let squeeze text =
 
 (* A UTF-8 continuation byte is the tail of a character that starts earlier, so
    a cut landing on one would split that character and put an invalid byte
-   sequence in the expectation file. The same fact [Diagnostic.Render] uses to
-   keep a caret from drifting, for the same reason: this file's business is
+   sequence in the expectation file. [Diagnostic.Render] uses the same fact to
+   keep a caret from drifting, for the same reason: both files deal with
    positions in text that is not necessarily ASCII. *)
 let is_continuation text i = Char.code text.[i] land 0xC0 = 0x80
 
-(* Long spans are elided in the middle. Both ends are what a wrong span usually
-   gets wrong -- it starts at the binder instead of the name, or stops before
-   the `)` -- and keeping them whole would put a whole function body on one
+(* Long spans are elided in the middle. A wrong span is usually wrong at its
+   ends -- it starts at the binder instead of the identifier, or stops before
+   the `)` -- and keeping the whole text would put a whole function body on one
    line. *)
 let elide text =
   let limit = 56 and keep = 26 in
@@ -69,11 +69,12 @@ let elide text =
     done;
     String.sub text 0 !head ^ " … " ^ String.sub text !tail (length - !tail)
 
-(* One node: its kind, indented by depth, and the source its span covers.
+(* One node: its variant label, indented by depth, and the source its span
+   covers.
 
-   A span that does not fit the source says so in the output rather than
-   raising, because a dump that stops at the first bad span hides every one
-   after it -- and the run that most wants this tool is the one where a span is
+   A span that does not fit the source prints `<INVALID SPAN>` instead of
+   raising, because a dump that stops at the first bad span hides every bad
+   span after it -- and this tool is most needed exactly when a span is
    wrong. *)
 let line printer depth kind (span : Span.t) =
   let a = span.Span.start_.Lexing.pos_cnum
@@ -89,8 +90,8 @@ let line printer depth kind (span : Span.t) =
   Buffer.add_string printer.out text;
   Buffer.add_char printer.out '\n'
 
-(* A line with no span: a grouping the tree has but the source does not, such
-   as a package, which is a directory rather than text. *)
+(* A line with no span: a grouping that the tree has but the source text does
+   not, such as a package, which is a directory rather than text. *)
 let heading printer depth kind =
   Buffer.add_string printer.out (String.make (depth * 2) ' ');
   Buffer.add_string printer.out kind;

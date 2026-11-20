@@ -1,14 +1,14 @@
 (* A Mach-O object with its symbols renamed. The symbol table is the
-   `LC_SYMTAB` load command's: an array of `nlist` entries, each naming
-   itself by an offset into one string table. A stamped name is longer than
-   the placeholder it replaces, so the new names go after the table's end,
-   and each renamed symbol points at its new name. An object's string table
-   is the last thing in its file, so the table simply grows; one that is not
-   is copied to the end first, as an ELF one is. Nothing else in the file
-   moves, since relocations name a symbol by its index. An indirect symbol
-   (`N_INDR`, an alias `_alias = _target` defines) names its target by a
-   string-table offset in its value, so that name is renamed as a symbol's
-   is. *)
+   `LC_SYMTAB` load command's: an array of `nlist` entries, each referring
+   to its name by an offset into one string table. A stamped name is longer
+   than the placeholder it replaces, so the new names go after the table's
+   end, and each renamed symbol points at its new name. An object's string
+   table is usually the last part of its file, so the table simply grows; a
+   string table that is not last is first copied to the end, as for ELF.
+   Nothing else in the file moves, since relocations name a symbol by its
+   index. An indirect symbol (`N_INDR`, which an alias `_alias = _target`
+   defines) refers to its target by a string-table offset in its value, so
+   the target's name is renamed the same way as a symbol's own name. *)
 
 open Field
 
@@ -40,8 +40,8 @@ let rewrite ~rename input =
   let ncmds = u32 16 and sizeofcmds = u32 20 in
   let first = if wide then 32 else 28 in
   within b ~offset:first ~size:sizeofcmds "the load commands";
-  (* The one `LC_SYMTAB` among the load commands, by the offset of its
-     command. *)
+  (* The single `LC_SYMTAB` among the load commands, found by the offset of
+     its command. *)
   let rec find i at found =
     if i = ncmds then found
     else begin
@@ -67,8 +67,9 @@ let rewrite ~rename input =
       within b ~offset:symoff ~size:(nsyms * entsize) "the symbol table";
       within b ~offset:stroff ~size:strsize "the string table";
       let added = Appended.create strsize in
-      (* Each renamed name, by the field naming it and whether that field is
-         a symbol's own name rather than an indirect symbol's target. *)
+      (* Each renamed name, by the field that holds its offset, and whether
+         that field is a symbol's own name rather than an indirect symbol's
+         target. *)
       let renamed = ref [] in
       let name ~own field strx what =
         if strx <> 0 then

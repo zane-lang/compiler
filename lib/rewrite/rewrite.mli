@@ -5,8 +5,8 @@
     hexadecimal digits and `%`. *)
 val is_stamp : string -> bool
 
-(** Whether two stamps are versions of one package: their identity hashes
-    agree. *)
+(** Whether two stamps are versions of one package, which holds when their
+    identity hashes are equal. *)
 val same_package : string -> string -> bool
 
 (** The object with every `!` placeholder replaced by [stamp], and how many
@@ -14,16 +14,18 @@ val same_package : string -> string -> bool
 val rewrite : stamp:string -> string -> (string * int, string) result
 
 (** The object with every reference to the version stamped [from] moved to
-    the one stamped [to_], and how many symbols were renamed. *)
+    the version stamped [to_], and how many symbols were renamed. *)
 val remap : from:string -> to_:string -> string -> (string * int, string) result
 
-(** The object with each symbol [rename] gives a new name renamed, and how
-    many were: a package's C objects renamed with the names its module's
-    globals take (docs/design/ffi.md F9). *)
+(** The object with each symbol renamed for which [rename] returns a new
+    name, and how many symbols were renamed. This renames a package's C
+    objects to the names its module's globals take (docs/design/ffi.md
+    F9). *)
 val rename : rename:(string -> string option) -> string -> (string * int, string) result
 
-(** [symbol] with every occurrence of [from] spelled [into]: a package's
-    name, which a symbol holds before its own name and in each of the
-    package's types it names. An occurrence that ends a longer name, as
-    [from] `lib$` ends `mylib$`, is another package's, and is kept. *)
+(** [symbol] with every occurrence of [from] spelled [into]. [from] is a
+    package's name, which a symbol contains before the symbol's own name and
+    in each of the package's types that the symbol names. An occurrence that
+    ends a longer name, as [from] `lib$` ends `mylib$`, belongs to another
+    package and is kept. *)
 val respell : from:string -> into:string -> string -> string

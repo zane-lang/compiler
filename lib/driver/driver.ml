@@ -1,10 +1,11 @@
 (* The pipeline as a front end runs it (docs/design/stages.md). Each step
-   returns a result whose failure is every problem it found, with the text
-   of the files they point into, so a front end prints them all the same
-   way. The rules that are about the build rather than about any one stage
-   live here too: which package a `--stamp` names, and whether the root
-   needs a `main`. So does rewriting an object, fetching's step rather than a
-   build's (docs/design/separate-compilation.md C9, C11). *)
+   returns a result whose failure holds every problem the step found, with
+   the text of the files the problems point into, so every front end prints
+   them the same way. The rules about the build rather than about any one
+   stage live here too: which package a `--stamp` names, and whether the
+   root needs a `main`. Rewriting an object also lives here, although it is
+   a step of fetching rather than of a build
+   (docs/design/separate-compilation.md C9, C11). *)
 
 module Assembly = Tst.Assembly
 
@@ -18,13 +19,14 @@ let not_stamp stamp =
     "`%s` is not a stamp: a version tag of letters, digits, `.`, `_`, `+` and `-`, then `%%`, 16 lowercase hexadecimal digits and `%%`"
     stamp
 
-(* `--stamp NAME=STAMP` gives the one package named NAME its stamp. A stamp
-   for a package the build does not have would be dropped silently, and the
-   package it was meant for compiled into the root's object rather than
-   linked from its own; one for a name two packages have would pick between
-   them. A value that is no stamp would name the package's symbols with it,
-   while lowering, which recognizes a stamp by its form, took the package
-   for unstamped. *)
+(* `--stamp NAME=STAMP` gives its stamp to the single package named NAME,
+   and each other case is an error. A stamp for a package the build does
+   not have would otherwise be dropped silently, and the intended package
+   compiled into the root's object instead of linked from its own object. A
+   stamp for a name that two packages share would have to pick one of them.
+   A value that is not a stamp would be put into the package's symbols,
+   while lowering, which recognizes a stamp by its form, would treat the
+   package as unstamped. *)
 let with_stamps stamps requests =
   let problems = ref [] in
   let requests =
@@ -56,8 +58,9 @@ let with_stamps stamps requests =
   in
   match !problems with [] -> Ok requests | problems -> fail (List.rev problems)
 
-(* The packages of the build, read from their directories, the first the
-   root when [root]: a library build has no root (packages.md §6.1). *)
+(* The packages of the build, read from their directories. When [root] is
+   true, the first package is the root; a library build has no root
+   (packages.md §6.1). *)
 let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
   match with_stamps stamps requests with
   | Error _ as e -> e
@@ -66,9 +69,10 @@ let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
       | Ok packages -> Ok packages
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 
-(* What the C compiler warned of in a package's own files, which refuses
-   nothing, for a package being worked on: a dependency's, whose id carries
-   its stamp, are its author's. *)
+(* Prints the warnings the C compiler gave about a package's own C files.
+   A warning refuses nothing. Only a package being worked on gets its
+   warnings printed: a dependency's id carries its stamp, and the warnings
+   in a dependency's files are for its author to fix. *)
 let show_warnings (p : Assembly.package) f =
   if not (String.contains p.Assembly.id '%') then
     let warnings, sources = Foreign.warnings f in
@@ -87,26 +91,28 @@ let c_code ?target packages =
           Ok c
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
-(* The name of a file beside [output] to write it under before it is renamed
-   into place, drawn from [random]. *)
+(* A temporary file name beside [output], drawn from [random]: the contents
+   are written under this name first and then renamed to [output]. *)
 let temporary_name random output =
   Filename.concat (Filename.dirname output)
     (Printf.sprintf ".%s.%08x" (Filename.basename output) (Random.State.bits random))
 
-(* How many names [write_replacing] draws before it gives up: each one
-   already taken is a file someone else made. *)
+(* How many temporary names [write_replacing] draws before it gives up. Each
+   name that is already taken belongs to a file someone else made. *)
 let temporary_attempts = 8
 
-(* [contents] written beside [output] and renamed into place, so a failed
-   write leaves an existing [output], or the input it may be, as it was. The
-   temporary is created exclusively, so a name that already exists is
-   another's file: it is left alone and a new name drawn. Any failure to
-   create one draws again, since [Sys_error] does not say whether the name
-   was taken, and a lookup after the fact misses a dangling symlink or a file
-   removed in between. Windows creates a dangling symlink's target where the
-   exclusive create meets one, so there a name that is any entry, a link
-   among them, is drawn again first. Only a temporary this call created is
-   removed when a later step fails. *)
+(* Writes [contents] to a temporary file beside [output] and renames it into
+   place, so a failed write leaves an existing [output] unchanged, even when
+   [output] is also the input. The temporary file is created exclusively, so
+   a name that already exists belongs to another file: that file is left
+   alone and a new name is drawn. Any failure to create the temporary file
+   draws a new name, since [Sys_error] does not show whether the name was
+   taken, and a lookup afterwards would miss a dangling symlink or a file
+   removed in between. On Windows an exclusive create through a dangling
+   symlink creates the symlink's target, so there any existing entry with
+   the drawn name, symlinks included, makes the function draw again first.
+   When a later step fails, only a temporary file this call created is
+   removed. *)
 let write_replacing ~random ~output contents =
   let taken name = Sys.win32 && match Unix.lstat name with _ -> true | exception Unix.Unix_error _ -> false in
   let rec attempt drawn =
@@ -135,8 +141,9 @@ let write_replacing ~random ~output contents =
   in
   attempt 1
 
-(* The compilation database of the C sources of [packages] being worked
-   on, those with no stamp, written to [output] (docs/design/ffi.md F2). *)
+(* Writes to [output] the compilation database of the C sources of the
+   [packages] being worked on, which are those without a stamp
+   (docs/design/ffi.md F2). *)
 let compile_commands ?target packages output =
   let dirs =
     List.filter_map
@@ -151,17 +158,17 @@ let compile_commands ?target packages output =
   with
   | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
   | Ok text -> (
-      (* Renamed into place, so an editor never reads half of one and a
-         failed write keeps the one before. *)
+      (* Renamed into place, so an editor never reads half a database and a
+         failed write keeps the previous database. *)
       match write_replacing ~random:(Random.State.make_self_init ()) ~output text with
       | Ok () -> Ok ()
       | Error message -> fail [ Diagnostic.about_invocation ("the compilation database could not be written: " ^ message) ])
 
 (* Semantics, which reports every problem it finds (docs/design/semantics.md
-   D4) and gives no tree when there is one. *)
+   D4) and returns no tree when it finds any problem. *)
 let check ?(c = []) packages =
-  (* [c] is [c_code]'s for these packages, in their order; a caller that
-     compiled no C gives none. *)
+  (* [c] is the result of [c_code] for these packages, in the same order; a
+     caller that compiled no C passes no [c]. *)
   let interfaces =
     if c = [] then []
     else List.map2 (fun (p : Assembly.package) (f : Foreign.package) -> (p.Assembly.id, f.Foreign.interface)) packages c
@@ -171,8 +178,8 @@ let check ?(c = []) packages =
   | { Tst.Semantics.diagnostics; _ } -> fail ~sources:(Assembly.sources packages) diagnostics
 
 (* A program starts from its root's `main` (packages.md §6.2), so a root
-   without it is an error however far the build goes. This is the one check for `main`:
-   lowering takes it as given. *)
+   without `main` is an error however far the build goes. This is the only check for
+   `main`: lowering assumes it. *)
 let require_main (program : Tst.Nodes.Program.t) =
   match program.Tst.Nodes.Program.packages with
   | root :: _ ->
@@ -196,17 +203,17 @@ let require_main (program : Tst.Nodes.Program.t) =
 
 (* Lowering refuses what it cannot handle yet with a diagnostic rather than
    lowering it wrongly (docs/design/lowering.md). A build without a root
-   lowers from every function it declares. *)
+   lowers from every function the build declares. *)
 (* The sizes of each context's range of frames, from `--fixed-region` and
-   `--spawned-fixed-region`; the defaults
-   when absent. *)
+   `--spawned-fixed-region`; [None] takes the default size. *)
 type regions = { fixed : int option; spawned : int option }
 
 let no_regions = { fixed = None; spawned = None }
 
-(* Every build takes in its stamped dependencies' bodies, which LLVM inlines
-   and defines in no object (docs/design/separate-compilation.md C12): an
-   unoptimized build's inlining needs them as much as an optimized one's. *)
+(* Every build takes in the function bodies of its stamped dependencies.
+   LLVM inlines these bodies and defines them in no object
+   (docs/design/separate-compilation.md C12), and an unoptimized build's
+   inlining needs them as much as an optimized build's does. *)
 let lower ?(regions = no_regions) ?(compare_glue = false) ?program_write_backs ~root packages program =
   let read path =
     match In_channel.with_open_bin path In_channel.input_all with
@@ -238,12 +245,13 @@ let write_backs packages program ~output =
       | Ok () -> Ok ()
       | Error why -> fail [ Diagnostic.about_invocation ("cannot write the program's write-backs: " ^ why) ])
 
-(* The modules of the stamped dependency [p]'s C, [f], that an optimized
-   build retains (docs/design/ffi.md F13): its sources' and its glue's whose
-   hashes agree with those its release published, [hashes], the glue
-   written again from its thunks, [entries], under the labels its
-   publisher's glue named them by. None when the release published none
-   for it, or none agree. *)
+(* The modules of [f], the C of the stamped dependency [p], that an
+   optimized build retains (docs/design/ffi.md F13). These are the modules of
+   its C sources and of its glue whose hashes match the hashes its release
+   published, [hashes]. The glue is written again from the dependency's
+   thunks, [entries], under the labels that the publisher's glue used.
+   [None] when the release published no hashes for [p], or when no hash
+   matches. *)
 let retained_c ~hashes ~(entry : ?label:(Cgt.Nodes.Foreign.t -> string) -> Cgt.Nodes.Foreign.t -> Foreign.Glue.entry) (p : Assembly.package) (f : Foreign.package) (entries : Cgt.Nodes.Foreign.t list) =
   let module H = Foreign.Hashes in
   let id = p.Assembly.id in
@@ -255,8 +263,9 @@ let retained_c ~hashes ~(entry : ?label:(Cgt.Nodes.Foreign.t -> string) -> Cgt.N
   | _ when entries = [] || not (List.for_all own entries) -> Ok None
   | first :: _ ->
       let labels = first.H.labels in
-      (* The package is named throughout a thunk's symbol, before it and in
-         each of its own types the verb names, as `this lib$State`. *)
+      (* A thunk's symbol names the package in several places: before the
+         verb, and in each of the package's own types that the verb names,
+         as in `this lib$State`. *)
       let label (t : Cgt.Nodes.Foreign.t) = Rewrite.respell ~from:(id ^ "$") ~into:(labels ^ "$") t.Cgt.Nodes.Foreign.thunk in
       Result.map
         (fun glue ->
@@ -276,7 +285,7 @@ let retained_c ~hashes ~(entry : ?label:(Cgt.Nodes.Foreign.t -> string) -> Cgt.N
           if glue = [] then None else Some (labels, sources, glue))
         (Foreign.glue f (List.map (fun t -> entry ~label t) entries))
 
-(* The rows of each file [paths] names, which `--object` wrote beside a
+(* The rows of each file in [paths]. `--object` wrote these files beside a
    dependency's object (Foreign.Hashes). *)
 let read_hashes paths =
   let one path =
@@ -288,10 +297,11 @@ let read_hashes paths =
   | Ok rows -> Ok (List.concat rows)
   | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics
 
-(* The rows of the file [Foreign.Hashes] names for the packages this
-   object holds, as [c_modules] made their C, [cs]: each C source's hash,
-   from [c], and each glue module's, the package and its labels named as
-   its symbols are, and the file relative to the package's directory. *)
+(* The rows of the [Foreign.Hashes] file for the packages this object holds,
+   whose C [c_modules] made as [cs]. There is a row for the hash of each C
+   source, taken from [c], and for the hash of each glue module. Each row
+   names the package and its labels as the package's symbols spell them, and
+   the file relative to the package's directory. *)
 let hashes_of packages (c : Foreign.package list) (cs : Codegen.c_package list) =
   let module H = Foreign.Hashes in
   let relative dir file =
@@ -325,9 +335,9 @@ let hashes_of packages (c : Foreign.package list) (cs : Codegen.c_package list) 
   in
   if c = [] then [] else List.concat (List.map2 rows packages c)
 
-(* [rows] written beside the object [output], as `STEM.c.hashes`, after
-   one an earlier build wrote there is removed: none is written when the
-   object holds no C module. *)
+(* Writes [rows] beside the object [output], as `STEM.c.hashes`, after
+   removing any such file an earlier build wrote there. No file is written
+   when the object holds no C module. *)
 let write_hashes ~output rows =
   let path = Filename.remove_extension output ^ ".c.hashes" in
   match
@@ -338,19 +348,20 @@ let write_hashes ~output rows =
   | exception Sys_error why -> fail [ Diagnostic.about_invocation ("cannot write the C modules' hashes: " ^ why) ]
 
 (* The C code each package of the build compiles into this object, for
-   codegen to link (docs/design/ffi.md F8, F9): its sources' modules, and
-   its glue's, made for the thunks [cgt]'s foreign calls go through. A
-   stamped dependency's C is in its own objects, and only its archives
-   and `system` libraries reach this link. Its globals are renamed
-   after the package's symbols: `!` before the name in a library's
-   object, which fetching stamps, and nothing in a program's. *)
+   codegen to link (docs/design/ffi.md F8, F9): the modules of the package's
+   C sources, and of its glue, made for the thunks that [cgt]'s foreign
+   calls go through. A stamped dependency's C is in its own objects, and
+   only its archives and `system` libraries reach this link. The C globals
+   are renamed after the package's symbols: with `!` before the package
+   name in a library's object, which fetching stamps, and with no prefix in
+   a program's object. *)
 let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
   let module F = Cgt.Nodes.Foreign in
-  (* A package's stamp, all of its identity up to its last `%`. The
-     packages of the first one's are the project this object holds, and
-     an unstamped dependency of a stamped one is compiled in with them;
-     only a library's own unstamped packages are named with the `!`
-     placeholder (separate-compilation.md C1, C6), as Cgt names them. *)
+  (* A package's stamp: its id up to and including the last `%`. The
+     packages with the first package's stamp are the project this object
+     holds, and an unstamped dependency of a stamped package is compiled in
+     with them. Only a library's own unstamped packages are named with the
+     `!` placeholder (separate-compilation.md C1, C6), as Cgt names them. *)
   let stamp id = match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> "" in
   let project = match packages with (r : Assembly.package) :: _ -> stamp r.Assembly.id | [] -> "" in
   let prefix id = (if (not root) && project = "" && stamp id = "" then "!" else "") ^ id ^ "$%c$" in
@@ -379,13 +390,13 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
           Foreign.Glue.label = global_prefix ^ label t;
           c_function = t.F.c_function;
           params = List.map kind t.F.params;
-          (* Only a string comes back as a view. *)
+          (* Only a string result is returned as a view. *)
           result = (match t.F.result with F.View -> Foreign.Glue.Text | r -> kind r);
         }
       in
-      (* A package's C apart from its module: the objects its sources
-         holding assembly were assembled into, its archives, and its
-         `system` libraries, each named by its row. *)
+      (* A package's C outside its module: the objects assembled from its
+         sources that hold assembly, its archives, and its `system`
+         libraries, each library named by its row in `c.coda`. *)
       let apart (f : Foreign.package) =
         let coda = Source.Files.in_directory f.Foreign.dir Foreign.Settings.file_name in
         ( List.map
@@ -400,8 +411,8 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
               { Codegen.name; row = Printf.sprintf "row %d of `%s`" number coda })
             (Foreign.libraries f) )
       in
-      (* What the `--link` objects define, by C name (Foreign.Objects.read),
-         read once a stamped dependency's archives need it. *)
+      (* The C names that the `--link` objects define (Foreign.Objects.read),
+         read the first time a stamped dependency's archives need them. *)
       let published =
         let rec all = function
           | [] -> Ok []
@@ -430,8 +441,9 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         in
         (* A stamped dependency's C is in its objects, which link with its
            `system` libraries and its archives. The archives are renamed
-           after the C names those objects define with its prefix, the
-           names its own build renamed (docs/design/ffi.md F15). *)
+           after the C names that those objects define with the package's
+           prefix, which are the names the dependency's own build renamed
+           (docs/design/ffi.md F15). *)
         let elsewhere = stamp p.Assembly.id <> "" && stamp p.Assembly.id <> project in
         let ( let* ) = Result.bind in
         if elsewhere then
@@ -446,11 +458,11 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
           let* retained = retained_c ~hashes ~entry p f entries in
           match retained with
           | Some (labels, sources, glue) ->
-              (* Every C name the package's sources define, those
-                 assembled apart among them, is the object's, renamed so,
-                 declarations too: a retained module reaches a source it
-                 calls by the name the dependency's objects define it
-                 under. *)
+              (* Every C name that the package's sources define, including
+                 the sources assembled separately, belongs to the object and
+                 is renamed the same way, declarations included: a retained
+                 module calls into a source by the name the dependency's
+                 objects define it under. *)
               let defined =
                 (if archives = [] then Foreign.object_defined f else defined)
                 @ List.concat_map (fun (s : Foreign.Compile.source) -> fst (Foreign.Clang.definitions s.bitcode)) f.Foreign.sources
@@ -475,9 +487,9 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
                    ~objects ~archives ~defined:(Foreign.object_defined f) ()))
             (Foreign.glue f (List.map entry entries))
       in
-      (* The object's function values C can call (docs/design/ffi.md F11):
-         its lambdas' C entries, in one module of their own, named by the
-         lambdas' symbols. *)
+      (* The object's function values that C can call (docs/design/ffi.md
+         F11): the C entries of its lambdas, in one module of their own,
+         named after the lambdas' symbols. *)
       let module C = Cgt.Nodes.Callback in
       let rec shape (s : C.shape) =
         match s with
@@ -488,8 +500,9 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         | C.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"
         | C.Scalar Cgt.Nodes.Ty.F64 -> Foreign.Glue.Value "double"
         | C.Record fs -> Foreign.Glue.Record (List.map (fun (f, n) -> (shape f, n)) fs)
-        (* A list's room counts its elements with frame references, which
-           also narrow its count and room to 32 bits (Codegen.List_handle). *)
+        (* With frame references, a list's room counts its elements, and
+           frame references also narrow the list's count and room to 32
+           bits (Codegen.List_handle). *)
         | C.View { text = true; _ } -> Foreign.Glue.View { unit = 1; narrow = false }
         | C.View { stride; _ } ->
             if Cgt.Ref32.frames () then Foreign.Glue.View { unit = 1; narrow = true }
@@ -535,8 +548,8 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
-   runs: an unoptimized one skips it. A call into C folds by running the
-   packages' C [c] (docs/design/ffi.md F16). *)
+   runs. A call into C is folded by running [c], the packages' C code
+   (docs/design/ffi.md F16). *)
 let optimize ?target ?(c = []) ~optimize cgt =
   if not optimize then Ok cgt
   else if c = [] then Ok (Optimize.run cgt)
@@ -546,11 +559,11 @@ let optimize ?target ?(c = []) ~optimize cgt =
     | Error message -> fail [ Diagnostic.about_invocation message ]
 
 (* Codegen's own failures -- an unknown target, a link that failed -- are
-   about the build, not about any file of it. *)
+   about the build, not about any of its files. *)
 let built = function Ok v -> Ok v | Error message -> fail [ Diagnostic.about_invocation message ]
 
-(* The program's module exists only inside [f] (Codegen.with_program),
-   emitted for the optimized passes when [version]. *)
+(* The program's LLVM module exists only inside [f] (Codegen.with_program).
+   When [version] is true, the module is emitted for the optimized passes. *)
 let emitted ?target ?pack ?memoize ?c ?tiered ~version regions cgt f =
   Codegen.with_program ?target ?pack ?memoize ~version ?tiered ?fixed_region:regions.fixed
     ?spawned_fixed_region:regions.spawned ?c cgt f
@@ -560,16 +573,16 @@ let ir ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt =
     (emitted ?target ?pack ?memoize ?c ~version:optimize regions cgt (fun m ->
          Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
 
-(* A [tiered] build is tier 0 (docs/design/tiers.md). Every build plans
-   what it remembers alike, so it and tier 1 emit the same module. *)
+(* A [tiered] build is tier 0 (docs/design/tiers.md). Every build plans its
+   memoization the same way, so tier 0 and tier 1 emit the same module. *)
 let executable ?target ?pack ?memoize ?c ?(regions = no_regions) ?(tiered = false) ~optimize ~link cgt output =
   let tier = if tiered then Codegen.Tier0 else Codegen.Plain in
   built
     (emitted ?target ?pack ?memoize ?c ~tiered ~version:(optimize || tiered) regions cgt (fun m ->
          Codegen.executable ?target ~optimize ~tier ~link m output))
 
-(* Tier 1 of a tiered build, from the tree lowering made, without stage 5,
-   so it emits the module tier 0 does. *)
+(* Tier 1 of a tiered build, built from the tree that lowering made, without
+   stage 5, so tier 1 emits the same module as tier 0. *)
 let tier_up ?target ?pack ?memoize ?c ?(regions = no_regions) cgt output =
   built (emitted ?target ?pack ?memoize ?c ~tiered:true ~version:true regions cgt (fun m -> Codegen.shared_library ?target m output))
 
