@@ -270,9 +270,11 @@ static void state_wakes(void) {
 	watch_calls = 0;
 	watch_applied = 0;
 	zane_workers_start(handle, (char *)&w, sizeof w, NULL, watch_step, NULL, NULL, NULL, 1, &none);
-	/* The watcher's first call has seen no event, so it waits. */
+	/* The watcher's first call has seen no event, so it waits: the
+	   publisher starts only once the watcher, the one worker, is on the
+	   sleeping list, so only the funnel's writes can wake it. */
 	for (int64_t until = test_now() + 2000000000; test_now() < until;) {
-		if (__atomic_load_n(&watch_calls, __ATOMIC_ACQUIRE) > 0) break;
+		if (__atomic_load_n(&zane_sleepers, __ATOMIC_ACQUIRE) == 1) break;
 		sched_yield();
 	}
 	int64_t waited = __atomic_load_n(&watch_calls, __ATOMIC_ACQUIRE) == 1 &&
