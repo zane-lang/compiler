@@ -901,8 +901,8 @@ a loop.
 LLVM's instruction combining is kept from sinking instructions into the
 block that uses them. It reads a packed sum as its tag and its room, and
 with sinking on it moves the room's load into the case that reads the
-payload, where nothing tells LLVM the load is safe to make before the tag
-is tested. Left beside the tag's load, the room is read either way, and a
+payload, where nothing marks for LLVM that the load is safe to make before the
+tag is tested. Left beside the tag's load, the room is read either way, and a
 case's test and payload become a select instead of a branch on the tag
 that the predictor cannot learn.
 
@@ -1101,7 +1101,7 @@ attributes. A parameter that is the address of a slot that outlives the call, a
 and `dereferenceable` for the whole slot when the slot holds a
 declared type, a list or a text, so a loop reads a list in it once rather
 than after every index check. A runtime value such as `Console` has no
-layout lowering knows, and gets none of these. Neither kind claims an
+layout lowering has computed, and gets none of these. Neither kind claims an
 alignment: what it names may be a member at any byte of a packed value.
 
 ### List headers and scalars in separate alias classes
@@ -1143,7 +1143,7 @@ frames.
 only reads memory, so loads before it stay valid after it.
 `zane_list_push`, `zane_list_reserve` and `zane_list_room` keep no pointer
 to the list's handle (`captures(address)`): a handle in a local slot stays
-the function's own across other calls, so LLVM knows a fresh list is still
+the function's own across other calls, so LLVM can prove a fresh list is still
 empty at its first push after a call, as in `returns`' `grow`, and drops the
 check for room. An optimized or tiered build puts these back after it links
 the runtime's bodies, which replace the declarations.
@@ -1243,7 +1243,7 @@ Each scope's slots form one frame at fixed offsets, placed back to back in
 one range per context. While no spawned call is out, entering a scope is a
 bump of the frontier and a few stores, and a drain with nothing to wait for
 or return moves the frontier back, with no runtime call. The open scope
-tells LLVM with `llvm.assume` that any slot of its frame may be read and
+states to LLVM with `llvm.assume` that any slot of its frame may be read and
 that the frame is 16-byte aligned, so a loop reads a list kept in the
 frame once.
 
@@ -1311,7 +1311,7 @@ it (`Cgt.Traverse.leaves`); a verb expanded inside it, a written-out push
 or the counter step of `core`'s `to`, ends with a leave of its own
 expansion, which keeps the loop running. Nothing in such a loop pushes to, makes room in or removes from
 another list, spawns, or calls a function that could, which a
-whole-program analysis tells in an optimized build. A call into C could
+whole-program analysis detects in an optimized build. A call into C could
 only through a function value C was given, so it counts as one that could
 unless the program is a whole program that gives C none and holds every
 function's body ([`design/ffi.md`](design/ffi.md) F10). A struct of scalars is stored member by

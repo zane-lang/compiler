@@ -49,7 +49,7 @@ A function gets a table when:
   the operations of a lookup (M3), so a hit saves more than its lookup
   costs. A call's operations estimate what an optimized build runs: one for
   each computation, memory access and branch, a loop's body as often as a
-  constant count says or else eight times, a switch's dearest case, and one
+  constant count gives or else eight times, a switch's dearest case, and one
   for each call plus the operations of the function called. Naming a local,
   a constant or a verb's expansion counts nothing, since an optimized build
   keeps it in a register or folds it away. A light function in a loop gets no table, nor does a
@@ -152,14 +152,15 @@ first position it reaches twice. One whose calls are light gives up after a
 few dozen lookups.
 
 The cheapest call is the shortest path through the body to a return,
-weighed as above, with a loop run as often as a constant count says, and any
+weighed as above, with a loop run as often as a constant count gives, and any
 other loop run no times. A `return` inside a verb written out where it is
 called ends the verb, not the function, so the path goes on after it. Every call the hit skipped
 would have run at least that, whichever path it took, so the credit never
 exceeds what the hit saved. A recursion whose arguments repeat only where it
 bottoms out hits on half its calls, each saving one call of its cheapest
 path, and stops looking (`tests/perf/leaves`). The count is low for a call
-whose base case loops as often as an argument says: its rounds are not counted, and such a function can
+whose base case loops as often as an argument gives: its rounds are not
+counted, and such a function can
 stop looking though its hits would have paid (`lv1h20`,
 `dev/bench/memo/`).
 

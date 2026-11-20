@@ -32,7 +32,7 @@ source → CST → SST → TST → CGT → (optimized CGT) → binary
 proven unambiguous; [`docs/ambiguity/`](docs/ambiguity/README.md) describes the proof.
 
 The compiler follows the [language specification](https://github.com/zane-lang/spec).
-Where it deliberately does something else, or decides what the spec leaves
+Where it deliberately does something else, or settles what the spec leaves
 open, [`docs/spec-divergences.md`](docs/spec-divergences.md) lists the difference.
 
 ## Building it

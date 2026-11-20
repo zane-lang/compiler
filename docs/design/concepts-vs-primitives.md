@@ -35,7 +35,7 @@ costs what an `i64` costs.
 
 ## Why the line is there
 
-Concepts let a literal or a block be checked before anything knows where it
+Concepts let a literal or a block be checked before it is known where it
 will be stored: `20` is an `Integer` until a parameter or a field declares which
 integer type it becomes. Primitives are the opposite: they say exactly what
 the machine holds, and nothing about how the source spelled it. Keeping them

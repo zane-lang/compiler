@@ -153,7 +153,7 @@ in §9.
 ## 3. The passes
 
 Each pass reads the SST and the tables of the passes before it, and nothing
-else. Its entry point says so: it is given empty tables for its own group,
+else. Its entry point enforces this: it is given empty tables for its own group,
 fills them, and returns a view of them that has no way to write
 (`Env.Names`, `Env.Types`, `Env.Verbs`). `Semantics.check` hands that view to
 the next pass, so no pass can run before the ones it reads. Pass 3 holds back
@@ -731,7 +731,8 @@ literal, `weapons[1]`, which only a coercion site allows.
 verb uses it as one.** The spec spells an explicit number parameter,
 `Array<T, n>(T Type, n @concepts$Int)`, the same way as a parameter that
 takes an integer literal, `implicit Int(value @concepts$Int)`
-(`generics.md` §5.3, §5.4). This compiler decides from the uses rather than
+(`generics.md` §5.3, §5.4). This compiler infers genericity from the uses
+rather than
 the concept: a parameter is generic when the verb puts its name where a number
 goes. That is either a type the verb writes -- in its signature, or in its
 body's local declarations and lambdas -- or an argument to another verb's
@@ -842,7 +843,7 @@ only reject more, never let a write through.
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing
   out; reading `list[i]` into an owner is what the move rule then rejects.
 - A case read and what its handler resolves are a place too: the store the
-  whole expression feeds decides whether it moves.
+  whole expression feeds determines whether it moves.
 - An `@operators$` function or an intrinsic constructor reads its arguments,
   and `push` takes its value as `^T`. `remove` and `swapRemove` give theirs
   as `^T`: an element is roaming (`memory.md` §2.8.1), so it moves out.

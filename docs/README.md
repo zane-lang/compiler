@@ -4,7 +4,7 @@ What each document here is for. The [spec](https://github.com/zane-lang/spec)
 defines the language; these describe how this compiler implements it.
 
 - [`spec-divergences.md`](spec-divergences.md): where the compiler does
-  something other than the spec says, or decides what the spec leaves open.
+  something other than the spec says, or settles what the spec leaves open.
   Read it before relying on a spec section.
 - [`optimizations.md`](optimizations.md): every optimization the compiler
   applies to the programs it builds, one entry each, with the builds that get

@@ -2,7 +2,7 @@
 
 The [spec](https://github.com/zane-lang/spec) is authoritative for anything not
 listed here. This file records the places the compiler deliberately does
-something else, or decides something the spec leaves open, so a contributor
+something else, or settles something the spec leaves open, so a contributor
 reading a spec section and then the compiler knows which of the two is
 currently ahead.
 
@@ -18,7 +18,7 @@ settles, in one pass rather than section by section. Until then:
 
 A choice the spec leaves open is recorded here when a running program can
 observe it, as §7 and §10 are. The rest sit beside the design they belong
-to: what the type checker decides is in
+to: what the type checker determines is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
 [`design/lowering.md`](design/lowering.md) §9.
@@ -103,10 +103,11 @@ type is `Foo`
 ([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §3.8 lists `ReturnType() { body }` as a form of its own), and in statement
 position it is also a positional constructor declaration with a block body
-(§3.3). Nothing inside the form tells those from a nullary constructor call
-with one trailing block: an empty argument list and an empty parameter list are
-the same `( )`, and a trailing block argument and a block body are the same
-`{ }`. A lower-case callee has no such reading, which is why `do() { ... }` is
+(§3.3). Nothing inside the form distinguishes those from a nullary
+constructor call with one trailing block: an empty argument list and an empty
+parameter list are the same `( )`, and a trailing block argument and a block
+body are the same `{ }`. A lower-case callee has no such reading, which is why
+`do() { ... }` is
 unambiguous and `Foo() { ... }` is not — the casing rule is doing the work.
 
 So what is left is a collision inside the spec rather than a place the
@@ -373,7 +374,7 @@ the compiler widened a form it had limited to constructors to every call.
   What the compiler did not have at all was the rule stated over a statement's
   **tail** rather than its form, which is what reaches a variable bound to a
   `match`, an assignment, a `return`, and a `=> expr` verb whose expression
-  ends in a brace. The grammar now decides whether a statement takes a `;`;
+  ends in a brace. The grammar now determines whether a statement takes a `;`;
   only a stray `;` after its closing brace, and a trailing argument's `}` with
   something after it, are checked after the parse.
 
@@ -515,8 +516,8 @@ the compiler widened a form it had limited to constructors to every call.
   not a grammar requirement. The compiler now takes a type as a whole
   positional argument of every call, a function's and a method's included:
   `emptyOf(Pair<Int>)`, `registry!add(Int)`, `port:tallied(&Port)`. As there,
-  the token after the type decides between the argument and a lambda it
-  begins ([`ambiguity/experiments.md`](ambiguity/experiments.md#a-type-in-every-call)).
+  the token after the type settles the choice between the argument and a
+  lambda it begins ([`ambiguity/experiments.md`](ambiguity/experiments.md#a-type-in-every-call)).
   A named argument takes no type, as the spec's "positionally" says: it fills
   a field constructor's entry, which is one of the type's fields, and `Type`
   is a concept, never storage.

@@ -34,8 +34,8 @@ accepted input reaches it.
 
 The statement terminator is the case that taught this. Whether a statement
 needs `;` depends on whether it ends in `}` — after `ran Bool = if(ready)` the
-next token decides, and a `{` there continues the call. Checked from a raise in
-an action, it failed 18 tests at once, every one of them on the early-ending
+next token settles it, and a `{` there continues the call. Checked from a raise
+in an action, it failed 18 tests at once, every one of them on the early-ending
 branch of a program that parses correctly one token later. The checks that stay
 after the parse — a `;` after a closing brace, and a trailing argument
 continued past its `}` — record the mismatch on the statement, and
@@ -77,8 +77,8 @@ The two are the same forks, reported at different places. With the empty
 generic list expanded away, a fork the stock automaton reports as reducing
 `loption_generics_ ->` is reported as reducing the name itself —
 `type_expr -> UIDENT` and its qualified and `&` forms — and a fork on whether
-an empty `( )` is a call or a parameter list, which the stock automaton decides
-at the `(` by reducing the empty generics, the `--GLR` one decides at the `)`,
+an empty `( )` is a call or a parameter list, which the stock automaton settles
+at the `(` by reducing the empty generics, the `--GLR` one settles at the `)`,
 by reducing the empty parameter list. Every family in one census has its
 counterpart in the other; what differs is the productions it is reported under
 and how many states it spans.
@@ -166,8 +166,8 @@ form twice: once followed by `";"`, and — where its tail can end in a brace �
 once ending in a `_braced` rule and nothing after it. `expr_braced` is the
 right spine of `expr` with the tail restricted to a form that closes on `}`,
 since `a + match (e) { … }` ends in a brace because its right operand does;
-every left operand is still a plain `expr`, so the precedence table decides the
-same groupings it decides everywhere else. `simple_decl_braced`,
+every left operand is still a plain `expr`, so the precedence table determines
+the same groupings it determines everywhere else. `simple_decl_braced`,
 `body_braced` and `abort_handle_braced` carry the same
 restriction through the forms that reach an expression.
 

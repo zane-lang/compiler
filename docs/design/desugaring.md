@@ -25,7 +25,8 @@ edit cannot silently make a quotation here disagree with what it links to.
 A rewrite belongs in the SST when it needs **nothing but the syntax tree**. The
 CST is a whole package's worth of source, so "nothing but the syntax" includes
 looking at another declaration in the same file — but it stops at the file
-boundary and it stops at types. A rewrite that has to know what a name refers
+boundary and it stops at types. A rewrite that needs to resolve what a name
+refers
 to, what package a member came from, or what type an expression has is not a
 desugaring; it is name resolution or type checking wearing a desugaring's
 clothes. Those are listed in §4 so they are refused deliberately rather than

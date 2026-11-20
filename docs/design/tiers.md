@@ -144,7 +144,7 @@ then points each slot at tier 1's function of the same key with a release
 store, so a call that reads the new address sees the imports filled. A
 library that does not load, is another program's, asks for a name tier 0
 does not have, or lacks one of tier 0's functions leaves the program wholly
-in tier 0, and says so only when
+in tier 0, and reports it only when
 `ZANE_TIER_LOG` is set. The program removes the variables once read, so
 nothing it starts sees them. A program ending while tier 1 loads, by returning
 from `main` or by an `exit` such as a runtime error's or an abort of `main`'s, waits for
@@ -170,7 +170,8 @@ stopped build's files from an earlier run are never taken for this one's.
 **T10. The cache keeps the newest 32 tier-1 libraries.** A library is kept
 in the cache directory ([`lowering.md`](lowering.md) §7) under `tier/`, named
 by a hash of the module's fingerprint, the target, the C compiler and what
-it says it is, the runtime's bitcode compiler and what it says it is when
+it reports itself to be, the runtime's bitcode compiler and what it reports
+itself to be when
 that is another one (`ZANE_BITCODE_CC`), this compiler's file, and T2's
 pipeline and the options LLVM is started with (`Passes.llvm_options`). A later `--tier-up`
 of the same module copies it after lowering and emitting, without running

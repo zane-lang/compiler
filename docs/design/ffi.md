@@ -61,15 +61,15 @@ for the target into a `clang::CompilerInvocation`, an `EmitLLVMOnlyAction`
 runs it, and the `llvm::Module` it makes is written as bitcode, the form
 the cache keeps it in (F3), which codegen reads into its own context.
 Every front-end option is therefore one the linked clang made itself, so
-all of them are ones it knows. The clang is the environment's, of the same
+all of them are ones it accepts. The clang is the environment's, of the same
 LLVM 21 release (`pixi.toml`), so it links the same LLVM libraries.
 
 The clang has to be the compiler's own because LLVM IR crosses no LLVM
 release. The released toolchain's `zig cc` is built on its own LLVM, which
 need not be the compiler's (21, `lowering.md` L2), and its bitcode might
 not load. So
-the C compiler is asked only for what it knows that the linked clang does
-not: where the target's C library headers are. The first build for a C
+the C compiler is asked only for the facts it has that the linked clang
+lacks: where the target's C library headers are. The first build for a C
 compiler and a target runs it once on an empty source with `-E -v` for the
 build's target, so a cross build probes the target's headers, not the
 host's. A clang or `zig cc`, which `--version` names, is given `--target=`.
@@ -369,7 +369,7 @@ and AArch64, and LLVM leaves that classification to the front end. Rather
 than reimplement clang's for each target, the compiler writes, for each
 package, the glue: one C file per interface header, which includes that
 header and is compiled with the package's settings, so clang does the
-classification it already knows. The header comes first, so a feature-test
+classification it already implements. The header comes first, so a feature-test
 macro it defines, such as `_GNU_SOURCE`, selects what the system headers
 declare as it does in a source including it first; `<stdint.h>` follows,
 for the fixed-width types the thunks read slots as. After the includes, the file `#undef`s the
@@ -545,7 +545,7 @@ its label, as an object names it, and an assembled source's
 constructors are read from its module, as a linked source's are, so the
 glue leaves out the ones its object runs; one with external linkage the
 glue's copy of is a declaration so is left out of the glue's list too.
-An archive says neither which of a header's constructors its members run
+An archive shows neither which of a header's constructors its members run
 nor whether a member is linked, nor which headers a member includes. So
 a header whose glue runs a constructor or destructor, local or external,
 is refused when an archive could have compiled it too: when the archive

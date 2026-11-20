@@ -195,7 +195,7 @@ settled owner never moves, so the address holds until its scope drains
 (§4.2).
 
 Where the TST has a `Let`, an `Assign` or an owning argument, lowering picks
-from this list using what the move analysis already knows: whether the source
+from this list using what the move analysis already computes: whether the source
 is a place or a fresh result, whether the destination is fresh or already
 holds a value, and whether the type is a value or a reference.
 
@@ -381,7 +381,7 @@ its handler is a one-arm `match` whose other cases run the handler.
 ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/concurrency.md) §5.2), so it is lifted out as-is, and its value
 is the function's address. A call through a function value is an indirect
 call with the same outcome convention, read from the value's type: the
-caller knows no body, so the type alone determines how the call can end and how
+caller sees no body, so the type alone determines how the call can end and how
 each argument is passed. A lambda that does not declare `mut` may be held by
 a `mut` function type
 ([`functions.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/functions.md)
@@ -544,7 +544,7 @@ from simplifying the runtime's rounding of sizes. The C library's checked
 forms of its functions, which such a toolchain turns on with a
 `_FORTIFY_SOURCE` it defines after every flag, are turned off in
 `zane_internal.h` itself. A C compiler that refuses any of the flags
-compiles the runtime without them, and says nothing of it.
+compiles the runtime without them, and reports nothing of it.
 
 An optimized executable takes the whole runtime into its module instead of
 linking the runtime's object: the runtime compiled to LLVM bitcode, kept in
@@ -611,8 +611,8 @@ command it would run, keeps it in the cache under those, and every build
 runs that command with its own files put in, through the LLD linked into
 `zanec` (`lib/codegen/lld_stubs.cpp`): `ld.lld` for ELF, `ld64.lld` for
 Mach-O and `lld-link` for COFF. What the C compiler prints is the work of
-its driver, which knows where the target's start-up files, C library and
-compiler runtime are on this machine; LLD knows none of it. LLD runs the
+its driver, which finds the target's start-up files, C library and
+compiler runtime on this machine; LLD finds none of them. LLD runs the
 command whichever linker the C compiler would have run: GCC's `collect2`
 takes the linker's own arguments, so it is run as `ld.lld` without GCC's LTO
 plugin, and `zig ld`, Zig's Mach-O linker, takes ld64's, so it is run as
@@ -920,7 +920,7 @@ test passing.
     the manifest field that sets it, and exits with status 1. So reading
     any slot of an open scope's frame either reads the program's memory or
     stops it as the frame was owed, whichever slot is read first, which
-    codegen tells LLVM ("What LLVM is told").
+    the facts codegen gives LLVM ("What LLVM is told").
   - **The sizes come from the root manifest.** The main context reserves
     `--fixed-region` bytes, 256 MiB by default, and each spawned call's
     context `--spawned-fixed-region`, 8 MiB by default. `zane` passes them
@@ -1205,10 +1205,10 @@ test passing.
   no walks, and is handed as none. Types whose layouts list alike
   positions, each nesting layouts that walk alike in turn, share one table
   and its walks, named for the first of them by name, so `List<String>`
-  under three names is walked by one set. A walk knows its type's positions, the
-  offset of each and the variant tags each lies under, so it reads each
-  handle and box where it is, and calls the walk of what a box or a list's
-  elements hold directly, one level deeper. An array whose elements own
+  under three names is walked by one set. A walk is built from its type's
+  positions, the offset of each and the variant tags each lies under, so it
+  reads each handle and box where it is, and calls the walk of what a box or a
+  list's elements hold directly, one level deeper. An array whose elements own
   blocks is one position, its count, the bytes between its elements and
   the element's layout, so a type's positions do not grow with an array's
   length: its walks loop over the elements and call the element's walk for
@@ -1436,7 +1436,7 @@ test passing.
 - **How a value crosses a call.** L6 lends a value parameter by the address
   of the caller's slot and L7 has a result written into a destination the
   caller names. Lowering passes and returns value types, a reference-type
-  result and a `^T` argument as values in the CGT, and codegen decides per
+  result and a `^T` argument as values in the CGT, and codegen determines per
   type how each crosses (`Emit.passing`, beside `fn_type`), the way clang,
   rustc and swiftc keep a small aggregate in registers and pass a large one
   by pointer. A `mut` subject, a reference-type subject and a borrowed
@@ -1572,8 +1572,8 @@ test passing.
 - **Integer division by zero, and a float truncated out of range.**
   `operators.md` §2.6 gives a division by zero the result zero, and
   `types.md` §2.9 saturates a `truncate` whose integer part the target cannot
-  hold and gives zero for a NaN. Neither instruction LLVM has means that by
-  itself, since `sdiv` by zero and `fptosi` out of range are undefined. So
+  hold and gives zero for a NaN. Neither instruction LLVM has behaves that way
+  by itself, since `sdiv` by zero and `fptosi` out of range are undefined. So
   codegen sends a division by 0 or -1 down a branch marked unlikely to the
   result those divisors take, and the `sdiv` on the other branch sees only
   divisors it is defined for. The test is a branch, which the processor
@@ -1585,7 +1585,8 @@ test passing.
   `Convert`, whose instruction the source and target types pick, and the
   optimizer folds a truncation by the bounds `Scalar.truncation` gives.
 - **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2, [`spec-divergences.md`](../spec-divergences.md) §10). Until it says, the program stops:
+  §5.2, [`spec-divergences.md`](../spec-divergences.md) §10). Until the spec
+  settles it, the program stops:
   what it wrote so far is kept, the runtime writes `index out of range` to
   stderr, and the status is 1, for a list and an array alike, and for a
   list's `remove` and `swapRemove`, which find the element they move out
@@ -1596,8 +1597,8 @@ test passing.
   `zane_out_of_range`, which is cold and does not return. LLVM so sees the
   count, the index and the address as ordinary arithmetic, and can hoist or
   drop a check it proves redundant.
-- **What LLVM is told.** Codegen states what it knows about the code it
-  emits in LLVM's own terms, so LLVM's passes can drop the checks and
+- **What LLVM is told.** Codegen states what it has established about the code
+  it emits in LLVM's own terms, so LLVM's passes can drop the checks and
   reloads it proves redundant, rather than lowering trying to. Each is a
   contract, which LLVM may act on however it likes, so each holds for every
   program:
@@ -1626,7 +1627,7 @@ test passing.
     overwrite writes the slot in place, a boxed member's block included.
     Nothing references a list element or a variant payload (§2.1), so no
     `&T` names storage a push or a removal could move or free. Each such
-    parameter whose slot has a layout lowering knows, a declared type, a
+    parameter whose slot has a layout lowering has computed, a declared type, a
     list or a text (the CGT `Func`'s `places`), is `nonnull` and
     `dereferenceable` for the slot's size, with no alignment, since the
     slot may be a member at any byte of a packed value. It is not `readonly` or
@@ -1635,7 +1636,7 @@ test passing.
   - *An open scope's frame.* Once a scope is open, any slot of its frame
     may be read (above), and the frame is on a 16-byte boundary, since
     every frame is a multiple of 16 bytes placed where the one before it
-    ended. The open scope says so with `llvm.assume` and its
+    ended. The open scope states this with `llvm.assume` and its
     `dereferenceable` and `align` operand bundles, which LLVM's OCaml
     bindings cannot build (`llvm_stubs.c`).
 
@@ -1671,7 +1672,7 @@ test passing.
   runs jump threading where it still sees each `elif`
   as written: `core`'s `elif` branches on `~this and condition`, where
   `this` is what the `if` before it branched on, so each way into the
-  `elif` already decides that half. Jump threading sends the `if`'s body
+  `elif` already determines that half. Jump threading sends the `if`'s body
   straight past the `elif` and the other way to the condition alone, which
   is one chain, as C's `else if` is. Once the CFG simplifier has made a
   cheap `if` body a `select`, both bodies' work runs on every pass round a
@@ -1696,7 +1697,7 @@ test passing.
   earn back, so IRCE splits a loop only when it expects the split to remove
   enough checks for each entry, which it reckons from the loop's branch
   weights, or from LLVM's guess where there are none
-  (`-irce-min-eliminated-checks`, left at its default of 10). Codegen says
+  (`-irce-min-eliminated-checks`, left at its default of 10). Codegen marks
   which loops are long: a `repeat` that no other loop holds, that holds no
   loop, spawn, join, `return` or call back into its own function, that
   nothing leaves early, and that reads or writes an element, is emitted
@@ -1705,7 +1706,7 @@ test passing.
   ([`tiers.md`](tiers.md) T3); a plain build, whose passes have no use for the
   copies, emits it once. A count of at least 16 runs
   the copy whose branch weights say it goes round 1,000 times; a smaller
-  one runs the copy said to go round 4 times, which IRCE leaves alone. A
+  one runs the copy weighted to go round 4 times, which IRCE leaves alone. A
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
 
@@ -1834,10 +1835,10 @@ test passing.
   a few constant iterations whose body tests the counter, as `d!to(Int(4))`
   does over four `branch(d == k, ...)`, stays a loop at 150, with the four
   tests one `switch` on the counter that a predictor without history cannot
-  learn; unrolled, each copy knows the counter and the tests are gone. The
-  budget is a step: 150 and below leave `tests/perf` `paths` and `returns`
-  as they were, 200 takes `returns`, 250 takes `paths`, and nothing up to
-  1000 moves another program. Partial unrolling
+  learn; unrolled, the counter is a constant in each copy and the tests are
+  gone. The budget is a step: 150 and below leave `tests/perf` `paths` and
+  `returns` as they were, 200 takes `returns`, 250 takes `paths`, and nothing
+  up to 1000 moves another program. Partial unrolling
   (`-unroll-partial-threshold`) is 100: a counted loop over a list unrolls,
   sharing its copies' index arithmetic and bounds checks, and `borrows` runs
   28% fewer instructions. A budget of 150 also takes `division` (3.8%) and a

@@ -92,7 +92,7 @@ work stands:
 | Folding constants, choosing a known branch, dropping a loop that never runs (`fold.ml`) | Here as well as in LLVM: the evaluator needs these folds' results as its inputs, so they stay while it does |
 | Running calls, lists, strings, boxes, runs of statements, output and spawned calls (`eval.ml`) | Here: LLVM cannot run the runtime's functions, and does not know O4's replay of output. Measured on the fixtures, LLVM alone leaves the list constructors, spawns and snapshots in `folding`, `runs` and `removalFolded` that stage 5 removes |
 | Package constants (O9) | Here: a constant is made once, under the runtime's lock, and an unoptimized dependency shares its object, so it is not an immutable global LLVM could fold |
-| Inlining | Lowering, for a verb whose body is one expression, in every build (L11): it knows from the source which verbs those are, and needs no cost model to write one out. LLVM, for the rest, seeing a dependency's bodies through O10 |
+| Inlining | Lowering, for a verb whose body is one expression, in every build (L11): it reads from the source which verbs those are, and needs no cost model to write one out. LLVM, for the rest, seeing a dependency's bodies through O10 |
 | Writing out block-taking verbs, generic instances, lambdas and spawn thunks | Lowering: a verb that takes a block has no function of its own to inline (L11) |
 | Copies, scopes and results in the caller's region (`lib/cgt/regions.ml`) | Lowering: each rests on ownership and regions, which LLVM does not see |
 | Each type's walks, frames and allocation fast paths | Codegen, which emits them as plain IR for LLVM to simplify further |
@@ -169,7 +169,7 @@ being folded, or what a function with no body available gives. Optimized
 builds retain reachable stamped dependencies' bodies from the checked source
 (`separate-compilation.md` C12), so their calls fold under the same rules as
 local calls. Everything computed only from known values is known. Whether a function terminates is never analyzed: the
-budget (O6) decides how far evaluation goes.
+budget (O6) determines how far evaluation goes.
 
 **O4. An output is replayed where it was made.** A call that prints while it
 computes still folds. The evaluator records each output in order, and the
@@ -217,11 +217,12 @@ once, not through a double first, and a float truncated to an integer
 saturates, with a NaN giving zero. Every NaN folds to the same positive
 quiet NaN: what sign and payload a NaN gets is the machine's, and no program
 can tell one NaN from another. Constants are compared bit for bit, so a zero
-and its negative, which a division tells apart, are two values.
+and its negative, which a division distinguishes, are two values.
 
 **O6. Each function is folded from the leaves up, within a budget.**
 `fold.ml` walks each function's body in the order it runs and keeps what it
-knows: each local whose value is a constant at that point. Every function is
+has established: each local whose value is a constant at that point. Every
+function is
 folded, whether or not anything calls it, so the constant code inside a
 function that never ends still folds. A function is folded after the
 functions it calls, the thunks it spawns and the functions it names as
@@ -431,8 +432,8 @@ optimized build makes, for the fixtures that show folding:
   spawned calls;
 - `replayed` keeps output in order, leaves the calls past the budget, the
   depth and the size cap to run, reads a slot when the program runs after a
-  store that folded, a count's included, knows nothing past a call left
-  to run that writes a local, and knows a value that call is given no
+  store that folded, a count's included, assumes nothing past a call left
+  to run that writes a local, and keeps a value that call is given no
   address of, a string a folded `mut` call stored back among them, but not
   an owner it reaches through a stored reference;
 - `runs` folds a sieve as one run of statements, and keeps a list that is
@@ -441,7 +442,7 @@ optimized build makes, for the fixtures that show folding:
   approximate ones and an `F32` `fma` as calls;
 - `constants`, `counting` and `zero` show their optimized trees.
 
-`tests/objects/facts_test.py` checks what codegen tells LLVM, and what
+`tests/objects/facts_test.py` checks the facts codegen gives LLVM, and what
 LLVM makes of it in an optimized build: no snapshot in a program that
 spawns nothing, every snapshot where something may write back, and in a
 library built for one program only those of the places it writes back into, the
