@@ -157,7 +157,7 @@ static void zane_drain_values(zane_mark *m) {
 
 /* A context whose call is over, back in the pool: the result took its
    blocks home, and its first scope's region goes as any scope's does. */
-static void zane_release(zane_context *c) {
+void zane_context_release(zane_context *c) {
 	zane_mark *m = c->top;
 	if (!m || m->outer) zane_broken("a spawned call ended with a scope open");
 	zane_drain_values(m);
@@ -180,11 +180,12 @@ static void zane_release(zane_context *c) {
 __attribute__((cold, noinline)) void zane_callback_attach(void) {
 	zane_thread_start();
 	zane_self = zane_context_new();
+	zane_self->workers = NULL;
 	zane_scope_enter(0);
 }
 
 __attribute__((cold, noinline)) void zane_callback_detach(void) {
-	zane_release(zane_self);
+	zane_context_release(zane_self);
 	zane_self = NULL;
 	zane_thread_stop();
 }
@@ -220,7 +221,7 @@ static void zane_join_task(zane_task *t) {
 		zane_move(t->dest, t->type, zane_region_at(t->dest), 0);
 	}
 	zane_islands_home(t);
-	zane_release(t->context);
+	zane_context_release(t->context);
 	zane_joining = NULL;
 	t->owner->shared--;
 	zane_reopen();

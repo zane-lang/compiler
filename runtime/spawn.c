@@ -74,6 +74,8 @@ static zane_task *zane_find(void) {
 void zane_run(zane_task *t) {
 	zane_context *outer = zane_self;
 	zane_context *c = zane_context_new();
+	/* A call spawned from a pool's work publishes to that pool. */
+	c->workers = t->owner->workers;
 	/* A joiner following its wait reads the context from here (value.c). */
 	__atomic_store_n(&t->context, c, __ATOMIC_RELEASE);
 	zane_self = c;
@@ -111,9 +113,21 @@ static void *zane_worker(void *deque) {
 			zane_run(t);
 			continue;
 		}
+		/* A worker pool's job, once no spawned call waits (workers.c). */
+		if (zane_workers_run_one(NULL)) continue;
 		pthread_mutex_lock(&zane_pool);
-		while (__atomic_load_n(&zane_queued, __ATOMIC_RELAXED) <= 0 && zane_threads <= zane_wanted)
-			pthread_cond_wait(&zane_waiting, &zane_pool);
+		while (__atomic_load_n(&zane_queued, __ATOMIC_RELAXED) <= 0 &&
+		       __atomic_load_n(&zane_jobs, __ATOMIC_ACQUIRE) <= 0 && zane_threads <= zane_wanted) {
+			/* A pool's worker waiting on a timer is woken when it is due by
+			   whichever thread is waiting then. */
+			int64_t due = zane_workers_next_deadline();
+			if (due < 0) {
+				pthread_cond_wait(&zane_waiting, &zane_pool);
+				continue;
+			}
+			zane_wait_until(&zane_waiting, &zane_pool, due);
+			break;
+		}
 		if (zane_threads > zane_wanted) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
@@ -159,6 +173,16 @@ static void zane_start(void) {
 	if (!zane_wanted) zane_wanted = zane_processors();
 	zane_started = 1;
 	zane_fill();
+}
+
+/* A worker pool's job queued, or a worker set waiting on a timer that may
+   be due before any thread's wait ends: the pool is started if it is not,
+   and a waiting thread woken to look (workers.c). */
+void zane_pool_wake(void) {
+	pthread_mutex_lock(&zane_pool);
+	if (!zane_started) zane_start();
+	pthread_cond_signal(&zane_waiting);
+	pthread_mutex_unlock(&zane_pool);
 }
 
 /* `@runtime$Runtime`'s `setThreads` and `setThreadsAuto` (§2.4): the pool

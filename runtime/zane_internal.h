@@ -284,6 +284,10 @@ struct zane_context {
 	/* The subject regions of the calls it spawned that are still out, and
 	   those its scopes keep for their locals (spawn.c). */
 	struct zane_island *islands;
+	/* The worker pool whose work it runs: a step's or a funnel's call, or
+	   a call spawned from one, so that a publish reaches that pool
+	   (workers.c); null for any other. */
+	struct zane_workers *workers;
 };
 
 _Static_assert(offsetof(zane_context, frontier) == ZANE_CONTEXT_FRONTIER, "a context starts with its frontier");
@@ -370,6 +374,16 @@ extern zane_mark *zane_constants_region;
 void zane_constants_start(void);
 extern pthread_mutex_t zane_constants;
 void zane_islands_home(zane_task *t);
+/* A context whose call is over, back in the pool (snapshot.c). */
+void zane_context_release(zane_context *c);
+/* workers.c: the pools' jobs, which the thread pool runs after spawned
+   calls; and spawn.c's wake of a thread for them. */
+extern int64_t zane_jobs, zane_sleepers;
+struct zane_workers;
+int zane_workers_run_one(struct zane_workers *only);
+int64_t zane_workers_next_deadline(void);
+void zane_wait_until(pthread_cond_t *cond, pthread_mutex_t *lock, int64_t deadline);
+void zane_pool_wake(void);
 void zane_islands_drained(zane_context *c, zane_mark *m);
 
 /* The pool steals work (§2.4). Each of its threads keeps a deque of the
