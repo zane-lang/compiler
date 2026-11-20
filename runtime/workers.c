@@ -143,9 +143,8 @@ static int64_t zane_timer_count, zane_timer_room;
 /* The monotonic clock, in nanoseconds. */
 static int64_t zane_now(void) {
 #ifdef _WIN32
-	static LARGE_INTEGER rate;
-	LARGE_INTEGER count;
-	if (!rate.QuadPart) QueryPerformanceFrequency(&rate);
+	LARGE_INTEGER count, rate;
+	QueryPerformanceFrequency(&rate);
 	QueryPerformanceCounter(&count);
 	return (int64_t)(count.QuadPart / rate.QuadPart) * 1000000000 +
 	       (int64_t)(count.QuadPart % rate.QuadPart) * 1000000000 / rate.QuadPart;
@@ -687,7 +686,9 @@ void zane_workers_elements(zane_list *out, char *handle, int64_t stride, const z
 	for (zane_member *m = p->members; m; m = m->after) {
 		pthread_mutex_lock(&m->lock);
 		char *slot = zane_list_push(out, stride);
-		memcpy(slot, m->value, (size_t)(m->size < stride ? m->size : stride));
+		int64_t n = m->size < stride ? m->size : stride;
+		memcpy(slot, m->value, (size_t)n);
+		memset(slot + n, 0, (size_t)(stride - n));
 		zane_copy(slot, type);
 		pthread_mutex_unlock(&m->lock);
 	}
