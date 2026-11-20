@@ -77,7 +77,7 @@ static void publish_step(char *frame) {
 	publisher *p = (publisher *)f->element;
 	p->seq++;
 	int64_t event[2] = { p->id, p->seq };
-	zane_workers_publish((char *)event, sizeof event, NULL);
+	zane_workers_publish((char *)event, sizeof event, 0);
 	f->result = p->seq < EVENTS;
 }
 
@@ -127,11 +127,18 @@ typedef struct {
 	int64_t calls;
 } watcher;
 
+/* The number of watcher calls, and the events applied in the state the
+   last one saw. */
+static int64_t watch_calls, watch_applied;
+
 static void watch_step(char *frame) {
 	step_frame *f = (step_frame *)frame;
 	watcher *w = (watcher *)f->element;
 	w->calls++;
-	f->result = ((tally *)f->state)->applied < 5;
+	int64_t applied = ((tally *)f->state)->applied;
+	__atomic_store_n(&watch_applied, applied, __ATOMIC_RELEASE);
+	__atomic_add_fetch(&watch_calls, 1, __ATOMIC_RELEASE);
+	f->result = applied < 5;
 }
 
 static void five_step(char *frame) {
@@ -139,13 +146,13 @@ static void five_step(char *frame) {
 	publisher *p = (publisher *)f->element;
 	p->seq++;
 	int64_t event[2] = { 0, p->seq };
-	zane_workers_publish((char *)event, sizeof event, NULL);
+	zane_workers_publish((char *)event, sizeof event, 0);
 	f->result = p->seq < 5;
 }
 
 /* A pool's handle, as lowering makes it: the address and a stamp. */
 static void make_pool(char *handle, int64_t stateful, char *state, int64_t size, void (*funnel)(char *), int64_t event) {
-	void *p = zane_workers_new(stateful, state, size, NULL, NULL, funnel, event, NULL);
+	void *p = zane_workers_new(stateful, state, size, NULL, NULL, funnel, event, NULL, 0);
 	int64_t stamp = zane_handle_made(p);
 	memcpy(handle, &p, sizeof p);
 	memcpy(handle + sizeof p, &stamp, sizeof stamp);
@@ -199,7 +206,7 @@ static void read_state(void) {
 	publisher p = { 0, 0 };
 	memset(last_seen, 0, sizeof last_seen);
 	zane_workers_start(handle, (char *)&p, sizeof p, NULL, five_step, NULL, NULL, NULL, 0, NULL);
-	tally after;
+	tally after = { 0, 0 };
 	/* Wait for the funnel without ending the pool. */
 	for (int64_t until = test_now() + 2000000000; test_now() < until;) {
 		after = *(tally *)zane_workers_state(handle);
@@ -260,13 +267,22 @@ static void state_wakes(void) {
 	zane_list none;
 	zane_list_new(&none);
 	watcher w = { 0 };
+	watch_calls = 0;
+	watch_applied = 0;
 	zane_workers_start(handle, (char *)&w, sizeof w, NULL, watch_step, NULL, NULL, NULL, 1, &none);
+	/* The watcher's first call has seen no event, so it waits. */
+	for (int64_t until = test_now() + 2000000000; test_now() < until;) {
+		if (__atomic_load_n(&watch_calls, __ATOMIC_ACQUIRE) > 0) break;
+		sched_yield();
+	}
+	int64_t waited = __atomic_load_n(&watch_calls, __ATOMIC_ACQUIRE) == 1 &&
+	                 __atomic_load_n(&watch_applied, __ATOMIC_ACQUIRE) == 0;
 	publisher p = { 0, 0 };
 	zane_workers_start(handle, (char *)&p, sizeof p, NULL, five_step, NULL, NULL, NULL, 0, NULL);
 	/* The pool ends only if the watcher is woken by the funnel's writes:
-	   it waits on no timer. */
+	   it waits on no timer. Its last call saw every event. */
 	end_pool(handle);
-	check(1);
+	check(waited && watch_calls > 1 && watch_applied == 5);
 }
 
 void zane_main(void) {

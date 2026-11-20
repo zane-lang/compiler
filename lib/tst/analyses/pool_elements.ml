@@ -89,6 +89,13 @@ let slots env (r : T.Verb_ref.t) =
       let s = List.map (fun ((p : Ty.param), a) -> (p.Ty.id, a)) r.T.Verb_ref.instance in
       List.map (fun (p : S.param) -> Ty.subst s p.S.ty) sg.S.params
 
+(* The parameter types of a call through the function value [f], its
+   subject first, as Check.call_value passes the arguments. *)
+let value_slots (f : T.Expr.t) =
+  match Ty.strip_mode f.T.Expr.ty with
+  | Ty.Verb { Ty.this_; params; _ } -> Option.to_list this_ @ params
+  | _ -> []
+
 (* The local a place is reached through, without passing a reference. *)
 let rec root (e : T.Expr.t) =
   match e.T.Expr.node with
@@ -163,9 +170,7 @@ and node w (e : T.Expr.t) =
   | T.Expr.Var _ | T.Expr.Foreign_global _ | T.Expr.Lambda _ -> constant
   | T.Expr.Call { callee; args = a; _ } | T.Expr.Construct { ctor = callee; args = a; _ } ->
       meet resolved (meets (args (slots w.env callee) a))
-  | T.Expr.Call_value { callee; args = a; _ } ->
-      let ps = match callee.T.Expr.ty with Ty.Verb { Ty.params; _ } -> params | _ -> [] in
-      meet resolved (meets (args ps a))
+  | T.Expr.Call_value { callee; args = a; _ } -> meet resolved (meets (args (value_slots callee) a))
   | T.Expr.Construct_fields { ctor; fields; _ } ->
       let ss = slots w.env ctor in
       meet resolved
@@ -209,21 +214,18 @@ let pool_start (r : T.Verb_ref.t) =
       true
   | _ -> false
 
-(* A call's effects: the requirements it checks of its arguments, and the
-   references it may store in the places it may write. *)
-let call w (callee : T.Verb_ref.t) (a : T.Arg.t list) =
-  let ss = slots w.env callee in
-  let values = List.mapi (fun i x -> (i, x)) a in
+(* A call's value arguments, by position, each with its provenance in the
+   slot [ss] gives it. *)
+let given w ss (a : T.Arg.t list) =
   let prov i (v : T.Expr.t) = match List.nth_opt ss i with Some s -> into w s v | None -> value w v in
-  let given = List.filter_map (function i, T.Arg.Value v -> Some (i, v, prov i v) | _ -> None) values in
-  (* The arguments other than the [i]th may be stored where the call
-     writes. *)
+  List.filter_map (function i, T.Arg.Value v -> Some (i, v, prov i v) | _ -> None) (List.mapi (fun i x -> (i, x)) a)
+
+(* What a call may store: the arguments other than the [i]th, into the
+   subject's local when the call is [mutating], and into the local of each
+   place an `&` is taken of. *)
+let stores w ss ~mutating given =
   let others i = meets (List.filter_map (fun (j, _, p) -> if j = i then None else Some p) given) in
-  let writes =
-    match (Env.signature_of w.env callee, given) with
-    | Some sg, (0, subject, _) :: _ when sg.S.is_mut -> [ (0, subject) ]
-    | _ -> []
-  in
+  let writes = match given with (0, subject, _) :: _ when mutating -> [ (0, subject) ] | _ -> [] in
   let lent =
     List.filter_map
       (fun (i, v, _) ->
@@ -232,7 +234,37 @@ let call w (callee : T.Verb_ref.t) (a : T.Arg.t list) =
         | _ -> None)
       given
   in
-  List.iter (fun (i, v) -> Option.iter (fun l -> bind w l (others i)) (root v)) (writes @ lent);
+  List.iter (fun (i, v) -> Option.iter (fun l -> bind w l (others i)) (root v)) (writes @ lent)
+
+(* The index among a verb's parameter locals of the argument at each
+   position: a type or a number that picks the instance passes nothing and
+   has no local (Repeats.passed). *)
+let locals w (callee : T.Verb_ref.t) (a : T.Arg.t list) =
+  let bound =
+    match Env.signature_of w.env callee with
+    | Some sg when List.length sg.S.params = List.length a ->
+        List.map (fun (p : S.param) -> Option.is_some p.S.binds) sg.S.params
+    | _ -> List.map (fun _ -> false) a
+  in
+  let next = ref 0 in
+  List.map2
+    (fun bound arg ->
+      match arg with
+      | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
+      | _ when bound -> None
+      | _ ->
+          let i = !next in
+          incr next;
+          Some i)
+    bound a
+
+(* A call's effects: the requirements it checks of its arguments, and the
+   references it may store in the places it may write. *)
+let call w (callee : T.Verb_ref.t) (a : T.Arg.t list) =
+  let ss = slots w.env callee in
+  let given = given w ss a in
+  let mutating = match Env.signature_of w.env callee with Some sg -> sg.S.is_mut | None -> false in
+  stores w ss ~mutating given;
   if pool_start callee then begin
     List.iter
       (function
@@ -254,9 +286,11 @@ let call w (callee : T.Verb_ref.t) (a : T.Arg.t list) =
   match callee.T.Verb_ref.owner with
   | S.Declared id ->
       let needs = Fixpoint.read w.summaries id in
+      let locals = Array.of_list (locals w callee a) in
       List.iter
         (fun (i, (v : T.Expr.t), p) ->
-          if Ints.mem i needs then
+          let needed = match locals.(i) with Some j -> Ints.mem j needs | None -> false in
+          if needed then
             require w p (fun why ->
                 Env.error w.env v.T.Expr.span
                   (Printf.sprintf
@@ -279,6 +313,14 @@ and stat w (s : T.Stat.t) =
 and expr w (e : T.Expr.t) =
   (match e.T.Expr.node with
   | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> call w callee args
+  | T.Expr.Call_value { callee; args; _ } ->
+      let ss = value_slots callee in
+      let mutating =
+        match Ty.strip_mode callee.T.Expr.ty with
+        | Ty.Verb { Ty.this_ = Some _; is_mut; _ } -> is_mut
+        | _ -> false
+      in
+      stores w ss ~mutating (given w ss args)
   | T.Expr.Match { scrutinees; arms; _ } ->
       let p = meets (List.map (value w) scrutinees) in
       List.iter

@@ -84,7 +84,7 @@ Unit tally(this Tally, event Sent) mut {
 	});
 	this.last[event.id] = event.seq;
 	@controlflow$branch(@operators$equal(this.events, this.expected), {
-		check(@operators$not(this.disordered));
+		check(@operators$conjoin(@operators$not(this.disordered), @operators$equal(this.sum, I64(220))));
 	});
 	return Unit();
 }

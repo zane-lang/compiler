@@ -386,7 +386,10 @@ step or funnel call of that pool, or a call spawned from one
 it later, from code outside that pool's work, stops with `a worker pool's
 publish function was called outside the work of its pool` and status 1.
 Called from another pool's work with the same event type, it publishes to
-that pool. `runtime/workers.c` (`zane_workers_publish`) is the decision.
+that pool; with another event type, it stops the program the same way. The
+runtime compares event types by a hash of the type's symbol, which is the
+same in every object. `runtime/workers.c` (`zane_workers_publish`) is the
+decision.
 
 Reconciling means the spec stating what such a call does, or making the
 function value carry its pool.

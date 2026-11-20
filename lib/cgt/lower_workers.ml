@@ -23,6 +23,27 @@ let read_at st span t (at : Expr.t) =
   let lowered = ty st span t in
   if lowered = Nodes.Ty.Void then unit_value else { Expr.node = Expr.Deref at; ty = lowered }
 
+(* A 64-bit FNV-1a hash of a type's symbol: the event type's identity,
+   which the runtime compares where a walk table's address would differ
+   between objects (`zane_workers_publish`). *)
+let type_id st span t =
+  let h = ref 0xcbf29ce484222325L in
+  String.iter
+    (fun c -> h := Int64.mul (Int64.logxor !h (Int64.of_int (Char.code c))) 0x100000001b3L)
+    (layout st span t);
+  { Expr.node = Expr.Int !h; ty = Nodes.Ty.I64 }
+
+(* A value of type [t] that a thunk computes and nothing keeps: held in a
+   scope of its own when it owns a block, so that scope's end ends it, and
+   used by [use] as a local. *)
+let kept st span t (value : Expr.t) use =
+  if held st span t then begin
+    let scope = { arena = None; settles = []; wants = [] } in
+    let id = fresh st in
+    close st scope (bind st scope span t id value :: use { Expr.node = Expr.Local id; ty = value.Expr.ty })
+  end
+  else use value
+
 (* A thunk the runtime calls with the address of a frame it fills: a
    function of the program's, named `zane.<kind>.N`, whose body [body] is
    given the frame's local. *)
@@ -60,22 +81,24 @@ let step_thunk st span ~stateful ~state ~result =
       let field = field at step_frame in
       let args = if stateful then [ field 3; read_at st span state (field 4); field 2 ] else [ field 3 ] in
       let stepped = { Expr.node = Expr.Call_value { fn = field 0; args }; ty = ty st span result } in
-      let ok = { Expr.node = Expr.Call_value { fn = field 1; args = [ stepped ] }; ty = Nodes.Ty.I1 } in
-      [ Stat.Store { address = member at step_frame 5; value = ok } ])
+      kept st span result stepped (fun stepped ->
+          let ok = { Expr.node = Expr.Call_value { fn = field 1; args = [ stepped ] }; ty = Nodes.Ty.I1 } in
+          [ Stat.Store { address = member at step_frame 5; value = ok } ]))
 
 (* The frame a funnel's thunk reads (`zane_funnel_frame`): the funnel, the
    state's address and the event's. *)
 let funnel_frame = Nodes.Ty.Struct [ Ptr; Ptr; Ptr ]
 
 (* A funnel's thunk: the funnel is called with the state as its `this`,
-   lent by its address, and the event. Its result is dropped. *)
+   lent by its address, and the event. Its result is dropped, and ended
+   when it owns a block. *)
 let funnel_thunk st span ~event ~result =
   thunk st "funnel" (fun at ->
       let field = field at funnel_frame in
       let applied =
         { Expr.node = Expr.Call_value { fn = field 0; args = [ field 1; read_at st span event (field 2) ] }; ty = ty st span result }
       in
-      [ Stat.Eval applied ])
+      kept st span result applied (fun applied -> [ Stat.Eval applied ]))
 
 let verb_result span (t : Tty.t) =
   match Tty.strip_mode t with
@@ -125,6 +148,7 @@ let new_pool w st ctx span ?state ?funnel (t : Tty.t) =
             thunk_value;
             int (size st span e);
             layout_table (layout st span e);
+            type_id st span e;
           ];
       }
   in
@@ -184,7 +208,10 @@ let call w st ctx span spelling args (ret : Tty.t) : Expr.t =
         | [ step; test ] -> (step, test, None)
         | _ -> Diagnostic.bug ~span "lowering: `start` with the wrong arguments"
       in
-      let pool = w.lend st ctx span pool in
+      (* The pool is read before the element, as written. *)
+      let pool_id = fresh st in
+      let pooled = Stat.Let { id = pool_id; value = w.lend st ctx span pool } in
+      let pool = local_ptr pool_id in
       let held, element_at = addressed st (w.moved st ctx span el element) in
       let sources = Option.map (w.lend st ctx span) sources in
       let step_value = w.value_of st ctx step in
@@ -211,12 +238,15 @@ let call w st ctx span spelling args (ret : Tty.t) : Expr.t =
               ];
           }
       in
-      void (fresh st) [ held; Stat.Eval { Expr.node = started; ty = Nodes.Ty.Void } ]
+      void (fresh st) [ pooled; held; Stat.Eval { Expr.node = started; ty = Nodes.Ty.Void } ]
   (* §6.6: a snapshot of the state, read from the runtime's buffer at
      once. *)
   | "@primitives$state", [ pool ] ->
       let _, s, _ = parts span pool.T.Expr.ty in
-      read_at st span s (ptr (Expr.Runtime { fn = Runtime.Workers_state; args = [ w.lend st ctx span pool ] }))
+      let read = ptr (Expr.Runtime { fn = Runtime.Workers_state; args = [ w.lend st ctx span pool ] }) in
+      (* A `Unit` state has nothing to read, but the read still waits
+         (spec-divergences.md §12). *)
+      if ty st span s = Nodes.Ty.Void then void (fresh st) [ Stat.Eval read ] else read_at st span s read
   (* §6.6: a new list of a snapshot of each element. *)
   | "@primitives$elements", [ pool ] ->
       let el, _, _ = parts span pool.T.Expr.ty in
@@ -229,7 +259,7 @@ let call w st ctx span spelling args (ret : Tty.t) : Expr.t =
       let held, at = addressed st (w.borrow st ctx span event) in
       let published =
         Expr.Runtime
-          { fn = Runtime.Workers_publish; args = [ at; int (size st span e); layout_table (layout st span e) ] }
+          { fn = Runtime.Workers_publish; args = [ at; int (size st span e); type_id st span e ] }
       in
       ignore ret;
       void (fresh st) [ held; Stat.Eval { Expr.node = published; ty = Nodes.Ty.Void } ]

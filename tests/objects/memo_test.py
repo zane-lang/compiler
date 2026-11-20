@@ -211,6 +211,12 @@ class MemoTests(unittest.TestCase):
                         "state": spawns, "table": False, "calls": spawns}, name)
                     self.assertEqual("fence acquire" in result.stdout, spawns)
 
+    def test_a_pool_reaches_its_funnel(self):
+        # Both steps' results reach the funnel, which prints their sum.
+        for memoize in (False, True):
+            with self.subTest(memoize=memoize):
+                self.assertEqual(run_program(self.build("pooling", "plain", memoize), "15"), "987\n")
+
     def test_a_library_shares_its_tables(self):
         # A program that links the library may call `fib` from its threads.
         # A library is built plain or optimized; only a program is tiered.

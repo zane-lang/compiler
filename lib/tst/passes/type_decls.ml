@@ -289,21 +289,29 @@ let is_capability env (t : Ty.t) =
    `&`. A function value captures nothing, so it reaches nothing. A worker
    pool's element may hold such an `&` only to a package constant
    (concurrency.md §6.4, Pool_elements). *)
-let rec stray_reference env ?(seen = []) (t : Ty.t) =
-  match t with
-  | Ty.Reference target -> if is_capability env target then None else Some t
-  | Ty.Roaming t -> stray_reference env ~seen t
-  | Ty.Named (tid, args) when not (List.mem tid seen) -> (
-      let seen = tid :: seen in
-      match type_info_of_id env tid with
-      | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
-          List.find_map (fun (_, ft) -> stray_reference env ~seen (Ty.instantiate info.params args ft)) fs
-      | Some ({ definition = Some (Distinct u); _ } as info) ->
-          stray_reference env ~seen (Ty.instantiate info.params args u)
-      | _ -> None)
-  | Ty.Intrinsic { args; _ } ->
-      List.find_map (function Ty.Type a -> stray_reference env ~seen a | Ty.Number _ -> None) args
-  | _ -> None
+let stray_reference env (t : Ty.t) =
+  (* Each instance of a type is examined once: a generic type may hold
+     another instance of itself, whose arguments differ. The growing-argument
+     rule keeps the instances finite; [budget] ends the walk of a program
+     that breaks it, which is reported elsewhere. *)
+  let seen = Hashtbl.create 16 in
+  let budget = ref 100_000 in
+  let rec walk (t : Ty.t) =
+    match t with
+    | Ty.Reference target -> if is_capability env target then None else Some t
+    | Ty.Roaming t -> walk t
+    | Ty.Named (tid, args) when not (Hashtbl.mem seen t) && !budget > 0 -> (
+        Hashtbl.add seen t ();
+        decr budget;
+        match type_info_of_id env tid with
+        | Some ({ definition = Some (Struct fs | Variant fs); _ } as info) ->
+            List.find_map (fun (_, ft) -> walk (Ty.instantiate info.params args ft)) fs
+        | Some ({ definition = Some (Distinct u); _ } as info) -> walk (Ty.instantiate info.params args u)
+        | _ -> None)
+    | Ty.Intrinsic { args; _ } -> List.find_map (function Ty.Type a -> walk a | Ty.Number _ -> None) args
+    | _ -> None
+  in
+  walk t
 
 (* A type argument of the wrong kind found inside a part of a type, reached
    through [step]. *)

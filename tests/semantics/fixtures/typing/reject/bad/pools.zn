@@ -19,6 +19,13 @@ Unit pointAt(this Pool<Pointing, Unit, Unit>, poolBox &PoolBox) mut {
 	return Unit();
 }
 
+/// The same, after a type that picks the instance and has no parameter
+/// local.
+Unit pointAs(this Pool<Pointing, Unit, Unit>, T Type, pointing ^Pointing) mut {
+	this!start(pointing, Bool(this Pointing) mut => false);
+	return Unit();
+}
+
 /// An `&` to the console, a capability, beside an owned crate: allowed.
 type Speaking = #struct {
 	out &@runtime$Console;
@@ -36,6 +43,15 @@ Unit pools() {
 	pointing!start(Pointing(local), Bool(this Pointing) mut => false);
 	pointing!pointAt(standing);
 	pointing!pointAt(local);
+	pointing!pointAs(Int, Pointing(local));
+	// A `mut` function value may store its argument in its subject.
+	aim Unit[this Pointing, &PoolBox] mut = Unit(this Pointing, poolBox &PoolBox) mut {
+		this.poolBox = poolBox;
+		return Unit();
+	}
+	aimed ^Pointing = Pointing(standing);
+	aimed!aim(local);
+	pointing!start(aimed, Bool(this Pointing) mut => false);
 	pointing!start(Pointing(standing), Bool(this Pointing) mut {
 		inner Pool<Pointing, Unit, Unit> = @primitives$WorkerPool(Pointing);
 		inner!start(Pointing(this.poolBox), Bool(this Pointing) mut => false);

@@ -295,9 +295,9 @@ let signature = function
   | Handle_set -> (Void, [ Ptr; Ptr; Ptr ])
   | Callback_attach | Callback_detach -> (Void, [])
   | Island -> (Void, [ Ptr; I64; Ptr; I64 ])
-  | Workers_new -> (Ptr, [ I64; Ptr; I64; Ptr; Ptr; Ptr; I64; Ptr ])
+  | Workers_new -> (Ptr, [ I64; Ptr; I64; Ptr; Ptr; Ptr; I64; Ptr; I64 ])
   | Workers_start -> (Void, [ Ptr; Ptr; I64; Ptr; Ptr; Ptr; Ptr; Ptr; I64; Ptr ])
-  | Workers_publish -> (Void, [ Ptr; I64; Ptr ])
+  | Workers_publish -> (Void, [ Ptr; I64; I64 ])
   | Workers_state -> (Ptr, [ Ptr ])
   | Workers_elements -> (Void, [ Ptr; Ptr; I64; Ptr ])
 

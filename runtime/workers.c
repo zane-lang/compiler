@@ -123,6 +123,9 @@ struct zane_workers {
 	zane_event *first, *last;
 	int64_t event_size;
 	const zane_type *event_type;
+	/* The event type's identity: a hash of its symbol, the same in every
+	   object, where the walk tables are each object's own. */
+	int64_t event_id;
 	int funnel_busy;
 	/* The elements, in the order they started, and how many, under
 	   `lock`. */
@@ -438,7 +441,8 @@ static void zane_run_step(zane_member *m) {
 	if (!m->sources || __atomic_load_n(&p->version, __ATOMIC_ACQUIRE) != m->seen) {
 		zane_queue(&m->job);
 	} else {
-		zane_consume(m, zane_now());
+		/* A tick that came due during the step queues the next call,
+		   which consumes it. */
 		int64_t now = zane_now();
 		int ready = 0;
 		for (int64_t i = 0; i < m->timers; i++)
@@ -527,9 +531,11 @@ int zane_workers_run_one(zane_workers *only) {
 /* A new pool (§6.1), whose handle is its address and a stamp that the
    caller takes. A pool `stateful` is given the state, which it copies into
    its own region, the funnel, and the funnel's thunk; a pool without reads
-   none of them. Events are `event_size` bytes of `event_type`. */
+   none of them. Events are `event_size` bytes of `event_type`, whose
+   identity is `event_id`. */
 void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const zane_type *state_type, void *funnel,
-                       void (*funnel_thunk)(char *), int64_t event_size, const zane_type *event_type) {
+                       void (*funnel_thunk)(char *), int64_t event_size, const zane_type *event_type,
+                       int64_t event_id) {
 	zane_workers *p = calloc(1, sizeof *p);
 	if (!p) zane_broken("out of memory for a worker pool");
 	p->funnel_job.pool = p;
@@ -549,6 +555,7 @@ void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const 
 	p->funnel_thunk = funnel_thunk;
 	p->event_size = event_size;
 	p->event_type = event_type;
+	p->event_id = event_id;
 	return p;
 }
 
@@ -615,11 +622,13 @@ void zane_workers_start(char *handle, char *element, int64_t size, const zane_ty
 
 /* An event published to the pool whose work is running (§6.5): copied
    into the funnel's queue, whose funnel is queued when it is idle. The
-   event's size and walks must be the pool's, which only a publish function
-   value carried out of its pool's work can break. */
-void zane_workers_publish(char *event, int64_t size, const zane_type *type) {
+   event's size and type must be the pool's, which only a publish function
+   value carried out of its pool's work can break. The type is compared by
+   `id`, so an event made in one object is the pool's when another object
+   made the pool; its walks are the pool's own. */
+void zane_workers_publish(char *event, int64_t size, int64_t id) {
 	zane_workers *p = zane_self ? zane_self->workers : NULL;
-	if (!p || p->event_size != size || p->event_type != type) {
+	if (!p || p->event_size != size || p->event_id != id) {
 		zane_flush_output();
 		fputs("a worker pool's publish function was called outside the work of its pool\n", stderr);
 		exit(1);
@@ -633,6 +642,7 @@ void zane_workers_publish(char *event, int64_t size, const zane_type *type) {
 	e->size = size;
 	memcpy(e + 1, event, (size_t)size);
 	pthread_mutex_lock(&p->queue_lock);
+	const zane_type *type = p->event_type;
 	if (type) {
 		zane_claim(&p->queue_mark);
 		zane_work w;
