@@ -371,7 +371,10 @@ makes of them.
   step. One worker waits on a timer and one on an always-ready source. A
   worker started with no source wakes only when the funnel changes the
   state, which a second worker changes by publishing from calls it spawns.
-  The elements are read while their steps run. Each pool's scope prints
+  The elements are read while their steps run. Two elements hold an `&`
+  to a package constant and sum its list, one started directly and one
+  through a verb whose `&` parameter its caller fills with the constant.
+  Each pool's scope prints
   `drained` after it ends, so the golden file shows that the scope waits
   for every line its workers print.
 
