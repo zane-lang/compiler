@@ -254,9 +254,8 @@ void zane_tier_up(const struct zane_tier0 *tier) {
 	free(log);
 	free(wait);
 	if (!zane_tier_path) return;
-	/* A test waits for tier 1 to know the program runs it, so one that is
-	   not there, does not load, or lacks a function stops the
-	   program. */
+	/* A test waits for tier 1 to make sure the program runs it, so one that is
+	   not there, does not load, or lacks a function stops the program. */
 	if (now) {
 		if (!zane_tier_exists(zane_tier_path) || !zane_tier_load()) {
 			zane_flush_output();

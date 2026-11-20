@@ -656,11 +656,12 @@ static void zane_shift_down(char *to, const char *from, int64_t n) {
 	for (int64_t i = 0; i < n; i += 2048) memmove(to + i, from + i, (size_t)(n - i < 2048 ? n - i : 2048));
 }
 
-/* The list closes over the element at `index`, counted from 1, which the
-   caller has already moved out: the later elements move down one place,
-   keeping their order, and the list keeps its block. Nothing references an
-   element, so moving their bytes moves them. Emitted code makes the same
-   removal itself, with the stride a constant (docs/design/lowering.md §9). */
+/* The list closes the gap left by the element at `index`, counted from 1,
+   which the caller has already moved out: the later elements move down one
+   place, keeping their order, and the list keeps its block. Nothing
+   references an element, so moving their bytes moves them. Emitted code makes
+   the same removal itself, with the stride a constant
+   (docs/design/lowering.md §9). */
 void zane_list_remove(zane_list *list, int64_t index, int64_t stride) {
 	char *at = ZL_ITEMS(list) + (index - 1) * stride;
 	zane_shift_down(at, at + stride, (ZL_COUNT(list) - index) * stride);

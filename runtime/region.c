@@ -20,7 +20,7 @@
    every writable mapping against a fixed budget (Linux's strict
    overcommit) nor one that wants pages committed before use (Windows)
    charges the program for what it reserved. Under Valgrind the whole range
-   is usable from the start instead (zane_reserve says why).
+   is usable from the start instead (zane_reserve gives the reason).
 
    After the range comes a guard of `ZANE_GUARD` unmapped addresses. A
    frame no larger than the guard always starts below the range's end, so
@@ -499,7 +499,7 @@ _Noreturn void zane_too_deep_in(zane_context *c) {
    places it, does not fit. */
 void zane_too_deep(void) { zane_too_deep_in(zane_self); }
 
-/* What a fault at `at` is to the runtime: 1 when the access can run again,
+/* How the runtime handles a fault at `at`: 1 when the access can run again,
    since the step it touched is usable now. One in a guard stops the
    program. Any other is not the runtime's: 0. */
 static int zane_fault_at(char *at) {

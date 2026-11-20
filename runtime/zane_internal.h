@@ -356,9 +356,9 @@ typedef struct zane_island {
 	struct zane_island *next;
 } zane_island;
 
-/* A region the runtime is about to change. When drains are checked,
-   another thread's is a defect, which the cold check out of line stops the
-   program on (arena.c), so the common path is one test of `zane_checking`. */
+/* A region the runtime is about to change. When drains are checked, another
+   thread's is a defect, and the cold check out of line stops the program on
+   it (arena.c), so the common path is one test of `zane_checking`. */
 void zane_region_checked(zane_mark *r) __attribute__((cold, noinline));
 #define zane_check_region(r) (__builtin_expect(zane_checking, 0) ? zane_region_checked(r) : (void)0)
 /* The context of the call this thread joins, done, while its result comes

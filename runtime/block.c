@@ -26,9 +26,9 @@ void zane_work_start(zane_work *w) {
 	w->room = ZANE_LOCAL_JOBS;
 }
 
-/* A work out of room: one zeroed whole starts, and one full moves to a heap
-   buffer twice the size. Kept out of line, so the push stays small enough
-   that every clang inlines it. */
+/* A work out of room: a work zeroed whole is started, and a full one moves to
+   a heap buffer twice the size. Kept out of line, so the push stays small
+   enough that every clang inlines it. */
 void zane_work_grow(zane_work *w) {
 	if (w->room == 0) {
 		zane_work_start(w);
@@ -71,7 +71,7 @@ void zane_work_run(zane_work *w) {
 
 /* The value at `base` dies: each block it owns is returned, down through
    the blocks inside them (lifetimes.md §2.1). A type that owns none has no
-   walks, and is no type here. */
+   walks, so its `type` here is null. */
 void zane_end(char *base, const zane_type *type) {
 	if (!type) return;
 	zane_work w;
@@ -80,8 +80,8 @@ void zane_end(char *base, const zane_type *type) {
 	zane_work_run(&w);
 }
 
-/* The scope a value is made in is the innermost; where it arrives decides
-   where its blocks end up. */
+/* The scope a value is made in is the innermost; where it arrives
+   determines where its blocks end up. */
 static zane_mark *zane_here(void) { return zane_self->top; }
 
 /* The value at `value` was copied from another place: each block it names
