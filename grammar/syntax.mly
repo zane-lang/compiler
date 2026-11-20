@@ -296,9 +296,9 @@ map_lit:
    parameter receives (generics.md §5.3). A type is never an expression: as
    an operator operand it would make Foo<1>[]() {} both a lambda and
    (Foo < 1) > ([]() {}). As a whole positional argument no type is an
-   operand, and the token after it decides between the argument and a lambda
-   it begins. A named argument takes no type: it fills a field, and a type is
-   not stored. *)
+   operand, and the token after it determines whether the type is the
+   argument or begins a lambda. A named argument takes no type: it fills a
+   field, and a type is not stored. *)
 %inline argument_value:
   | value=expr { value }
   | type_=type_expr { expr $loc (Nodes.Expr.TypeValue type_) }
@@ -315,8 +315,8 @@ map_lit:
    once and both spellings of a constructor call -- with a trailing argument
    and without -- read it through the same production. Written as one list
    either way, the parser has to pick between them while reducing the list, at
-   the `)`; written like this it shifts the `)` and decides on the token that
-   actually decides, the `{` or its absence. The state count is the same
+   the `)`; written like this it shifts the `)` and chooses on the token that
+   settles the choice, the `{` or its absence. The state count is the same
    twelve; what changes is which fork they are, and this one is the fork
    docs/ambiguity/README.md already carries for a call's trailing argument against an
    enclosing brace. *)
@@ -441,7 +441,7 @@ map_lit:
    ordinary [type_expr] again and the entries follow it, which is what the
    earlier shift-every-group-then-classify shape existed to work around: with
    `[ ]` on both, whether a group was a suffix or the entry list depended on
-   what came after its closing bracket. `{ }` answers that at the opening
+   what came after its closing bracket. `{ }` settles that at the opening
    bracket, so the run of groups, the two rejected orders, and the classifier
    carrying a group's kind are all gone. *)
 %inline enum_map_body:
@@ -891,8 +891,8 @@ abort_ret_type:
    read as a postfix on what precedes it: a trailing `[ ]` would collide with
    the subscript syntax. The two spellings are the same call, so the
    productions below take the tail as a parameter and build one node, recording
-   only whether the argument was written outside the `)`, since that decides
-   where the statement ends.
+   only whether the argument was written outside the `)`, since that
+   determines where the statement ends.
 
    A constructor call takes the same tail, but not through this rule: its
    callee is a [constructor_name] rather than an [app], so it is written out
@@ -1168,7 +1168,7 @@ primary_braced:
 
 (* `func_callee` excludes a bare type member. This is what keeps
    `Vector2.zeros()` out of the ordinary computed-call production while still
-   allowing postfixes on the value produced by `Colors.red`.) *)
+   allowing postfixes on the value produced by `Colors.red`. *)
 func_callee:
   | primary=primary { primary }
   | call=unbraced_verb_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
@@ -1185,7 +1185,7 @@ app:
 
 (* What a `.` field access or a `:`/`!` method call may follow: any [app], and
    also a value that closes on a `}` ([member_braced]). None of `.`, `:` or `!`
-   can open a statement, so after such a brace the next token alone says
+   can open a statement, so after such a brace the next token alone shows
    whether the value goes on or its statement has ended (syntax.md §4.9). A
    `(` call and a `[` subscript can open one, and stay with [app]. *)
 %inline member_target:
