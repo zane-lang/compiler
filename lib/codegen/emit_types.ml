@@ -212,15 +212,15 @@ let abi_type env a =
 
 let fn_type env params ret = abi_type env (abi env params ret)
 
-(* What a signature tells LLVM, as attributes on each LLVM parameter, by
+(* What a signature gives LLVM, as attributes on each LLVM parameter, by
    index. A parameter passed by address is a borrow (memory.md §2.9), and
    nothing in the call writes what it borrows (§2.9.1), so it is `readonly`
    and `noalias`, and dereferenceable for its whole size: the optimizer may
    take the value behind it for a private copy. It claims no alignment,
    since what it borrows may be a member at any byte of a packed value
-   (Ty.tight); the `sret` slot is the caller's own, at its alignment. It is not
-   `nocapture`, since a call the callee spawns may hold the address for as
-   long as it runs. A result passed by address is written through an
+   (Ty.tight); the `sret` slot is the caller's own, at its alignment. It is
+   not `nocapture`, since a call the callee spawns may hold the address for
+   as long as it runs. A result passed by address is written through an
    `sret` pointer to a fresh slot of the caller's, which nothing else
    names, so that one is `noalias` too. *)
 let abi_attrs env a =
@@ -252,13 +252,14 @@ let declare_abi env f a =
     (fun (i, attrs) -> List.iter (fun at -> Llvm.add_function_attr f at (Llvm.AttrIndex.Param i)) attrs)
     (abi_attrs env a)
 
-(* What a function's [places] (Func) tell LLVM: each is the address of a
+(* What a function's [places] (Func) give LLVM: each is the address of a
    whole slot that outlives the call, so it is `nonnull` and
    dereferenceable for the slot's size. It claims no alignment: the slot
-   may be a member at any byte of a packed value (Ty.tight). That lets the optimizer read
-   through it ahead of a branch, as it hoists a list's length and storage
-   out of a loop that checks its indices. Nothing more is promised: the
-   function may write the slot, and another parameter may name it too. *)
+   may be a member at any byte of a packed value (Ty.tight). That lets the
+   optimizer read through it ahead of a branch, as it hoists a list's
+   length and storage out of a loop that checks its indices. Nothing more
+   is promised: the function may write the slot, and another parameter may
+   name it too. *)
 let declare_places env fn (f : Func.t) a =
   let enum name v = Llvm.create_enum_attr env.ctx name v in
   let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in

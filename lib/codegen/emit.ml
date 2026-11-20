@@ -1,6 +1,6 @@
-(* The CGT as an LLVM module (docs/design/lowering.md L1, L2). Every CGT function is
-   one LLVM function and every CGT type one LLVM type; nothing is decided
-   here that the tree has not already said. *)
+(* The CGT as an LLVM module (docs/design/lowering.md L1, L2). Every CGT
+   function is one LLVM function and every CGT type one LLVM type; nothing
+   is decided here that the tree does not already give. *)
 
 open Cgt.Nodes
 open Loop_shapes
@@ -38,21 +38,21 @@ let runtime env fn =
 
 let walks env = Option.get env.walks
 
-(* Type-based alias information (LLVM's `!tbaa`), which tells LLVM that a
-   write of an element's field leaves the list's header as it was. A handle,
-   the header of a list or a string, is never a member or an element of a
-   scalar's place, nor one inside it, since a path through a place's members
-   stops at a handle (Cgt.Nodes.Expr.Offset), so a handle's fields and a
-   place of a scalar type are disjoint storage. An access made here as one
-   of the two says so with its tag: a handle's fields read and written where
-   an element is located, pushed or removed, and a handle loaded or stored
-   whole, as the first; a scalar loaded or stored through an address, and
-   the elements a removal moves when no handle is among their bytes
+(* Type-based alias information (LLVM's `!tbaa`), from which LLVM concludes
+   that a write of an element's field leaves the list's header as it was. A
+   handle, the header of a list or a string, is never a member or an element
+   of a scalar's place, nor one inside it, since a path through a place's
+   members stops at a handle (Cgt.Nodes.Expr.Offset), so a handle's fields and
+   a place of a scalar type are disjoint storage. An access made here as one
+   of the two is marked so by its tag: a handle's fields read and written
+   where an element is located, pushed or removed, and a handle loaded or
+   stored whole, as the first; a scalar loaded or stored through an address,
+   and the elements a removal moves when no handle is among their bytes
    ([remove]), as the second. A scalar's tag is one for every scalar type,
-   since storage the program reads as one type it may have written as
-   another the same size, as a snapshot does. Everything else, a frame's or
-   a walk's access, a copy of an aggregate and the runtime's own, carries no
-   tag, which LLVM takes as one that may touch both. *)
+   since storage the program reads as one type it may have written as another
+   the same size, as a snapshot does. Everything else, a frame's or a walk's
+   access, a copy of an aggregate and the runtime's own, carries no tag, which
+   LLVM takes as one that may touch both. *)
 let tags ctx =
   let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
   let tag name =
@@ -68,7 +68,7 @@ let unrolled_whole = 8
 (* A scalar's tag by its size, a child of the scalar tag: one byte (Bool,
    U8), four and eight apart, since a place is only read back as a type of
    the size it was written as. A one-byte store then leaves the wider
-   scalars read around it where they are. *)
+   scalars read around it in place. *)
 let sized_tag ctx name =
   let zero = Llvm.const_int (Llvm.i64_type ctx) 0 in
   let root = Llvm.mdnode ctx [| Llvm.mdstring ctx "zane" |] in
@@ -280,8 +280,8 @@ let zero env b p size =
       (Llvm.build_call t f [| p; Llvm.const_int i8 0; Llvm.const_int env.i64 size; Llvm.const_int i1 0 |] "" b)
   end
 
-(* A branch that is almost never taken, as LLVM's branch weights say it, so
-   its code is laid out away from the path that is. *)
+(* A branch that is almost never taken, marked so by LLVM's branch weights,
+   so its code is laid out away from the path that is taken. *)
 let unlikely env br =
   let i32 = Llvm.i32_type env.ctx in
   let weights =
@@ -327,12 +327,12 @@ and context_limit = Abi.context_limit
 
    Either way, reading any slot of the open scope's frame is safe: in the
    range the runtime makes the slot's memory usable, and in the guard it
-   stops the program, which a frame that does not fit owes it at whichever
-   slot is touched first. The frame is on a 16-byte boundary, since every
-   frame is a multiple of 16 bytes (Frames) placed where the one before it
-   ended. The open scope tells LLVM both, so it may read a slot ahead of a
-   branch, as it hoists a list's count out of a loop that checks its
-   indices (docs/optimizations.md). *)
+   stops the program, which a frame that does not fit requires at
+   whichever of its slots is touched first. The frame is on a 16-byte
+   boundary, since every frame is a multiple of 16 bytes (Frames) placed
+   where the one before it ended. LLVM is given both facts about the open
+   scope, so it may read a slot ahead of a branch, as it hoists a list's
+   count out of a loop that checks its indices (docs/optimizations.md). *)
 let enter env fr b size =
   let ptr = env.ptr and i64 = env.i64 in
   let outer = List_handle.aligned env.ctx 8 (Llvm.build_load ptr (open_scope env) "" b) in
@@ -398,7 +398,7 @@ let enter env fr b size =
    frame, so the code moves the frontier back to its record itself.
    Otherwise the runtime drains it. Only a scope that spawns a call can have
    one to wait for, and only one that places a slot holding a handle can
-   hold one, so no other scope looks. *)
+   hold one, so no other scope checks. *)
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in
@@ -1380,7 +1380,7 @@ and foreign_call env fr b thunk (args : Expr.t list) (ret : Ty.t) =
   | _ -> Some (Llvm.build_load result_type result "" b)
 
 (* The address of a slot holding [e]'s value, for a parameter passed by
-   address. A place is lent where it is: nothing else in the call writes it
+   address. A place is lent in place: nothing else in the call writes it
    (memory.md §2.9.1). A call that returns by address writes its result
    straight into a fresh slot, and an expansion's result is its own slot.
    Any other value is stored in a fresh slot of this frame first. *)
@@ -1825,8 +1825,8 @@ and stat env fr b (s : Stat.t) =
       else if (not env.version) || fr.loops > 0 || not (versioned ~symbol:fr.symbol body) then counted None
       else begin
         (* A loop no other loop holds is emitted twice, for a count of at
-           least [long_loop] and for a smaller one, each saying how often it
-           goes round (docs/design/lowering.md, "The passes"). *)
+           least [long_loop] and for a smaller one, each weighted by how often
+           it goes round (docs/design/lowering.md, "The passes"). *)
         let long = block env fr and short = block env fr and joined = block env fr in
         let at_least = Llvm.build_icmp Llvm.Icmp.Sge n (Llvm.const_int env.i64 long_loop) "" b in
         (* Taking the long copy is weighted as rare, so the short copy is
@@ -1894,11 +1894,11 @@ and stat env fr b (s : Stat.t) =
 (* Functions and programs                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-(* A parameter passed by address is the caller's place or a fresh slot of
-   its, which the attributes promise the callee only reads. Lowering never
-   writes a parameter's own slot: a borrow is read-only (memory.md §2.9),
-   and a `^T` parameter is held in a slot of the body's own before it is
-   moved on. So one that does is an invariant broken, not a program to
+(* A parameter passed by address is the caller's place or a fresh slot of the
+   caller's, which the attributes promise the callee only reads. Lowering
+   never writes a parameter's own slot: a borrow is read-only (memory.md
+   §2.9), and a `^T` parameter is held in a slot of the body's own before it
+   is moved on. So one that does is an invariant broken, not a program to
    build. *)
 let unwritten env (f : Func.t) addressed =
   let bad id = Diagnostic.bug (Printf.sprintf "codegen: `%s` writes its parameter %%%d, passed by address" f.Func.symbol id) in
@@ -1954,7 +1954,7 @@ let func env (f : Func.t) =
   in
   (* A parameter passed as itself is stored into a slot like any other
      local, and one passed as words is put back together in one. One
-     passed by address is read where it is: its pointer is its slot. *)
+     passed by address is read in place: its pointer is its slot. *)
   let kept = List.filter (fun (_, t) -> t <> Ty.Void) f.Func.params in
   let next = ref (if Option.is_some sret then 1 else 0) in
   let param () =

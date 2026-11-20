@@ -108,7 +108,7 @@ static std::set<llvm::Function *> unsafe_functions(llvm::Module *m) {
     if (!o.hasLocalLinkage() || o.isDeclaration()) continue;
     bool state = shared_state(o);
     // A string literal's address, or any other LLVM is free to merge,
-    // tells no copy from the original.
+    // does not distinguish a copy from the original.
     if (!state && o.hasGlobalUnnamedAddr()) continue;
     for (const llvm::Use &u : o.uses()) {
       if (state) {

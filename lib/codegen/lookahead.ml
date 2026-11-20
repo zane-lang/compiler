@@ -252,8 +252,8 @@ let bound_in body =
 
 (* Whether every step of an address goes into a struct's member, from a
    slot or a pointer. A step into a variant's case reaches a payload that is
-   there only while that case is the one held, which the top of the loop
-   does not know: another case's bytes may read as a list with a count and
+   there only while that case is the one held, which is not known at the
+   top of the loop: another case's bytes may read as a list with a count and
    no block. An element of another list ([invariant_lists] names one) is
    read with a check, which could stop the program here. *)
 let rec members_only (a : Expr.t) =

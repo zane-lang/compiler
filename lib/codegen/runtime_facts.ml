@@ -12,7 +12,7 @@
    ([Runtime_bodies]) replaces the declaration, and with it the
    declaration's attributes, so [mark] puts them back on whatever the
    module holds under each name once the bodies are linked: on a call LLVM
-   does not inline they are what it knows. *)
+   does not inline they are all LLVM has about the callee. *)
 
 module R = Cgt.Runtime
 
@@ -33,8 +33,8 @@ let facts = function
       let reads = "readonly captures(none)" in
       { fn = "memory(read) nounwind willreturn nosync nofree"; ret = ""; params = [ reads; reads ] }
   (* A push, a reserve and a room look the handle's address up to find its
-     region (list.c, arena.c), which tells the caller something of the
-     address, but keep no pointer to the handle: a handle in a slot of the
+     region (list.c, arena.c), which reveals something of the address to
+     the caller, but keep no pointer to the handle: a handle in a slot of the
      caller's own stays the caller's across other calls. *)
   | R.List_push | R.List_reserve | R.List_room -> { none with params = [ "captures(address)" ] }
   | _ -> none

@@ -3,7 +3,7 @@
    build, and [tier1] for tier 1 (docs/design/tiers.md T2).
 
    `elif` branches on `~this and condition`, where `this` is what the `if`
-   before it branched on, so each way into it already decides that half.
+   before it branched on, so each way into it already settles that half.
    Jump threading sends the `if`'s body straight past the `elif` and the
    other way to the condition alone, which makes the two the one chain C's
    `else if` is. It has to see the branches as they were written: the CFG
@@ -80,11 +80,11 @@ let nontrivial triple pipeline =
    It splits the load of a struct with no padding into a load of each
    member, so a packed sum read whole is read as its tag and its room, and
    with sinking on it moves the room's load into the case that reads the
-   payload. Nothing tells LLVM that load is safe to make before the tag is
-   tested, so the case stays a branch, one the predictor cannot learn when
-   which case a value holds follows no pattern. Left beside the tag's load,
-   the room is read either way and the case's work becomes a select
-   (docs/optimizations.md, "A sum's case picked without a branch").
+   payload. LLVM is given nothing that shows that load is safe to make before
+   the tag is tested, so the case stays a branch, one the predictor cannot
+   learn when which case a value holds follows no pattern. Left beside the
+   tag's load, the room is read either way and the case's work becomes a
+   select (docs/optimizations.md, "A sum's case picked without a branch").
 
    Loops are unrolled further than LLVM's -O2 budgets allow. The full-unroll
    budget (-unroll-threshold) is 250, not 150: a loop of a few constant

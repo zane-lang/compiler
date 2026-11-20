@@ -10,7 +10,7 @@ open Llvm_extra
 
 (* [global]'s every use made a load of the [index]th pointer of [table];
    false when one is a constant that no instruction holds, such as another
-   variable's initial value (llvm_stubs.cpp). *)
+   variable's initial value (tier_stubs.cpp). *)
 external import_uses : Llvm.llvalue -> Llvm.llvalue -> int -> bool = "zane_tier_import"
 external has_prefix_data : Llvm.llvalue -> bool = "zane_has_prefix_data"
 external move_prefix_data : Llvm.llvalue -> Llvm.llvalue -> unit = "zane_move_prefix_data"

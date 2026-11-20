@@ -93,13 +93,13 @@ val live_contexts : unit -> int
     LLVM's default, [""]. *)
 val target_cpu : ?target:string -> unit -> (string, string) result
 
-(** The global prefix of [target]'s symbols, as its data layout says: `_`
+(** The global prefix of [target]'s symbols, as its data layout gives it: `_`
     on Mach-O, none on ELF and 64-bit COFF. A glue entry's `__asm__` label
     is its symbol after it (docs/design/ffi.md F8). *)
 val global_prefix : ?target:string -> unit -> (string, string) result
 
 (** The C compiler a build runs: `ZANE_CC`, else `clang`. It links, and
-    it says where a target's C headers are (docs/design/ffi.md F1). *)
+    it reports where a target's C headers are (docs/design/ffi.md F1). *)
 val c_compiler : unit -> string
 
 (** The module's text, as [prepare] left it, copied into an OCaml string

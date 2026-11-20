@@ -1,10 +1,10 @@
-(* Remembered functions' dispatchers (docs/design/memoization.md), emitted
+(* Memoized functions' dispatchers (docs/design/memoization.md), emitted
    once the program's functions are (Codegen.program). *)
 
 open Cgt.Nodes
 open Emit
 
-(* A remembered function's dispatcher (Cgt.Memo). Its table is
+(* A memoized function's dispatcher (Cgt.Memo). Its table is
    direct-mapped: each entry is the argument words, the result words and a
    meta word holding the work the result took, found by a multiplicative
    hash of the arguments, and a miss overwrites whatever entry was there.
@@ -14,10 +14,11 @@ open Emit
    state charges each lookup the function's [Cgt.Memo.charge] and credits
    each hit with the work it saved, at [Cgt.Memo.credit], never going below
    zero; once it reaches [memo_limit] the dispatcher stops looking and
-   calls the plain copy, which looks nothing up. A function whose arguments rarely repeat, or whose repeats
-   save less than a lookup costs, pays for a bounded number of lookups and
-   then runs as it would have. The table starts on a cache line, so where
-   it lands in the binary does not decide which entries straddle two. *)
+   calls the plain copy, which looks nothing up. A function whose
+   arguments rarely repeat, or whose repeats save less than a lookup
+   costs, pays for a bounded number of lookups and then runs as it would
+   have. The table starts on a cache line, so where it lands in the binary
+   does not determine which entries straddle two. *)
 external set_atomic : Llvm.llvalue -> int -> unit = "zane_set_atomic"
 external fence : Llvm.lltype -> Llvm.llbasicblock -> int -> unit = "zane_fence"
 external cmpxchg : Llvm.llbasicblock -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue = "zane_cmpxchg"
@@ -77,11 +78,11 @@ let memo env (m : Cgt.Memo.t) =
   finish site;
   let fn = lookup in
   Llvm.position_at_end (Llvm.entry_block fn) b;
-  (* A value is remembered as the 8-byte words of its bytes, copied into a
-     zeroed buffer. The bytes a value leaves undefined, the room past a
-     smaller case's payload, are frozen, so a comparison of
-     them is a comparison of some fixed bits: at worst a miss, never a hit
-     LLVM made up. *)
+  (* A value is kept in the table as the 8-byte words of its bytes, copied
+     into a zeroed buffer. The bytes a value leaves undefined, the room past a
+     smaller case's payload, are frozen, so a comparison of them is a
+     comparison of some fixed bits: at worst a miss, never a hit LLVM made up.
+     *)
   let buffer n =
     let top = Llvm.builder_at ctx (Llvm.instr_begin (Llvm.entry_block fn)) in
     let p = Llvm.build_alloca (Llvm.array_type i64 (max n 1)) "" top in

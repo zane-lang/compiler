@@ -14,7 +14,7 @@ let frame = 4096
 
 let run m =
   let fs = ref [] in
-  (* A remembered function's own body (Cgt.Memo) is left: its table already
+  (* A memoized function's own body (Cgt.Memo) is left: its table already
      answers the calls that repeat, and a test at each call costs more than
      the calls it saves (tests/perf `leaves`). *)
   let remembered f = String.ends_with ~suffix:Cgt.Memo.suffix_plain (Llvm.value_name f) in

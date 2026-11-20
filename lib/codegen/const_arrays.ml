@@ -1,10 +1,9 @@
-(* A
-   local whose every write is a constant, the same at each offset each
+(* A local whose every write is a constant, the same at each offset each
    time, made a constant global.
 
    An `Array` literal of constants, as a scene or a lookup table, is a
-   stack slot its elements
-   are stored to each time the code that makes it runs, inside the loop
+   stack slot its elements are stored to each time the code that makes it
+   runs, inside the loop
    that reads it. Where the slot is indexed by a value LLVM does not know,
    the stores stay. A slot that nothing writes but those constants holds
    the same bytes whenever it is read (a byte never written was undefined,

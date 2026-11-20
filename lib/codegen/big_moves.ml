@@ -1,8 +1,8 @@
 (* Large aggregates moved as memory (docs/design/lowering.md §9).
 
-   Emit moves a value as one LLVM value, a load and then a store, which is
-   what a small value wants. LLVM's code generator gives a value at most
-   65,535 parts, though, and dies on a larger one, such as an
+   Emit moves a value as one LLVM value, a load and then a store, which
+   suits a small value. LLVM's code generator gives a value at most
+   65,535 parts, though, and crashes on a larger one, such as an
    `@primitives$ArrayRef<Int, 65536>` moved into its slot; well below that
    it still takes seconds per move. So a load of a large aggregate whose
    only uses are stores becomes a `memcpy` per store. A value of more parts

@@ -146,8 +146,8 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
   List.iter (Memos.memo env) memos;
-  (* The module with the program's entry also says how large each context's
-     range is, which the runtime reads when it makes one. *)
+  (* The module with the program's entry also defines how large each
+     context's range is, which the runtime reads when it makes one. *)
   if Option.is_some p.Program.entry then
     List.iter
       (fun (name, size) ->
@@ -189,11 +189,11 @@ let with_module ?target ?pack ?memos ?version ?tiered ?fixed_region ?spawned_fix
 (* The program's module lives only while [f] runs: its context and the
    module are disposed however [f] or the emit ends, since LLVM's bindings
    free neither on their own. With [memoize], the functions [Cgt.Memo]
-   picks are remembered, the same in every build, so a tiered build's two
+   picks are memoized, the same in every build, so a tiered build's two
    tiers emit the same module (docs/design/tiers.md T3). With [version],
    each loop over elements the optimized passes can split is emitted twice
    for them to tell apart (Emit.versioned); a tiered build's two tiers
-   both take it, and both say [tiered] (Loop_copies.count_call_sites). *)
+   both take it, and both pass [tiered] (Loop_copies.count_call_sites). *)
 let with_program ?target ?pack ?(memoize = false) ?version ?tiered ?fixed_region ?spawned_fixed_region ?c p f =
   let p, memos = if memoize then Cgt.Memo.plan p else (p, []) in
   with_module ?target ?pack ~memos ?version ?tiered ?fixed_region ?spawned_fixed_region ?c p f

@@ -7,7 +7,7 @@ open Cgt.Nodes
 
 
 (* Whether [s] names the local [id] anywhere in it, a spawned call's result
-   coming home to it included. *)
+   copied back to it included. *)
 let names id s =
   Cgt.Traverse.exists_in [ s ]
     ~expr:(fun e -> match e.Expr.node with Expr.Local l | Expr.Address l -> l = id | _ -> false)

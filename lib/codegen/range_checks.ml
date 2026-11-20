@@ -1,5 +1,4 @@
-(* The
-   checks of `x + 0`, `x + 1`, ... `x + k` against one bound, made on one
+(* The checks of `x + 0`, `x + 1`, ... `x + k` against one bound, made on one
    straight path, made as one check of the lowest and one of the highest
    at the first of them.
 

@@ -3,9 +3,10 @@
    emitted for each type whose layout lists a position once the program
    needs them, and the type's table of them, which the runtime is handed
    wherever it is to walk a value of the type. Emitted code also vacates a
-   value of the type itself. A walk knows its type's positions, their offsets and the tags
-   each is under, so it reads each handle and box where it is and calls the
-   walks of what they hold directly. Past [deepest] calls it hands a nested
+   value of the type itself. A walk is built with its type's positions,
+   their offsets and the tags each is under, so it reads each handle and
+   box in place and calls the walks of what they hold directly. Past
+   [deepest] calls it hands a nested
    walk to the runtime's work instead, which runs it from the top, so a
    value nested any number of boxes deep is walked without the machine
    stack growing with it. *)
@@ -747,8 +748,8 @@ let body env f build =
    positions are alike and what each position nests is walked alike in
    turn, as two types of different names with the same members are. The
    classes are found as a minimal automaton's states are: every layout
-   starts in one class, which is split by what its positions say of the
-   classes so far until no split is left. Each layout is mapped to the
+   starts in one class, which is split by the classes so far of what its
+   positions nest, until no split is left. Each layout is mapped to the
    first, by name, of its class. *)
 let alike positions =
   let names = List.sort compare (Hashtbl.fold (fun l _ ls -> l :: ls) positions []) in
