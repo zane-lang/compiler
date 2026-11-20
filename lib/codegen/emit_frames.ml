@@ -261,7 +261,7 @@ let drain_scope env fr b m =
       Llvm.position_at_end listing b;
       List.iter
         (fun (a, (h : Held_spills.held)) ->
-          ignore (Llvm.build_store (Llvm.build_load h.ty a "" b) h.slot b))
+          h.fills <- Llvm.build_store (Llvm.build_load h.ty a "" b) (byte_at env b m h.offset) b :: h.fills)
         held;
       ignore (Llvm.build_br after b);
       Llvm.position_at_end after b);
@@ -280,9 +280,7 @@ let frame_slot env fr b scope id =
 
 (* The place of held local [id] of LLVM type [t] and layout [l]: its slot
    in its scope's frame, or, under the experiment (Held_spills), an alloca
-   that keeps the slot for the calls it is given to. The slot's address is
-   computed where the scope's code starts, so that a drain on any way out
-   finds it. A scope whose frame is itself an
+   that keeps the slot for the calls it is given to. A scope whose frame is itself an
    alloca (a light scope) keeps its slots there, and so does a local that
    may hold a foreign handle, which its scope's drain ends whether or not
    drains are checked. *)
@@ -293,9 +291,9 @@ let held_slot env fr b scope id ~bytes ~layout:l t =
   then begin
     let top = Llvm.builder_at env.ctx (Llvm.instr_begin (Llvm.entry_block fr.fn)) in
     let a = Llvm.build_alloca t "" top in
-    let start = Held_spills.at_entry env.ctx arena b in
-    let slot = byte_at env start arena (Hashtbl.find fr.offsets id) in
-    Held_spills.record a { Held_spills.slot; ty = t; arena; layout = l };
+    let offset = Hashtbl.find fr.offsets id in
+    let slot = byte_at env b arena offset in
+    Held_spills.record a { Held_spills.slot; offset; ty = t; arena; layout = l; fills = [] };
     a
   end
   else frame_slot env fr b scope id

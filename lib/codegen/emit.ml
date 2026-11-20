@@ -784,8 +784,6 @@ and stat env fr b (s : Stat.t) =
       else
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
-      Held_spills.entered arena
-        (match Llvm.instr_end (Llvm.insertion_block b) with Llvm.After i -> Some i | Llvm.At_start _ -> None);
       let handled = fr.handled and spawning = fr.spawning in
       fr.open_ <- arena :: fr.open_;
       if frame.Frames.handles then fr.handled <- arena :: fr.handled;

@@ -25,14 +25,18 @@ let cap = 256
 
 type held = {
   (* The address of the local's slot in its scope's frame, computed where
-     the local is held. *)
+     the local is held, and the slot's offset in the frame. *)
   slot : Llvm.llvalue;
+  offset : int;
   (* The local's LLVM type, which a store or a load of it whole takes. *)
   ty : Llvm.lltype;
   (* The record of the local's scope, the frame's start. *)
   arena : Llvm.llvalue;
   (* The local's layout, for a checked drain. *)
   layout : Cgt.Nodes.Layout.t;
+  (* The stores of the alloca's value to the slot on the checked drains'
+     paths, which go if the local takes its slot again. *)
+  mutable fills : Llvm.llvalue list;
 }
 
 (* Every held alloca of the function being emitted, the latest first.
@@ -48,25 +52,8 @@ let find p = Option.map snd (List.find_opt (fun (a, _) -> a == p) !order)
    they were held. *)
 let of_arena arena = List.rev (List.filter (fun (_, h) -> h.arena == arena) !order)
 
-(* Where each scope's code starts, past its entry: the last instruction
-   of its entry, or none when the entry's block is still the one being
-   built and holds none. *)
-let entries : (Llvm.llvalue * Llvm.llvalue option) list ref = ref []
-
-let entered arena last = entries := (arena, last) :: !entries
-
 (* Forgets the function emitted before: [Emit.func] calls this first. *)
-let start () =
-  order := [];
-  entries := []
-
-(* A builder at the start of the scope whose record is [arena]'s code,
-   or [b] when that is where [b] builds. *)
-let at_entry ctx arena b =
-  match List.find_opt (fun (a, _) -> a == arena) !entries with
-  | Some (_, Some i) -> (
-      match Llvm.instr_succ i with Llvm.Before n -> Llvm.builder_before ctx n | Llvm.At_end _ -> b)
-  | _ -> b
+let start () = order := []
 
 let callee i =
   let f = Llvm.operand i (Llvm.num_operands i - 1) in
@@ -173,6 +160,12 @@ let run ctx fn =
             | Some s -> Printf.sprintf "alloca, %d spills" (List.length s));
         match verdict with
         | None ->
+            List.iter
+              (fun store ->
+                let load = Llvm.operand store 0 in
+                Llvm.delete_instruction store;
+                Llvm.delete_instruction load)
+              h.fills;
             Llvm.replace_all_uses_with a h.slot;
             Llvm.delete_instruction a
         | Some spills ->
