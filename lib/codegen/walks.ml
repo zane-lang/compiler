@@ -88,6 +88,15 @@ let thunk ctx m symbol =
   let name = foreign_name m symbol in
   match Llvm.lookup_function name m with Some f -> f | None -> Llvm.declare_function name (thunk_type ctx) m
 
+(* A handle's free thunk: a worker pool's is the runtime's own
+   (Cgt.Runtime.workers_free), named as the runtime defines it, since an
+   optimized build links the runtime into the program and resolves it there;
+   any other is the glue's ([thunk]). *)
+let free_thunk ctx m symbol =
+  if symbol = Cgt.Runtime.workers_free then
+    match Llvm.lookup_function symbol m with Some f -> f | None -> Llvm.declare_function symbol (thunk_type ctx) m
+  else thunk ctx m symbol
+
 let offset c base n =
   if n = 0 then base
   else Llvm.build_in_bounds_gep (Llvm.i8_type c.env.ctx) base [| int c.env n |] "" c.b
@@ -506,7 +515,7 @@ let end_at known c base (p : Layout.position) =
   (* The runtime calls the free thunk, or collects it to call in the
      order of the handles' stamps (runtime/handle.c). *)
   | Layout.Foreign { free; _ } ->
-      ignore (runtime c Cgt.Runtime.Handle_end [| h; thunk env.ctx env.m free |]));
+      ignore (runtime c Cgt.Runtime.Handle_end [| h; free_thunk env.ctx env.m free |]));
   ()
 
 (* Move: each block the value owns that must move into the region the move
