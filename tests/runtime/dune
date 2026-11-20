@@ -1,5 +1,5 @@
 ; The runtime on its own (docs/design/lowering.md L17): `arenas.c`,
-; `texts.c`, `blocks.c`, `spawns.c`, `cycles.c`, `spares.c` and `output.c`
+; `texts.c`, `blocks.c`, `spawns.c`, `cycles.c`, `spares.c`, `waits.c` and `output.c`
 ; link its parts, built separately, and exercise the scope arenas, the
 ; strings, the lists, arrays, boxes, in-place overwrites and dynamic regions
 ; and their spare chunks, package constants and the cycles of waits between

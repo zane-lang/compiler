@@ -219,7 +219,7 @@ still leaves the function it was written in, because after expansion that is
 the function it is in.
 
 A worker is a loop, and no expansion. `@controlflow$work` and
-`@controlflow$workEvery` take a function value rather than a block
+`@controlflow$register` take a function value rather than a block
 (spec control-flow.md §3.7, §4.1), so the verb that calls one keeps its
 function, and the call becomes a CGT `while`. Its condition calls the step
 with the subject's place as its `this`, as `subject!step()` would, and reads
@@ -233,9 +233,14 @@ call settles its operands once, in written order (`Lower.worker_subject`,
 `Lower.worker_held`): a subject place's subscript indices are pinned, and a
 temporary subject, or a step that is neither a variable nor a lambda
 written in place, runs into a slot of the call's scope, so every pass
-works on the place and step the call named. `workEvery` reads its interval
-once too, and its loop's body waits that long through `zane_sleep`, so a step
-that returns false leaves at once without a last wait. The step's value is
+works on the place and step the call named. `register` reads its event
+source once too, a timer's interval, and takes its first deadline just
+before the first step (`zane_tick_start`). Its loop's body waits for the
+next deadline through `zane_tick`, so a step that returns false leaves at
+once without a last wait. A pool thread that waits there has a stand-in
+thread for the wait (`zane_block_begin`, `runtime/spawn.c`), as one that
+joins a call running elsewhere does, so the wait holds back only the code
+that waits (spec concurrency.md §3.4). The step's value is
 a lifted lambda's address, a constant LLVM sees, so a step written where
 the worker runs is inlined, and an optimized build makes one loop of it
 with no call through the function value (`tests/objects`, the `workers`

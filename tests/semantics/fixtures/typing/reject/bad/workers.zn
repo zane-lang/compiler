@@ -15,10 +15,16 @@ Unit workers(fixed Steps) {
 	s!settle();
 	s!lib$settle();
 	// A step's result converts to `@primitives$Bool`; an `Int` does not.
-	@controlflow$work(s, Int(this Steps) mut => this.n);
+	s!@controlflow$work(Int(this Steps) mut => this.n);
 	// A worker writes its subject, so a read-only parameter is no subject.
-	@controlflow$work(fixed, Bool(this Steps) mut => false);
+	fixed!@controlflow$work(Bool(this Steps) mut => false);
 	// The conversion is the checker's to supply.
-	@controlflow$work(s, Bool(this Steps) mut => false, Bool(b Bool) => b);
+	s!@controlflow$work(Bool(this Steps) mut => false, Bool(b Bool) => b);
+	// A worker intrinsic is a `mut` method, called with `!`.
+	s:@controlflow$work(Bool(this Steps) mut => false);
+	// It is a method of its subject, so the function form names nothing.
+	@controlflow$work(s, Bool(this Steps) mut => false);
+	// `register` waits on an event source, not on a bare interval.
+	s!@controlflow$register(Int(1000), Bool(this Steps) mut => false);
 	return Unit();
 }

@@ -200,13 +200,14 @@ void zane_too_deep(void);
 /* spawn.c */
 int64_t zane_set_threads(int64_t count);
 void zane_set_threads_auto(void);
-void zane_sleep(int64_t nanoseconds);
 void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *type,
                 int64_t size);
 /* A spawned call's subject goes into a region of its own (docs/design/lowering.md §9). */
 void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied);
 
-/* workers.c: worker pools (concurrency.md §6). */
+/* workers.c: worker pools (concurrency.md §6), and `register`'s timer. */
+int64_t zane_tick_start(int64_t interval);
+int64_t zane_tick(int64_t interval, int64_t deadline);
 void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const zane_type *state_type, void *funnel,
                        void (*funnel_thunk)(char *), int64_t event_size, const zane_type *event_type,
                        int64_t event_id);

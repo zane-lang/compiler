@@ -319,33 +319,27 @@ abortable.
 
 ---
 
-## 11. A spawned worker's wait, and a pool step's, holds its pool thread
+## 11. A wait holds its pool thread when the pool has none to spare
 
-**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
-§3.4: a stalling call made with `spawn`, "or made in a worker pool's step
-(§6.3), is parked by the runtime so it does not consume a worker thread
-while waiting"; §6.3 repeats it for a step.
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/5e8f0f1/spec/concurrency.md)
+§3.4: "A wait holds back only the code that waits. Every other spawned call,
+and every worker of every worker pool (§6), keeps running while the wait
+lasts."
 
-**Compiler** — the runtime parks no call that waits. `@controlflow$workEvery` waits
-between steps with `zane_sleep`, which suspends the thread that runs the
-worker, so a spawned `setInterval` keeps its pool thread for every wait, and
-a pool of `n` threads runs at most `n` waiting workers at once; the rest
-wait for a thread. A worker pool's step that waits inside its body, on a
-sleep, a join or a blocking call into C, keeps its thread the same way.
-Between two calls of its step, a pool's worker that waits on its event
-sources holds no thread, as §6.3 says: the runtime keeps it in a heap of
-deadlines (`runtime/workers.c`). Unspawned, a wait is ordinary blocking, as
-§3.5 says. `runtime/spawn.c` (`zane_sleep`) is the decision.
+**Compiler** — a pool thread that waits for a call running elsewhere, or in
+a `register`'s wait for its timer, has a stand-in thread for as long as it
+waits, which leaves once the pool next finds it idle. The pool keeps at most
+4095 threads, one fewer than it has deques, so a wait past that holds its
+thread, and queued work waits for one. A pool thread that waits for a
+package constant another thread is making has no stand-in, and neither has
+one that blocks in a call into C, where the spec is silent.
+`runtime/spawn.c` (`zane_block_begin`) is the decision.
 
-Only a program whose waits depend on each other observes the difference:
-steps that block in C on what only another step provides, more of them than
-the pool has threads, never finish, where parked steps would. A join of a
-spawned call never waits that way, since a call no thread has taken runs on
-the joining thread.
+Only a program with that many waits at once, or with waits on constants or
+in C that depend on queued work, observes the difference.
 
-Reconciling means a runtime that parks a waiting task and resumes it on a
-timer or when what it waits for is ready, or the spec saying which calls
-stall.
+Reconciling means waits that hold no thread: a waiting call suspended off
+its thread and resumed when what it waits for is ready.
 
 ---
 
@@ -406,8 +400,11 @@ ready", which leaves open what a step slower than its interval sees.
 **Compiler** — a timer is ready at most once per call of its step. When a
 call runs with the timer ready, the timer's next deadline becomes the first
 whole interval after the time of the call, so a step that ran past several
-intervals is called once more, not once for each interval it missed.
-`runtime/workers.c` (`zane_consume`) is the decision.
+intervals is called once more, not once for each interval it missed. A
+`register` on a timer
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/5e8f0f1/spec/control-flow.md)
+§3.7) does the same. `runtime/workers.c` (`zane_consume`, `zane_tick`) is
+the decision.
 
 Reconciling means the spec stating whether missed ticks merge or queue.
 
@@ -425,8 +422,10 @@ unnecessary, the next when the spec settled a question the compiler had
 answered differently, the next when the spec dropped a form the compiler
 never had, the next two when the spec gave a package-scope declaration the
 terminator a statement takes, the next when the spec stated what may
-continue a value that closes on a brace, and the last, which was §3, when
-the compiler widened a form it had limited to constructors to every call.
+continue a value that closes on a brace, the next, which was §3, when
+the compiler widened a form it had limited to constructors to every call,
+and the last, most of §11, when the spec dropped parking and the runtime
+gave a waiting pool thread a stand-in.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -597,3 +596,16 @@ the compiler widened a form it had limited to constructors to every call.
   A named argument takes no type, as the spec's "positionally" says: it fills
   a field constructor's entry, which is one of the type's fields, and `Type`
   is a concept, never storage.
+
+- **A spawned worker's wait no longer holds back the pool.** The spec had a
+  stalling call made with `spawn`, or in a worker pool's step, "parked by the
+  runtime so it does not consume a worker thread while waiting", and never
+  said which calls stall. The compiler parked nothing: `workEvery` slept on
+  the thread that ran it, so a pool of `n` threads ran at most `n` waiting
+  workers. Spec [#292](https://github.com/zane-lang/spec/pull/292) dropped
+  parking for "A wait holds back only the code that waits"
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/5e8f0f1/spec/concurrency.md)
+  §3.4) and replaced `workEvery` with `register`. The runtime now gives a
+  pool thread a stand-in while it waits in a join or a `register`, so the
+  pool keeps its threads for the work that does not wait. What remains is
+  §11.

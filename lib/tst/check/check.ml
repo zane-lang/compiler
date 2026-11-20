@@ -652,6 +652,15 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           error env at (Printf.sprintf "no intrinsic operation named %s" (quote ("@" ^ ns ^ "$" ^ text)));
           skip_handler env ctx handle;
           (invalid span, None)
+      | _ when Intrinsics.is_worker ("@" ^ ns ^ "$" ^ text) ->
+          (* A worker intrinsic is a method of its subject (control-flow.md
+             §4.1), so the function form names nothing. *)
+          error env at
+            (Printf.sprintf
+               "%s is a `mut` method of its subject, called as `subject!%s(...)` (control-flow.md §4.1)"
+               (quote ("@" ^ ns ^ "$" ^ text)) ("@" ^ ns ^ "$" ^ text));
+          skip_handler env ctx handle;
+          (invalid span, None)
       | cands -> intrinsic_call env ~flow ctx span ("@" ^ ns ^ "$" ^ text) cands actuals handle)
   | _ -> value_call (expr env ctx callee)
 
@@ -660,7 +669,6 @@ and intrinsic_call env ~flow ctx span name cands actuals handle =
   if any_error actuals then (
     skip_handler env ctx handle;
     (invalid span, None))
-  else if Intrinsics.is_worker name then worker_call env ~flow ctx span name cands actuals handle
   else
     match
       report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
@@ -674,9 +682,9 @@ and intrinsic_call env ~flow ctx span name cands actuals handle =
         finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
             T.Expr.Call { callee; args; handler })
 
-(* `@controlflow$work` and `@controlflow$workEvery` (control-flow.md §4.1).
-   The call writes its subject as a `!` call does, so that argument is a
-   subject: never converted, and checked writable. The step's result type
+(* `@controlflow$work` and `@controlflow$register` (control-flow.md §4.1),
+   called as methods. The call writes its subject as every `!` call does:
+   never converted, and checked writable. The step's result type
    `R` is read off the step, and the checker supplies the last parameter,
    `test`: a lambda converting an `R` to `@primitives$Bool` by the implicit
    constructor that applies, as a condition reaches `branch`. A call cannot
@@ -1024,8 +1032,17 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           skip_handler env ctx handle;
           (invalid span, None)
       | Ok pkg -> resolve_in [ named_in ~any:true (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
-  | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; _ } ->
-      resolve_in [ named_in (S.Namespace ns.N.Name.text) ident.N.Name.text ] ident.N.Name.text
+  | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; _ } -> (
+      let spelling = "@" ^ ns.N.Name.text ^ "$" ^ ident.N.Name.text in
+      match Intrinsics.find_functions ns.N.Name.text ident.N.Name.text with
+      | cands when Intrinsics.is_worker spelling ->
+          (* The worker intrinsics are `mut` methods of a subject of any
+             type, named with their namespace (control-flow.md §4.1). *)
+          if not is_mut then
+            error env span (Printf.sprintf "%s is a `mut` method, so it is called with `!`" (quote spelling));
+          if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
+          else worker_call env ~flow ctx span spelling cands actuals handle
+      | _ -> resolve_in [ named_in (S.Namespace ns.N.Name.text) ident.N.Name.text ] ident.N.Name.text)
   | _ ->
       error env callee.N.Expr.span "a method is called by its name";
       skip_handler env ctx handle;

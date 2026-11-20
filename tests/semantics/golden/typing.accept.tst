@@ -1146,12 +1146,15 @@
     │       │               └── args[0]: 3 : @concepts$Int
     │       ├── body[2] > do > call:
     │       │   ├── type: @primitives$Unit
-    │       │   ├── callee: @controlflow$workEvery with S = app$Steps, R = @primitives$Bool
+    │       │   ├── callee: @controlflow$register with S = app$Steps, R = @primitives$Bool
     │       │   ├── args[0]: s #99 : app$Steps
     │       │   ├── args[1] > construct:
-    │       │   │   ├── type: @primitives$I64
-    │       │   │   ├── ctor: @primitives$I64
-    │       │   │   └── args[0]: 1000 : @concepts$Int
+    │       │   │   ├── type: @primitives$EventSource
+    │       │   │   ├── ctor: @primitives$EventSource.every
+    │       │   │   └── args[0] > construct:
+    │       │   │       ├── type: @primitives$I64
+    │       │   │       ├── ctor: @primitives$I64
+    │       │   │       └── args[0]: 1000 : @concepts$Int
     │       │   ├── args[2] > lambda:
     │       │   │   ├── type: @primitives$Bool[this app$Steps] mut
     │       │   │   ├── params[0]: this #101 : app$Steps

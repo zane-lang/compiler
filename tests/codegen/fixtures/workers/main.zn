@@ -1,6 +1,7 @@
 /// Workers (control-flow.md §3.7): a subject and a step run by
 /// `@controlflow$work` until the step returns false, and by
-/// `@controlflow$workEvery`, which waits between steps. The methods that
+/// `@controlflow$register`, which waits for a timer between steps. Both are
+/// methods of the subject. The methods that
 /// run them take a subject of any type (generics.md §3.7). A step returns a
 /// `Bool` of this package's, which reaches `@primitives$Bool` through its
 /// implicit constructor, or `@primitives$Bool` itself. A worker runs its
@@ -33,17 +34,17 @@ Unit check(ok @primitives$Bool) {
 }
 
 Unit work(this S Type, step Bool[this S] mut) mut {
-	@controlflow$work(this, step);
+	this!@controlflow$work(step);
 	return Unit();
 }
 
 Unit workPlain(this S Type, step @primitives$Bool[this S] mut) mut {
-	@controlflow$work(this, step);
+	this!@controlflow$work(step);
 	return Unit();
 }
 
 Unit setInterval(this S Type, every I64, step Bool[this S] mut) mut {
-	@controlflow$workEvery(this, every, step);
+	this!@controlflow$register(@primitives$EventSource.every(every), step);
 	return Unit();
 }
 
@@ -158,7 +159,7 @@ Unit main() {
 	@controlflow$branch(true, {
 		spawned Counter = Counter(I64(6));
 		@controlflow$branch(true, {
-			spawn @controlflow$work(spawned, Bool(this Counter) mut {
+			spawn spawned!@controlflow$work(Bool(this Counter) mut {
 				this.steps = @operators$add(this.steps, I64(1));
 				return Bool(@operators$lessThan(this.steps, this.limit));
 			});
@@ -168,7 +169,7 @@ Unit main() {
 	check(@operators$equal(direct, I64(6)));
 
 	valued Counter = Counter(I64(2));
-	finished Unit = @controlflow$work(valued, Bool(this Counter) mut {
+	finished Unit = valued!@controlflow$work(Bool(this Counter) mut {
 		this.steps = @operators$add(this.steps, I64(1));
 		return Bool(@operators$lessThan(this.steps, this.limit));
 	});
@@ -180,14 +181,14 @@ Unit main() {
 	counters!push(Counter(I64(3)));
 	counters!push(Counter(I64(3)));
 	picker Picker = Picker();
-	@controlflow$work(counters[picker!next()], Bool(this Counter) mut {
+	counters[picker!next()]!@controlflow$work(Bool(this Counter) mut {
 		this.steps = @operators$add(this.steps, I64(1));
 		return Bool(@operators$lessThan(this.steps, this.limit));
 	});
 	check(@operators$equal(counters[I64(1)].steps, I64(3)));
 	check(@operators$equal(picker.at, I64(1)));
 	check(@operators$equal(counters[I64(2)].steps, I64(0)));
-	@controlflow$work(Counter(I64(3)), Bool(this Counter) mut {
+	Counter(I64(3))!@controlflow$work(Bool(this Counter) mut {
 		this.steps = @operators$add(this.steps, I64(1));
 		return Bool(@operators$lessThan(this.steps, this.limit));
 	});
@@ -196,7 +197,7 @@ Unit main() {
 	// A step made by a call is made once.
 	maker Picker = Picker();
 	made Counter = Counter(I64(4));
-	@controlflow$work(made, counting(maker!next()));
+	made!@controlflow$work(counting(maker!next()));
 	check(@operators$equal(made.steps, I64(4)));
 	check(@operators$equal(maker.at, I64(1)));
 	return Unit();

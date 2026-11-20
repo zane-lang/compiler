@@ -70,10 +70,11 @@ type fn =
   | Join
   | Set_threads
   | Set_threads_auto
-  (* The calling thread suspended for a number of nanoseconds, none when
-     the number is below one: what a worker run by `@controlflow$workEvery`
-     waits between steps (control-flow.md §4.1). *)
-  | Sleep
+  (* A `@controlflow$register` on a timer (control-flow.md §4.1):
+     [Tick_start] gives the first deadline from the interval, and [Tick]
+     waits from one step to the next until the deadline, giving the next. *)
+  | Tick_start
+  | Tick
   | Snapshot
   | Constant_begin
   | Constant_end
@@ -124,7 +125,7 @@ type fn =
   | Workers_state
   | Workers_elements
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Sleep; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Tick_start; Tick; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
 
 let name = function
   | Print -> "zane_print"
@@ -171,7 +172,8 @@ let name = function
   | Join -> "zane_join"
   | Set_threads -> "zane_set_threads"
   | Set_threads_auto -> "zane_set_threads_auto"
-  | Sleep -> "zane_sleep"
+  | Tick_start -> "zane_tick_start"
+  | Tick -> "zane_tick"
   | Snapshot -> "zane_snapshot"
   | Constant_begin -> "zane_constant_begin"
   | Constant_end -> "zane_constant_end"
@@ -267,7 +269,8 @@ let signature = function
   | Join -> (Void, [ Ptr ])
   | Set_threads -> (I64, [ I64 ])
   | Set_threads_auto -> (Void, [  ])
-  | Sleep -> (Void, [ I64 ])
+  | Tick_start -> (I64, [ I64 ])
+  | Tick -> (I64, [ I64; I64 ])
   | Snapshot -> (Void, [ Ptr; Ptr; I64 ])
   | Constant_begin -> (I64, [ Ptr ])
   | Constant_end -> (Void, [ Ptr; Ptr; Ptr ])

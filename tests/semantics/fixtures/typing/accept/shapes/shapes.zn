@@ -76,7 +76,7 @@ Float area(shape &Shape) => match (shape) {
 /// type (generics.md §3.7): an importer that spells it bare calls it on its
 /// own types.
 Unit drive(this S Type, step @primitives$Bool[this S] mut) mut {
-	@controlflow$work(this, step);
+	this!@controlflow$work(step);
 	return Unit();
 }
 

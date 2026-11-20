@@ -158,6 +158,30 @@ static int64_t zane_now(void) {
 #endif
 }
 
+/* `@controlflow$register` on a timer (control-flow.md §4.1): its first
+   deadline, an interval after the call begins, and 0 for an interval below
+   1, which is always ready. */
+int64_t zane_tick_start(int64_t interval) { return interval < 1 ? 0 : zane_now() + interval; }
+
+/* The wait between two steps of a `register` on a timer: until `deadline`,
+   on a stand-in's terms when this is a pool thread (zane_block_begin), so
+   the wait holds back only the code that waits (concurrency.md §3.4). The
+   next deadline is the first after the wait, so missed ticks merge as a
+   pool's do (zane_consume). An interval below 1 waits not at all. */
+int64_t zane_tick(int64_t interval, int64_t deadline) {
+	if (interval < 1) return deadline;
+	int64_t now = zane_now();
+	if (deadline > now) {
+		int began = zane_block_begin();
+		while (deadline > now) {
+			zane_sleep(deadline - now);
+			now = zane_now();
+		}
+		zane_block_end(began);
+	}
+	return deadline + ((now - deadline) / interval + 1) * interval;
+}
+
 /* The wall-clock time `nanoseconds` from now, for a timed wait on a
    condition, which waits on the wall clock. */
 void zane_wait_until(pthread_cond_t *cond, pthread_mutex_t *lock, int64_t deadline) {

@@ -38,6 +38,18 @@ static pthread_cond_t zane_waiting = PTHREAD_COND_INITIALIZER;
 pthread_cond_t zane_finished = PTHREAD_COND_INITIALIZER;
 static int zane_started;
 int64_t zane_threads, zane_wanted, zane_queued;
+/* The pool's threads that wait: in a join of a call running elsewhere, in
+   a `register`'s wait for its event source, or for a constant another
+   thread is making. The pool keeps a thread more for each, so a wait holds
+   back only the code that waits (concurrency.md §3.4). */
+static int64_t zane_blocked;
+
+/* How many threads the pool keeps now: one fewer than it has deques at
+   most. */
+static int64_t zane_target(void) {
+	int64_t n = zane_wanted + zane_blocked;
+	return n < ZANE_DEQUES - 1 ? n : ZANE_DEQUES - 1;
+}
 
 /* A queued call taken out of its deque to run; the deque's lock is held.
    It leaves the count as it leaves the deque, so a thread that reads a
@@ -120,7 +132,7 @@ static void *zane_worker(void *deque) {
 		if (zane_workers_run_one(NULL)) continue;
 		pthread_mutex_lock(&zane_pool);
 		while (__atomic_load_n(&zane_queued, __ATOMIC_RELAXED) <= 0 &&
-		       __atomic_load_n(&zane_jobs, __ATOMIC_ACQUIRE) <= 0 && zane_threads <= zane_wanted) {
+		       __atomic_load_n(&zane_jobs, __ATOMIC_ACQUIRE) <= 0 && zane_threads <= zane_target()) {
 			/* A pool's worker waiting on a timer is woken when it is due by
 			   whichever thread is waiting then. */
 			int64_t due = zane_workers_next_deadline();
@@ -131,7 +143,7 @@ static void *zane_worker(void *deque) {
 			zane_wait_until(&zane_waiting, &zane_pool, due);
 			break;
 		}
-		if (zane_threads > zane_wanted) {
+		if (zane_threads > zane_target()) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
 			pthread_mutex_unlock(&zane_pool);
@@ -161,7 +173,7 @@ static void zane_fill(void) {
 	pthread_attr_t attributes;
 	pthread_attr_init(&attributes);
 	pthread_attr_setstacksize(&attributes, (size_t)8 << 20);
-	for (; zane_threads < zane_wanted; zane_threads++) {
+	for (; zane_threads < zane_target(); zane_threads++) {
 		pthread_t thread;
 		void *deque = (void *)(intptr_t)zane_keep();
 		if (pthread_create(&thread, &attributes, zane_worker, deque) != 0)
@@ -204,10 +216,28 @@ int64_t zane_set_threads(int64_t count) {
 
 void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 
-/* What `@controlflow$workEvery` waits between one step and the next
-   (control-flow.md §4.1): the calling thread suspended for `nanoseconds`,
-   and not at all below one. A spawned worker waits on the pool thread
-   that runs it, which stays its own for the wait. On POSIX a signal that
+/* A pool thread about to wait gets a thread to stand in for it, and the
+   stand-in leaves once the pool next finds it idle after the wait. A thread
+   outside the pool needs none, since no queued work waits for it. Whether
+   this thread is one of the pool's, for zane_block_end. */
+int zane_block_begin(void) {
+	if (!zane_mine) return 0;
+	pthread_mutex_lock(&zane_pool);
+	zane_blocked++;
+	zane_fill();
+	pthread_mutex_unlock(&zane_pool);
+	return 1;
+}
+
+void zane_block_end(int began) {
+	if (!began) return;
+	pthread_mutex_lock(&zane_pool);
+	zane_blocked--;
+	pthread_mutex_unlock(&zane_pool);
+}
+
+/* The calling thread suspended for `nanoseconds`, and not at all below
+   one, which is how a `register` waits for its timer (zane_tick). On POSIX a signal that
    wakes the thread early sends it back for what is left. Windows waits on
    a high-resolution timer, in its steps of 100 nanoseconds rounded up, one
    per thread; where it has none, before Windows 10 version 1803, it sleeps

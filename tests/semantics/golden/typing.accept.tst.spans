@@ -716,21 +716,22 @@ package app
                     expr Var this | this
                   expr Construct @primitives$I64 | Int(3)
                     expr Integer_lit | 3
-      stat Expr | @controlflow$workEvery(s,  … this Steps) mut => false);
-        expr Call @controlflow$workEvery | @controlflow$workEvery(s,  … (this Steps) mut => false)
+      stat Expr | s!@controlflow$register(@p … this Steps) mut => false);
+        expr Call @controlflow$register | s!@controlflow$register(@p … (this Steps) mut => false)
           expr Var s | s
-          expr Construct @primitives$I64 | Int(1000)
-            expr Integer_lit | 1000
+          expr Construct @primitives$EventSource.every | @primitives$EventSource.every(Int(1000))
+            expr Construct @primitives$I64 | Int(1000)
+              expr Integer_lit | 1000
           expr Lambda | Bool(this Steps) mut => false
             param this | Steps
             block | => false
               stat Return | => false
                 expr Bool_lit | false
-          expr Lambda | @controlflow$workEvery(s,  … (this Steps) mut => false)
-            param result | @controlflow$workEvery(s,  … (this Steps) mut => false)
-            block | @controlflow$workEvery(s,  … (this Steps) mut => false)
-              stat Return | @controlflow$workEvery(s,  … (this Steps) mut => false)
-                expr Var result | @controlflow$workEvery(s,  … (this Steps) mut => false)
+          expr Lambda | s!@controlflow$register(@p … (this Steps) mut => false)
+            param result | s!@controlflow$register(@p … (this Steps) mut => false)
+            block | s!@controlflow$register(@p … (this Steps) mut => false)
+              stat Return | s!@controlflow$register(@p … (this Steps) mut => false)
+                expr Var result | s!@controlflow$register(@p … (this Steps) mut => false)
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
 package shapes
@@ -926,7 +927,7 @@ package shapes
               stat Return | => Float(0.0)
                 expr Construct @primitives$F64 | Float(0.0)
                   expr Decimal_lit | 0.0
-  decl Verb drive | Unit drive(this S Type, st … s, step); return Unit(); }
+  decl Verb drive | Unit drive(this S Type, st … rk(step); return Unit(); }
   decl Verb @primitives$String | implicit String(v Vec2) => String("vec2")
     param v | v Vec2
     block | => String("vec2")
@@ -1197,18 +1198,18 @@ instances
             expr Integer_lit | 1
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()
-  instance drive with S = app$Steps | Unit drive(this S Type, st … s, step); return Unit(); }
+  instance drive with S = app$Steps | Unit drive(this S Type, st … rk(step); return Unit(); }
     param this | S
     param step | step @primitives$Bool[this S] mut
-    block | { @controlflow$work(this, step); return Unit(); }
-      stat Expr | @controlflow$work(this, step);
-        expr Call @controlflow$work | @controlflow$work(this, step)
+    block | { this!@controlflow$work(step); return Unit(); }
+      stat Expr | this!@controlflow$work(step);
+        expr Call @controlflow$work | this!@controlflow$work(step)
           expr Var this | this
           expr Var step | step
-          expr Lambda | @controlflow$work(this, step)
-            param result | @controlflow$work(this, step)
-            block | @controlflow$work(this, step)
-              stat Return | @controlflow$work(this, step)
-                expr Var result | @controlflow$work(this, step)
+          expr Lambda | this!@controlflow$work(step)
+            param result | this!@controlflow$work(step)
+            block | this!@controlflow$work(step)
+              stat Return | this!@controlflow$work(step)
+                expr Var result | this!@controlflow$work(step)
       stat Return | return Unit();
         expr Construct @primitives$Unit | Unit()

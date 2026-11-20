@@ -538,7 +538,7 @@ module Expr = struct
   (* A local is a slot the function owns (L3): [Let] fills a new one,
      [Assign] a place in an existing one, and [Expr.Local] reads it. [If] and
      [Repeat] are `@controlflow$branch` and `@controlflow$repeat`, [While]
-     `@controlflow$work` and `@controlflow$workEvery`, [Switch]
+     `@controlflow$work` and `@controlflow$register`, [Switch]
      jumps on a sum's tag (L13), and [Leave] ends the [Expand] its label
      names. [Scope] is a block's arena (L8), entered before its body and
      drained on every way out of it, and [Hold] fills a new local whose slot
