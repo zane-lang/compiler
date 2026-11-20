@@ -209,3 +209,37 @@ turns the unrolled hash loop's eight index checks into compares against a
 `icmp ult index, size`, so 18 checks stay in the loop (3 in the baseline),
 and the SLP vectorizer leaves it scalar. The other losses keep the
 baseline's number of checks, so their causes are elsewhere.
+
+## Outcome
+
+The experiment is not merged. Its code stays on the branch
+`claude/exciting-sagan-cre7ap`, off unless `ZANE_HELD_ALLOCAS=1` is set.
+
+- **Step 6 is a small net gain.** Optimized builds are 0.36% faster
+  overall and tiered builds 0.68%. Most of that comes from `pushes`
+  (−13.4%), `bits` tiered (−16.7%) and `paths` (−5.4%); `refills` (+3.8%)
+  and `scopes` (+3.2%) get slower.
+- **The late pass (step 7) loses.** It is +2.36% optimized against step 6,
+  almost all of it from `wrapped`, and a wash without that program. It is
+  dropped.
+- **Nothing is generalized.** `frame_shadow` still gains on top of step 6
+  (step 6), so it stays, and the experiment would add a second mechanism
+  beside it, not replace it.
+- **The cost is too high for the gain.** Merging would add a rewriting pass
+  that every change to how held locals are emitted or drained must keep
+  sound, changes to checked drains and to the inline push's fast path, and a
+  spec divergence (held locals on the 8 MiB machine stack, under a 256-byte
+  cap).
+
+The design changed from the plan: the runtime is unchanged, and no CGT
+pinning pass was added. A call is given the frame slot around it instead
+(step 2), and the escapes are found in the LLVM IR.
+
+Not done, since the experiment is not merged: the `Loop_pushes`
+member-by-member store A/B, the size cap's tuning, a full `just
+test-compiler` run with the late pass on, and the divergence entry in
+`docs/spec-divergences.md`.
+
+Worth following up without the experiment: the `pushes`, `bits` and
+`paths` gains may be within reach of a targeted change to `frame_shadow` or
+`Loop_pushes`, which keeps held locals in their frames.
