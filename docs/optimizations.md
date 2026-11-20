@@ -930,7 +930,7 @@ runs only one to four times is unrolled four times for nothing.
 - **Builds:** optimized only (and tier 1)
 - **Where:** `lib/codegen/passes.ml` (`optimized`),
   `lib/llvm/config/discover.ml`, `lib/codegen/loop_copies.ml`
-  (`versioned`), `lib/codegen/emit.ml` (`count_field`)
+  (`versioned`), `lib/codegen/emit_runtime.ml` (`count_field`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** the particle simulation of
   [zane-lang/compiler#292](https://github.com/zane-lang/compiler/issues/292):
@@ -1001,7 +1001,7 @@ nothing to gain on with 4 KiB pages.
 - **Builds:** every build marks the loops; optimized builds and tier 1
   act on the mark
 - **Where:** `lib/codegen/loop_copies.ml` (`unrolled`),
-  `lib/codegen/emit.ml` (`unroll_twice`),
+  `lib/codegen/emit_frames.ml` (`unroll_twice`),
   `lib/codegen/llvm_stubs.c` (`zane_loop_id`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "The passes"
 - **Effect:** `tests/perf` `floats` 16.5% fewer estimated cycles, optimized
@@ -1163,7 +1163,7 @@ sees plain arithmetic and can hoist or drop checks it proves redundant.
 ### Element addresses from a biased base
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml` (`element`)
+- **Where:** `lib/codegen/emit_lists.ml` (`element`)
 - **Design:** the comment on `address` in `element`
 - **Effect:** `tests/perf` `nodes`, a Huffman decoder over a tree of
   16-byte nodes, takes 2% more estimated cycles plain without it and 8%
@@ -1250,7 +1250,7 @@ frame once.
 ### Drains that look for spawned calls only where a call is spawned
 
 - **Builds:** every build
-- **Where:** `lib/codegen/frames.ml` (`spawns`), `lib/codegen/emit.ml`
+- **Where:** `lib/codegen/frames.ml` (`spawns`), `lib/codegen/emit_frames.ml`
   (`drain_scope`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Entry and
   drain are inline"
@@ -1388,7 +1388,7 @@ before each inner loop instead, which is cheaper there (`tests/perf`
 ### Scalars' alias tags by size
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml` (`sized_tag`)
+- **Where:** `lib/codegen/emit_runtime.ml` (`sized_tag`)
 - **Design:** [`design/lowering.md`](design/lowering.md), "After the
   passes"
 - **Effect:** `tests/perf` `flags`, a `Bool` flag stored per element
@@ -1418,7 +1418,7 @@ each push conditional.
 ### Small constant loops unrolled whole
 
 - **Builds:** every build; only an optimized build's passes act on it
-- **Where:** `lib/codegen/emit.ml` (`unrolled_whole`)
+- **Where:** `lib/codegen/emit_runtime.ml` (`unrolled_whole`)
 - **Design:** [`design/lowering.md`](design/lowering.md), "After the
   passes"
 - **Effect:** `tests/perf` `bits`, a bit decoder's loop of eight with a
@@ -1458,7 +1458,7 @@ than it saves.
 ### Ordered removals moved in 2 KiB pieces
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml` (`remove`), `runtime/list.c`
+- **Where:** `lib/codegen/emit_lists.ml` (`remove`), `runtime/list.c`
   (`zane_shift_down`)
 - **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
   "Ordered removals and `rep movsb` over a short distance"
@@ -1541,7 +1541,7 @@ those 8 bytes in one store.
 ### Branch hints on rare paths
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml` (`unlikely`)
+- **Where:** `lib/codegen/emit_frames.ml` (`unlikely`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "Integer
   division by zero…" and "A scope's slots are one frame…"
 - **Effect:** not measured
@@ -1564,7 +1564,7 @@ and `truncate` is `llvm.fptosi.sat`, so LLVM can fold and vectorize them.
 ### Literal strings embedded, never allocated
 
 - **Builds:** every build
-- **Where:** `lib/codegen/emit.ml` (`text`)
+- **Where:** `lib/codegen/emit_runtime.ml` (`text`)
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "A literal's
   bytes stay where the program keeps them"
 - **Effect:** not measured
