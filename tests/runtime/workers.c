@@ -287,6 +287,67 @@ static void state_wakes(void) {
 	check(waited && watch_calls > 1 && watch_applied == 5);
 }
 
+/* A pool built without state is still passed a funnel thunk by lowering
+   (a layout table in its place): a stateful step on it publishes `Unit`s,
+   which never reach that thunk. */
+static int64_t stray_funnel_calls;
+
+static void stray_funnel(char *frame) {
+	(void)frame;
+	__atomic_add_fetch(&stray_funnel_calls, 1, __ATOMIC_RELAXED);
+}
+
+static void unit_step(char *frame) {
+	step_frame *f = (step_frame *)frame;
+	publisher *p = (publisher *)f->element;
+	p->seq++;
+	int64_t unit = 0;
+	zane_workers_publish((char *)&unit, 0, 0);
+	f->result = p->seq < 5;
+}
+
+static void stateless_publishes(void) {
+	char handle[16];
+	stray_funnel_calls = 0;
+	void *made = zane_workers_new(0, NULL, 0, NULL, NULL, stray_funnel, 0, NULL, 0);
+	int64_t stamp = zane_handle_made(made);
+	memcpy(handle, &made, sizeof made);
+	memcpy(handle + sizeof made, &stamp, sizeof stamp);
+	publisher p = { 0, 0 };
+	zane_workers_start(handle, (char *)&p, sizeof p, NULL, unit_step, NULL, NULL, NULL, 0, NULL);
+	end_pool(handle);
+	check(stray_funnel_calls == 0);
+}
+
+/* A pool whose state is a `Unit` still records the version each call saw:
+   a worker on a timer waits for its ticks after an event is applied. */
+static void count_unit(char *frame) { (void)frame; }
+
+static void one_unit_step(char *frame) {
+	step_frame *f = (step_frame *)frame;
+	int64_t unit = 0;
+	zane_workers_publish((char *)&unit, 0, 0);
+	f->result = 0;
+}
+
+static void unit_state_ticks(void) {
+	char handle[16];
+	int64_t unit = 0;
+	make_pool(handle, 1, (char *)&unit, 0, count_unit, 0);
+	int64_t before = test_now();
+	publisher p = { 0, 0 };
+	zane_workers_start(handle, (char *)&p, sizeof p, NULL, one_unit_step, NULL, NULL, NULL, 0, NULL);
+	zane_list every;
+	zane_list_new(&every);
+	*(int64_t *)zane_list_push(&every, 8) = 5000000;
+	ticker t = { 0, 0, 0 };
+	zane_workers_start(handle, (char *)&t, sizeof t, NULL, tick_step, NULL, NULL, NULL, 1, &every);
+	end_pool(handle);
+	/* Ten calls: at most two before the first tick (the first, and one the
+	   one event's write wakes), then eight 5 ms apart. */
+	check(test_now() - before >= 35000000);
+}
+
 void zane_main(void) {
 	zane_checking = 1;
 	stateless();
@@ -295,6 +356,8 @@ void zane_main(void) {
 	owning_elements();
 	timers();
 	state_wakes();
+	stateless_publishes();
+	unit_state_ticks();
 	/* With one thread, an ending pool runs its own work. */
 	check(zane_set_threads(1) == 1);
 	stateless();

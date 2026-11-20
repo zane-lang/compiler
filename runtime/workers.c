@@ -401,13 +401,19 @@ static void zane_run_step(zane_member *m) {
 	zane_consume(m, zane_now());
 	zane_step_frame frame = { m->step, m->test, m->publish, m->value, NULL, 0 };
 	char *snapshot = NULL;
-	/* A state of no bytes, a `Unit`, has nothing to read. */
-	if (p->state && (p->state_size || p->state_type)) {
-		snapshot = malloc((size_t)(p->state_size < 8 ? 8 : p->state_size));
-		if (!snapshot) zane_broken("out of memory for a state snapshot");
+	if (p->state) {
+		/* A state of no bytes, a `Unit`, has nothing to read, but the
+		   version the call saw is recorded all the same. */
+		int reads = p->state_size || p->state_type;
+		if (reads) {
+			snapshot = malloc((size_t)(p->state_size < 8 ? 8 : p->state_size));
+			if (!snapshot) zane_broken("out of memory for a state snapshot");
+		}
 		pthread_mutex_lock(&p->state_lock);
-		memcpy(snapshot, p->state, (size_t)p->state_size);
-		zane_copy(snapshot, p->state_type);
+		if (reads) {
+			memcpy(snapshot, p->state, (size_t)p->state_size);
+			zane_copy(snapshot, p->state_type);
+		}
 		m->seen = __atomic_load_n(&p->version, __ATOMIC_ACQUIRE);
 		pthread_mutex_unlock(&p->state_lock);
 		frame.state = snapshot;
@@ -552,7 +558,8 @@ void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const 
 		p->state_type = state_type;
 	}
 	p->funnel = funnel;
-	p->funnel_thunk = funnel_thunk;
+	/* A pool without state has no funnel, whatever it was passed. */
+	p->funnel_thunk = stateful ? funnel_thunk : NULL;
 	p->event_size = event_size;
 	p->event_type = event_type;
 	p->event_id = event_id;
