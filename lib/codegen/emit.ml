@@ -784,6 +784,8 @@ and stat env fr b (s : Stat.t) =
       else
       let arena = enter env fr b frame.Frames.size in
       Hashtbl.replace fr.arenas id arena;
+      Held_spills.entered arena
+        (match Llvm.instr_end (Llvm.insertion_block b) with Llvm.After i -> Some i | Llvm.At_start _ -> None);
       let handled = fr.handled and spawning = fr.spawning in
       fr.open_ <- arena :: fr.open_;
       if frame.Frames.handles then fr.handled <- arena :: fr.handled;
@@ -795,7 +797,7 @@ and stat env fr b (s : Stat.t) =
       fr.spawning <- spawning
   | Stat.Hold { id; scope; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value; layout = l }
     when returning env ty = Address ->
-      let slot = held_slot env fr b scope id ~bytes:(fst (size_align ty)) (lltype env ty) in
+      let slot = held_slot env fr b scope id ~bytes:(fst (size_align ty)) ~layout:l (lltype env ty) in
       ignore (call ~into:slot env fr b value);
       hold env fr b slot l;
       Hashtbl.replace fr.locals id (slot, lltype env ty)
@@ -808,7 +810,7 @@ and stat env fr b (s : Stat.t) =
              what follows, and it knows the value there, a new list's empty
              header included. A large value is written first, so its load
              and its store stay next to each other for Big_moves. *)
-          let slot = held_slot env fr b scope id ~bytes:(fst (size_align value.Expr.ty)) (Llvm.type_of v) in
+          let slot = held_slot env fr b scope id ~bytes:(fst (size_align value.Expr.ty)) ~layout:l (Llvm.type_of v) in
           if fst (size_align value.Expr.ty) >= large then begin
             ignore (Llvm.build_store v slot b);
             hold env fr b slot l
@@ -819,7 +821,7 @@ and stat env fr b (s : Stat.t) =
           end;
           Hashtbl.replace fr.locals id (slot, Llvm.type_of v))
   | Stat.Reserve { id; scope; ty = t; layout = l } ->
-      let slot = held_slot env fr b scope id ~bytes:(fst (size_align t)) (lltype env t) in
+      let slot = held_slot env fr b scope id ~bytes:(fst (size_align t)) ~layout:l (lltype env t) in
       hold env fr b slot l;
       zero env b slot (fst (size_align t));
       Hashtbl.replace fr.locals id (slot, lltype env t)

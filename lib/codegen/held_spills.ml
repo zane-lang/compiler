@@ -31,13 +31,39 @@ type held = {
   ty : Llvm.lltype;
   (* The record of the local's scope, the frame's start. *)
   arena : Llvm.llvalue;
+  (* The local's layout, for a checked drain. *)
+  layout : Cgt.Nodes.Layout.t;
 }
 
-(* Every held alloca of the function being emitted. *)
+(* Every held alloca of the function being emitted, and the same in the
+   order they were held. *)
 let table : (Llvm.llvalue, held) Hashtbl.t = Hashtbl.create 16
+let order : (Llvm.llvalue * held) list ref = ref []
 
-let record alloca h = Hashtbl.replace table alloca h
+let record alloca h =
+  Hashtbl.replace table alloca h;
+  order := (alloca, h) :: !order
+
 let find p = Hashtbl.find_opt table p
+
+(* The held allocas of the scope whose record is [arena], in the order
+   they were held. *)
+let of_arena arena = List.rev (List.filter (fun (_, h) -> h.arena == arena) !order)
+
+(* Where each scope's code starts, past its entry: the last instruction
+   of its entry, or none when the entry's block is still the one being
+   built and holds none. *)
+let entries : (Llvm.llvalue, Llvm.llvalue option) Hashtbl.t = Hashtbl.create 8
+
+let entered arena last = Hashtbl.replace entries arena last
+
+(* A builder at the start of the scope whose record is [arena]'s code,
+   or [b] when that is where [b] builds. *)
+let at_entry ctx arena b =
+  match Hashtbl.find_opt entries arena with
+  | Some (Some i) -> (
+      match Llvm.instr_succ i with Llvm.Before n -> Llvm.builder_before ctx n | Llvm.At_end _ -> b)
+  | _ -> b
 
 let callee i =
   let f = Llvm.operand i (Llvm.num_operands i - 1) in
@@ -89,6 +115,31 @@ let rec uses dl p offset acc =
     p;
   !result
 
+let debug = Sys.getenv_opt "ZANE_HELD_ALLOCAS_DEBUG" = Some "1"
+
+(* The first use of [p] that gives up on the alloca, printed. *)
+let rec why dl p =
+  let found = ref None in
+  Llvm.iter_uses
+    (fun u ->
+      if !found = None then
+        let i = Llvm.user u in
+        match uses dl i 0L [] with
+        | _ when Llvm.instr_opcode i = Llvm.Opcode.GetElementPtr && Llvm.operand i 0 == p ->
+            if uses dl i 0L [] = None then found := Some (why dl i)
+        | _ -> (
+            match uses_one dl p i with true -> () | false -> found := Some (Llvm.string_of_llvalue i)))
+    p;
+  Option.value ~default:"?" !found
+
+and uses_one dl p i =
+  ignore dl;
+  match Llvm.instr_opcode i with
+  | Llvm.Opcode.Load -> true
+  | Llvm.Opcode.Store -> not (Llvm.operand i 0 == p)
+  | Llvm.Opcode.Call -> (not (keeps (callee i))) && not (Llvm.operand i (Llvm.num_operands i - 1) == p)
+  | _ -> false
+
 let next_instr i =
   match Llvm.instr_succ i with
   | Llvm.Before n -> n
@@ -103,7 +154,13 @@ let run ctx fn =
     let i8 = Llvm.i8_type ctx and i64 = Llvm.i64_type ctx in
     Hashtbl.iter
       (fun a h ->
-        match uses dl a 0L [] with
+        let verdict = uses dl a 0L [] in
+        if debug then
+          Printf.eprintf "held %s: %s\n" (Llvm.value_name fn)
+            (match verdict with
+            | None -> "framed: " ^ why dl a
+            | Some s -> Printf.sprintf "alloca, %d spills" (List.length s));
+        match verdict with
         | None ->
             Llvm.replace_all_uses_with a h.slot;
             Llvm.delete_instruction a
@@ -127,5 +184,7 @@ let run ctx fn =
                     Llvm.set_operand c k at)
               spills)
       table;
-    Hashtbl.reset table
+    Hashtbl.reset table;
+    Hashtbl.reset entries;
+    order := []
   end
