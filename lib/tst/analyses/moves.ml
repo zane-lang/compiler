@@ -4,8 +4,8 @@
 
    A reference-type value is never copied, so storing one where an owner goes
    -- an owning local or field, a `^T` parameter, a return, an abort, an
-   element, a case payload -- moves it. What may be moved is a roaming value the store is
-   entitled to consume:
+   element, a case payload -- moves it. A store may move only a roaming value
+   that it is entitled to consume:
 
    - a roaming owner named by a symbol, a local or a parameter declared
      `^T`, and only in the block that declares it (§1.3), where a parameter
@@ -14,8 +14,9 @@
    - a verb's result, or a case form: a fresh value nothing owns yet.
 
    A settled owner never moves (memory.md §2.1), a borrow -- a bare
-   reference-type parameter, and `this` -- is the caller's, and an element, a
-   case payload, a package constant and a reference are none of the above.
+   reference-type parameter, and `this` -- belongs to the caller, and an
+   element, a case payload, a package constant and a reference are none of
+   the movable values above.
    A bare reference-type parameter is a borrow, so passing to one moves
    nothing; passing to a `^T` one is a move like any other (§1.8).
 
@@ -24,8 +25,8 @@
    moved out of a roaming symbol leaves that field spent, and the symbol
    spent as a whole, until the field is refilled. Because a symbol changes
    between owning and spent only in its own block, one walk in source order
-   sees each use against the right state: a nested block can neither spend
-   nor refill it. *)
+   checks each use against the right state: a nested block can neither spend
+   nor refill the symbol. *)
 
 module T = Nodes
 module S = Signature
@@ -47,16 +48,16 @@ type walk = {
   mutable resolve : Ty.t list;
 }
 
-(* Whether storage of type [t] owns what is stored in it. A reference names
+(* Whether storage of type [t] owns the value stored in it. A reference names
    an owner elsewhere, and a type parameter is filled per instance (D12). *)
 let owning env (t : Ty.t) =
   match t with
   | Ty.Reference _ | Ty.Param _ | Ty.Roaming (Ty.Param _) | Ty.Error -> false
   | t -> Type_decls.is_reference env (Ty.strip_mode t)
 
-(* A parameter of type [t] takes its argument by moving it only when it is
-   written `^T`. A bare reference-type parameter is a borrow (memory.md §2.9),
-   which moves nothing. *)
+(* A parameter of type [t] takes its argument by moving it only when the
+   parameter is written `^T`. A bare reference-type parameter is a borrow
+   (memory.md §2.9), which moves nothing. *)
 let taken env (t : Ty.t) = if Ty.is_roaming t then t else if owning env t then Ty.Error else t
 
 let line (span : Source.Span.t) = span.Source.Span.start_.Lexing.pos_lnum
@@ -74,7 +75,7 @@ let overlaps a b =
 (* ---------------------------------------------------------------------- *)
 
 (* A move out of the roaming symbol [l], or out of its field at [path]: a
-   move in the block that declares it marks the place spent, or the field
+   move in the block that declares [l] marks the symbol spent, or the field
    moved. *)
 let move_roaming env w (v : T.Expr.t) (l : T.Local.t) path =
   let name = Env.quote l.T.Local.name in
@@ -176,7 +177,7 @@ let use env w (e : T.Expr.t) (l : T.Local.t) path =
 
 (* [into] is where the expression's value goes: a `return` in one of its
    match arms, or a `resolve` in its handler, hands a value on to that same
-   place, so whether it moves is the outer store's question. *)
+   place, so the outer store determines whether the value moves. *)
 let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> use env w e l []
@@ -210,8 +211,8 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
       expr env w target
   | T.Expr.Case_read { target; handler; _ } ->
       expr env w target;
-      (* A case read is a place, and so is what its handler resolves: the
-         store it feeds decides whether anything moves. *)
+      (* A case read is a place, and so is the value its handler resolves:
+         the store the case read feeds determines whether anything moves. *)
       handler_block env w Ty.Error handler
   | T.Expr.Init fields ->
       fields_ env w (fun f -> References.member_type env e.T.Expr.ty f.T.Field_value.name) fields
@@ -268,7 +269,8 @@ let rec expr env ?(into = Ty.Error) w (e : T.Expr.t) =
   | T.Expr.Lambda l -> lambda env w e l
   | T.Expr.Foreign_global _ -> ()
 
-(* An intrinsic constructor reads what it is given (docs/design/semantics.md §9). *)
+(* An intrinsic constructor reads its arguments without moving them
+   (docs/design/semantics.md §9). *)
 and read_by env (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with S.Intrinsic _ -> [] | S.Declared _ -> References.param_types env r
 
@@ -277,10 +279,10 @@ and value env w into v =
   store env w into v
 
 (* Arguments in order, each read and then, for a `^T` parameter, moved: a
-   symbol passed twice is spent by the first. An argument passed to a borrow
-   is lent for the whole call (memory.md §2.9), so a later argument may not
-   take the place it lends, or any place overlapping it; [lent] starts with
-   the subject's. *)
+   symbol passed twice is spent by the first argument. An argument passed to a
+   borrow is lent for the whole call (memory.md §2.9), so a later argument may
+   not take the place it lends, or any place overlapping that place; [lent]
+   starts with the subject's place. *)
 and pass env ?(lent = []) w tys args =
   let lent = ref lent in
   let rec go tys args =
@@ -328,10 +330,10 @@ and not_lent env lent (v : T.Expr.t) =
       | None -> ())
   | None -> ()
 
-(* `init{ }` entries fill the fields of what it builds, and a field
+(* `init{ }` entries fill the fields of the value `init{ }` builds, and a field
    constructor's entries are its parameters (types.md §3.3); [slot_type]
-   gives each one's type. They run in the order written, so an entry that
-   moves a symbol spends it for every entry after it. *)
+   gives each entry's type. The entries run in the order written, so an entry
+   that moves a symbol spends it for every entry after it. *)
 and fields_ env w slot_type fields =
   List.iter
     (fun (f : T.Field_value.t) ->
@@ -363,8 +365,8 @@ and lambda env w (e : T.Expr.t) (l : T.Lambda.t) =
   w.abort <- a;
   w.resolve <- s
 
-(* A block is its own scope: what it declares, [bind] included, is declared
-   in it. *)
+(* A block is its own scope: every local it declares, [bind] included, belongs
+   to that block. *)
 and block env ?(bind = []) w (b : T.Block.t) =
   let outer = w.block in
   incr w.blocks;
@@ -391,10 +393,10 @@ and stat env w (s : T.Stat.t) =
   | T.Stat.Resolve e ->
       value env w (match w.resolve with ty :: _ -> ty | [] -> Ty.Error) e
 
-(* A store into a symbol, or into a field of one: an owner it holds is
+(* A store into a symbol, or into a field of one: an owner the symbol holds is
    overwritten, and a spent symbol or field is refilled, which is confined
-   to the symbol's declaring block (§1.6). What the store reads of the
-   symbol on its way down is only where it writes, not a use. *)
+   to the symbol's declaring block (§1.6). The store reads the symbol only to
+   locate where it writes, and that read is not a use. *)
 and refill env w (target : T.Expr.t) (l : T.Local.t) path =
   let moved = Option.value ~default:[] (Hashtbl.find_opt w.partly l.T.Local.id) in
   let refilled = List.filter (fun (p, _) -> overlaps p path && List.length p >= List.length path) moved in
@@ -453,8 +455,9 @@ let run env (p : T.Program.t) =
           match d.T.Decl.node with
           | T.Decl.Verb { signature; body = T.Decl.Checked { params; body } } ->
               verb env projections blocks signature params body
-          (* A subscript's body is a place, not a value it hands over
-             (functions.md §2.9): it is read, and moves nothing out. *)
+          (* A subscript's body is a place, not a value the subscript hands
+             over (functions.md §2.9): the body is read, and moves nothing
+             out. *)
           | T.Decl.Subscript { value = Some v; _ } -> expr env (fresh Ty.Error) v
           | T.Decl.Constant { ty; value; _ } ->
               let w = fresh ty in

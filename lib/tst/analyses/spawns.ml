@@ -2,22 +2,23 @@
    (docs/design/semantics.md D1).
 
    A spawned `mut` call writes its subject, so the subject must be a value
-   (§4.2). Its borrow of the subject's location lasts until the block the
-   spawn is written in drains, which waits for the call (§4.1). While it
-   lasts, no other spawned call may borrow an overlapping location, and the
-   block and the blocks inside it may not touch one (§4.3). A spawn in a block
-   that runs more than once takes its subject from storage declared in that
-   block, so each run borrows a location of its own.
+   (§4.2). The spawn's borrow of the subject's location lasts until the block
+   the spawn is written in drains, which waits for the call (§4.1). While the
+   borrow lasts, no other spawned call may borrow an overlapping location, and
+   the block and the blocks inside it may not touch an overlapping location
+   (§4.3). A spawn in a block that runs more than once must take its subject
+   from storage declared in that block, so each run borrows a location of its
+   own.
 
-   A spawn read where it is written is waited for at once, so its borrow ends
-   where it began; only a spawn written as a statement, or bound by a `let`,
-   keeps one.
+   A spawn whose value is read where it is written is waited for at once, so
+   its borrow ends where it began; only a spawn written as a statement, or
+   bound by a `let`, keeps its borrow.
 
-   Such a spawn is also lent every owner it is passed, directly or through a
-   reference, and may read it until the same drain. The spec leaves the lending
-   block free to write what it lent; here it may not, directly, through a `!`
-   call, by moving it, or through a reference that may name it
-   (docs/spec-divergences.md §8). *)
+   Such a lasting spawn is also lent every owner it is passed, directly or
+   through a reference, and may read that owner until the same drain. The spec
+   leaves the lending block free to write an owner it lent; here the block may
+   not write it directly, through a `!` call, by moving it, or through a
+   reference that may name it (docs/spec-divergences.md §8). *)
 
 module T = Nodes
 module S = Signature
@@ -25,8 +26,8 @@ module S = Signature
 (* A place: the local it is reached through, and the path from there. *)
 type place = { local : T.Local.t; path : Read_only.step list }
 
-(* Two places overlap when one's path is a prefix of the other's. An element
-   is any element, so two subscripts of one list overlap. *)
+(* Two places overlap when one's path is a prefix of the other's. The checker
+   does not tell elements apart, so two subscripts of one list overlap. *)
 let overlap a b =
   let rec prefix x y =
     match (x, y) with
@@ -45,8 +46,9 @@ let describe p =
   in
   "`" ^ p.local.T.Local.name ^ String.concat "" (List.map step p.path) ^ "`"
 
-(* The types a type holds by owning edges: its members, what it is distinct
-   from, a list's or fixed array's elements. A reference member holds none. *)
+(* The types a type holds through owning edges: its members, the type a
+   distinct type wraps, and a list's or fixed array's elements. A reference
+   member holds no type this way. *)
 let members env (t : Ty.t) =
   match t with
   | Ty.Named (tid, args) -> (
@@ -62,7 +64,7 @@ let members env (t : Ty.t) =
   | Ty.Intrinsic { name = "ArrayRef"; args = Ty.Type e :: _; _ } -> [ e ]
   | _ -> []
 
-(* Whether a value of type [outer] may hold one of type [inner]. *)
+(* Whether a value of type [outer] may hold a value of type [inner]. *)
 let rec contains env ?(seen = []) outer inner =
   Ty.equal outer inner
   || (not (List.exists (Ty.equal outer) seen))
@@ -86,12 +88,13 @@ let rec chain (e : T.Expr.t) =
    the owner, and the argument it was lent through. *)
 type lend = { at : place option; lent : Ty.t; through : T.Expr.t }
 
-(* A place as written, where it is when the checker can follow it through
-   references, and the type of what it holds. *)
+(* A place as written, the place it resolves to when the checker can follow
+   it through references, and the type of the value it holds. *)
 type claim = { written : place; at : place option; ty : Ty.t }
 
 (* A block being walked: the locals declared in it, whether it runs more than
-   once, and the borrows spawns in it hold until it drains. *)
+   once, and the borrows that spawns in the block hold until the block
+   drains. *)
 type frame = {
   declared : (int, unit) Hashtbl.t;
   often : bool;
@@ -99,9 +102,9 @@ type frame = {
   mutable lends : lend list;
 }
 
-(* Two claims on storage overlap when their places do. Where a place is
-   reached through a reference whose owner the checker cannot follow, they may
-   overlap when either's type may hold the other's. *)
+(* Two claims on storage overlap when their places overlap. Where a place is
+   reached through a reference whose owner the checker cannot follow, the two
+   claims may overlap when either claim's type may hold the other's. *)
 let clashes env a b =
   match (a.at, b.at) with
   | Some x, Some y -> overlap x y
@@ -124,8 +127,8 @@ let rec beside (e : T.Expr.t) =
 type piece = Plain of Traverse.part | Run of T.Block.t * bool
 
 let walk_body env multi (body : T.Block.t) =
-  (* Where each reference local points, when the checker knows: the place it was
-     minted from, followed through other references. *)
+  (* Where each reference local points, when the checker knows: the place the
+     reference was minted from, followed through other references. *)
   let origins : (int, place option) Hashtbl.t = Hashtbl.create 8 in
   let resolve p =
     match p.local.T.Local.ty with
@@ -144,8 +147,8 @@ let walk_body env multi (body : T.Block.t) =
     | _ -> Option.bind (place_of e) resolve
   in
   (* A write to the place [e], or a move out of it, while a spawn may still
-     read an owner it was lent. Where either place is unknown, what might
-     overlap is decided by type. *)
+     read an owner it was lent. Where either place is unknown, the types of
+     the two places determine whether they might overlap. *)
   let write ?(verb = "writes") frames (e : T.Expr.t) =
     match place_of e with
     | None -> ()
@@ -201,8 +204,10 @@ let walk_body env multi (body : T.Block.t) =
         expr frames value;
         (match (target.T.Expr.ty, target.T.Expr.node) with
         | Ty.Reference _, T.Expr.Var (T.Name_ref.Local l) ->
-            (* A reference bound again points where the value does, unless the
-               binding is in a block inside its own, which may not run. *)
+            (* A reference bound again points where the new value does, unless
+               the binding is in a block nested inside the reference's own
+               block, which may not run; then the checker no longer knows
+               where the reference points. *)
             let own =
               match frames with f :: _ -> Hashtbl.mem f.declared l.T.Local.id | [] -> false
             in
@@ -230,8 +235,8 @@ let walk_body env multi (body : T.Block.t) =
     | None -> ()
   and expr frames (e : T.Expr.t) =
     (* A `!` call writes its subject, and an owner passed to a `^T`
-       parameter moves; a bare reference-type parameter borrows it
-       (memory.md §2.9). *)
+       parameter moves; a bare reference-type parameter borrows the owner
+       instead (memory.md §2.9). *)
     (match e.T.Expr.node with
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
         match Env.signature_of env callee with
@@ -265,7 +270,8 @@ let walk_body env multi (body : T.Block.t) =
             List.iter (fun x -> part frames (Plain x)) (beside e)
         | None -> List.iter (part frames) (parts e))
   and parts (e : T.Expr.t) =
-    (* A block argument runs more than once when its callee runs it so. *)
+    (* A block argument runs more than once when its callee runs it more
+       than once. *)
     match Repeats.call_parts env e with
     | Some (callee, args) ->
         let often =
@@ -321,8 +327,8 @@ let walk_body env multi (body : T.Block.t) =
           rest;
         Option.iter (fun (h : T.Handler.t) -> block frames false h.T.Handler.body) handler;
         if keeps && not reference then begin
-          (* In a block that runs more than once, the subject is declared in
-             it, or in a block inside it. *)
+          (* In a block that runs more than once, the subject must be
+             declared in that block, or in a block inside it. *)
           (match (p, List.find_opt (fun f -> f.often) frames) with
           | Some p, Some _ ->
               let rec inside = function

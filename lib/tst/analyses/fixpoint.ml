@@ -5,22 +5,24 @@
 
    The walks go by a worklist. Every body is walked once; a walk reads other
    verbs' summaries through [read], which notes the body as one of their
-   readers; and when [add] grows a summary, only its readers are walked
-   again. A chain of calls listed callee last so settles in a walk per body
-   and one more per caller, where walking every body until nothing grows
-   would take a round per link. *)
+   readers; and when [add] grows a summary, only that summary's readers are
+   walked again. A chain of calls listed callee last therefore settles in one
+   walk per body and one more per caller, where walking every body until
+   nothing grows would take a round per link. *)
 
 type 'a t = {
   summaries : (int, 'a) Hashtbl.t;
   empty : 'a;
   union : 'a -> 'a -> 'a;
   equal : 'a -> 'a -> bool;
-  (* By summary, the bodies whose walk read it, as positions in the list
-     [settle] was given. *)
+  (* For each summary, the bodies whose walk read that summary, as positions
+     in the list [settle] was given. *)
   readers : (int, (int, unit) Hashtbl.t) Hashtbl.t;
-  (* The body being walked, while [settle] walks one to a fixed point. *)
+  (* The body being walked, while [settle] walks the bodies to a fixed
+     point. *)
   mutable walking : int option;
-  (* The bodies waiting to be walked again, and which they are. *)
+  (* The bodies waiting to be walked again, as a queue and as a set of their
+     positions. *)
   queue : int Queue.t;
   queued : (int, unit) Hashtbl.t;
   (* How many bodies [settle] has walked before reporting: a hook for the
@@ -69,7 +71,7 @@ let read_opt t id =
 let read t id = Option.value ~default:t.empty (read_opt t id)
 let start t id = if not (Hashtbl.mem t.summaries id) then Hashtbl.replace t.summaries id t.empty
 
-(* Joins [s] into the verb's summary; when that grows it, the bodies that
+(* Joins [s] into the verb's summary; when the summary grows, the bodies that
    read it are walked again. *)
 let add t id s =
   let old = Option.value ~default:t.empty (Hashtbl.find_opt t.summaries id) in

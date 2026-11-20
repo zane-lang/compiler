@@ -1,12 +1,12 @@
 (* Expansions: an analysis over the finished TST (docs/design/semantics.md
    D1). A verb that takes a block or a literal -- any parameter of a concept
-   type -- has no function of its own: each call to it is replaced by its
-   body (docs/design/lowering.md L11). So such a verb cannot reach a call to
-   itself through the bodies it is written out into, or writing it out would
-   never end. A declared subscript's body is written out where it is used
-   too, so a call reached through one counts as well. A call written in a
-   lambda is not written out with the body around it: the lambda is a
-   function of its own. *)
+   type -- has no function of its own: each call to such a verb is replaced
+   by its body (docs/design/lowering.md L11). So such a verb must not reach a
+   call to itself through the bodies it is written out into, or writing it
+   out would never end. A declared subscript's body is also written out where
+   the subscript is used, so a call reached through a subscript counts as
+   well. A call written in a lambda is not written out with the body around
+   it: the lambda is a function of its own. *)
 
 module T = Nodes
 module S = Signature
@@ -41,7 +41,7 @@ let run env (p : T.Program.t) =
         pkg.T.Package.decls)
     p.T.Program.packages;
   (* The declared subscripts, which are written out where they are used and
-     so pass a call on. *)
+     so pass the calls in their bodies on to each body that uses them. *)
   let through = Hashtbl.create 16 in
   List.iter
     (fun (pkg : T.Package.t) ->
@@ -53,9 +53,10 @@ let run env (p : T.Program.t) =
         pkg.T.Package.decls)
     p.T.Program.packages;
   let written_out id = Hashtbl.mem names id || Hashtbl.mem through id in
-  (* What each expanding verb's and subscript's bodies call: its
-     declaration's, or its instances' when it is generic. Only calls to those
-     count. *)
+  (* The verbs and subscripts that the bodies of each expanding verb and
+     subscript call: the body of its declaration, or the bodies of its
+     instances when it is generic. Only calls to expanding verbs and
+     subscripts count. *)
   let edges = Hashtbl.create 16 in
   let add id body =
     if written_out id then

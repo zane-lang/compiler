@@ -1,10 +1,11 @@
-(* Borrows a call keeps quiet (memory.md §2.9.1, adt.md §5.1): an analysis
-   over the finished TST (docs/design/semantics.md D1).
+(* Borrows that no other part of the call may disturb (memory.md §2.9.1, adt.md
+   §5.1): an analysis over the finished TST (docs/design/semantics.md D1).
 
-   A call's borrows are its subject and every argument it passes to a borrow:
-   a bare parameter, or a `^T` filled with a value type. Each lends its place
-   for the whole call, so nothing else in the same call may write a place
-   that overlaps one: not the subject of a `mut` call, for a borrow argument;
+   A call's borrows are its subject and every argument it passes to a borrow
+   parameter: a bare parameter, or a `^T` filled with a value type. Each
+   borrow lends its place for the whole call, so nothing else in the same call
+   may write a place that overlaps a borrowed place: not the subject of a
+   `mut` call, for a borrow argument;
    not a block argument, for the subject or a borrow argument; and not the
    evaluation of an argument written after a borrow argument. The subject is
    located after the arguments run (memory.md §2.12), so an argument that
@@ -14,15 +15,16 @@
    binder may not write a place that overlaps its scrutinee, other than
    through the binder.
 
-   A part of a call writes a place when it assigns to it, makes it the
-   subject of a `!` call, or moves an owner out of it, anywhere inside that
-   part except a lambda's body, which has a frame of its own. A `!` call also
-   writes whatever its subject reaches through `&` fields, and passing on a
-   block parameter writes whatever the caller's block does.
+   A part of a call writes a place when it assigns to the place, makes the
+   place the subject of a `!` call, or moves an owner out of it, anywhere
+   inside that part except a lambda's body, which has a frame of its own. A
+   `!` call also writes every place its subject reaches through `&` fields,
+   and passing on a block parameter writes every place the caller's block
+   writes.
 
-   A place reached through an `&` is found where the checker can follow it.
-   An `&` symbol stands for every place it is initialized from or repointed
-   to anywhere in the body. An `&T` parameter is a root of its own, apart
+   The checker locates a place reached through an `&` where it can follow the
+   reference. An `&` symbol stands for every place it is initialized from or
+   repointed to anywhere in the body. An `&T` parameter is a root of its own, apart
    from the subject and every block parameter: where the body relies on
    that, the verb's [summary] records the pair, and each call checks it with
    the arguments it passes, which may record it in the caller in turn. Any
@@ -35,10 +37,11 @@ module S = Signature
 (* A place, as [Spawns] has it. *)
 type place = Spawns.place
 
-(* A claim on storage: the places it may be, when the checker can follow it
-   ([None]: any place of its type), and the type of what it holds. [runs] is
-   [Some i] for running block parameter [i], which writes whatever the
-   caller's block does; [-1] for a block the checker cannot name. *)
+(* A claim on storage: the places the claimed storage may be, when the checker
+   can follow it ([None]: any place of its type), and the type of the value
+   stored there. [runs] is [Some i] for running block parameter [i], which
+   writes every place the caller's block writes, and [Some (-1)] for a block
+   the checker cannot identify. *)
 type claim = { expr : T.Expr.t; at : place list option; ty : Ty.t; runs : int option; behind : bool }
 
 (* Each `&T` parameter that must not overlap the subject (index 0) or a
@@ -54,11 +57,13 @@ let summary_of summaries (r : T.Verb_ref.t) =
   | S.Declared id -> Fixpoint.read summaries id
   | S.Intrinsic _ -> Needs.empty
 
-(* What a parameter is to the body checking it. *)
+(* The role a parameter plays in the body being checked: the subject, an `&T`
+   parameter, a block parameter, or any other parameter. *)
 type role = Subject | Ref of int | Block_param of int | Other
 
-(* A path that steps through an `&` field reaches a tree its root does not
-   name, so where it lands is not known from the root. *)
+(* A path that steps through an `&` field reaches an object outside the tree
+   its root names, so the root does not determine which place the path
+   reaches. *)
 let rec through_reference (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
@@ -112,9 +117,10 @@ let bindings start =
 
 (* The types a value of type [t] reaches through `&` fields, at any depth,
    where [members] gives a type's members. Type_decls rejects a type that
-   holds itself at a growing argument (generics.md §2.4), the only kind whose
-   members lead to ever new types, so a walk that keeps growing (Ty.Growth)
-   is a type that check missed: an internal error, not a hang. *)
+   holds itself at a growing argument (generics.md §2.4), which is the only
+   kind of type whose members lead to ever new types. A walk that keeps
+   growing (Ty.Growth) therefore means Type_decls missed such a type: an
+   internal error, not a hang. *)
 let reached_through_references ~members t =
   let seen = Hashtbl.create 16 in
   let rec go path acc t =
@@ -141,8 +147,8 @@ let reached_through_references ~members t =
 
 let behind_references env t = reached_through_references ~members:(Spawns.members env) t
 
-(* How a pair of claims stands: apart, overlapping, or apart only if the
-   caller keeps the listed pairs apart. *)
+(* The relation between two claims: apart, overlapping, or apart only if the
+   caller keeps the listed parameter pairs apart. *)
 type verdict = Apart | Clash of bool | Apart_if of (int * int) list
 
 let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
@@ -154,8 +160,9 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
   let is_param (l : T.Local.t) =
     List.exists (fun ((p : T.Local.t), _) -> p.T.Local.id = l.T.Local.id) params
   in
-  (* Where each `&` local may point: every place any of its bindings names,
-     to a fixed point, since one may be bound from another. *)
+  (* Where each `&` local may point: every place that any of its bindings
+     names, computed to a fixed point, since one `&` local may be bound from
+     another. *)
   let origins : (int, place list option) Hashtbl.t = Hashtbl.create 8 in
   let rec resolve (p : place) =
     let l = p.Spawns.local in
@@ -167,7 +174,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
             Some (List.map (fun (o : place) -> { o with Spawns.path = o.Spawns.path @ p.Spawns.path }) os)
         | _ -> None)
     | _ -> Some [ p ]
-  (* The places a value of reference type, or a place minted from, names. *)
+  (* The places named by a value of reference type, or by a place that a
+     value is taken from. *)
   and origin (e : T.Expr.t) =
     match (e.T.Expr.ty, e.T.Expr.node) with
     | Ty.Reference _, T.Expr.Var (T.Name_ref.Local l) -> resolve { Spawns.local = l; path = [] }
@@ -176,8 +184,9 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
   in
   let binds = bindings start in
   List.iter (fun (id, _) -> Hashtbl.replace origins id (Some [])) binds;
-  (* A binding from a path through itself grows without end; after a few
-     rounds what still grows may point anywhere. *)
+  (* A binding from a path through the bound local itself grows without end;
+     after a few rounds, a local whose places still grow may point
+     anywhere. *)
   let rec settle n =
     let grew = ref false in
     List.iter
@@ -192,8 +201,9 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     if !grew && n > 0 then settle (n - 1)
   in
   settle 8;
-  (* A claim on the place [e] names, when it names one. An `&` field written
-     or borrowed is the object it names, wherever that is. *)
+  (* A claim on the place [e] names, when [e] names a place. Writing or
+     borrowing an `&` field claims the object the field refers to, wherever
+     that object is. *)
   let claim (e : T.Expr.t) =
     match Spawns.place_of e with
     | None -> None
@@ -221,7 +231,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     | Subject, Ref i -> Some (i, 0)
     | _ -> None
   in
-  (* The locals the body owns: what it declares, and its `^T` parameters. *)
+  (* The locals the body owns: the locals it declares, and its `^T`
+     parameters. *)
   let owned = Hashtbl.create 16 in
   List.iter
     (fun ((l : T.Local.t), _) -> if Ty.is_roaming l.T.Local.ty then Hashtbl.replace owned l.T.Local.id ())
@@ -243,16 +254,17 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
        (Traverse.parts e)
    in
    match start with `Block b -> block b | `Expr e -> expr e);
-  (* A place the body owns cannot sit inside what the caller passed, and
-     the subject and a borrowed parameter are the caller's to keep apart
-     from what the call writes. *)
+  (* A place the body owns cannot sit inside an argument the caller passed,
+     and the caller is responsible for keeping the subject and a borrowed
+     parameter apart from the places the call writes. *)
   let covered (l : T.Local.t) =
     Hashtbl.mem owned l.T.Local.id
     || (is_param l && match role_of l with Subject | Other -> true | _ -> false)
   in
   (* Whether the known claim [c] may hold, or be part of, an object of type
-     [r] the checker cannot place: [r] inside it, or [r] on its path, or, for
-     a place the body does not own, anything that can hold it. *)
+     [r] that the checker cannot locate: when [r] is inside [c]'s type, when
+     [r] is on [c]'s path, or, for a place the body does not own, when any
+     type can hold [c]'s type. *)
   let meets (c : claim) r =
     let t = Ty.strip_mode c.ty in
     Spawns.contains env t r
@@ -306,8 +318,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         | _ -> if by_type () then Clash false else Apart)
   in
   let needs = ref Needs.empty in
-  (* Settles a verdict: a clash is reported, a condition becomes the body's
-     own need. *)
+  (* Acts on a verdict: a clash is reported, and each condition becomes a need
+     of the body's own verb. *)
   let settle_verdict v on_clash =
     match v with
     | Apart -> ()
@@ -320,8 +332,9 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     Option.is_none p.S.binds
     && match a with T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> false | _ -> true
   in
-  (* The parameters of a call, by position, and its subject's when it has
-     one, with what the callee needs kept apart. *)
+  (* The parameters of a call, by position, and the subject's parameter when
+     the call has a subject, with the parameter pairs the callee needs kept
+     apart. *)
   let params_of (e : T.Expr.t) =
     match e.T.Expr.node with
     | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } -> (
@@ -329,8 +342,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         | Some sg ->
             (* A type or number given to a binding parameter picks the
                instance, which takes no parameter for it (generics.md §5.3),
-               so the rest line up with the instance's, as summaries count
-               them. *)
+               so the remaining arguments line up with the instance's
+               parameters, as summaries count them. *)
             let pairs =
               if List.length sg.S.params = List.length args then
                 List.filter takes_a_parameter (List.combine sg.S.params args)
@@ -427,8 +440,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         | _ -> None)
     | _ -> None
   in
-  (* What a `!` call on [subject] writes: its place, and what it reaches
-     through `&` fields. *)
+  (* The places a `!` call on [subject] writes: the subject's place, and
+     every place the subject reaches through `&` fields. *)
   let subject_writes (subject : T.Expr.t) =
     match claim subject with
     | None -> []
@@ -439,7 +452,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
              (fun ty -> { expr = subject; at = None; ty; runs = None; behind = true })
              (behind_references env held)
   in
-  (* Every place a part writes, reached through anything but a lambda. *)
+  (* Every place a part of a call writes, anywhere inside it except in a
+     lambda. *)
   let rec writes_expr acc (e : T.Expr.t) =
     let acc =
       match params_of e with
@@ -470,7 +484,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     match s.T.Stat.node with
     | T.Stat.Assign { target; value } -> (
         let acc = writes_expr acc value in
-        (* What locates the destination runs too: `xs[ys!grow()] = v`. *)
+        (* The expressions that locate the destination run too:
+           `xs[ys!grow()] = v`. *)
         let acc = List.fold_left writes_part acc (Traverse.parts target) in
         let acc = match target.T.Expr.ty with Ty.Reference _ -> acc | _ -> moved acc value in
         match (target.T.Expr.ty, target.T.Expr.node) with
@@ -516,7 +531,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
              (describe { w with behind = false })
              (if w.behind then "reaches, through a reference it holds, what may hold" else overlaps)))
   in
-  (* What block argument [a] writes while it runs during the call. *)
+  (* The places block argument [a] writes while it runs during the call. *)
   let block_writes a =
     match (a, runs_of a) with
     | T.Arg.Block blk, _ -> writes_block [] blk
@@ -533,8 +548,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
       lent
   in
   (* Argument [j], written after the one borrowed as [b], runs while [b] is
-     already lent. A take of the very place borrowed is the moves analysis's
-     to report (lifetimes.md §1.5). *)
+     already lent. A take of the borrowed place itself is reported by the
+     moves analysis instead (lifetimes.md §1.5). *)
   let check_later_argument (i, b) (j, ty, a) =
     match a with
     | T.Arg.Value v when j > i ->
@@ -555,9 +570,10 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
           ws
     | _ -> ()
   in
-  (* What the callee keeps apart from the `&` argument [pv]: the writes of
-     argument [o], the subject it writes or a block it runs. The callee's
-     own writes through the subject's `&` fields were checked in its body. *)
+  (* The claims the callee keeps apart from the `&` argument [pv]: the writes
+     of argument [o], which is the subject the callee writes or a block the
+     callee runs. The callee's own writes through the subject's `&` fields
+     were checked in the callee's body. *)
   let apart_writes ~is_method ~arg (pv : T.Expr.t) o =
     match arg o with
     | T.Arg.Value s when o = 0 && is_method -> Option.to_list (claim s)
@@ -614,8 +630,9 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         List.iter (report_block_writes (Option.to_list subject @ borrowed)) indexed;
         (* An argument written later runs while the borrow is already lent. *)
         List.iter (fun borrow -> List.iter (check_later_argument borrow) indexed) borrowed;
-        (* What the callee needs kept apart: an `&T` argument from the
-           subject it writes, or from a block it runs. *)
+        (* The pairs the callee needs kept apart: an `&T` argument and the
+           subject the callee writes, or an `&T` argument and a block the
+           callee runs. *)
         let arg i = match List.nth_opt args i with Some a -> a | None -> T.Arg.Value e in
         Needs.iter (check_apart ~is_method ~arg) apart
     | _ -> ()

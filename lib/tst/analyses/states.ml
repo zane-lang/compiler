@@ -1,28 +1,28 @@
-(* The state of the place an expression denotes (memory.md §2.1, §2.8.1): the
-   one fact the move, reference and scope analyses all read, so that none of
-   them can decide it differently.
+(* The state of the place an expression denotes (memory.md §2.1, §2.8.1). The
+   move, reference and scope analyses all read this state from here, so that
+   no two of them can determine it differently.
 
    An owner of a reference type is settled or roaming. A bare symbol of a
    reference type and a package constant are settled; a symbol or parameter
-   declared `^T` is roaming. What a reference names is settled. A borrow --
-   a bare reference-type parameter, and `this` -- is neither: it is the
-   caller's owner, lent for the call (§2.9). Fixed storage takes its root's
-   state: a struct field, an `ArrayRef` element. Dynamic storage is
-   [Contingent]: a list's element and a variant's payload come and go while
-   their container lives, so they are roaming, and they are never moved out
-   of it either (lifetimes.md §1.2). A verb's result and a case form are
-   [Fresh]: nothing owns them yet.
+   declared `^T` is roaming. The object a reference names is settled. A
+   borrow -- a bare reference-type parameter, and `this` -- is neither: it
+   is the caller's owner, lent for the call (§2.9). Fixed storage, such as a
+   struct field or an `ArrayRef` element, takes its root's state. Dynamic
+   storage is [Contingent]: a list's element and a variant's payload come and
+   go while their container lives, so they are not settled, and they are
+   never moved out of their container either (lifetimes.md §1.2). A verb's
+   result and a case form are [Fresh]: nothing owns them yet.
 
-   Every decision is made from the declared types along the path, so it is
-   the same at every point of the body. *)
+   Every state is determined from the declared types along the path, so a
+   place's state is the same at every point of the body. *)
 
 module T = Nodes
 module S = Signature
 
 type state = Settled | Roaming | Borrowed | Contingent | Fresh
 
-(* What an analysis records about the body of the function it is in: which
-   locals are the subject, ordinary parameters, and match binders. *)
+(* The facts an analysis records about the body of the function it is in:
+   which locals are the subject, ordinary parameters, and match binders. *)
 type t = {
   subjects : (int, unit) Hashtbl.t;
   params : (int, unit) Hashtbl.t;
@@ -45,8 +45,8 @@ let param s (l : T.Local.t) = Hashtbl.replace s.params l.T.Local.id ()
 let binder s (l : T.Local.t) = Hashtbl.replace s.binders l.T.Local.id ()
 
 (* The place each declared subscript's body projects, read from the
-   declaration, or from any instance of a generic one: which place it is
-   does not depend on the arguments. *)
+   declaration, or from any instance of a generic subscript: the projected
+   place does not depend on the type arguments. *)
 let projections (p : T.Program.t) =
   let table = Hashtbl.create 8 in
   List.iter
@@ -75,12 +75,13 @@ let is_intrinsic name = function
   | _ -> false
 
 (* A step into fixed storage keeps its base's state. A member of a fresh
-   value is part of a temporary, which is neither an owner a store may move
-   from nor a place a reference may name, as an element is not. *)
+   value is part of a temporary, which, like a list element, is neither an
+   owner a store may move from nor a place a reference may name. *)
 let fixed base = match base with Fresh -> Contingent | s -> s
 
-(* A local's own state: a binder's is contingent, a subject's borrowed,
-   and any other's follows from its type and whether it is a parameter. *)
+(* A local's own state: a binder is contingent, a subject is borrowed, and
+   any other local's state follows from its type and whether it is a
+   parameter. *)
 let local_state s (l : T.Local.t) =
   if Hashtbl.mem s.binders l.T.Local.id then Contingent
   else if Hashtbl.mem s.subjects l.T.Local.id then Borrowed
@@ -90,8 +91,8 @@ let local_state s (l : T.Local.t) =
     | Ty.Reference _ -> Settled
     | _ -> if Hashtbl.mem s.params l.T.Local.id then Borrowed else Settled
 
-(* [inside] maps a subscript body's `this` to the state of the place it was
-   called on, while that body's projection is followed. *)
+(* [inside] maps a subscript body's `this` to the state of the place the
+   subscript was called on, while that body's projection is followed. *)
 let rec state ?(inside = []) s (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
@@ -108,23 +109,25 @@ let rec state ?(inside = []) s (e : T.Expr.t) =
           if is_intrinsic "ListRef" t then Contingent else fixed (base ())
       | S.Declared id -> (
           match Hashtbl.find_opt s.projections id with
-          (* A projection that reaches itself again is settled by nothing it
-             finds, so it is taken as the dynamic kind. *)
+          (* A projection that keeps reaching subscripts never finds a place
+             that settles it, so after 16 nested projections the place is
+             taken as [Contingent], the dynamic state. *)
           | Some (this, body) when List.length inside < 16 ->
               state ~inside:((this, base ()) :: inside) s body
           | _ -> Contingent))
   | T.Expr.Case_read _ -> Contingent
   | _ -> if Ty.is_ref e.T.Expr.ty then Settled else Fresh
 
-(* The step a [Contingent] place is found through: a field of a list's
-   element or of a payload is contingent because of that element or
-   payload, which a message names. *)
+(* The step that makes a place [Contingent]: a field of a list's element or
+   of a payload is contingent because of that element or payload, and a
+   message names that step. *)
 let rec contingent_step (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } when not (Ty.is_ref target.T.Expr.ty) -> contingent_step target
   | _ -> e
 
-(* A place's state, and the node a message describes it by. *)
+(* A place's state, and the node that a message uses to describe the
+   place. *)
 let described s (e : T.Expr.t) =
   match state s e with
   | Contingent -> (Contingent, (contingent_step e).T.Expr.node)
@@ -141,9 +144,10 @@ let rec field_path (e : T.Expr.t) =
   | _ -> None
 
 (* Every body's subjects, parameters and match binders at once, for a pass
-   after semantics that asks a place's state: lowering asks it of an
-   overwritten place holding a foreign handle (docs/design/ffi.md F12).
-   Each local is the program's own, so no two bodies' locals meet. *)
+   after semantics that asks a place's state: lowering asks for the state of
+   an overwritten place holding a foreign handle (docs/design/ffi.md F12).
+   Each local's id is unique in the program, so the locals of two bodies
+   never collide. *)
 let of_program (p : T.Program.t) =
   let s = create (projections p) in
   let params has_this ps =

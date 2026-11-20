@@ -4,20 +4,22 @@
    A reference derived from a read-only binding is read-only wherever it goes:
    bound to a local, stored in a field, passed as an argument, or returned.
    §4.1 is checked while the tree is built, because it needs nothing but the
-   place a write names: a parameter, or something reached through one. This
-   rule needs to know where a reference went, which the tree only shows once every
-   call in it has a callee. So it runs after, over the whole program.
+   place a write names: a parameter, or a place reached through one. This
+   rule needs to know where a reference went, and the tree shows that only once
+   every call in it has a callee. So this analysis runs afterwards, over the
+   whole program.
 
-   What it tracks is a [taint]: for a value, the places in it that hold a reference
-   taken from a parameter. Each [elem] records that at [at] inside the value sits
-   something reached from parameter [origin] at [src]. A value type carries
-   nothing, because a value is copied deep and holds no reference (memory.md
-   §2.10), so storing one drops its taint.
+   The analysis tracks a [taint]: for a value, the places in it that hold a
+   reference taken from a parameter. Each [elem] records that at [at] inside the
+   value sits a reference reached from parameter [origin] at [src]. A value
+   type carries no taint, because a value is copied deep and holds no reference
+   (memory.md §2.10), so storing a value drops its taint.
 
-   A verb's [summary] is what a call needs without the body: which parameters
-   reach its result, and which come to rest in its `this`. The same record as
-   lifetimes.md §1.11's resting places, without the owners, and like them
-   transitive: a call substitutes its arguments' taints for the parameters.
+   A verb's [summary] is what a call needs to know without the body: which
+   parameters reach the verb's result, and which come to rest in its `this`.
+   It is the same record as lifetimes.md §1.11's resting places, without the
+   owners, and like them it is transitive: a call substitutes its arguments'
+   taints for the parameters.
    Summaries are computed to a fixed point, since verbs may call each other in
    a cycle; only then is each body walked once more to report. *)
 
@@ -36,8 +38,8 @@ module Taint = Set.Make (struct
   let compare = compare
 end)
 
-(* Recursive types would let a path grow without end, so it is cut. A cut
-   path names a bigger place than the real one, which can only make the
+(* Recursive types would let a path grow without end, so a long path is cut. A
+   cut path names a bigger place than the real one, which can only make the
    analysis stricter, never let a write through. *)
 let depth = 4
 
@@ -53,8 +55,8 @@ let rec is_prefix p q =
 let rec drop p q = match (p, q) with _ :: p, _ :: q -> drop p q | _, q -> q
 
 (* The taint of the part of a value at [p]. A reference at [p] or below stays,
-   re-rooted; a reference above [p] covers it, since [p] is then reached through
-   that reference. *)
+   re-rooted at [p]; a reference above [p] covers the whole part, since [p] is
+   then reached through that reference. *)
 let navigate s p =
   Taint.fold
     (fun e acc ->
@@ -65,26 +67,28 @@ let navigate s p =
 
 let under p s = Taint.map (fun e -> elem e.origin e.src (p @ e.at)) s
 
-(* Where a value's parts cannot be told apart: all of it. *)
+(* The taint of a value whose parts cannot be told apart: every reference in
+   the value, rooted at the whole value. *)
 let whole s = Taint.map (fun e -> elem e.origin e.src []) s
 
 (* ---------------------------------------------------------------------- *)
 (* Types                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* Whether storage of type [t] can hold a reference. A declaration's own
-   members are looked at once per question: its arguments are looked at
-   where it is named, so what its members carry beyond them does not depend
-   on them. *)
+(* Whether storage of type [t] can hold a reference. Each declaration's
+   members are examined once per call: the type arguments are examined where
+   the type is named, so whether the members carry a reference beyond those
+   arguments does not depend on the arguments. *)
 let carries env (t : Ty.t) =
   let seen = Hashtbl.create 8 in
   let rec carries (t : Ty.t) =
     match t with
     | Ty.Reference _ | Ty.Param _ -> true
     | Ty.Roaming t -> carries t
-    (* An array literal carries what its elements do: `[p, q]` held as
-       `&Port` elements carries both references into the `ArrayRef` it builds.
-       No container consumes a map literal yet, so none carries anything. *)
+    (* An array literal carries a reference when its elements do: `[p, q]`
+       held as `&Port` elements carries both references into the `ArrayRef`
+       it builds. No container consumes a map literal yet, so no map literal
+       carries a reference. *)
     | Ty.Concept (Ty.Array_lit (t, _)) -> carries t
     | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
     | Ty.Intrinsic { args; _ } -> List.exists carries_arg args
@@ -105,12 +109,13 @@ let carries env (t : Ty.t) =
   and carries_arg = function Ty.Type t -> carries t | Ty.Number _ -> false in
   carries t
 
-(* What storing a value of type [t] keeps of its taint. *)
+(* The part of a value's taint that storing it as type [t] keeps: all of it
+   when [t] can hold a reference, and none otherwise. *)
 let store env t s = if carries env t then s else Taint.empty
 
-(* The declared type of a struct's field, which is what decides whether the
-   field can hold a reference: the value written into it may be a place a reference
-   is minted from, whose own type says nothing about that. *)
+(* The declared type of a struct's field, which determines whether the field can
+   hold a reference: the value written into the field may be a place that a
+   reference is minted from, and that value's own type does not show it. *)
 let field_type env (t : Ty.t) name =
   match t with
   | Ty.Named (tid, args) -> (
@@ -131,7 +136,7 @@ let store_field env t name s = match field_type env t name with Some ft -> store
 type summary = {
   (* Origins are parameter indices, the subject first. *)
   result : Taint.t;
-  (* What comes to rest in `this`, for a `mut` method. *)
+  (* The taint that comes to rest in `this`, for a `mut` method. *)
   into_this : Taint.t;
 }
 
@@ -211,7 +216,8 @@ let taint_by_id w id = Option.value ~default:Taint.empty (Hashtbl.find_opt w.tai
 let taint_of w (l : T.Local.t) = taint_by_id w l.T.Local.id
 
 (* §4.1 already reported a write whose place is reached straight from a
-   read-only parameter; this rule adds the references derived from one. *)
+   read-only parameter; this rule adds the references derived from such a
+   parameter. *)
 let direct w (l : T.Local.t) =
   match Hashtbl.find_opt w.origins l.T.Local.id with Some b -> b.read_only | None -> false
 
@@ -353,8 +359,8 @@ let rec expr env w (e : T.Expr.t) : Taint.t =
 and one w callee v =
   match summary_of w callee with Some s -> substitute [| v |] s.result | None -> whole v
 
-(* A subscript names a place, so what it yields is read where it is, not
-   stored: its taint stays whole unless the value is a copy. *)
+(* A subscript names a place, so the value it yields is read in place, not
+   stored: the value's taint stays whole unless the value is a copy. *)
 and store_or_place env (e : T.Expr.t) r = if carries env e.T.Expr.ty then r else Taint.empty
 
 and args_of env w (call : T.Expr.t) args =
@@ -369,13 +375,14 @@ and arg env w ~often = function
       block env w b;
       Taint.empty
   | T.Arg.Block b ->
-      (* A block argument run more than once sees what the last run stored,
-         so it is walked until that stops growing, silently, and then once
-         more to report. *)
-      (* After the block a local holds what any run stored, so each run is
-         joined into the one before, and the walk stops once a run adds
-         nothing. A `let` or an assignment replaces what a run sees, which is
-         why the join, and not the size of the table, decides. *)
+      (* A block argument run more than once sees the taints the previous run
+         stored, so the block is walked silently until those taints stop
+         growing, and then once more to report. *)
+      (* After the block a local holds the taint of any run's stores, so each
+         run is joined into the one before, and the walk stops once a run
+         adds nothing. A `let` or an assignment replaces the taint a run sees,
+         which is why the join, and not the size of the table, determines
+         when the walk stops. *)
       let once () =
         let before = Hashtbl.copy w.taints in
         block env w b;
@@ -421,9 +428,10 @@ and call env w (e : T.Expr.t) (callee : T.Verb_ref.t) taints args =
   | _ -> ());
   store env e.T.Expr.ty res
 
-(* What a verb with no body to summarise -- an intrinsic, a function value --
-   may have kept of its arguments: anything a parameter's type can hold a
-   reference in. A parameter whose type cannot hold one keeps nothing. *)
+(* The taint that a verb with no body to summarise -- an intrinsic, a function
+   value -- may have kept of its arguments: the taint of every argument whose
+   parameter's type can hold a reference. A parameter whose type cannot hold a
+   reference keeps nothing. *)
 and passed env tys taints =
   let rec go tys taints =
     match (tys, taints) with
@@ -433,8 +441,8 @@ and passed env tys taints =
   in
   go tys taints
 
-(* A `!` call writes its subject: it may not reach a read-only reference, and what
-   the call stores in it is now there. *)
+(* A `!` call writes its subject: the subject may not reach a read-only reference,
+   and the taint the call stores in the subject is recorded there. *)
 and write_subject env w args taints into =
   match (args, taints) with
   | T.Arg.Value subject :: _, own :: _ ->
@@ -485,7 +493,8 @@ and resolving env w b =
 
 and lambda env w (e : T.Expr.t) (l : T.Lambda.t) =
   (* A lambda captures nothing (concurrency.md §5.2): its body sees only its
-     own parameters, every one read-only but a `mut` lambda's `this`. *)
+     own parameters, which are all read-only except a `mut` lambda's
+     `this`. *)
   let writable_this =
     match e.T.Expr.ty with Ty.Verb { Ty.this_ = Some _; is_mut = true; _ } -> true | _ -> false
   in
@@ -597,7 +606,7 @@ let bodies env (p : T.Program.t) =
 let run env ~multi (p : T.Program.t) =
   let summaries = summaries () in
   let bodies = bodies env p in
-  (* Every body starts from nothing, so a callee not yet walked is not
-     mistaken for one that has no body to walk. *)
+  (* Every body's summary starts empty, so a callee not yet walked is not
+     mistaken for a callee that has no body to walk. *)
   List.iter (fun (b : body) -> Fixpoint.start summaries b.decl) bodies;
   Fixpoint.settle summaries bodies (walk_body summaries multi)
