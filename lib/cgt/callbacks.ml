@@ -2,28 +2,29 @@
    each lambda defined in this object whose type C can call
    (Lower_foreign.c_signature) gains its adapter. The glue defines the
    lambdas' C entries, and codegen puts each entry's offset in the word
-   before its lambda's code, which a call into C reads. *)
+   before its lambda's code, where a call into C reads it. *)
 
 open Nodes
 
 (* The runtime's context of the running thread, which is null on a thread
-   C started (runtime/arena.c). Only its being null is read, so it is
-   declared as a word. *)
+   C started (runtime/arena.c). The adapter only checks whether the context
+   is null, so it is declared as a word. *)
 let context = { Global.symbol = "zane_self"; linkage = Linkage.Imported; ty = Ty.I64; per_thread = true }
 
 (* The adapter of the lambda [f], which C calls as [c]: it takes the
    address of a table of the addresses of slots holding [f]'s arguments,
    and the address of a slot for its result, calls [f] with the arguments
-   and stores what it gives, each struct in C's layout there
-   (Callback.of_c, Callback.to_c). On a thread without a context, it has the
-   runtime make one for the call and give it back after, before it makes
-   any argument: a string or a list C lent is copied into a value of the
-   program's own, an array read through its pointer, and a handle's C
-   object stamped as a handle is made (docs/design/ffi.md F12), a null
-   one stopping the program as a foreign verb's does. C's entry calls it,
-   so it is exported from this object, and C names it by its symbol; it is
+   and stores [f]'s result in that slot, each struct in C's layout
+   (Callback.of_c, Callback.to_c). On a thread without a context, the adapter
+   has the runtime make a context for the call, and give it back afterwards,
+   before the adapter makes any argument: a string or a list that C lent is
+   copied into a value of the program's own, an array is read through its
+   pointer, and a handle's C object is stamped as a handle
+   (docs/design/ffi.md F12); a null C object stops the program, as it does
+   for a foreign verb. C's entry calls the adapter, so the adapter is
+   exported from this object, and C names it by its symbol; the adapter is
    shared when [f] is not exported, since each object that lifts [f]
-   defines it. *)
+   defines the adapter. *)
 let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let ptr node = { Expr.node; ty = Ty.Ptr } in
   let table = Ty.Struct (List.map (fun _ -> Ty.Ptr) f.Func.params) in
@@ -35,8 +36,8 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let scope = fresh () in
   let arg i (_, t) (shape : Callback.shape) =
     match shape with
-    (* A copy of the view, held in the call's arena, which ends it once
-       the lambda has run. *)
+    (* A copy of the view, held in the call's arena, which ends the copy
+       once the lambda has run. *)
     | Callback.View { layout; _ } ->
         let id = fresh () in
         let value = { Expr.node = Expr.Copy { value = { Expr.node = Expr.Deref (slot i); ty = t }; layout }; ty = t } in
@@ -56,7 +57,7 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
             ];
         let handle = { Expr.node = Expr.Record [ (0, pointer_); (1, stamp_) ]; ty = Ty.Struct [ Ty.Ptr; Ty.I64 ] } in
         (* A borrowed handle is passed as the address of a place holding
-           it, a roaming owner as the handle itself. *)
+           the handle, and a roaming owner as the handle itself. *)
         if t = Ty.Ptr then begin
           let place = fresh () in
           made := !made @ [ Stat.Let { id = place; value = handle } ];
@@ -108,13 +109,14 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
   }
 
 (* Whether [f] is defined in this object, rather than reached in another
-   one's. *)
+   object. *)
 let defined (f : Func.t) = match f.Func.linkage with Linkage.Imported | Linkage.Available -> false | _ -> true
 
-(* [funcs] with the adapters of [callbacks], the lambdas C can call, that
-   this object defines, each callback marked by whether it does, with an
-   entry named after [package], this object's, when other objects may
-   define it too, and the globals the adapters read. *)
+(* [funcs] with the adapters of those [callbacks] (the lambdas C can call)
+   that this object defines; each callback marked by whether this object
+   defines it, and given an entry named after [package], this object's
+   package, when other objects may define the callback too; and the globals
+   the adapters read. *)
 let add package (callbacks : Callback.t list) funcs =
   let here = Hashtbl.create 16 in
   List.iter (fun (f : Func.t) -> if defined f then Hashtbl.replace here f.Func.symbol f) funcs;

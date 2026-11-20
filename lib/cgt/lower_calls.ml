@@ -14,9 +14,9 @@ open Verbs
 open Outcome
 open Build
 
-(* The address of an element (functions.md §2.9): a list's or an array's,
-   checked against its length, or what a declared subscript's body names,
-   with `this` bound to the target's place. *)
+(* The address of an element (functions.md §2.9): a list's or an array's
+   element, checked against its length, or the place a declared subscript's
+   body names, with `this` bound to the target's place. *)
 let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
   let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Nodes.Ty.I64 } in
   match (impl.owner, args) with
@@ -75,8 +75,8 @@ let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
 
 (* Experimental pooled variants: whether [v]'s function builds its pooled
    result in a pool its caller gives it, as one more parameter after its
-   own, and returns where the result's top node is in that pool
-   (Lower.into). A verb written out where it is called, or one that can
+   own, and returns the position of the result's top node in that pool
+   (Lower.into). A verb written out where it is called, or a verb that can
    abort or exit, returns its result as before. *)
 let pours st span (v : verb) =
   v.decl >= 0
@@ -87,7 +87,7 @@ let pours st span (v : verb) =
 
 (* A type written where a value goes, or a number given to an explicit
    number parameter, picks the instance, and an instance takes no parameter
-   for it (generics.md §5.3). *)
+   for that type or number (generics.md §5.3). *)
 let passed (v : verb) args =
   let bound =
     if List.length v.signature.S.params = List.length args then
@@ -100,9 +100,10 @@ let passed (v : verb) args =
          | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
          | _ -> if bound then None else Some arg)
 
-(* Lent conversions (docs/design/lowering.md L11). A value only looked
-   at, owned by nothing that could write it: no reference, owner, `^T` or
-   pooled variant, and no literal or block standing for itself. *)
+(* Lent conversions (docs/design/lowering.md L11). Whether a value of a type
+   is only looked at and owned by nothing that could write it: the type is
+   not a reference, an owner, a `^T` or a pooled variant, and not a literal
+   or block that stands for itself. *)
 let plain_value st t =
   (not (Tty.is_ref t))
   && (not (Tty.is_roaming t))
@@ -112,8 +113,8 @@ let plain_value st t =
 
 (* A verb whose body returns a member path of one of its parameters, as
    `implicit String(v Text) => v._value` does, and that can do nothing
-   else: no `mut`, no abort, and only value parameters. The parameter's
-   index, and the fields from it, outermost last. *)
+   else: no `mut`, no abort, and only value parameters. Returns the
+   parameter's index and the fields from it, outermost last. *)
 let returns_path st (v : verb) =
   let rec path (e : T.Expr.t) fields =
     if not (plain_value st e.T.Expr.ty) then None
@@ -135,13 +136,14 @@ let returns_path st (v : verb) =
       path e []
   | _ -> None
 
-(* Whether reading a local runs nothing: one bound to a spawned call
-   settles the call where it is read, which runs the handler written at the
-   spawn, and that may write anything (Lower_spawn.spawn_call). *)
+(* Whether reading a local runs nothing: a local bound to a spawned call
+   settles the call where the local is read, which runs the handler written
+   at the spawn, and that handler may write anything
+   (Lower_spawn.spawn_call). *)
 let settled ctx (l : T.Local.t) =
   match Hashtbl.find_opt ctx.env l.T.Local.id with Some (Future _) | None -> false | Some _ -> true
 
-(* An expression that writes nothing and runs nothing that could: a read
+(* An expression that writes nothing and runs no code that could write: a read
    of a [settled] local or a constant and its members, a literal with
    nothing interpolated, an operator or math intrinsic of such operands, a
    primitive made or converted from them, or a conversion [lent] takes
@@ -171,11 +173,11 @@ and inert_args st ctx args =
 
 (* L11. A call of a verb [returns_path] picks, rewritten as the member
    path it returns, rooted at the argument it was given: `f(conv(x))`
-   becomes `f(x._value)`, which reads the member where it is instead of
+   becomes `f(x._value)`, which reads the member in place instead of
    copying it out (memory.md §2.9). The argument is a value place, or such
    a call itself, and every other argument is [inert], so dropping the call
-   leaves out nothing it would have done. [None] when it is not such a
-   call. *)
+   leaves out no effect the call would have had. [None] when the expression
+   is not such a call. *)
 and lent st ctx (e : T.Expr.t) : T.Expr.t option =
   let ( let* ) = Option.bind in
   let* id, instance, args =
@@ -221,11 +223,12 @@ and place_path st ctx (e : T.Expr.t) =
     | _ -> None
 
 (* A lent conversion's place may also be a member of an owner (a
-   reference-type instance) a local holds, as `jsonParse(this.text)` reads `this.text`'s
-   String where it is rather than copying it. The call [lent_arguments]
-   lends it to writes nothing through its parameters and its other
-   arguments are [inert], so nothing reaches the owner while it runs; a
-   place a spawned call may write back ([snapshots]) is still copied. *)
+   reference-type instance) that a local holds, as `jsonParse(this.text)`
+   reads `this.text`'s String in place rather than copying it. The call that
+   [lent_arguments] lends the place to writes nothing through its parameters,
+   and its other arguments are [inert], so nothing reaches the owner while
+   the call runs; a place that a spawned call may write back ([snapshots]) is
+   still copied. *)
 and owner_path st ctx (e : T.Expr.t) =
   if Tty.is_ref e.T.Expr.ty || Tty.is_roaming e.T.Expr.ty || pooled st e.T.Expr.ty then None
   else
@@ -236,7 +239,7 @@ and owner_path st ctx (e : T.Expr.t) =
 
 (* The arguments of a direct, unspawned call to [v], each a lent
    conversion's member path where [lent] finds one and the call can take
-   it: [v] writes nothing through its parameters, being no `mut` method
+   that path: [v] writes nothing through its parameters, being no `mut` method
    and taking only value parameters, and every other argument is [inert],
    so nothing in the call writes the place while it is lent (memory.md
    §2.9.1). *)
@@ -271,11 +274,11 @@ and plain_call w st ctx span v args handler ret =
   if writes_out w st ctx span v args then expand w st ctx span v args handler ret
   else invoke w st ctx span v (arguments w st ctx span v (lent_arguments st ctx v args)) handler
 
-(* Whether this call to [v] is replaced by its body (L11). An expression
-   verb's call is not when it gives a fresh value to a value parameter that
-   owns blocks: written out, the value would be held in a slot of the
-   caller's and copied wherever the body keeps it, where the verb's function
-   takes it instead (Regions.taken_params). *)
+(* Whether this call to [v] is replaced by its body (L11). A call to an
+   expression verb is not replaced when it gives a fresh value to a value
+   parameter that owns blocks: written out, the value would be held in a slot
+   of the caller's and copied wherever the body keeps it, whereas the verb's
+   function takes the value over (Regions.taken_params). *)
 and writes_out w st ctx span v args =
   expands v
   || (inlines st ctx v || walks st ctx v)
@@ -316,15 +319,15 @@ and call_value w st ctx span (callee : T.Expr.t) args handler =
 (* A `!` call whose subject is reached through a subscript (memory.md §2.12):
    the subject's operands run first, then the arguments, each held in a slot
    of its own in written order, and only then is the subject located, so an
-   argument that moves the list the subject is an element of moves it before
-   the call finds where the element is. *)
+   argument that moves the list holding the subject moves it before the call
+   finds where the element is. *)
 and located_last w st ctx span v subject rest handler ret =
   let lets, args = held_last w st ctx span v subject rest in
   held_in st lets (plain_call w st ctx span v args handler ret)
 
 (* The subject's operands pinned and each argument held, as [located_last]
    needs them, for any call form that runs a `!` call on a subscripted
-   subject: the statements, and the arguments to pass. *)
+   subject: returns the statements, and the arguments to pass. *)
 and held_last w ?direct st ctx span v subject rest =
   let pins, subject = pinned w st ctx span subject in
   let held =
@@ -336,9 +339,9 @@ and held_last w ?direct st ctx span v subject rest =
   (pins @ List.concat_map fst held, T.Arg.Value subject :: List.map snd held)
 
 (* One argument for parameter [p], run now and held in a slot of its own:
-   the statement that holds it, and the argument that reads it back. A
-   literal or a block an expanded verb takes stands for itself, so it is
-   passed on as it is. *)
+   returns the statement that holds the argument, and the argument that reads
+   it back. A literal or a block that an expanded verb takes stands for
+   itself, so it is passed on unchanged. *)
 and held_argument w ?direct st ctx span v (p : T.Local.t) a =
   match (a, p.T.Local.ty) with
   (* An array literal's elements are values, so the array is made now, as
@@ -369,11 +372,11 @@ and held_argument w ?direct st ctx span v (p : T.Local.t) a =
 
 (* A string literal given to a concept parameter, with each value
    interpolated into it evaluated where the literal is written, in written
-   order, and a copy of it held in a slot of this scope (types.md §2.8): the
-   statements that hold them, and the literal reading the slots instead.
-   The slots are named in [into] too, where the body reads the literal. A
-   literal passed on from a parameter already reads its slots, which [into]
-   is given as they are. *)
+   order, and a copy of each value held in a slot of this scope (types.md
+   §2.8): returns the statements that hold the copies, and the literal
+   rewritten to read the slots. The slots are also named in [into], where
+   the body reads the literal. A literal passed on from a parameter already
+   reads its slots, which are given to [into] unchanged. *)
 and captured w st ctx span ~into (lit : T.Expr.t) =
   match lit.T.Expr.node with
   | T.Expr.Text_lit pieces when interpolates lit ->
@@ -408,8 +411,8 @@ and held_in st lets (value : Expr.t) =
   in
   { Expr.node = Expr.Expand { label; body; result }; ty = value.Expr.ty }
 
-(* Whether a place is reached through a subscript, whose element a list
-   that grows would move. *)
+(* Whether a place is reached through a subscript, since a list that grows
+   would move the subscripted element. *)
 and subscripted (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Subscript _ -> true
@@ -417,9 +420,9 @@ and subscripted (e : T.Expr.t) =
   | _ -> false
 
 (* A place's operands, its subscripts' indices, run now into slots of their
-   own in written order, and the place rewritten to read them: what runs
-   after them no longer changes which element is meant, and where that
-   element is is found when the place is located. *)
+   own in written order, and the place rewritten to read them: code that
+   runs after them no longer changes which element is meant, and the
+   element's address is found when the place is located. *)
 and pinned w st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
   match e.T.Expr.node with
   | T.Expr.Field ({ target; _ } as f) ->
@@ -449,17 +452,18 @@ and arguments w ?direct st ctx span v args =
       | T.Arg.Block _ -> Diagnostic.bug ~span "lowering: a block argument to a verb it does not expand")
     v.params args
 
-(* An argument as the callee takes it (L6): a place it may write, or a
-   borrowed owner, is lent by its address, a reference is minted or copied,
+(* An argument as the callee takes it (L6): a place the callee may write, or
+   a borrowed owner, is lent by its address, a reference is minted or copied,
    a `^T` argument is moved, and a value is borrowed.
 
    A fresh owner moved into a `^T` parameter is made in this block's
-   region. A callee that drops it leaves its blocks there (memory.md §3.5),
-   so they go when this block drains, as they would in the block's own
-   scope, rather than piling up in an enclosing one for as long as a loop
-   runs. The block keeps an arena for that only when the callee can drop
-   the owner, which Regions decides; a call through a function value, and a
-   verb expanded here, which has no function of its own, can always. *)
+   region. A callee that drops the owner leaves its blocks there (memory.md
+   §3.5), so they are freed when this block drains, as they would be in the
+   block's own scope, rather than piling up in an enclosing scope for as long
+   as a loop runs. The block keeps an arena for that only when the callee can
+   drop the owner, which Regions decides; a call through a function value,
+   and a verb expanded here, which has no function of its own, can always
+   drop it. *)
 and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
   if viewed st v p then w.view st ctx span a
   else if by_address st v p then w.lend st ctx span a
@@ -467,7 +471,8 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
   else if roaming st p.T.Local.ty then begin
     (if held st span p.T.Local.ty && not (w.is_place a) then
        if (not direct) || written_out st ctx v then
-         (* A callee Regions cannot see may drop it, so the arena stays. *)
+         (* A callee that Regions cannot see may drop the owner, so the arena
+   stays. *)
          ctx.scope.wants <- (dropping, -1) :: ctx.scope.wants
        else
          let same (q : T.Local.t) = q.T.Local.id = p.T.Local.id in
@@ -477,10 +482,11 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
   end
   else w.borrow st ctx span a
 
-(* L12. A call that can end more than one way is switched on how it ended:
-   done gives its result, aborted runs its handler, or the abort of the
-   `match` it flows out of, and an exit ends this invocation too. The call
-   is to [v]'s function, or through [fn], a function value's address. *)
+(* L12. A call that can end in more than one way is switched on how it ended:
+   a finished call gives its result, an aborted call runs its handler or the
+   abort of the `match` it flows out of, and an exit ends this invocation
+   too. The call is to [v]'s function, or through [fn], a function value's
+   address. *)
 and invoke w ?fn st ctx span v args handler =
   if pours st span v then begin
     if Option.is_some fn then refuse span "pooled variants: a function value that returns one";
@@ -489,7 +495,7 @@ and invoke w ?fn st ctx span v args handler =
   else invoked w ?fn st ctx span v args handler
 
 (* A call to a function that [pours] its result, given a new pool of its
-   own to build it in. *)
+   own to build the result in. *)
 and poured st span v args =
   let handle = ty st span (Tty.strip_mode v.signature.S.ret) in
   let h = fresh st and label = fresh st and result = fresh st in
@@ -536,7 +542,7 @@ and invoked w ?fn st ctx span v args handler =
     let body = [ Stat.Let { id; value }; Stat.Switch { value = source; cases } ] in
     { Expr.node = Expr.Expand { label; body; result }; ty = o.ok }
 
-(* L11. A parameter is bound to what it stands for in the body: a block
+(* L11. A parameter is bound to the code or storage it stands for in the body: a block
    argument to its code, a literal to itself, the subject or a borrowed
    owner to the caller's place, a `^T` argument to a slot this scope holds
    the moved value in, and any other argument to a new slot holding its
@@ -612,9 +618,9 @@ and expand w st ctx span v args handler ret =
                    settle () @ [ Stat.Let { id; value = at } ]
                | _ -> Diagnostic.bug ~span "lowering expected a place here")
            (* A verb that writes none of its parameters reads a local it is
-              given where the caller keeps it: nothing else in the call
-              writes what the call borrows (memory.md §2.9.1), and nothing
-              the body runs can. *)
+              given in the caller's slot: nothing else in the call writes
+              the storage the call borrows (memory.md §2.9.1), and no code
+              the body runs can write it. *)
            | ( T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); T.Expr.ty = at; _ },
                _ )
              when (not v.signature.S.is_mut)
@@ -659,8 +665,9 @@ and expand w st ctx span v args handler ret =
   let t = ty st span ret in
   let label = fresh st in
   let result = if t = Nodes.Ty.Void then None else Some (fresh st) in
-  (* An exit in the body ends the invocation the call was written in, and
-     one that body calls ends the expansion (control-flow.md §4.2). *)
+  (* An exit in the body ends the invocation the call was written in, and an
+     exit in a verb the body calls ends the expansion (control-flow.md
+     §4.2). *)
   let inner =
     {
       env;
@@ -679,8 +686,9 @@ and expand w st ctx span v args handler ret =
       scope = ctx.scope;
     }
   in
-  (* A body that only returns a value is that value, unless the value names
-     the expansion, as an owner it moves out of the expansion does. *)
+  (* A body that only returns a value is replaced by that value, unless the
+     value names the expansion, as an owner moved out of the expansion
+     does. *)
   let named value =
     Traverse.exists_in [ Stat.Eval value ]
       ~expr:(fun e -> match e.Expr.node with Expr.Escape { exit; _ } -> exit = Some label | _ -> false)
@@ -691,8 +699,8 @@ and expand w st ctx span v args handler ret =
     when Some local = result && l = label && not (named value) ->
       value
   | [ Stat.Eval value; Stat.Leave l ] when result = None && l = label && not (named value) -> value
-  (* So is one that binds an argument and returns it, as a constructor that
-     wraps its argument does. *)
+  (* So is a body that binds an argument and returns it, as a constructor
+     that wraps its argument does. *)
   | [
       Stat.Let { id; value };
       Stat.Assign { place = { local; path = []; deref = false; _ }; value = { Expr.node = Expr.Local x; _ } };

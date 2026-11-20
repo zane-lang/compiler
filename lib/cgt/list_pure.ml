@@ -1,12 +1,12 @@
-(* Experimental (docs/experiments/goose-comparison): what a function of the
-   program being compiled cannot do to the lists it does not own. Emptied
-   when a program is lowered and filled by the optimizer's Loop_pushes when
-   it runs, so empty in a build that does not optimize; read by codegen
-   (Loop_shapes), which makes room before a loop of pushes only when nothing
-   else in the loop could take it, and reads a list's items and count once
-   before a loop only when nothing in it could change them. A function
-   imported without its body is in neither table: its body is in another
-   object. *)
+(* Experimental (docs/experiments/goose-comparison): the changes a function of
+   the program being compiled cannot make to the lists it does not own. The
+   tables are emptied when a program is lowered and filled by the optimizer's
+   Loop_pushes when it runs, so they are empty in a build that does not
+   optimize. Codegen (Loop_shapes) reads them: it makes room before a loop of
+   pushes only when nothing else in the loop could take that room, and reads
+   a list's items and count once before a loop only when nothing in the loop
+   could change them. A function imported without its body is in neither
+   table: its body is in another object. *)
 
 open Nodes
 
@@ -38,11 +38,11 @@ let rec scalar (t : Ty.t) =
   | Ty.Array (t, _) | Ty.Packed t -> scalar t
   | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
 
-(* Whether [e] by itself may change a list's handle that it was not built
+(* Whether [e] by itself may change the handle of a list that [e] was not built
    from in the statements around it: a call of a function not in [handles],
    through a value, or into C that may call back; a box, an escape, a move
-   or a copy, which the runtime makes; or any runtime operation but an
-   element's address, its check and [allowed]'s. *)
+   or a copy, which the runtime makes; or any runtime operation other than an
+   element's address, its check and the operations in [allowed]. *)
 let changes_expr ?(allowed = fun _ _ -> false) (e : Expr.t) =
   match e.Expr.node with
   | Expr.Call { fn; _ } -> not (Hashtbl.mem handles fn)
@@ -52,8 +52,8 @@ let changes_expr ?(allowed = fun _ _ -> false) (e : Expr.t) =
   | Expr.Runtime { fn; args } -> not (allowed fn args)
   | _ -> false
 
-(* Whether [s] by itself may: spawn or join, or write a value holding a
-   handle anywhere but a local's own slot. *)
+(* Whether [s] by itself may change a list's handle: by spawning or joining,
+   or by writing a value holding a handle anywhere but a local's own slot. *)
 let changes_stat (s : Stat.t) =
   match s with
   | Stat.Spawn _ | Stat.Join _ -> true

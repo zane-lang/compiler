@@ -22,10 +22,11 @@ let binop span : Sst.Nodes.Operator.node -> Expr.binop = function
   | And | Or -> Diagnostic.bug ~span "lowering: a storage primitive has no `and` or `or`"
 
 (* An exit ends the run of a block (docs/spec-divergences.md §6). Semantics
-   rejects one anywhere else, so this is not reached. *)
+   rejects an exit anywhere else, so this case is not reached. *)
 let no_block span = Diagnostic.bug ~span "lowering: an exit ends the block its call is written in, and this is in none"
 
-(* Where nothing leaves: an enum map's entry, which is a constant. *)
+(* The exit for code that nothing leaves: an enum map's entry, which is a
+   constant. *)
 let constant_ctx () =
   let nowhere span = Diagnostic.bug ~span "lowering expected nothing here to leave" in
   {
@@ -49,10 +50,10 @@ let arena st scope =
       scope.arena <- Some a;
       a
 
-(* A block's statements in its arena, when it has one: one it holds
-   something in, or one kept for the fresh owners it moves into callees
-   that may drop them, which Regions decides once every function is
-   lowered. *)
+(* A block's statements in its arena, when the block has one: either an arena
+   the block holds values in, or an arena kept for the fresh owners the block
+   moves into callees that may drop them, which Regions decides once every
+   function is lowered. *)
 let close st scope body =
   match (scope.arena, scope.wants) with
   | None, [] -> body
@@ -72,8 +73,8 @@ let bind_local st scope (l : T.Local.t) id value =
 
 let ptr node = { Expr.node; ty = Nodes.Ty.Ptr }
 
-(* The block of the boxed member whose slot [at] is (adt.md §4), and a block
-   on its way into such a slot: stored as a [Box32] with image boxes
+(* The block of the boxed member whose slot is at [at] (adt.md §4), and a
+   block on its way into such a slot: stored as a [Box32] with image boxes
    (experimental; Type_layout.box_type). *)
 let box_block at =
   match Type_layout.box_type () with
@@ -85,9 +86,9 @@ let boxed_value (block : Expr.t) =
   | Nodes.Ty.Ptr -> block
   | t -> { Expr.node = Expr.Convert block; ty = t }
 
-(* A reference read from a member, element or payload slot, and one on its
-   way into such a slot (Type_layout.ref_slot): [read] is the slot's read,
-   typed as the reference it holds, and [value] the reference. *)
+(* A reference read from a member, element or payload slot, and a reference
+   on its way into such a slot (Type_layout.ref_slot): [read] is the slot's
+   read, typed as the reference it holds, and [value] is the reference. *)
 let loaded_ref ~slot (read : Expr.t) =
   if slot then ptr (Expr.Convert { read with Expr.ty = Nodes.Ty.Ref }) else read
 
@@ -102,7 +103,7 @@ let array_type t n =
 let is_array_lit (e : T.Expr.t) = match e.T.Expr.node with T.Expr.Array_lit _ -> true | _ -> false
 
 (* A value of type [t] leaving the arenas an exit drains: an owner, or a
-   value that owns a block, takes its blocks out of them first. *)
+   value that owns a block, first takes its blocks out of those arenas. *)
 let escape st span t exit (value : Expr.t) =
   if held st span t then
     { value with Expr.node = Expr.Escape { value; layout = layout st span t; exit } }
@@ -117,8 +118,8 @@ let leave label result value =
 let layout_table l = ptr (Expr.Layout l)
 let local_ptr id = ptr (Expr.Local id)
 
-(* A storage primitive's operator. The scalars have the machine's own, and
-   `@primitives$String` joins and compares in the runtime. *)
+(* A storage primitive's operator. The scalars use the machine's own
+   operations, and `@primitives$String` joins and compares in the runtime. *)
 let primitive_op span op t (l : Expr.t) (r : Expr.t) =
   match (l.Expr.ty, op) with
   | Nodes.Ty.Handle, Sst.Nodes.Operator.Add ->
