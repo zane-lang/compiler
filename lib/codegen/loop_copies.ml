@@ -1,4 +1,4 @@
-(* What the CGT says about a loop before it is emitted: whether it is
+(* What the CGT shows about a loop before it is emitted: whether it is
    emitted twice ([versioned]) and whether it is asked to be unrolled twice
    ([unrolled]). [Emit] includes this module. *)
 open Cgt.Nodes
@@ -13,8 +13,8 @@ let library_math = function
   | _ -> false
 
 (* The count from which a [versioned] loop runs its long copy, and how often
-   each copy is said to go round: the long one as a hot loop, the short one
-   too few times for IRCE to expect its split to pay. *)
+   each copy is weighted as going round: the long one as a hot loop, the short
+   one too few times for IRCE to expect its split to pay. *)
 let long_loop = 16
 let long_trips = 1000
 let short_trips = 4

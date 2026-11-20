@@ -458,8 +458,8 @@ let interface_header () =
           check "long is 32 bits on Windows"
             (match table (Some "x86_64-windows-gnu") with Some w -> long_size w = 32 | None -> false))
 
-(* A package's C is compiled for the program's processor, not the one clang
-   defaults to for the target (`penryn` on x86-64 macOS, `apple-m1` on
+(* A package's C is compiled for the program's processor, not the processor
+   clang defaults to for the target (`penryn` on x86-64 macOS, `apple-m1` on
    AArch64 macOS), so its functions lose the processor stamp, and so may be
    inlined into the program's, without being emitted for a processor that
    lacks what they were compiled to use. A function given a processor of

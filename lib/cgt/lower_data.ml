@@ -117,8 +117,9 @@ let text w st ctx span (lit : T.Expr.t) : Expr.t =
             | T.Expr.Interpolation v -> w.borrow st ctx span v
           in
           let parts = List.map part pieces in
-          (* Each join but the last makes a string only the next one reads, so
-             this scope holds it, and its drain returns the bytes. *)
+          (* Each join but the last makes a string that only the next join
+             reads, so this scope holds the string, and the scope's drain
+             returns its bytes. *)
           let held value =
             let id = fresh st and label = fresh st and result = fresh st in
             let body = [ bind st ctx.scope span prim id value; Stat.assign result (handle (Expr.Local id)) ] in
@@ -134,8 +135,9 @@ let text w st ctx span (lit : T.Expr.t) : Expr.t =
   | _ -> Diagnostic.bug ~span "lowering expected a string literal here"
 
 (* A storage primitive's constructor: `Unit` has no storage, a list starts
-   empty, and the others embed their literal. An array's literal is its
-   elements, each a value moved into its place, in the order written. *)
+   empty, and the other primitives embed their literal. An array's literal
+   is its elements, each a value moved into its place, in the order
+   written. *)
 let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   let prefix = "@primitives$" in
   let n = String.length prefix in
@@ -196,8 +198,9 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   | _, [ T.Arg.Value v ] -> literal ctx span name v
   | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling)
 
-(* A struct built member by member, in the order they were written. One of a
-   single member is that member, and an empty one is nothing (L5). *)
+(* A struct built member by member, in the order the members were written. A
+   struct with a single member is that member, and an empty struct is no
+   value (L5). *)
 let record w st ctx span t (fields : T.Field_value.t list) =
   let lowered = ty st span t in
   let value (f : T.Field_value.t) =
@@ -223,9 +226,9 @@ let named_store st ctx v (p : T.Local.t) (e : T.Expr.t) id =
   `Arg (T.Arg.Value { e with T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty = l.T.Local.ty })
 
 (* One entry of a field constructor called out of slot order: the lets that
-   store its value as it runs, and what is passed in its slot. A literal
-   for a constructor expanded where it is called (L11) is passed as it is,
-   with the values interpolated into one captured in its turn. *)
+   store the entry's value as it runs, and the value passed in its slot. A
+   literal for a constructor expanded where it is called (L11) is passed
+   unchanged, with the values interpolated into it captured in its turn. *)
 let store_entry w st ctx span v ~out (slot, (e : T.Expr.t)) =
   let p = List.nth v.params slot in
   match p.T.Local.ty with
@@ -244,7 +247,8 @@ let store_entry w st ctx span v ~out (slot, (e : T.Expr.t)) =
 (* Each value is stored as the constructor takes it, in the order it runs,
    and passed in its slot. A stored value reaches an expanded constructor
    through a local of its own that names the store ([named_store]): an `&T`
-   one's store holds the reference already, not a place to mint one from. *)
+   entry's store already holds the reference, not a place to mint a
+   reference from. *)
 let construct_reordered w st ctx span v given handler ret =
   let in_slots = List.sort (fun (a, _) (b, _) -> compare a b) given in
   let out =

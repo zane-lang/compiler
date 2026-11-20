@@ -1,7 +1,7 @@
 (* Lowering's state (docs/design/lowering.md): the verbs and types a program
    has reached, what a TST local stands for where it is read, and the
-   context a body is lowered in. How lowering refuses what it cannot handle
-   yet is here too, since every part of it can. *)
+   context a body is lowered in. The way lowering refuses a construct it
+   cannot handle yet is here too, since every part of lowering can refuse. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -12,8 +12,9 @@ exception Refused of Diagnostic.t
 
 let refuse span message = raise (Refused (Diagnostic.error span message))
 
-(* A verb to lower: a declaration, or a generic one's instance, which [key]
-   tells apart from its other instances by the arguments it was given.
+(* A verb to lower: a declaration, or an instance of a generic declaration,
+   which [key] distinguishes from its other instances by the arguments it was
+   given.
    [literals] binds parameters the function does not take to the literals a
    spawned call gave them (docs/design/lowering.md §9). *)
 type verb = {
@@ -31,8 +32,8 @@ type verb = {
    expanded into, a literal its concept parameter was given, or the code of a
    block argument. A `mut` subject is a [Pointer]: a slot holding the address
    of the caller's place (L6). A local bound to a spawned call's result is a
-   [Future]: what waits for the call and settles how it ended, and the
-   address of its result, which has none when it is `Unit`. *)
+   [Future]: the code that waits for the call and settles how it ended, and
+   the address of its result, which is absent when the result is `Unit`. *)
 type binding =
   | Slot of int
   | Pointer of int
@@ -41,7 +42,7 @@ type binding =
      write encodes it there. *)
   | Ref_slot of int
   (* Experimental: a pointer to a pooled variant's node, or to a payload
-     inside one, laid out as Type_layout.node_ty says. *)
+     inside a node, laid out as Type_layout.node_ty describes. *)
   | Node of int
   | Literal of T.Expr.t
   | Code of closure
@@ -56,7 +57,7 @@ and ctx = {
   (* Where a `return` goes: out of the function, or out of the expansion
      that is being lowered, storing its result. *)
   exit : exit;
-  (* The verbs being expanded around this point, so one that would expand
+  (* The verbs being expanded around this point, so a verb that would expand
      into itself is refused rather than expanded forever. *)
   expanding : int list;
   (* Whether this point runs in a loop's body, so a small function called
@@ -67,21 +68,22 @@ and ctx = {
   abort : Source.Span.t -> Expr.t -> Stat.t list;
   (* Where a `resolve` goes: past the operation its handler handles. *)
   resolve : (Tty.t -> Expr.t -> Stat.t list) option;
-  (* What ends this invocation with `Unit`: a return from the function, or
-     leaving the expansion (control-flow.md §4.2). *)
+  (* The code that ends this invocation with `Unit`: a return from the
+     function, or leaving the expansion (control-flow.md §4.2). *)
   finish : Source.Span.t -> Stat.t list;
   (* What `@controlflow$exitFromCall` does here: end the invocation that
-     called the verb whose body it is in. *)
+     called the verb whose body the exit is in. *)
   exit_call : Source.Span.t -> Stat.t list;
   (* The block being lowered, which holds its reference-type locals (L8). *)
   scope : scope;
 }
 
-(* A block's arena, made the first time the block holds something, and what
-   settles each call spawned in it that can abort or exit, in case nothing
-   reads it first. [wants] is each callee and `^T` parameter this block
-   moves a fresh owner into: the block keeps an arena for them only if one
-   of those callees can drop what it is given (Regions). *)
+(* A block's arena, made the first time the block holds a value, and the code
+   that settles each call spawned in the block that can abort or exit, in
+   case nothing reads the call first. [wants] is each callee and `^T`
+   parameter this block moves a fresh owner into: the block keeps an arena
+   for them only if one of those callees can drop what it is given
+   (Regions). *)
 and scope = {
   mutable arena : int option;
   mutable settles : (unit -> Stat.t list) list;
@@ -89,8 +91,8 @@ and scope = {
 }
 
 (* [Walked] is inside a function written out because a loop calls it:
-   nothing in it is written out that way again, so each loop writes out
-   one level of the functions it calls. *)
+   nothing in that function is written out that way again, so each loop
+   writes out one level of the functions it calls. *)
 and loop = Outside | Inside | Walked
 
 (* A `return` from an expansion stores into [result], which has the TST type
@@ -98,23 +100,24 @@ and loop = Outside | Inside | Walked
 and exit = Function | Leave of { label : int; result : int option; ret : Tty.t }
 
 (* The callee a want names when the call has no function Regions can see,
-   a function value's or a verb expanded where it is called: no symbol is
-   empty, so Regions finds no parameter of it kept, and the arena stays. *)
+   such as a function value or a verb expanded where it is called: no
+   symbol is empty, so Regions finds none of this callee's parameters kept,
+   and the arena stays. *)
 let dropping = ""
 
 (* A step from an owner down to a value it holds inline: a member, a case's
-   payload or an element. Any two cases are one step, since their payloads
-   share one room, and so are any two elements, whose indices are not
-   known. *)
+   payload or an element. Any two cases count as one step, since their
+   payloads share one room, and so do any two elements, whose indices are
+   not known. *)
 type step = Member of string | Case | Elem
 
-(* A place written back into: its value's type, and where it is, when it is
-   known, as the type of the innermost owner it is reached through and the
+(* A place written back into: its value's type, and its location, when that
+   is known, as the type of the innermost owner it is reached through and the
    steps from there. *)
 type written = { of_type : Tty.t; place : (Tty.t * step list) option }
 
 (* A place the program a library's object is built for writes back into, as
-   that program's build named it (Write_backs): where it is, when known, as
+   that program's build named it (Write_backs): its location, when known, as
    the innermost owner's type spelled out and the steps from there, and the
    written value's type with every type it holds, spelled out too. *)
 type named_written = { owner_place : (string * step list) option; holding : string list }
@@ -135,8 +138,8 @@ type state = {
   mutable named : string list;
   (* Each enum map: the enum it ranges over, and its entries. *)
   maps : (int, Tty.t * (string * T.Expr.t) list) Hashtbl.t;
-  (* Each package constant, by declaration, and those whose making is still
-     to lower. *)
+  (* Each package constant, by declaration, and the constants whose making
+     is still to be lowered. *)
   constants : (int, constant) Hashtbl.t;
   made : int Queue.t;
   (* The program's variables, latest first. *)
@@ -148,15 +151,16 @@ type state = {
   (* Each field constructor's defaults, by entry slot, by verb key. *)
   defaults : (string, (int * T.Expr.t) list) Hashtbl.t;
   (* Each lambda's symbol (docs/design/symbols.md), by its body, which is the
-     one thing that tells two lambdas apart: an instance's body has lambdas
-     of its own. *)
+     only feature that distinguishes two lambdas: an instance's body has
+     lambdas of its own. *)
   mutable lambdas : (T.Block.t * string) list;
-  (* The lambdas whose type C can call, with the C types they cross as
-     (docs/design/ffi.md F11), and [package], the root package's symbol
-     prefix, which names the C entries of lambdas other objects lift too. *)
+  (* The lambdas whose type C can call, with the C types their values are
+     passed as (docs/design/ffi.md F11), and [package], the root package's
+     symbol prefix, which names the C entries of lambdas that other objects
+     lift too. *)
   mutable callbacks : Callback.t list;
   mutable package : string;
-  (* Symbols already lowered or on their way, by verb key, and the verbs
+  (* Symbols already lowered or being lowered, by verb key, and the verbs
      still to lower. *)
   symbols : (string, string) Hashtbl.t;
   pending : verb Queue.t;
@@ -164,9 +168,9 @@ type state = {
      that hold a value type (Func.values). *)
   mutable next : int;
   mutable values : int list;
-  (* What a `return` from the function being lowered returns its value as:
-     itself, or the done case of its outcome (L12), and the verb's return
-     type. *)
+  (* The form in which a `return` from the function being lowered returns
+     its value: the value itself, or the done case of its outcome (L12), and
+     the verb's return type. *)
   mutable returns : Expr.t -> Expr.t;
   mutable ret : Tty.t;
   (* Experimental: the local holding the address of the pool a function
@@ -178,12 +182,12 @@ type state = {
   mutable spawned : Func.t list;
   (* The symbol of the function being lowered, and each arena that is kept
      only if a callee can drop a fresh owner moved into it: by function and
-     arena, the callees and `^T` parameters it is for (Regions). *)
+     arena, the callees and `^T` parameters the arena is for (Regions). *)
   mutable current : string;
   wants : (string * int, (string * int) list) Hashtbl.t;
   (* Whether the build is a library's object, whether a package's verbs are
      exported from it for other objects to link against
-     (docs/design/separate-compilation.md C5), what goes before each
+     (docs/design/separate-compilation.md C5), the prefix before each
      package's name in a symbol, and whether a package is a stamped
      dependency, which arrives as objects of its own (C1, C6). *)
   library : bool;
@@ -194,8 +198,9 @@ type state = {
      one thread. *)
   exclusive : bool;
   (* The places a spawned call may write a value back into, reached through
-     an owner (concurrency.md §4.4), or [None] for a library's, which a
-     program that spawns may write back any value into (Type_layout.snapshots). *)
+     an owner (concurrency.md §4.4), or [None] for a library, into whose
+     places a program that spawns may write back any value
+     (Type_layout.snapshots). *)
   mutable written_back : written list option;
   (* The places written back by the program a library's object is built
      for, when the build was given them (`--program-write-backs`). *)
@@ -223,20 +228,22 @@ type state = {
      Verbs.inlines). *)
   sizes : (string, int option) Hashtbl.t;
   (* Each function's size where a loop's body writes it out, by verb key,
-     or [None] for one a loop calls (L11, Verbs.walks). *)
+     or [None] for a function that a loop calls without writing it out
+     (L11, Verbs.walks). *)
   walks : (string, int option) Hashtbl.t;
   (* Each foreign verb's C function, by verb key, and each thunk the
      functions lowered so far call, latest first (docs/design/ffi.md F8). *)
   foreign_verbs : (string, T.Foreign.t) Hashtbl.t;
   mutable thunks : Foreign.t list;
-  (* Each body's subjects, parameters and binders, which say whether a
-     place overwritten is settled (Tst.States.of_program). *)
+  (* Each body's subjects, parameters and binders, from which lowering
+     determines whether an overwritten place is settled
+     (Tst.States.of_program). *)
   mutable places : Tst.States.t option;
 }
 
-(* The walk over a verb's body, in [Lower], as the rest of lowering reaches
-   it: the modules beside [Lower] are outside its recursion, so each of their
-   functions takes this as its first argument. *)
+(* The walk over a verb's body, in [Lower], in the form the rest of lowering
+   reaches it: the modules beside [Lower] are outside its recursion, so each
+   of their functions takes this record as its first argument. *)
 type walk = {
   expr : state -> ctx -> T.Expr.t -> Expr.t;
   value_of : state -> ctx -> T.Expr.t -> Expr.t;

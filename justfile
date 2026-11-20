@@ -1,4 +1,4 @@
-# Project actions. `just` lists them by group; tests/README.md says what each
+# Project actions. `just` lists them by group; tests/README.md lists what each
 # suite covers. Run in the pixi environment (`pixi shell`, or `pixi run just ...`),
 # which provides the toolchain (README.md, "Setup").
 

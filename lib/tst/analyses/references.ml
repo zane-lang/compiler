@@ -2,34 +2,34 @@
    half of the store rules, an analysis over the finished TST
    (docs/design/semantics.md D1).
 
-   Two rules, each decided by the store it looks at alone, and the rule
-   about overwriting a foreign handle in place (ffi.md §4.3), decided the
-   same way:
+   This file checks two rules, each decided by looking at one store alone,
+   and the rule about overwriting a foreign handle in place (ffi.md §4.3),
+   decided the same way:
 
    - A new reference is minted only from a settled place (memory.md §2.8): a
      settled symbol or package constant, or a path from one -- or from an
      `&T` parameter, or through any reference -- that passes only through
      struct fields and `ArrayRef` elements. A roaming owner may still move, a
-     list's element and a variant's payload come and go, a borrow is the
-     caller's for the call, and a temporary is no place at all. A value that
+     list's element and a variant's payload come and go, a borrow belongs to
+     the caller for the call, and a temporary is no place at all. A value that
      is already a reference is copied, and may come from anywhere. A declared
      subscript is followed to the projection its body ends at (functions.md
      §2.9).
-   - A store never goes through a reference (lifetimes.md §1.1). What lies
-     beyond one belongs to a tree the path's root does not name. A reference
-     parameter, or `this`, may be the root: the call site settles a store
-     through it.
+   - A store never goes through a reference (lifetimes.md §1.1). The storage
+     beyond a reference belongs to a tree that the path's root does not name.
+     A reference parameter, or `this`, may be the root: the call site settles
+     a store through it.
 
-   - An assignment to a settled place, or a borrowed one, which may be its
-     caller's settled owner, writes the replacement where the old value is,
-     so it is an error when what it overwrites holds a foreign handle without
-     a setter, directly or through owning fields.
+   - An assignment to a settled place, or to a borrowed place, which may be
+     the caller's settled owner, writes the replacement where the old value
+     is, so the assignment is an error when the overwritten value holds a
+     foreign handle without a setter, directly or through owning fields.
 
    Every borrow falls out of the first rule and the move rule together
-   (moves.ml): it is no place to mint from and no owner to move, so it is
-   never stored or returned. The scope comparison of lifetimes.md §1.1, and
-   where a parameter comes to rest (§1.11), need more than the store in hand,
-   and are in scopes.ml. *)
+   (moves.ml): a borrow is no place to mint from and no owner to move, so it
+   is never stored or returned. The scope comparison of lifetimes.md §1.1,
+   and where a parameter comes to rest (§1.11), need more than the store at
+   hand, and are checked in scopes.ml. *)
 
 module T = Nodes
 module S = Signature
@@ -56,8 +56,8 @@ let member_type env (t : Ty.t) name =
       | _ -> None)
   | _ -> None
 
-(* A call's parameter types, at the generic arguments it was instantiated
-   with. The subject is left out unless [subject]: a method takes its subject
+(* A call's parameter types, at the generic arguments the callee was
+   instantiated with. The subject is left out unless [subject]: a method takes its subject
    as a borrow, and never mints a reference for it (memory.md §2.9). *)
 let param_types env ?(subject = false) (r : T.Verb_ref.t) =
   match Env.signature_of env r with
@@ -74,16 +74,17 @@ let param_types env ?(subject = false) (r : T.Verb_ref.t) =
 let entry_type env (r : T.Verb_ref.t) (f : T.Field_value.t) =
   List.nth_opt (param_types env r) f.T.Field_value.slot
 
-(* A foreign handle without a setter that a value of [t] holds in place:
-   itself, or one reached through the owning fields of the objects it holds,
-   its arrays' elements, and what a distinct type is. A list's element and a
-   variant's payload are replaced whole, and a reference holds no owner.
+(* A foreign handle without a setter that a value of [t] holds in place: the
+   value itself, or a handle reached through the owning fields of the
+   structs it holds, its arrays' elements, and the type a distinct type
+   wraps. A list's element and a variant's payload are replaced whole, and a
+   reference holds no owner.
 
    Each type is examined once, so a type that holds itself through those
-   edges ends the walk. Only one whose arguments grow at each step, as
-   `N<T>` holding an `N<Box<T>>`, never repeats; no value of it can be
-   made, since each must hold a deeper one, and the walk gives up on it
-   after [budget] types. *)
+   edges ends the walk. Only a type whose arguments grow at each step, as
+   `N<T>` holding an `N<Box<T>>`, never repeats; no value of such a type can
+   be made, since each value must hold a deeper one, and the walk gives up on
+   it after [budget] types. *)
 let unsettable_handle env (t : Ty.t) =
   let seen = Hashtbl.create 16 in
   let budget = ref 100_000 in
@@ -108,9 +109,9 @@ let unsettable_handle env (t : Ty.t) =
   walk t
 
 (* ffi.md §4.3: overwriting a settled place writes the replacement where
-   the old value is, so a foreign handle it holds is replaced through its
-   setter, and one without a setter is never overwritten there. A borrow
-   is the caller's owner, which may be settled. *)
+   the old value is, so a foreign handle that the old value holds is replaced
+   through its setter, and a handle without a setter is never overwritten
+   there. A borrow is the caller's owner, which may be settled. *)
 let overwrite env w (target : T.Expr.t) =
   let refuse place =
     match unsettable_handle env target.T.Expr.ty with
@@ -168,9 +169,9 @@ let store env w (into : Ty.t) (v : T.Expr.t) =
     match v.T.Expr.ty with Ty.Reference _ | Ty.Error | Ty.Param _ -> () | _ -> mint env w v
 
 (* lifetimes.md §1.1: no step of a store's destination goes through a
-   reference, unless it is the root and a parameter. What a reference names
-   is changed by a `mut` call on it (effects.md §4.3), which the message
-   points to. *)
+   reference, unless that reference is the root and a parameter. The object a
+   reference names is changed by a `mut` call on the reference (effects.md
+   §4.3), and the error message points to that. *)
 let rec through env w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } | T.Expr.Case_read { target; _ }
@@ -277,7 +278,7 @@ let rec expr env w (e : T.Expr.t) =
   | T.Expr.Coerce { ctor; value } -> pass env w (param_types env ctor) [ T.Arg.Value value ]
   | T.Expr.Lambda l -> lambda env w e l
 
-(* Arguments against the parameters they bind. *)
+(* Arguments, each checked against the parameter it binds. *)
 and pass env w tys args =
   let rec go tys args =
     match (tys, args) with

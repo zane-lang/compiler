@@ -24,8 +24,8 @@ type Größe = struct {
 Größe.quadrat(seite Int) => init{ höhe = seite; breite = seite; }
 
 /// Multibyte in a parameter name, a method subject, a field access, and a
-/// string literal -- and an ASCII statement after all of them, which is the one
-/// that moves if byte and code-point offsets are confused.
+/// string literal -- and an ASCII statement after all of them, whose span
+/// moves if byte and code-point offsets are confused.
 String beschreiben(größe Größe) {
 	fläche Int = größe.höhe * größe.breite;
 	return "fläche: " + fläche:toString();

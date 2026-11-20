@@ -1,17 +1,17 @@
 (* The input to semantics: every package in the build, each one the files of
    its directory, parsed and desugared.
 
-   Stages 1 and 2 never look past a file, so the binary could hand them one.
-   Stage 3 cannot work that way. A package is "one order-independent
-   compilation unit" made of every file in its directory (packages.md §2.3), a
-   name in one file resolves to a declaration in another, and `Int` is a
+   Stages 1 and 2 never look past a file, so the binary could hand them one
+   file. Stage 3 cannot work that way. A package is "one order-independent
+   compilation unit" made of every file in its directory (packages.md §2.3), an
+   identifier in one file resolves to a declaration in another, and `Int` is a
    declaration in `core`, which is a package like any other. So this is the
    first place files are grouped: by directory, into packages. A package's name
    is the `name` its manifest gives it (§2.1), which the driver passes along;
    when it passes none, the directory's basename stands in, which is how the
    test fixtures name their packages. See docs/design/semantics.md §2.
 
-   Where the directories come from is the driver's business. Fetching and the
+   The driver decides where the directories come from. Fetching and the
    manifest (dependencies.md) are not modelled; a build is the list of
    directories it was given, and the first of them is the root (packages.md
    §6.1). A package given a stamp is one version of a published package
@@ -23,42 +23,44 @@ module Span = Source.Span
 
 type file = {
   path : string;
-  (* Kept for rendering a diagnostic against it later: [Diagnostic.render]
-     needs the text a span points into. *)
+  (* Kept for rendering a diagnostic against this file later:
+     [Diagnostic.render] needs the text a span points into. *)
   source : string;
   sst : Sst.Nodes.Package.t;
 }
 
 type package = {
-  (* What the package is called in the build: its name, after its stamp when
-     it has one. Unique within a build, and what its symbols are named by. *)
+  (* The package's identity in the build: its name, after its stamp when it
+     has one. The identity is unique within a build, and the package's
+     symbols are named by it. *)
   id : string;
-  (* The name its manifest gives it, which its files declare. *)
+  (* The name the package's manifest gives it, which its files declare. *)
   name : string;
   dir : string;
   is_root : bool;
   files : file list;
-  (* The packages its imports name, each by the key the package imports it
-     by and the package's [id], when the driver says. *)
+  (* The packages that this package's imports name, each as the import key
+     and the imported package's [id], when the driver gives them. *)
   imports : (string * string) list;
-  (* Whether the driver gave the build's imports at all. Then a package
-     imports through its keys alone, and one given none imports nothing;
-     otherwise an import names a package by its name. *)
+  (* Whether the driver gave the build's imports at all. If it did, a package
+     imports through its keys alone, and a package given no keys imports
+     nothing; otherwise an import names a package by its name. *)
   keyed : bool;
 }
 
-(* What went wrong, with the text of the file it points into when there is
-   one: a package that failed to load is no package, so its files' text
-   travels with the problem for the caret to be drawn under. *)
+(* A problem, with the text of the file it points into when there is such a
+   file: a package that failed to load is not part of the build, so its
+   files' text travels with the problem for the caret to be drawn under. *)
 type problem = Diagnostic.t * Source.Files.t
 
-(* Every problem a build ran into, and the text they point into. *)
+(* Every problem a build ran into, and the text the problems point into. *)
 type failure = { diagnostics : Diagnostic.t list; sources : Source.Files.t }
 
 let in_directory dir message = (Diagnostic.in_directory dir message, [])
 
-(* What the file system said, without the path it starts with: [Sys_error]
-   messages read "PATH: reason", and a problem already names its path. *)
+(* The file system's error message, without the path it starts with:
+   [Sys_error] messages read "PATH: reason", and a problem already names its
+   path. *)
 let reason ~path message =
   let prefix = path ^ ": " in
   if String.starts_with ~prefix message then
@@ -78,8 +80,8 @@ let file_start path =
 
 (* The files that make up the package: those "directly in" its directory
    (§2.3), so a subdirectory is some other package and not part of this one.
-   Sorted because the order the file system lists them in is not something a
-   golden file should depend on -- and file order is "semantically irrelevant"
+   Sorted because a golden file should not depend on the order the file
+   system lists them in -- and file order is "semantically irrelevant"
    anyway, so no order is more correct than another. *)
 let source_files dir =
   (* An entry that cannot be examined, such as a dangling link, is kept as a
@@ -93,8 +95,8 @@ let source_files dir =
   |> List.sort String.compare
   |> List.map (Source.Files.in_directory dir)
 
-(* Whatever succeeded, if everything did; otherwise every problem, from every
-   part that failed. One pass over the results, splitting as it goes. *)
+(* Every result, if every part succeeded; otherwise every problem, from every
+   part that failed. One pass over the results splits them as it goes. *)
 let all_or_problems results =
   match
     List.partition_map
@@ -213,15 +215,17 @@ let package_name dir =
   match components with [] -> "" | last :: _ -> last
 
 (* A package the build asks for: its directory, its path within its
-   project's `lib/` if the driver passed one, and its stamp, if it is a
-   version of a published package. *)
+   project's `lib/` if the driver passed one, and its stamp, if the package
+   is a version of a published package. *)
 type request = { manifest_name : string option; directory : string; stamp : string option }
 
-(* Its path: `gui.opengl` for a subpackage (dependencies.md §6.1). *)
+(* The package's path: `gui.opengl` for a subpackage (dependencies.md
+   §6.1). *)
 let path_of request =
   match request.manifest_name with Some path -> path | None -> package_name request.directory
 
-(* The name its files declare: the last part of its path (packages.md §2.2). *)
+(* The name the package's files declare: the last part of its path
+   (packages.md §2.2). *)
 let name_of request =
   let path = path_of request in
   match String.rindex_opt path '.' with
@@ -252,11 +256,11 @@ let load_package ~is_root request =
         |> all_or_problems
         |> Result.map (fun files -> { id; name; dir; is_root; files; imports = []; keyed = false })
 
-(* An identity names one package. Two directories with the same one would
-   both be that package, and which of them a `name$member` meant would depend
-   on nothing the source says. Two versions of one package have two stamps,
-   and so two identities. The first directory keeps the identity; each later
-   one is reported and not loaded. *)
+(* An identity names one package. Two directories with the same identity
+   would both be that package, and nothing in the source would determine
+   which of them a `name$member` meant. Two versions of one package have two
+   stamps, and so two identities. The first directory keeps the identity;
+   each later directory with that identity is reported and not loaded. *)
 let claimed_by earlier request =
   let id = id_of request in
   List.find_opt (fun other -> String.equal (id_of other) id) earlier
@@ -306,7 +310,7 @@ let attach_imports packages imports =
    that started it. [imports] gives each package's keys, as the importing
    package's identity, the key and the imported package's identity. The
    first package is the root unless [root] is false, as in a library build,
-   which has none (packages.md §6.1). *)
+   which has no root (packages.md §6.1). *)
 let assemble_requests ?(root = true) ?(imports = []) requests =
   let rec go earlier index = function
     | [] -> []
@@ -323,8 +327,9 @@ let assemble_requests ?(root = true) ?(imports = []) requests =
                 ]
           | None -> load_package ~is_root:(root && index = 0) request
         in
-        (* Only a directory that got the name claims it, so a third
-           duplicate is reported against the first, not the second. *)
+        (* Only a directory that got the identity claims it, so a third
+           duplicate is reported against the first directory, not the
+           second. *)
         let earlier = if claimant = None then request :: earlier else earlier in
         loaded :: go earlier (index + 1) rest
   in

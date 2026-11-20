@@ -1,11 +1,13 @@
-(* The directory builds keep what they compiled in, and how a file gets
-   there: the runtime and links codegen keeps (docs/design/lowering.md §7),
-   and the C front end's include directories, headers and modules
-   (docs/design/ffi.md F1, F3). A cache is an optimization, so every write
-   here may fail and leave the build to compile again. *)
+(* The directory where builds keep compiled files, and how a file is
+   written there. Codegen keeps the runtime and links there
+   (docs/design/lowering.md §7), and the C front end keeps include
+   directories, headers and modules (docs/design/ffi.md F1, F3). The cache
+   is an optimization, so every write here may fail, and the build then
+   compiles the file again. *)
 
-(* Where what a build compiles is kept between builds: `ZANE_CACHE_DIR` if set,
-   else the platform's cache directory, or nowhere when it has none. *)
+(* The directory that keeps compiled files between builds: `ZANE_CACHE_DIR` if
+   set, else the platform's cache directory, or [None] when the platform has
+   none. *)
 let dir () =
   let set name = match Sys.getenv_opt name with Some "" | None -> None | Some dir -> Some dir in
   match set "ZANE_CACHE_DIR" with
@@ -18,8 +20,8 @@ let dir () =
         | Some base when not (Filename.is_relative base) -> zane base
         | _ -> Option.bind (set "HOME") (fun home -> zane (Filename.concat home ".cache")))
 
-(* A root that does not exist, as a drive not mounted, is its own parent:
-   the mkdir below fails there rather than climbing forever. *)
+(* A root directory that does not exist, such as an unmounted drive, is its own
+   parent, so the mkdir below fails there instead of climbing forever. *)
 let rec make_dirs dir =
   if not (Sys.file_exists dir) then begin
     let parent = Filename.dirname dir in
@@ -27,10 +29,10 @@ let rec make_dirs dir =
     try Sys.mkdir dir 0o755 with Sys_error _ when Sys.file_exists dir -> ()
   end
 
-(* [object_] copied into the cache as [kept], through a temporary beside it
-   renamed into place, so a build reading the cache never sees half an
-   object. Keeping it is an optimization: any failure leaves the cache as it
-   was and the build goes on. *)
+(* Copies [object_] into the cache as [kept]. The copy is written to a temporary
+   file beside [kept] and renamed into place, so a build reading the cache never
+   sees half an object. The cache is an optimization: any failure leaves the
+   cache unchanged and the build goes on. *)
 let keep ~random ~object_ ~kept =
   let temporary =
     Filename.concat (Filename.dirname kept)
@@ -44,12 +46,12 @@ let keep ~random ~object_ ~kept =
     Sys.rename temporary kept
   with Sys_error _ -> ( try Sys.remove temporary with Sys_error _ -> ())
 
-(* The file *cc* runs: itself when it names a directory, else the first file
-   of its name in a directory on the path that the shell would run, an empty
-   entry being the current directory; [None] when there is none. On Windows,
-   where the command's search also tries the current directory and each of
-   `PATHEXT`'s extensions, it is [None], and the compiler is asked every
-   time. *)
+(* The executable that the command *cc* runs. When *cc* contains a directory,
+   it is *cc* itself. Otherwise it is the first executable file named *cc* in a
+   directory on `PATH`, where an empty entry is the current directory, and
+   [None] when no directory has one. On Windows the command search also tries
+   the current directory and each extension in `PATHEXT`, so this function
+   returns [None] there, and the compiler's version is asked every time. *)
 let located cc =
   if Sys.win32 then None
   else if Filename.basename cc <> cc then Some cc
@@ -67,12 +69,12 @@ let located cc =
         else None)
       dirs
 
-(* What *cc* says it is, written to a file in [dir]; [None] when it will not
-   say, and then nothing it compiles is kept. Asking costs a run of the C
-   compiler, about as long as the rest of a small unoptimized build, so the
-   answer is kept in [cache] under the file *cc* runs, its size, the time it
-   was last changed and where it is on disk, and asked again only when one
-   of those changes. *)
+(* The version string that *cc* reports, written to a file in [dir], or [None]
+   when *cc* reports none; then nothing *cc* compiles is kept. Asking costs a
+   run of the C compiler, about as long as the rest of a small unoptimized
+   build, so the answer is kept in [cache]. Its key is the executable *cc* runs,
+   with that file's size, modification time, inode and device, and the compiler
+   is asked again only when one of those changes. *)
 let identity ~cache cc dir =
   let file = Filename.concat dir "cc-version" in
   let read path = try Some (In_channel.with_open_bin path In_channel.input_all) with Sys_error _ -> None in
@@ -103,7 +105,8 @@ let identity ~cache cc dir =
           if Option.is_some answer then keep ~random:(Random.State.make_self_init ()) ~object_:file ~kept;
           answer)
 
-(* [text] kept as [kept], written through a file of [dir]'s first. *)
+(* Keeps [text] in the cache as [kept], by first writing it to a file in
+   [dir]. *)
 let keep_string ~dir ~kept text =
   let random = Random.State.make_self_init () in
   let file = Filename.concat dir (Printf.sprintf "kept-%08x" (Random.State.bits random)) in
@@ -115,5 +118,5 @@ let keep_string ~dir ~kept text =
     Sys.remove file
   with Sys_error _ -> ( try Sys.remove file with Sys_error _ -> ())
 
-(* What [path] holds, or [None] when it cannot be read. *)
+(* The contents of [path], or [None] when it cannot be read. *)
 let read path = try Some (In_channel.with_open_bin path In_channel.input_all) with Sys_error _ -> None

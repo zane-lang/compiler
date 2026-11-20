@@ -702,7 +702,7 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
 let reporting () = Sys.getenv_opt "ZANE_INTERLEAVE_REPORT" = Some "1"
 
 (* The interleaved form of the loop [Repeat { count; body }] in [f], when
-   it qualifies. ZANE_INTERLEAVE_REPORT=1 says which loops holding a walk
+   it qualifies. ZANE_INTERLEAVE_REPORT=1 reports which loops holding a walk
    were interleaved and, for the rest, which check refused them. *)
 let attempt (f : Func.t) ~fresh count body =
   match (Loop_shapes.counter (Loop_shapes.facts body) body, List.rev body) with

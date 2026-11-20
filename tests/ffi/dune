@@ -1,5 +1,5 @@
 ; The C interface (docs/design/ffi.md): packages holding C code, built as
-; `zanec` builds them. README.md says what each fixture is for.
+; `zanec` builds them. README.md lists what each fixture is for.
 
 ; The rules themselves are written from the golden files by
 ; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules

@@ -1,5 +1,5 @@
-(* Lowering's lambdas (docs/design/lowering.md): each is lifted out as a
-   function of its own, which [Program] lowers like any verb. *)
+(* Lowering's lambdas (docs/design/lowering.md): each lambda is lifted out as
+   a function of its own, which [Program] lowers like any verb. *)
 
 module T = Tst.Nodes
 module Tty = Tst.Ty
@@ -8,8 +8,8 @@ open Verbs
 
 (* L14. A lambda captures nothing (functions.md §7.4), so it is lifted out
    as a function of its own, once, and its value is that function's address.
-   A call through it ends only the ways its type says, which is why a
-   lambda's body may not exit (control-flow.md §4.2). *)
+   A call through the lambda ends only in the ways its type allows, which is
+   why a lambda's body may not exit (control-flow.md §4.2). *)
 let lambda st span t (l : T.Lambda.t) =
   match (List.assq_opt l.T.Lambda.body st.lambdas, t) with
   | None, _ -> Diagnostic.bug ~span "lowering: a lambda it gave no name"

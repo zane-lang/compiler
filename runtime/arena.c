@@ -82,8 +82,8 @@ static void zane_ids_add(char *at, size_t bytes) {
 	for (size_t off = 0; off < bytes; off += ZANE_CHUNK) {
 		size_t id = zane_ids_freed ? zane_ids_free[--zane_ids_freed] : zane_ids_next++;
 		if (id >= ZANE_MIB_IDS) zane_broken("out of numbers for MiBs");
-		/* The table covers 128 TiB, all a mapping made without a hint
-		   above it is given. */
+		/* The table covers 128 TiB, all the addresses the system gives
+		   a mapping made without a hint. */
 		if (((uintptr_t)(at + off) >> 20) >= ((size_t)1 << 27)) zane_broken("a chunk past 128 TiB");
 		zane_mib_bases[id] = at + off;
 		zane_mib_ids[(uintptr_t)(at + off) >> 20] = (uint16_t)id;
@@ -213,7 +213,8 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
    else, such as a value on the machine stack, is the innermost scope's
    here. Most slots asked about are the innermost scope's own, so the
    search tries that one first. Only this thread searches its context's
-   scopes, which a checked drain's run stops the program on otherwise.
+   scopes; when drains are checked, a search from another thread stops the
+   program.
 
    It keeps no pointer to `at`: a list's push looks its handle up here, and
    LLVM is told the push keeps none (lib/codegen/runtime_facts.ml). */
@@ -394,8 +395,8 @@ static void zane_span_drop(zane_context *c, zane_mapping **at) {
 }
 
 /* Every reservation a context keeps, given back: when it goes idle, and
-   when the system will not reserve addresses for a new one, which the
-   kept ones may be what uses them up. */
+   when the system will not reserve addresses for a new one, since the
+   kept ones may be what uses up the addresses. */
 static void zane_spans_give_back(zane_context *c) {
 	while (c->spans) zane_span_drop(c, &c->spans);
 }

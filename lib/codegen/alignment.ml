@@ -1,15 +1,15 @@
 (* Each read and write is as aligned as its address is known to be.
 
    A packed value may begin at any byte (Nodes.Ty.tight, lowering.md L5),
-   so the alignment of the type read or written says nothing about the
-   address: a member of a struct may sit at an odd offset inside a packed
+   so the alignment of the type read or written gives no bound on the
+   address's: a member of a struct may sit at an odd offset inside a packed
    one. Every non-atomic load and store therefore takes the smaller of its
    type's alignment and what its address is known to be:
 
    - a stack slot or a global is at its own alignment;
    - a getelementptr keeps its base's alignment as far as its constant
      offset and each varying index's stride divide it;
-   - a pointer loaded from memory is as aligned as its `!align` says
+   - a pointer loaded from memory is as aligned as its `!align` gives
      (List_handle.aligned), and a parameter as its `align` attribute;
    - a runtime call's result as the runtime places it: a frame on 16
      bytes, a block on its alignment and at least 8 (runtime/arena.c),

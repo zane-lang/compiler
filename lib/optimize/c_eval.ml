@@ -1,10 +1,11 @@
 (* C run at compile time, by interpreting the LLVM IR of the package's C
    module before LLVM has optimized it, with the target's data layout
    (docs/design/ffi.md F16). It is a second evaluator beside [Eval], for a
-   second language: memory is bytes ([C_memory]), instructions mean what
-   LLVM says ([C_ops]), and a call to a function the module only declares
-   runs when it is one of the C library's exact ones ([C_library]) or
-   another evaluator's: a function value's adapter, which [Eval] runs.
+   second language: memory is bytes ([C_memory]), each instruction
+   computes what LLVM defines it to ([C_ops]), and a call to a function
+   the module only declares runs when that function is one of the C
+   library functions modelled exactly ([C_library]) or a function the
+   other evaluator runs: a function value's adapter, which [Eval] runs.
 
    Undefined behavior stops the run, and so do a `volatile` or atomic
    access, a fast-math flag, and anything whose result would depend on
@@ -16,7 +17,7 @@ open C_memory
 
 (* What a run spends and what it hands back to the Zane side: [spend]
    charges the fold's budget (F19), and [declared] runs a function the
-   module only declares that the other evaluator owns, when it is one. *)
+   module only declares, when the other evaluator owns that function. *)
 type hooks = { spend : int -> unit; declared : string -> value list -> value option }
 
 (* One fold's C: the module, each global's address once it is made, and
@@ -34,8 +35,8 @@ let max_depth = 2_000
 
 let spend t n = t.hooks.spend n
 
-(* A weak declaration's address is null where nothing defines it, which
-   the program's link decides. *)
+(* A weak declaration's address is null where nothing defines it, and
+   only the program's link shows whether something does. *)
 let weak name = stop ("the address of `" ^ name ^ "`, a weak declaration")
 
 let function_address t name =
@@ -44,8 +45,8 @@ let function_address t name =
     match Hashtbl.find_opt t.functions name with
     | Some a -> a
     | None ->
-        (* A copy's definition is another object's, which may be a second
-           name's too. *)
+        (* An `available_externally` copy's definition belongs to another
+           object, where that definition may also have a second name. *)
         let defined =
           match C_ir.fn t.ir name with Some (C_ir.Body _) -> not (C_ir.copied t.ir name) | _ -> false
         in
@@ -105,9 +106,10 @@ let rec const t (c : C_ir.const) =
   | C_ir.Cother -> stop "a constant the evaluator does not model"
 
 (* A global's address: a variable the module defines is an allocation made
-   from its initializer the first time it is named, a constant one
-   read-only; a function's is its own; one defined elsewhere has an
-   address and nothing to read. *)
+   from its initializer the first time it is named, read-only for a
+   constant variable; a function's address is an allocation of the
+   function's own; a global defined elsewhere has an address and nothing
+   to read. *)
 and global t name =
   match Hashtbl.find_opt t.globals name with
   | Some v -> v
@@ -353,8 +355,9 @@ let rec has_poison = function Poison -> true | Vec a | Agg a -> Array.exists has
 let is_float_op = function "fadd" | "fsub" | "fmul" | "fdiv" | "frem" -> true | _ -> false
 
 (* Whether [ty] holds an integer wider than the evaluator's 64 bits. Every
-   value is a constant, which has none, or an instruction's, so refusing
-   each such instruction keeps them all out. *)
+   value is a constant, and no constant the evaluator reads is that wide,
+   or an instruction's result, so refusing each such instruction keeps
+   every wider integer out. *)
 let rec wide (ty : C_ir.ty) =
   match ty with
   | C_ir.Int n -> n > 64
@@ -515,7 +518,8 @@ and exec t frame regs (i : C_ir.instr) =
         match value o with
         | Int (_, x) ->
             (* A product that wraps would move the address by less than
-               it asks, so it stops, as a move no allocation spans does. *)
+               the product, so the fold stops, as it does for a move
+               larger than any allocation. *)
             let x = C_ops.sext bits x in
             let p = Int64.mul x scale in
             if scale <> 0L && Int64.div p scale <> x then stop "an address moved further than any allocation spans";
@@ -540,9 +544,9 @@ and exec t frame regs (i : C_ir.instr) =
          `dead_on_return` argument is the same copy, which the caller made
          itself, as an ABI that passes a large aggregate by address does
          (AArch64's), where the front end marks it so (clang 21 does not):
-         what it names, to its allocation's end, is copied, so the callee's
-         parameter ends with the call and the caller's temporary stays its
-         own. *)
+         the bytes from the argument's address to its allocation's end are
+         copied, so the callee's parameter ends with the call and the
+         caller's temporary stays the caller's. *)
       let copies = ref [] in
       let pass (byval, o) =
         let v = value o in

@@ -1,8 +1,8 @@
 # Contributing
 
 How changes to the compiler are written and what has to change with them.
-[`docs/README.md`](docs/README.md) says where each part of the compiler is
-designed; the [`justfile`](justfile) has the recipes that build and test it.
+[`docs/README.md`](docs/README.md) lists the design document for each part of the compiler;
+the [`justfile`](justfile) has the recipes that build and test it.
 
 ## Writing code
 
@@ -90,8 +90,8 @@ a rule to meet: a file that holds one thing and has no such seam stays past
 ### Match the code around it
 
 Follow the naming, comment density and idiom of the module you are editing.
-Comments say what a piece of code is and why it is that way, in present
-tense; the history of how it got there belongs in the commit message.
+Comments describe what a piece of code does and why it is written that way,
+in present tense; the history of how it got there belongs in the commit message.
 
 ## What changes with the code
 

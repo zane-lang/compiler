@@ -1,15 +1,15 @@
 (* The C runtime's functions that emitted code calls (docs/design/lowering.md
-   L17), as runtime/zane.h declares them. A call names one by this variant,
-   so a misspelled function is a compile error, and the unit tests check
+   L17), as runtime/zane.h declares them. A call names a runtime function by
+   this variant, so a misspelled function is a compile error, and the unit tests check
    every [signature] against the prototype in zane.h, so the two
    declarations cannot drift apart. [Region_at] to [Defer_return], and
    [Handle_end] and [Handle_set], are called only by the walks codegen
    emits for each type (lib/codegen/walks.ml). [Callback_attach] and
    [Callback_detach] are called only by a lambda's adapter, on a thread
-   without a context (docs/design/ffi.md F11). A removal says
-   whether the list's elements are scalars only, no handle among their bytes
-   (Ty.holds_handle): codegen makes it in line, and its tag for the
-   elements it moves depends on that (Emit.remove). *)
+   without a context (docs/design/ffi.md F11). A removal records
+   whether the list's elements are scalars only, with no handle among their
+   bytes (Ty.holds_handle): codegen makes the removal in line, and its tag for
+   the elements it moves depends on that flag (Emit.remove). *)
 
 type fn =
   | Print
@@ -62,7 +62,8 @@ type fn =
   | Main_aborted
   (* Experimental (docs/design/interleaving.md): a hint that the element at
      an index of a list will be read soon, made only when the index is
-     inside it. Emit makes it in line; there is no runtime function. *)
+     inside the list. Emit makes the hint in line; there is no runtime
+     function. *)
   | Prefetch
   | Scope_drain
   | Spawn
@@ -84,8 +85,9 @@ type fn =
   | Region_at
   | Alloc
   | Alloc_held
-  (* A moved list's or string's block past a chunk, its growable span
-     handed over to the new region where it has one (runtime/arena.c). *)
+  (* A moved list's or string's block past a chunk, with its growable span
+     handed over to the new region when the block has one
+     (runtime/arena.c). *)
   | Relocate
   (* A box's payload (runtime/arena.c, `zane_box_held`), held and checked. *)
   | Box_held
@@ -282,9 +284,9 @@ let signature = function
   | Island -> (Void, [ Ptr; I64; Ptr; I64 ])
 
 (* The size of the range each context reserves for its frames, the main
-   context's and each spawned call's, when the root manifest gives none
-   (memory.md §3.1, dependencies.md §2.1). Lowering refuses a type no main
-   context's range could hold, and codegen writes both sizes into the
+   context's and each spawned call's, when the root manifest gives no size
+   (memory.md §3.1, dependencies.md §2.1). Lowering refuses a type that the
+   main context's range could not hold, and codegen writes both sizes into the
    program for the runtime to read. *)
 let default_fixed_region = 256 lsl 20
 let default_spawned_fixed_region = 8 lsl 20

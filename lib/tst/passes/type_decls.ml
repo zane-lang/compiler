@@ -1,7 +1,7 @@
 (* Resolving type expressions, and pass 3 (docs/design/semantics.md §3): every `type`
    and `alias` right-hand side resolved to a [Ty.t].
 
-   The resolver is shared by the later passes too. Its scope says which names
+   The resolver is shared by the later passes too. Its scope lists which identifiers
    are parameters: a type's header, a verb signature's inline introductions
    (generics.md §3.2), or -- inside a body checked for one instantiation --
    the concrete arguments those parameters stand for (D12). *)
@@ -11,8 +11,9 @@ module N = Sst.Nodes
 
 type scope = {
   file : Env.file;
-  (* A parameter name and what it resolves to: [Ty.Type (Param p)] while a
-     signature is being resolved, the argument itself inside an instance. *)
+  (* A parameter's identifier and the type it resolves to: [Ty.Type (Param
+     p)] while a signature is being resolved, and the argument itself inside
+     an instance. *)
   params : (string * Ty.arg) list;
   (* A verb signature, where a `T Type` inside `< >` introduces a parameter
      rather than being a mistake. The introductions were found before any type
@@ -22,7 +23,7 @@ type scope = {
 
 let scope ?(params = []) ?(signature = false) file = { file; params; signature }
 
-(* How a type name was written, for a message about it. *)
+(* How a type name was written, for a message about the type. *)
 let name_type_text (n : N.Name_type.t) =
   match n.N.Name_type.node with
   | N.Name_type.Ident i -> i.N.Name.text
@@ -80,7 +81,7 @@ let rec concept_in (t : Ty.t) =
 let mentions_concept t = Option.is_some (concept_in t)
 
 (* How a message names the concept a type holds: the type itself, or the
-   type argument that is one. *)
+   type argument that is a concept. *)
 let describe_concept (t : Ty.t) =
   match concept_in t with
   | Some c when c == t || Ty.equal c t -> Printf.sprintf "%s is a concept type" (quote (Ty.to_string t))
@@ -88,7 +89,7 @@ let describe_concept (t : Ty.t) =
       Printf.sprintf "%s holds %s, a concept type" (quote (Ty.to_string t)) (quote (Ty.to_string c))
   | None -> quote (Ty.to_string t)
 
-(* [roaming] says whether the storage may be a roaming owner: a local may,
+(* [roaming] is true when the storage may be a roaming owner: a local may,
    and a field, a constant or a type's definition may not (syntax.md §2.3). *)
 let check_storage env ?(roaming = false) span what (t : Ty.t) =
   if mentions_concept t then
@@ -103,9 +104,9 @@ let check_storage env ?(roaming = false) span what (t : Ty.t) =
          (quote (Ty.to_string t)) what)
 
 (* `&` and `^` mark only a reference type (memory.md §2.1, §2.4). A type
-   parameter may be either kind, and is checked where it is filled. Kinds
-   are known only once every type is defined, so a marker met before then
-   is checked afterwards. *)
+   parameter may be a reference type or a value type, and is checked where
+   it is filled. Kinds are known only once every type is defined, so a
+   marker found before then is checked afterwards. *)
 let check_marker env span (marked : Ty.t) =
   match Types.deferred env.types with
   | Some deferred -> Queue.push (marked, span) deferred.marks
@@ -127,7 +128,7 @@ let check_marker env span (marked : Ty.t) =
       | _ -> ())
 
 (* A reference-typed result is a roaming owner or a reference, written `^T`
-   or `&T`: a bare one would hand back a borrow, which is never returned
+   or `&T`: a bare reference type would hand back a borrow, which is never returned
    (memory.md §2.9, syntax.md §3.1). An abort hands its value to the
    caller's handler as a return hands it to the caller (lifetimes.md §1.7),
    so an abort type follows the same rule. *)
@@ -163,23 +164,23 @@ let rec check_function_types env span (t : Ty.t) =
    builds: the fields of each mould it applies, with the arguments
    substituted, down through the moulds those fields apply in turn, and an
    `@primitives$Array`'s elements. It does not look inside the arguments
-   themselves, which were checked where they were written. What it finds is
-   the slot that rejects the type, as the path that reaches it, and the
-   type. *)
+   themselves, which were checked where they were written. The walk returns
+   the slot that rejects the type, as the path that reaches the slot, and
+   the rejected type. *)
 type slot = Value_slot | Under_reference | Under_take | List_element | Bare_result
 
 type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 
-(* A value type for `&`: what `&` cannot mark (memory.md §2.4). *)
+(* A value type under `&`, which `&` cannot mark (memory.md §2.4). *)
 let is_value env (t : Ty.t) =
   match t with
   | Ty.Param _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
   | t -> not (is_reference env t)
 
 (* The value types [inst] puts where [raw] writes `&` over a type parameter,
-   and the `&` types it puts where [raw] writes `^` over one, each with the
-   slot that rejects it. An `&` or `^` written over a concrete type was
-   checked where it was written. *)
+   and the `&` types it puts where [raw] writes `^` over a type parameter,
+   each with the slot that rejects it. An `&` or `^` written over a concrete
+   type was checked where it was written. *)
 let rec filled_references env (raw : Ty.t) (inst : Ty.t) =
   match (raw, inst) with
   | Ty.Reference (Ty.Param _), Ty.Reference x -> if is_value env x then [ (x, Under_reference) ] else []
@@ -206,7 +207,7 @@ and verb_parts (v : Ty.verb) =
 
 (* A function type's parts keep their passing modes: a borrow, a take and a
    reference are passed differently, so a function is used only at the
-   modes it was written with. The one latitude is `^` over a type
+   modes it was written with. The only exception is `^` over a type
    parameter filled with a value type, which is a plain value (memory.md
    §2.9). [expected] is a parameter's type with its arguments filled in;
    [actual] is the argument's. *)
@@ -271,7 +272,8 @@ let holds_reference env (ft : Ty.t) =
   | Ty.Param _ | Ty.Error | Ty.Roaming _ -> false
   | ft -> is_reference env ft
 
-(* A wrong kind found inside a part of a type, reached through [step]. *)
+(* A type argument of the wrong kind found inside a part of a type, reached
+   through [step]. *)
 let through step = Option.map (fun found -> { found with path = step :: found.path })
 
 let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
@@ -298,8 +300,8 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       through (elements ()) (wrong_kind env ~seen (Ty.strip_mode e))
   | _ -> None
 
-(* The first wrong kind field [n] of [t] holds, in the field itself or
-   inside its type. *)
+(* The first type argument of the wrong kind that field [n] of [t] holds,
+   in the field itself or inside its type. *)
 and wrong_kind_in_field env ~seen t (info : type_info) args (n, raw) =
   let step = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
   let ft = Ty.instantiate info.params args raw in
@@ -364,7 +366,7 @@ let report_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
       in
       error env at (describe_wrong_kind found)
 
-(* Kinds are known only once every type is defined, so a type met before
+(* Kinds are known only once every type is defined, so a type found before
    then is checked afterwards. *)
 let check_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
   match Types.deferred env.types with
@@ -375,12 +377,13 @@ let check_kinds env span (t : Ty.t) (args : (Ty.arg * Span.t) list) =
 (* Resolution                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* What a type name refers to before any arguments are applied. *)
+(* The declaration or parameter a type name refers to, before any arguments
+   are applied. *)
 type head =
   | Declared of decl
   | Intrinsic_type of Intrinsics.type_info
   | Concept_type of string
-  (* A parameter, or what a parameter stands for inside an instance. *)
+  (* A parameter, or the type a parameter stands for inside an instance. *)
   | Bound of Ty.arg
   | Unknown
 
@@ -457,7 +460,7 @@ let roaming env scope span (inner : N.Type_expr.t) (t : Ty.t) : Ty.t =
     marked
   end
 
-(* [param] is set on a value parameter's own type, the one place a marked
+(* [param] is set on a value parameter's own type, the only place a marked
    introduction may stand inside type arguments: as its `@concepts$Array`'s
    element (generics.md §8.4). *)
 let rec resolve ?(param = false) env scope (te : N.Type_expr.t) : Ty.t =
@@ -476,8 +479,8 @@ and generic_arg ?(element = false) env scope (a : N.Generic_arg.t) : Ty.arg =
   match a.N.Generic_arg.node with
   | N.Generic_arg.Type t ->
       let t = resolve env scope t in
-      (* A type argument is what a type holds, and a type's members are
-         never roaming owners (syntax.md §2.3). *)
+      (* A type argument is a type that the type holds, and a type's members
+         are never roaming owners (syntax.md §2.3). *)
       if Ty.is_roaming t then
         error env span
           (Printf.sprintf
@@ -664,7 +667,7 @@ and param_type env scope (p : N.Param_type.t) : Ty.t =
   | N.Param_type.Concrete t -> resolve ~param:true env scope t
   | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } -> Ty.Concept Ty.Type_value
   (* Only a type's header entry is written this way, and the grammar builds
-     one nowhere else. *)
+     such an entry nowhere else. *)
   | N.Param_type.Concept { N.Concept.node = N.Concept.Named _; _ } -> Ty.Error
   | N.Param_type.InferredType { name; marker; _ } -> (
       if not scope.signature then begin
@@ -783,8 +786,8 @@ let register env (tables : types) =
                   in
                   Hashtbl.replace tables.type_infos d.id info;
                   (* A type declared twice is reported where it is collected;
-                     its id keeps naming the first declaration, the one name
-                     lookup finds. *)
+                     its id keeps naming the first declaration, which is
+                     the declaration name lookup finds. *)
                   if not (Hashtbl.mem tables.type_infos_by_id info.tid) then
                     Hashtbl.replace tables.type_infos_by_id info.tid info)
           | _ -> ())
@@ -821,16 +824,16 @@ let enum_members env names =
   in
   List.filter_map member names
 
-(* A C identifier, as a symbol or a type name an interface header declares
-   is spelled. *)
+(* A C identifier, spelled as a symbol or a type name that an interface
+   header declares. *)
 let is_c_identifier s =
   s <> ""
   && (match s.[0] with 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false)
   && String.for_all (function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' -> true | _ -> false) s
 
 (* A foreign handle's entries (syntax.md §2.16): `cType`, and `set` and
-   `free` where it has them, each at most once and each a C name; a handle
-   with `set` has `free`. *)
+   `free` where the handle has them, each at most once and each a C
+   identifier; a handle with `set` must also have `free`. *)
 let handle_entries env span entries =
   let seen = Hashtbl.create 4 in
   List.iter
@@ -859,8 +862,8 @@ let handle_entries env span entries =
       Nodes.Handle.{ c_type = ""; set = find "set"; free = find "free" }
   | Some c_type -> Nodes.Handle.{ c_type; set = find "set"; free = find "free" }
 
-(* A foreign handle declared where one may not be: by `alias`, without the
-   `#` a reference type carries, or with type parameters. *)
+(* A foreign handle declared in a form that may not declare one: by `alias`,
+   without the `#` a reference type carries, or with type parameters. *)
 let check_handle_form env (info : type_info) ~alias ~axis =
   let span = info.decl.span in
   if alias then error env span "a foreign handle is declared only by `type`, which gives it an identity of its own";
@@ -902,7 +905,7 @@ let define env (info : type_info) =
 
 (* A distinct type whose definition leads back to itself without passing
    through a mould has no layout at all: `type A = B` and `type B = A`. *)
-(* Declarations in source order, so what a whole-table check reports does not
+(* Declarations in source order, so the reports of a whole-table check do not
    depend on how a hash table happens to iterate. *)
 let infos_in_order env () =
   Types.fold_type_infos (fun _ info acc -> info :: acc) env.types []
@@ -930,8 +933,8 @@ let check_distinct_cycles env () =
     (infos_in_order env ())
 
 (* generics.md §2.4, the growing-argument rule: where a type leads back to
-   itself through its members, each argument it passes back is one of its own
-   parameters as written or names none of them. `Grow<T>` holding
+   itself through its members, each argument it passes back is either one of
+   its own parameters as written or an argument that names none of them. `Grow<T>` holding
    `Grow<Array<T, 2>>` would have a distinct instance at every depth, which no
    layout, and no walk over its members, could finish.
 
@@ -987,8 +990,8 @@ let check_growing_arguments env () =
     | _ -> []
   in
   let edges = ref [] in
-  (* The edges one argument adds: from each parameter it names to the
-     parameter of [target] it is passed for. *)
+  (* The edges one argument adds: from each parameter the argument names to
+     the parameter of [target] that the argument is passed for. *)
   let add_argument_edges owner member (target : type_info) (param : Ty.param) arg =
     let named =
       match arg with
@@ -1058,13 +1061,15 @@ let check_growing_arguments env () =
       match Hashtbl.find_opt reaches info.decl.id with
       | Some r -> r
       | None ->
-          (* What reaches the declaration's parameters, and what they reach. *)
+          (* The parameters that reach the declaration's parameters, and the
+     parameters they reach. *)
           let r = (reach backward info.params, reach forward info.params) in
           Hashtbl.add reaches info.decl.id r;
           r
     in
-    (* The declaration that leads back to itself through the edge: the one
-       that holds it, when it does. *)
+    (* The declaration that leads back to itself through the edge: the
+       declaration that holds the edge, when that declaration does lead
+       back. *)
     let leads_back e =
       let through (info : type_info) =
         let reaching, reached = sets info in
@@ -1120,10 +1125,10 @@ let check_growing_arguments env () =
     Hashtbl.iter blank_member reported
   end
 
-(* A value type is transitively a value: no reference-type or `&` member,
-   anywhere downstream (memory.md §2.10). Every member's own type obeys the
-   same rule where it is declared, so checking one level is checking all of
-   them. *)
+(* A value type is transitively a value: it has no reference-type or `&`
+   member at any depth (memory.md §2.10). Every member's own type obeys the
+   same rule where it is declared, so checking one level checks all
+   levels. *)
 let check_value_downstream env () =
   List.iter
     (fun (info : type_info) ->
@@ -1160,7 +1165,7 @@ let check_value_downstream env () =
 
 (* Fills [tables] and hands on a view of them. The checks that need every
    type's kind wait until every type is defined, and the view handed on
-   holds none back. *)
+   holds no deferred check. *)
 let run env (tables : types) =
   let deferred = { marks = Queue.create (); kinds = Queue.create () } in
   let env = { env with types = Types.defining tables deferred } in

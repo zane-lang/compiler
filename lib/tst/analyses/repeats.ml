@@ -1,16 +1,16 @@
 (* Which block arguments run more than once (docs/design/semantics.md §9):
    `@controlflow$repeat`'s body, and a block a verb runs more than once,
    found to a fixed point over every body. A block run at most once sees
-   nothing an earlier run of it left behind, which the read-only and spawn
-   analyses both rely on. *)
+   nothing that an earlier run of the same block left behind, and the
+   read-only and spawn analyses both rely on that. *)
 
 module T = Nodes
 module S = Signature
 
 (* The arguments a call passes, by position: a type written where a value
    goes, or a number given to an explicit number parameter, picks the
-   instance and passes nothing (generics.md §5.3), so the rest line up with
-   the instance's parameters. *)
+   instance and passes nothing (generics.md §5.3), so the remaining arguments
+   line up with the instance's parameters. *)
 let passed env callee args =
   let bound =
     match Env.signature_of env callee with
@@ -24,14 +24,15 @@ let passed env callee args =
          | T.Arg.Value { T.Expr.node = T.Expr.Type_arg _; _ } -> None
          | _ -> if bound then None else Some arg)
 
-(* Whether the argument at [i] of a call to [r] is run more than once:
-   `@controlflow$repeat`'s body, or a block parameter a verb runs so, by
-   [declared]. *)
+(* Whether the argument at [i] of a call to [r] is run more than once: it is
+   when it is `@controlflow$repeat`'s body, or a block parameter that
+   [declared] reports the verb runs more than once. *)
 let runs_often_by declared (r : T.Verb_ref.t) i =
   match r.T.Verb_ref.owner with
   | S.Intrinsic "@controlflow$repeat" -> i = 1
   (* A worker's step runs again and again, but it is a function value and
-     never a block (control-flow.md §4.1); were it one, it would run so. *)
+     never a block (control-flow.md §4.1); if it were a block, it would run
+     more than once. *)
   | S.Intrinsic "@controlflow$work" -> i = 1
   | S.Intrinsic "@controlflow$workEvery" -> i = 2
   | S.Declared id -> declared id i
@@ -45,10 +46,10 @@ let call_parts env (e : T.Expr.t) =
       Some (callee, passed env callee args)
   | _ -> None
 
-(* One body's walk in the fixed point, whose summary for a verb is the
-   indices of the block parameters it runs more than once: a verb runs one
-   so when it passes it where it runs more than once, or passes it anywhere
-   from inside a block that does. *)
+(* One body's walk in the fixed point. A verb's summary is the indices of the
+   block parameters it runs more than once: a verb runs a block parameter more
+   than once when it passes the parameter to a position that runs more than
+   once, or passes it anywhere from inside a block that runs more than once. *)
 let find_multi env summaries (id, (params : T.Local.t list), (body : T.Block.t)) =
   let mark id i = Fixpoint.add summaries id [ i ] in
   let runs_often = runs_often_by (fun id i -> List.mem i (Fixpoint.read summaries id)) in
@@ -62,8 +63,8 @@ let find_multi env summaries (id, (params : T.Local.t list), (body : T.Block.t))
   let rec block often (b : T.Block.t) =
     List.iter (fun s -> List.iter (expr often) (Traverse.stat_exprs s)) b.T.Block.stats
   and expr often (e : T.Expr.t) =
-    (* A function value is not seen into, so it may run a block it is
-       given any number of times. *)
+    (* The checker cannot see into a function value, so a function value
+       may run a block it is given any number of times. *)
     (match e.T.Expr.node with
     | T.Expr.Call_value { args; _ } ->
         List.iter
@@ -141,8 +142,8 @@ let compute env (p : T.Program.t) =
   multi
 
 (* For each of a call's arguments, whether it is a block run more than once.
-   A call through a function value is not seen into, so its blocks are taken
-   to be. *)
+   The checker cannot see into a call through a function value, so every
+   block passed to such a call is taken to run more than once. *)
 let often env multi (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Call { callee; args; _ } | T.Expr.Construct { ctor = callee; args; _ } ->

@@ -224,7 +224,7 @@ let level ~optimize =
    its own short triples, and not every normal form. *)
 let target_flag = function Some target -> [ "--target=" ^ target ] | None -> []
 
-(* The name a runtime compiled by *cc*, which says it is [identity], with
+(* The name a runtime compiled by *cc*, which reports itself as [identity], with
    [flags] for [triple] is kept under: everything that changes the object is
    in it. The triple is the build's own, given or the host's, so a build that
    names no target still keys its runtime by the one it links for. *)
@@ -354,8 +354,8 @@ let linker_line ~triple ~system line =
   | _ -> None
 
 (* The linker command *cc* runs for [args], as LLD in the compiler runs it
-   ([linker_line]), or [None] when its linker is none of those; an error
-   when *cc* does not say. A C compiler whose own linker is another, such as
+   ([linker_line]), or [None] when its linker is none of those; an error when
+   *cc* prints no command. A C compiler whose own linker is another, such as
    clang with the system's `ld`, is asked again with `-fuse-ld=lld`: it then
    names its files for LLD. *)
 let asked_link ~cc ~triple args dir =
@@ -476,7 +476,7 @@ let link_marks ?(bundle = "") ~obj ~runtime ~output () =
 (* The linker command *cc* prints for a build of [obj] and [runtime] into
    [output] with [args], with the build's files marked ([link_marks]):
    [`Lld] when LLD in the compiler can run it, [`Other] when it cannot, and
-   [`Unasked] when *cc* would not say. *)
+   [`Unasked] when *cc* would not print the command. *)
 let marked_link ~cc ~triple ~args ~obj ~runtime ~output dir =
   let mark, _ = link_marks ~obj ~runtime ~output () in
   let named m = List.exists (fun w -> String.starts_with ~prefix:m (snd (option_split w))) in
@@ -493,7 +493,8 @@ let marked_link ~cc ~triple ~args ~obj ~runtime ~output dir =
    [args]: what *cc* prints for these, the first time, and then what was
    kept in [cache] for the same compiler, target, flags and objects to link,
    with this build's files put in. That *cc* cannot link through LLD in the
-   compiler is kept too, so it is asked once; that it would not say is not. *)
+   compiler is kept too, so it is asked once; that it printed no command
+   is not kept. *)
 let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
   let mark, fill = link_marks ~obj ~runtime ~output () in
   let filled = List.map fill in
@@ -581,13 +582,14 @@ let lld_run command =
   end
   else Error text
 
-(* Whether to say how a build links: `ZANE_VERBOSE` is set. *)
+(* Whether to report how a build links: `ZANE_VERBOSE` is set. *)
 let verbose () = match Sys.getenv_opt "ZANE_VERBOSE" with Some "" | None -> false | Some _ -> true
 
-(* Whether [text], a linker's errors, says it cannot find the library
-   [name], as `ld.lld` and `lld-link` say it, `ld64` does, GNU `ld` does
-   and `zig cc` does, which looks for a library itself before it links. The name must end where the linker's word does, so `-lz` is not
-   found in `-lzstd`. *)
+(* Whether [text], a linker's errors, reports that the linker cannot find
+   the library [name], as `ld.lld`, `lld-link`, `ld64`, GNU `ld` and
+   `zig cc` write it (`zig cc` looks for a library itself before it
+   links). The name must end where the linker's word does, so `-lz` is
+   not found in `-lzstd`. *)
 let unfound_library text name =
   let in_word = function 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '.' | '+' | '-' -> true | _ -> false in
   let ends i = i >= String.length text || not (in_word text.[i]) in
@@ -601,7 +603,7 @@ let unfound_library text name =
     [ "unable to find library -l"; "library not found for -l"; "cannot find -l"; "system library '"; "system library \"" ]
 
 (* A failed link of [libraries] as the error that names the row of the
-   library the linker could not find, when its [text] says so. *)
+   library the linker could not find, when its [text] reports that. *)
 let library_error libraries text =
   List.find_map
     (fun (l : Foreign_c.library) ->
@@ -613,8 +615,8 @@ let library_error libraries text =
       else None)
     libraries
 
-(* Each C symbol [text], a linker's errors, says is undefined, beside the
-   function referencing it, as GNU `ld` says it (`in function `F':` and
+(* Each C symbol [text], a linker's errors, reports as undefined, beside the
+   function referencing it, as GNU `ld` writes it (`in function `F':` and
    then `undefined reference to `S'`), as `ld.lld` and `lld-link` do
    (`undefined symbol: S`, then `>>> referenced by …:(F)`) and as `ld64`
    does (`"_S", referenced from:`, then `F in …`). *)
@@ -694,7 +696,7 @@ let undefined_symbols text =
   List.sort_uniq compare !found
 
 (* A failed link as the error that names each foreign verb whose C
-   function nothing linked defines, when its [text] says so, and whether
+   function nothing linked defines, when its [text] reports that, and whether
    that is every undefined symbol [text] names: the glue's thunk for a
    foreign verb is the verb's symbol and `.ffi`, so the function
    referencing the undefined symbol names the verb. Where the target puts
@@ -738,8 +740,8 @@ let underscored triple =
   || (List.exists (fun p -> String.starts_with ~prefix:p triple) [ "i386-"; "i486-"; "i586-"; "i686-" ]
      && List.mem "windows" (String.split_on_char '-' triple))
 
-(* Whether a linker's [text] says anything is wrong but undefined symbols:
-   a symbol defined twice, or any other error it names. *)
+(* Whether a linker's [text] reports any error other than undefined
+   symbols: a symbol defined twice, or any other error. *)
 let other_link_errors text =
   let has part line =
     let n = String.length part in
@@ -763,7 +765,7 @@ let other_link_errors text =
    earlier build may have gone stale, and is asked for again next build;
    one just asked for is not, so *cc* links from then on. When *cc* fails
    too, the program does not link, and nothing is forgotten; when *cc*
-   says it cannot find one of the `system` [libraries], the error names
+   reports that it cannot find one of the `system` [libraries], the error names
    the row that asks for it, and what *cc* wrote is not repeated. [lld]
    runs the LLD. *)
 let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(libraries = []) ~cc ~triple
@@ -775,7 +777,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
     let code = Sys.command command in
     let written = Option.value ~default:"" (Cache.read errors) in
     (try Sys.remove errors with Sys_error _ -> ());
-    (* Only *cc*'s own words name the row: what LLD said before it may be
+    (* Only *cc*'s own words name the row: what LLD wrote before it may be
        why LLD failed and not why *cc* did. *)
     match (code, library_error libraries written) with
     | 0, _ ->
@@ -785,7 +787,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
     | n, None -> (
         match undefined_error ~underscored:(underscored triple) written with
         | Some (error, every) ->
-            (* What the linker said of any other symbol, or of anything
+            (* What the linker wrote of any other symbol, or of anything
                else, is still shown. *)
             if (not every) || other_link_errors written then prerr_string written;
             Error error
@@ -810,7 +812,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
   in
   (* Once *cc* has linked in place of the built-in LLD, the command LLD
      failed with is forgotten, or kept marked so *cc* links from then on,
-     and the build says which. *)
+     and the build reports which. *)
   let record_fallback source =
     let failed = "zanec: warning: the built-in LLD could not link with the command" in
     match source with
@@ -860,7 +862,7 @@ let tuning ~triple =
 
 (* The runtime's sources in [dir] compiled by *cc* with [flags] and the
    [tuning] for [triple] into [output], or with [flags] alone by a C
-   compiler that does not take the tuning, which it says nothing of. *)
+   compiler that does not take the tuning, without reporting that. *)
 let compile ~cc ~triple flags dir output =
   let command ?stderr flags =
     Filename.quote_command ?stderr cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ])
@@ -925,9 +927,9 @@ let bundled_bitcode_name ~triple = Filename.chop_suffix (bundled_name ~triple (l
    with the flags of an optimized runtime and position-independent, so no
    definition in it is taken to be the program's own ([Runtime_bodies]), or
    [None] when *cc* cannot make bitcode this LLVM reads. It is kept in
-   [cache] beside the objects, and a C compiler that could not make it as an
-   empty file, so it is asked once. A released toolchain compiles nothing: it has the bitcode
-   it bundles, or none. *)
+   [cache] beside the objects, and a C compiler that could not make it as
+   an empty file, so it is asked once. A released toolchain compiles
+   nothing: it has the bitcode it bundles, or none. *)
 let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
   let flags = bitcode_flags ~triple target in
   let present path = if (try (Unix.stat path).Unix.st_size > 0 with Unix.Unix_error _ -> false) then Some path else None in
@@ -944,7 +946,7 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
     end;
     match present kept with Some _ as kept -> kept | None -> present fresh
   in
-  (* The cache, with what it knows *cc* as, when there is one. *)
+  (* The cache, with the identity it keys *cc* by, when there is one. *)
   let cache_identity dir =
     let ( let* ) = Option.bind in
     let* cache = cache in
@@ -1065,8 +1067,9 @@ let rewrites tm m =
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
-   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A program means the same either way
-   (docs/design/lowering.md §7). A [tier] of a tiered build is fingerprinted
+   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A
+   program behaves the same either way (docs/design/lowering.md §7). A
+   [tier] of a tiered build is fingerprinted
    first, then made tier 0 or tier 1 around its passes (docs/design/tiers.md);
    tier 1 runs the optimized ones. An optimized module, and both tiers, take
    the runtime's bodies for LLVM to inline first ([Runtime_bodies]), the
@@ -1219,8 +1222,9 @@ let bundle_shared_link ~cc ~target ~triple ~tm level dir work =
 
 (* The runtime's bitcode for [triple] beside its optimized object, under the
    name a build looks for there ([with_runtime_bitcode]), when *cc* makes
-   bitcode this LLVM reads. One newer than it writes bitcode it cannot, and
-   the release then bundles none: its builds call the runtime's functions
+   bitcode this LLVM reads. A C compiler newer than this LLVM writes
+   bitcode this LLVM cannot read, and the release then bundles none: its
+   builds call the runtime's functions
    rather than inline them. *)
 let bundle_bitcode ~cc ~triple ~target dir work =
   let path = Filename.concat dir (bundled_bitcode_name ~triple) in
@@ -1365,8 +1369,8 @@ let compiler_identity () =
 
 (* [files] as the cache keeps them under [stem]: each copied to
    `STEM.NAME`, and then the list of their names, `STEM.files`, which a
-   later build reads, so it never takes a set of files half kept. The
-   files as they were when one cannot be kept. *)
+   later build reads, so it never takes a set of files half kept. [files]
+   unchanged when one of them cannot be kept. *)
 let keep_c_files stem files =
   let random = Random.State.make_self_init () in
   let kept path = stem ^ "." ^ Filename.basename path in
@@ -1550,8 +1554,8 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
       let triple = Llvm.target_triple m in
       (* A released toolchain's bundle is used only with the C compiler that
          made it, so it names that compiler without asking it. Otherwise the
-         compiler of the runtime's bitcode is named too, since it decides
-         which of the runtime's bodies tier 1 takes. *)
+         compiler of the runtime's bitcode is named too, since that
+         compiler determines which of the runtime's bodies tier 1 takes. *)
       let cc_identity cache =
         match bundled with
         | Some dir -> Some ("bundled " ^ dir)

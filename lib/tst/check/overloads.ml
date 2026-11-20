@@ -1,6 +1,6 @@
 (* Overload resolution (functions.md §5): an argument as the call site wrote
-   it, the candidates it may reach through implicit constructors, and the
-   three phases that pick one. *)
+   it, the candidates the argument may reach through implicit constructors,
+   and the three phases that pick one candidate. *)
 
 open Env
 module T = Nodes
@@ -26,20 +26,20 @@ type outcome = {
   (* Aligned with the signature's parameters; [None] where a field
      constructor's entry was omitted and its default applies. *)
   converted : T.Arg.t option list;
-  (* Problems at one argument of a candidate that is otherwise the one: an
+  (* Problems at one argument of a candidate that otherwise resolves: an
      ambiguous implicit constructor (types.md §4.2, step 4). *)
   site_errors : (Span.t * string) list;
 }
 
 let arg_expr = function T.Arg.Value e -> Some e | T.Arg.Block _ -> None
 
-(* The implicit constructors that take a [src] to a [dst]: declared in the
-   home package of either, which is the only place one may be (types.md
-   §4.5), so no import is involved. *)
+(* The implicit constructors that take a [src] to a [dst]: those declared in
+   the home package of either type, which is the only place an implicit
+   constructor may be declared (types.md §4.5), so no import is involved. *)
 let implicit_constructors env ~src ~dst =
   let dst = Ty.strip_mode dst in
-  (* [s] with the bindings that take [src] to [dst], when it has one parameter
-     and those bindings fix every one of its generics. *)
+  (* [s] with the bindings that take [src] to [dst], when [s] has one
+     parameter and those bindings fix every one of its generics. *)
   let converts (s : S.t) =
     let ( let* ) = Option.bind in
     match s.params with
@@ -59,9 +59,9 @@ let implicit_constructors env ~src ~dst =
       |> List.filter (fun (s : S.t) -> S.is_implicit s && List.mem s.home homes)
       |> List.filter_map converts
 
-(* Building the node requests nothing: a candidate being tried may still be
-   dropped, and only the one resolution picks asks for instances
-   ([request_coercions]). *)
+(* Building the node requests no instances: a candidate being tried may still
+   be dropped, and only the candidate that resolution picks requests
+   instances ([request_coercions]). *)
 let coerce_value (e : T.Expr.t) (s, subst) =
   mk (T.Expr.Coerce { ctor = verb_ref s subst; value = e }) (Ty.subst subst s.S.ret) e.T.Expr.span
 
@@ -86,7 +86,7 @@ let bind_explicit (p : Ty.param) (a : actual) subst =
   | _, T.Arg.Value { T.Expr.ty = Ty.Error; _ } -> Some subst
   | _ -> None
 
-(* Every element, when none is missing. *)
+(* Every element, when no element is missing. *)
 let all_some xs =
   List.fold_right
     (fun x acc -> match (x, acc) with Some x, Some acc -> Some (x :: acc) | _ -> None)
@@ -107,9 +107,9 @@ let held_literal dst (arg : T.Arg.t) =
 
 (* An `ArrayRef`'s literal elements are stored, so each must arrive in a
    mode a store takes (generics.md §8.4, memory.md §2.9). `ArrayRef`
-   borrows them, and a borrowed owner cannot be stored. That a `^T` or `&T`
-   element is filled with the right kind of type is checked as every `^` and
-   `&` is (§3.6). *)
+   borrows them, and a borrowed owner cannot be stored. Whether a `^T` or
+   `&T` element is filled with a reference type or a value type, as each
+   requires, is checked as for every `^` and `&` (§3.6). *)
 let stored_elements env (s : S.t) subst (slots : actual option list) =
   let element = match s.generics with e :: _ -> List.assoc_opt e.Ty.id subst | [] -> None in
   let at = match slots with Some a :: _ -> Some a.aspan | _ -> None in
@@ -156,8 +156,8 @@ let try_candidate env ~phase (s : S.t) (slots : actual option list) : outcome op
               | Some subst -> (Some subst, Some `Exact)
               | None -> (Some subst, Some `Convert)))
     in
-    (* An argument the implicit phase converts, through the one implicit
-       constructor that takes it to its parameter's type. *)
+    (* An argument the implicit phase converts, through the single implicit
+       constructor that takes the argument to its parameter's type. *)
     let convert site_errors subst (p : S.param) a =
       let dst = Ty.subst subst p.ty in
       match arg_expr a.arg with
@@ -255,9 +255,10 @@ let has_literal actuals =
     actuals
 
 (* Whether a bare literal sits where some generic candidate would have to
-   infer a parameter from it -- the one mistake generics.md §5.4's hint is
-   for. A literal that fills an explicit `n @concepts$Int` is not one, and
-   a call with the wrong number of arguments has a nearer problem to name. *)
+   infer a parameter from it -- the only mistake generics.md §5.4's hint is
+   for. A literal that fills an explicit `n @concepts$Int` is not such a
+   literal, and for a call with the wrong number of arguments the message
+   names that problem instead. *)
 let literal_drives_inference (cands : S.t list) actuals =
   List.exists
     (fun (s : S.t) ->
@@ -278,8 +279,8 @@ let list_candidates cands =
   String.concat "; " (List.map (fun s -> quote (S.to_string s)) shown)
   ^ if List.length cands > 4 then "; ..." else ""
 
-(* The implicit constructors the chosen candidate inserted, instantiated
-   now that it is chosen. *)
+(* The implicit constructors that the chosen candidate inserted,
+   instantiated now that the candidate is chosen. *)
 let request_coercions env (o : outcome) =
   List.iter
     (function
@@ -307,8 +308,9 @@ let report_resolution env ?(literal = false) ~span ~what ~args result cands =
            args);
       None
   | No_match ->
-      (* The one no-match with a fix worth naming: a literal offered where
-         only inference could have placed it (generics.md §5.4). *)
+      (* The only failure to match whose fix is worth naming: a literal
+         offered where only inference could have placed it (generics.md
+         §5.4). *)
       let hint =
         if literal then
           "; a bare literal fixes no type, so it cannot drive inference: wrap it in \

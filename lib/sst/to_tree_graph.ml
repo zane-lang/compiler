@@ -13,8 +13,8 @@ open Tree_graph
    What it does not show is positions. That is the other adapter's job
    ([To_span_text]), and the two are kept apart for the same reason the CST
    keeps them apart: a structure rendering is for reading, and a span dump is
-   for checking that a span points where it should. Neither answers the
-   other's question. *)
+   for checking that a span points where it should. Neither rendering can do
+   the other's job. *)
 
 let text (n : Nodes.Name.t) = n.Nodes.Name.text
 
@@ -126,9 +126,9 @@ and constructor_args_to_node (x : Nodes.Constructor_args.t) =
   | Positional args -> map_seq call_arg_to_node args
   | Fields args -> group "fields" (map_seq field_arg_to_node args)
 
-(* One call group where the CST has two. `form` says whether a subject was
+(* One call group where the CST has two. `form` records whether a subject was
    written and with which marker; when one was, it is the first entry of
-   `args`, which is where the method desugaring puts it. *)
+   `args`, which is where the method desugaring puts the subject. *)
 and call_form_to_name (x : Nodes.Call_form.t) =
   match x with
   | Function -> "function"

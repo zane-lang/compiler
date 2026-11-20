@@ -61,7 +61,7 @@ Unit start(this Flips) mut {
 	return Unit();
 }
 
-/// Flips the copy until its first item is 0, and says how many flips that took.
+/// Flips the copy until its first item is 0, and returns the number of flips.
 Int flip(this Flips) mut {
 	k Int = this.perm[Int(1)];
 	@controlflow$branch(@operators$equal(k, Int(0)), {

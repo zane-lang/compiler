@@ -4,7 +4,7 @@ What each document here is for. The [spec](https://github.com/zane-lang/spec)
 defines the language; these describe how this compiler implements it.
 
 - [`spec-divergences.md`](spec-divergences.md): where the compiler does
-  something other than the spec says, or decides what the spec leaves open.
+  something other than the spec says, or settles what the spec leaves open.
   Read it before relying on a spec section.
 - [`optimizations.md`](optimizations.md): every optimization the compiler
   applies to the programs it builds, one entry each, with the builds that get
@@ -36,16 +36,16 @@ One document per stage, in the order the compiler runs them.
   while the program runs, which functions get a table, and how a function
   stops looking when looking does not pay (M1…).
 - [`design/memo-tables.md`](design/memo-tables.md): the table layouts
-  measured against the one memoization uses, and why each lost.
+  measured against the layout memoization uses, and why each lost.
 - [`design/interleaving.md`](design/interleaving.md): built, experimental:
   running a loop's independent walks W at a time, which loops qualify and
   why, retirement in iteration order, the size gate, and what the first
   version builds (I1…I9).
 - [`design/generics.md`](design/generics.md): which package a generic instance
-  belongs to and what it is called. A follow-on to `semantics.md` D12 and
+  belongs to and which symbol name it gets. A follow-on to `semantics.md` D12 and
   `lowering.md` L4.
-- [`design/symbols.md`](design/symbols.md): what every type, verb and variable
-  is called in the IR and the binary.
+- [`design/symbols.md`](design/symbols.md): the symbol name that every type, verb and variable
+  gets in the IR and the binary.
 - [`design/separate-compilation.md`](design/separate-compilation.md): one
   object per package, the `!` placeholder and its stamp, and linking a
   program against a dependency's prebuilt objects (C1…).

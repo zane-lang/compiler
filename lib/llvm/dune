@@ -1,9 +1,9 @@
 ; LLVM's OCaml bindings, built from the copy of LLVM 21.1.8's sources in
 ; vendor/llvm-ocaml (Apache-2.0 with LLVM exceptions, its LICENSE.TXT) against
-; the LLVM that llvm-config describes. LLVM's own build of them is Unix-only;
-; built here they are the same on every platform. Each library keeps the
-; name of LLVM's findlib package, with `_` for its `.`: llvm.analysis is
-; llvm_analysis. The execution engine's bindings are left out: they need
+; the LLVM that llvm-config describes. LLVM's own build of the bindings is
+; Unix-only; the build here is the same on every platform. Each library keeps
+; the name of LLVM's findlib package, with `_` in place of `.`: llvm.analysis
+; is llvm_analysis. The execution engine's bindings are left out: they need
 ; ctypes, and the compiler does not use them. LLVM's code is built as it
 ; is, without the compiler's warnings.
 

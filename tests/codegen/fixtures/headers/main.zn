@@ -1,11 +1,11 @@
 /// A list's header and the elements it holds are separate storage, which
-/// codegen tells LLVM, so the header is read once where it can be. Each
-/// check here writes an element, or what an element owns, between two reads
-/// that need the header's current count or block: of scalars, of a struct,
-/// of lists in a list, and of a type that holds a list beside a scalar.
-/// The sizes come from the program's argument, so an optimized build leaves
-/// the loops for the program to run. Each check prints `yes` when it holds
-/// and `no` when it does not.
+/// codegen's alias tags mark for LLVM, so the header is read once where it
+/// can be. Each check here writes an element, or what an element owns,
+/// between two reads that need the header's current count or block: of
+/// scalars, of a struct, of lists in a list, and of a type that holds a list
+/// beside a scalar. The sizes come from the program's argument, so an
+/// optimized build leaves the loops for the program to run. Each check
+/// prints `yes` when it holds and `no` when it does not.
 package headers;
 
 alias Int = @primitives$I64;

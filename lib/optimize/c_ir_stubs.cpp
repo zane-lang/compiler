@@ -376,9 +376,10 @@ extern "C" value zane_c_ir_layout(value m) {
 
 /* The function [name]: empty when the module has none, `W` when it is a
    weak declaration, which the linker leaves null where nothing defines
-   it, `D` and its whether it never returns when it only declares it or
-   another object may replace its definition, as a weak one, and its body
-   otherwise, after `E` when it is an `available_externally` copy. */
+   it, `D` and whether the function never returns when the module only
+   declares it or another object may replace its definition (as with a
+   weak definition), and its body otherwise, after `E` when the function is
+   an `available_externally` copy. */
 extern "C" value zane_c_ir_function(value m, value name) {
   CAMLparam2(m, name);
   Module *mod = module_of(m);

@@ -1,8 +1,8 @@
 (* Print every node in a parsed file with the source text its span covers.
 
    A span is only ever wrong by pointing somewhere, and the cheapest way to see
-   where is to read it back out of the source. Each line is one node: its kind,
-   and the text between its span's two positions.
+   where is to read it back out of the source. Each line is one node: its
+   variant label, and the text between its span's two positions.
 
    The walk itself is not here. Rendering a stage's nodes is that stage's
    business, so it lives in [Cst.To_span_text] and [Sst.To_span_text], the
@@ -18,8 +18,8 @@
    run, so a grammar change that moves a span shows the move as a diff rather
    than as nothing at all. *)
 
-(* The CST is the default for the same reason it is the compiler's: it is what
-   the source says, and a reader checking the parser wants that one. *)
+(* The CST is the default for the same reason it is the compiler's: it is the
+   source as written, and a reader checking the parser wants the CST. *)
 type stage = Cst | Sst
 
 type request = File of stage * string | Packages of string list

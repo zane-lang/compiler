@@ -174,8 +174,8 @@ then run it again, read the golden diff and promote that.
   loops for LLVM, which is told a list's header is not an element
   (docs/design/lowering.md §9). Every check prints `yes` when it holds.
 - `range` indexes past a list's end: the program stops with status 1 after what
-  it wrote so far, and says why on stderr. `rangeZero` does the same with
-  index 0, below a list's first element.
+  it wrote so far, and writes the reason to stderr. `rangeZero` does the same
+  with index 0, below a list's first element.
 - `regions` is each scope's dynamic region: a value that leaves a scope --
   returned, left from an arm, aborted with, stored or pushed from an inner
   block -- takes its blocks out before the scope drains, and a checked drain
@@ -219,8 +219,8 @@ then run it again, read the golden diff and promote that.
   value too. Every check prints `yes` when it holds and `no` when it does
   not.
 - `bounds` indexes past an array's end: the program stops with status 1 after
-  what it wrote so far, and says why on stderr. `boundsNegative` does the same
-  with a negative index.
+  what it wrote so far, and writes the reason to stderr. `boundsNegative` does
+  the same with a negative index.
 - `mainAborts` aborts `main`, whose abort type is `@primitives$String`: the
   program ends with status 1 after what it wrote so far, and writes the
   message and a line feed to stderr (packages.md §6.3). `mainAbortForwarded`
@@ -367,10 +367,10 @@ makes of them.
 ## Rejects
 
 Each package under `fixtures/reject/` is a program semantics accepts and
-lowering refuses, and `golden/reject.NAME.err` is what lowering says. There is
-one for each construct lowering does not handle yet (docs/design/lowering.md
-§7), so implementing one changes its golden file, and so does a refusal that
-stops firing by mistake:
+lowering refuses, and `golden/reject.NAME.err` is the error lowering reports.
+There is one for each construct lowering does not handle yet
+(docs/design/lowering.md §7), so implementing one changes its golden file, and
+so does a refusal that stops firing by mistake:
 
 - `valueFlow` uses a control-flow intrinsic as a value;
 - `unitFuture` stores into a spawned call's `Unit` result.

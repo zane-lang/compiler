@@ -8,8 +8,8 @@
    declaration and in a lambda's signature, and calls anywhere an expression
    or a block can sit.
 
-   One fold serves both: [visitor] says what to do at a type expression and at
-   a call, and the walk reaches every one of each. *)
+   One fold serves both: [visitor] supplies the action to run at a type expression and at
+   a call, and the walk reaches every type expression and every call. *)
 
 open Nodes
 
@@ -28,8 +28,9 @@ and stat v acc (s : Stat.t) =
   | Stat.Assign { target; value } -> expr v (expr v acc target) value
   | Stat.Abort e | Stat.Ret e | Stat.Resolve e -> expr v acc e
 
-(* A body declares symbols and nothing else; any other declaration there is
-   an error semantics reports, so it has nothing worth collecting. *)
+(* A body declares symbols and nothing else; semantics reports any other
+   declaration in a body as an error, so such a declaration holds nothing
+   worth collecting. *)
 and decl v acc (d : Decl.t) =
   match d.Decl.node with
   | Decl.Var { type_; value; _ } -> expr v (v.type_expr acc type_) value

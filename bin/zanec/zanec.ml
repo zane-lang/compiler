@@ -1,13 +1,13 @@
-(* Which tree to print. The CST stays the default because it is what the source
-   says, and a reader checking the parser wants that one; `--sst` is for
-   checking the desugaring, where the interesting thing is what is no longer
-   there. *)
+(* Which tree to print. The CST stays the default because it matches the source
+   as written, and a reader checking the parser wants that tree; `--sst` is for
+   checking the desugaring, where the interesting part is the syntax that is no
+   longer there. *)
 type stage = Cst | Sst
 
-(* What the binary was asked to do. One file is enough for the first two
-   stages, which never look past it. Semantics takes packages instead
-   (docs/design/semantics.md §2): each `--package` names one, and the first
-   is the root.
+(* The request the binary was asked to carry out. One file is enough for the first two
+   stages, which never look past that file. Semantics takes packages instead
+   (docs/design/semantics.md §2): each `--package` names one package, and the
+   first package is the root.
 
    A package build prints one of three views: the packages it assembled (the
    default), the declarations with everything passes 1 to 4 resolved about
@@ -16,24 +16,25 @@ type stage = Cst | Sst
    builds the program into an executable (`--build OUT`,
    docs/design/lowering.md §7) or the root package into an object file
    (`--object OUT`, docs/design/separate-compilation.md C3). A package's
-   stamp names its symbols with its version and identity (C6), `--import`
-   says which package each of a package's import keys names (C10), and
-   `--link` adds a stamped dependency's object to the link (C7), and
-   `--c-hashes` names the file of its C modules' hashes written beside it,
-   whose modules an optimized build retains where the hashes agree
-   (docs/design/ffi.md F13, F15). A tiered
-   build (docs/design/tiers.md) is two: `--build OUT --tiered` makes tier
-   0, and `--tier-up OUT` tier 1, the shared library tier 0 loads while it
-   runs. `--check`
-   runs semantics and prints only diagnostics, the C compiler's warnings
-   among them (docs/design/ffi.md F3), so its exit status and diagnostics
-   are the whole answer. `--compile-commands OUT` writes the compilation
+   stamp puts the package's version and identity into its symbols (C6).
+   `--import` gives the package that each of a package's import keys names
+   (C10). `--link` adds a stamped dependency's object to the link (C7), and
+   `--c-hashes` names the file of C module hashes written beside that
+   object; an optimized build retains the dependency's C modules whose
+   hashes match (docs/design/ffi.md F13, F15). A tiered
+   build (docs/design/tiers.md) takes two runs: `--build OUT --tiered` makes
+   tier 0, and `--tier-up OUT` makes tier 1, the shared library that tier 0
+   loads while it runs. `--check`
+   runs semantics and prints only diagnostics, including the C compiler's
+   warnings (docs/design/ffi.md F3), so the exit status and the diagnostics
+   are the whole result. `--compile-commands OUT` writes the compilation
    database of the C sources of the packages without a stamp, for an
    editor's C language server, and checks nothing (docs/design/ffi.md F2).
-   `--write-backs OUT` writes the places a program's spawned calls write
-   back into, and `--program-write-backs FILE` gives a library's build the
-   file a program's wrote, so its object is lowered for that program alone
-   (docs/design/lowering.md §9, "Snapshots"). *)
+   `--write-backs OUT` writes the places that a program's spawned calls
+   write back into, and `--program-write-backs FILE` gives a library's build
+   the file that a program's `--write-backs` wrote, so the library's object
+   is lowered for that program alone (docs/design/lowering.md §9,
+   "Snapshots"). *)
 type view =
   | Assembled
   | Check
@@ -49,24 +50,24 @@ type view =
 
 (* Whether the build has a root package (packages.md §6.1): `--root` makes
    the first package the root, which has a `main` to start from (§6.2), and
-   `--no-root` gives the build none, so it does not become an executable.
-   Without either, the first package is the root and `main` is required only
-   to build. A build without a root lowers from every function it declares,
-   with its symbols carrying the `!` placeholder
+   `--no-root` gives the build no root, so it does not become an executable.
+   Without either flag, the first package is the root and `main` is required
+   only for lowering. A build without a root lowers from every function it
+   declares, with its symbols carrying the `!` placeholder
    (docs/design/separate-compilation.md C5). *)
 type build = {
   view : view;
   root : bool option;
   (* The LLVM target triple to compile for; the host's when absent. *)
   target : string option;
-  (* Whether `--cgt`, `--ll`, `--build` and `--object` optimize. A program means the
-     same either way; an unoptimized build is the faster one to make. *)
+  (* Whether `--cgt`, `--ll`, `--build` and `--object` optimize. A program behaves the
+     same either way; an unoptimized build is faster to make. *)
   optimize : bool;
   packages : Tst.Assembly.request list;
   (* Stamps given by package name, the objects `--build` links with the
-     program, and each package's import keys, as the importing package, the
-     key and the imported package (docs/design/separate-compilation.md C6,
-     C7, C10). *)
+     program, and each package's import keys, each as a triple of the
+     importing package, the key and the imported package
+     (docs/design/separate-compilation.md C6, C7, C10). *)
   stamps : (string * string) list;
   link : string list;
   c_hashes : string list;
@@ -77,25 +78,25 @@ type build = {
   (* Whether small aggregates cross calls as packed words
      (docs/design/lowering.md §9): a measured experiment, off by default. *)
   pack : bool;
-  (* Whether calls are remembered while the program runs (Cgt.Memo): on
-     unless `--no-memoize`. *)
+  (* Whether call results are memoized while the program runs (Cgt.Memo):
+     on unless `--no-memoize` is given. *)
   memoize : bool;
   (* Whether `--build` makes tier 0 of a tiered build. *)
   tiered : bool;
-  (* The places the program a library's object is built for writes back
-     into, as `--write-backs` wrote them. *)
+  (* The places that the program, for which a library's object is built,
+     writes back into, as `--write-backs` wrote them. *)
   program_write_backs : string option;
 }
 
-(* `--rewrite STAMP INPUT OUTPUT` is fetching's step, not a build's: a
-   library's object, built under the `!` placeholder, written out with the
+(* `--rewrite STAMP INPUT OUTPUT` is a step of fetching, not of a build: it
+   writes out a library's object, built under the `!` placeholder, with the
    placeholder turned into the stamp (docs/design/separate-compilation.md
-   C9), and the file of C module hashes beside it likewise
-   (docs/design/ffi.md F15). `--remap FROM TO INPUT OUTPUT` is remapping's: an object written out
-   with its references to one version of a package moved to another (C11).
-   `--bundle-runtime DIR --target TRIPLE [--optimize]` is a release's: the
-   runtime compiled for a target into the toolchain's directory of them
-   (docs/design/lowering.md §7). *)
+   C9), and rewrites the file of C module hashes beside the object the same
+   way (docs/design/ffi.md F15). `--remap FROM TO INPUT OUTPUT` is the step of remapping: it
+   writes out an object with its references to one version of a package
+   moved to another version (C11). `--bundle-runtime DIR --target TRIPLE
+   [--optimize]` is a step of a release: it compiles the runtime for a target
+   into the toolchain's directory of runtimes (docs/design/lowering.md §7). *)
 type request =
   | File of stage * (string * string)
   | Packages of build
@@ -103,8 +104,8 @@ type request =
   | Remap of { from : string; to_ : string; input : string; output : string }
   | Bundle_runtime of { dir : string; target : string; optimize : bool }
 
-(* A command the binary cannot run: the arguments do not say a run it
-   knows, or a source it names cannot be read. Exits with status 2. *)
+(* A command the binary cannot run: the arguments form no [request], or a
+   source file they name cannot be read. Exits with status 2. *)
 exception Usage of string option
 
 let read_file path =
@@ -137,7 +138,8 @@ let read = function
 (* A package name as lexical.md §3 spells one: camelCase, so a lowercase
    letter and then letters and digits, after a leading `_` when the package
    is private to its project (§4.2, packages.md §4.4). Letters are Unicode
-   ones, as in source, so the lexer itself decides. *)
+   letters, as in source, so the lexer itself decides which characters
+   qualify. *)
 let is_package_name = Cst.is_lower_identifier
 
 (* A range of frames is a whole number of MiB, at least one, since the
@@ -164,10 +166,10 @@ let package_id id =
       if Rewrite.is_stamp stamp && is_package_path path then Some (Some stamp, path) else None
 
 (* `PATH=DIR` names the package by its path, whose last part is the name
-   its files declare (packages.md §2.2), and `STAMPPATH=DIR` gives it its
-   stamp as well; a bare `DIR` is named after the directory. A path that
-   itself holds a `=` is still a path, since what comes before the `=` then
-   is no name. *)
+   its files declare (packages.md §2.2), and `STAMPPATH=DIR` also gives the
+   package its stamp; a bare `DIR` names the package after the directory. A
+   directory path that itself contains a `=` is still read as a bare `DIR`,
+   because the text before its `=` is then not a valid package path. *)
 let package_request argument =
   let whole = { Tst.Assembly.manifest_name = None; directory = argument; stamp = None } in
   match String.index_opt argument '=' with
@@ -211,8 +213,8 @@ let arguments () =
     | _ -> usage ()
   in
   (* A package build takes its options in any order, each at most once, and at
-     least one `--package`. A tree flag or a single source alongside them would
-     ask for two different runs at once. *)
+     least one `--package`. A tree flag or a single source next to these options
+     would ask for two different runs at once. *)
   (* A value never starts with `-`, so a value left out cannot swallow the
      next flag: `--build --package d` is a usage error, not an executable
      named `--package`. *)
@@ -224,12 +226,13 @@ let arguments () =
         else if build.link <> [] && (match view with Build _ -> false | _ -> true) then usage ()
         else if build.c_hashes <> [] && (match view with Build _ | Object _ | Ir | Tier_up _ -> false | _ -> true) then
           usage ()
-        (* Tier 0 is a build, and neither tier is the optimized build of
-           `--optimize`: tier 1 makes its own (docs/design/tiers.md). *)
+        (* Tier 0 is made by `--build`, and neither tier takes `--optimize`:
+           tier 1 does its own optimization (docs/design/tiers.md). *)
         else if build.tiered && ((match view with Build _ -> false | _ -> true) || build.optimize) then usage ()
         else if (match view with Tier_up _ -> true | _ -> false) && build.optimize then usage ()
-        (* A program's places are its root's; a library built for one has
-           none, and only code from it reads them. *)
+        (* A program's write-back places belong to its root; a library built
+           for a program has none, and only code from that library reads
+           them. *)
         else if (match view with Write_backs _ -> true | _ -> false) && build.root = Some false then usage ()
         else if build.program_write_backs <> None
                 && (build.root <> Some false || match view with Cgt | Ir | Object _ -> false | _ -> true)
@@ -359,15 +362,16 @@ let generate packages c_code build program =
   let root = Option.value build.root ~default:true in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   (* Only an optimized build retains a dependency's C (docs/design/ffi.md
-     F13), so only one given its hashes writes its glue again to compare. *)
+     F13), so only an optimized build given the dependency's hashes writes
+     the glue again to compare it. *)
   let compare_glue = optimize && build.c_hashes <> [] in
   let* cgt =
     Driver.lower ~regions:build.regions ~compare_glue ?program_write_backs:build.program_write_backs ~root packages
       program
   in
   (* The C is made from the lowered tree, whose thunks and function values
-     stage 5 keeps, and an optimized build makes it first, since stage 5
-     folds calls into it (docs/design/ffi.md F16). *)
+     stage 5 keeps. An optimized build makes the C before stage 5, since
+     stage 5 folds calls into the C (docs/design/ffi.md F16). *)
   let c_of cgt =
     let* hashes = Driver.read_hashes build.c_hashes in
     let hashes = if compare_glue then hashes else [] in
@@ -398,15 +402,15 @@ let generate packages c_code build program =
       Driver.write_hashes ~output (Driver.hashes_of packages c_code c)
   | Assembled | Check | Declarations | Typed | Compile_commands _ | Write_backs _ -> Ok ()
 
-(* Without `--root` or `--no-root`, the root needs its `main` once it is
-   lowered, since lowering starts from it. *)
+(* Without `--root` or `--no-root`, the root needs its `main` once the
+   program is lowered, since lowering starts from `main`. *)
 let needs_main build =
   match (build.root, build.view) with
   | Some true, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _ | Write_backs _) -> true
   | Some false, _ | None, (Assembled | Check | Declarations | Typed | Compile_commands _) -> false
 
-(* Semantics prints no tree when it found a problem, since a tree with holes
-   in it is not what either view promises. *)
+(* No tree is printed when semantics found a problem, since neither tree view
+   promises a tree with holes in it. *)
 let run_packages build =
   (* The memory layout depends on the target (Cgt.Ref32), which is known
      before anything is lowered. *)
@@ -433,12 +437,13 @@ let run_packages build =
           Ok ()
       | _ -> generate packages c build program)
 
-(* The one place the binary exits: 0 when the run did what it was asked,
+(* The only place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,
    and 3 for a broken invariant, the compiler's own fault. Any other
-   exception that escapes a stage broke an invariant too. What it writes
-   ends each line with `\n` on every system, as the programs it builds do
-   (docs/design/platforms.md): Windows's text mode would end it `\r\n`. *)
+   exception that escapes a stage also means a broken invariant. The binary
+   ends each line it writes with `\n` on every system, as the programs it
+   builds do (docs/design/platforms.md): Windows's text mode would end each
+   line with `\r\n`. *)
 let () =
   set_binary_mode_out stdout true;
   set_binary_mode_out stderr true;
@@ -476,7 +481,7 @@ let () =
     | Diagnostic.Internal { span; message } -> internal ?span message
     | Stack_overflow -> internal "the stack overflowed"
     | e ->
-        (* With OCAMLRUNPARAM=b, where it was raised. *)
+        (* With OCAMLRUNPARAM=b, the backtrace of where the exception was raised. *)
         let backtrace = Printexc.get_backtrace () in
         internal
           (if backtrace = "" then Printexc.to_string e else Printexc.to_string e ^ "\n" ^ backtrace)

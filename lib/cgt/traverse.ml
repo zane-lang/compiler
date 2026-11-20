@@ -1,13 +1,13 @@
 (* Walking and rewriting the code-generation tree, for every pass over it:
-   what each node is made of, a walk over every node, and a rewrite. A pass
+   the parts of each node, a walk over every node, and a rewrite. A pass
    that only reads the tree uses [expr_parts], [stat_parts] or a walk; [map_*]
    rebuilds every node it visits, so it is for a pass that changes the tree. *)
 
 open Nodes
 
-(* What an expression or a statement is made of: the expressions directly
-   in it, and the statement lists directly in it, each in the order it
-   runs. *)
+(* The parts of an expression or a statement: the expressions directly in
+   it, and the statement lists directly in it, each in the order they
+   run. *)
 let expr_parts (e : Expr.t) : Expr.t list * Stat.t list list =
   match e.Expr.node with
   | Expr.Int _ | Expr.Float _ | Expr.Bool _ | Expr.Text _ | Expr.Unit | Expr.Local _
@@ -60,10 +60,10 @@ let exists_in stats ~expr ~stat =
   walk_stats (fun e -> if expr e then found := true) (fun s -> if stat s then found := true) stats;
   !found
 
-(* Whether [stats] can end somewhere other than after their last: one
-   returns, or leaves an expansion that is not inside them. A [Leave] of an
-   expansion inside them, the `return` of a verb expanded there, ends only
-   that expansion. *)
+(* Whether [stats] can end somewhere other than after their last statement:
+   a statement returns, or leaves an expansion that is not inside [stats]. A
+   [Leave] of an expansion inside [stats], the `return` of a verb expanded
+   there, ends only that expansion. *)
 let leaves stats =
   let inside = Hashtbl.create 8 in
   walk_stats
@@ -76,7 +76,7 @@ let leaves stats =
 
 (* A node with [me] applied to each expression directly in it and [ms] to
    each statement list directly in it, in the order [expr_parts] and
-   [stat_parts] list them, which is the order they run. *)
+   [stat_parts] list them, which is the order they run in. *)
 let map_expr_parts me ms (e : Expr.t) : Expr.t =
   let node =
     match e.Expr.node with
@@ -142,8 +142,8 @@ let map_stat_parts me ms (s : Stat.t) : Stat.t =
       Stat.Place { p with address; value = me p.value }
   | Stat.Spawn sp -> Stat.Spawn { sp with args = List.map me sp.args }
 
-(* A rewrite, outermost first: [fe] and [fs] replace a node whole, or give
-   [None] to keep it and rewrite what is inside it. *)
+(* A rewrite, outermost first: [fe] and [fs] replace a node whole, or return
+   [None] to keep the node and rewrite its parts. *)
 let rec map_expr fe fs (e : Expr.t) : Expr.t =
   match fe e with Some e -> e | None -> map_expr_parts (map_expr fe fs) (map_stats fe fs) e
 

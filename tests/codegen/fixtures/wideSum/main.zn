@@ -1,4 +1,4 @@
-/// A variant of 300 cases, more than a byte tells apart, so it keeps a
+/// A variant of 300 cases, more than a 1-byte tag can hold, so it keeps a
 /// 4-byte tag: cases 1 and 257, whose tags share their low byte, each own
 /// a string, and a list of them is matched and drained case by case.
 /// Each check prints `yes` when it holds and `no` when it does not.

@@ -1,7 +1,7 @@
 (* The CGT run at compile time (docs/design/optimization.md O5). Each node
-   means here what codegen makes it mean in lib/codegen/emit.ml, and each
-   runtime function what runtime/ does, except where the bytes of a value
-   live: arenas, regions and the blocks that move between them are nothing
+   computes here what the code lib/codegen/emit.ml emits for it computes,
+   and each runtime function what runtime/ does, except where the bytes of
+   a value live: arenas, regions and the blocks that move between them are nothing
    here, since no program can tell one placement from another
    (docs/design/lowering.md §9).
 
@@ -31,8 +31,8 @@ type memo = { result : const; outputs : output list; count : int; text : int }
    loop, a spawn, a call through a value, recursion, or work that grows with
    a value's size (a runtime function, a copy or an overwrite) is reachable
    from it. Any other call runs a small chain of small bodies, fewer steps
-   than a remembered call takes to keep and look up. Known the first time it
-   is asked. *)
+   than a remembered call takes to keep and look up. Worked out the first
+   time it is needed. *)
 type entry = { func : Func.t; mutable remembers : remembers; mutable frame : int }
 and remembers = Unknown | Asking | Known of bool * int
 
@@ -87,8 +87,8 @@ let rec weigh funcs e =
         ||
         match Funcs.find_opt funcs fn with
         | None -> false
-        (* A call to a function still being asked about is a
-           recursive call, which is worth remembering. *)
+        (* A call to a function whose answer is still being worked
+           out is a recursive call, which is worth remembering. *)
         | Some { remembers = Asking; _ } -> true
         | Some callee -> ( match weigh funcs callee with true, _ -> false | false, w -> large w)
       in
@@ -184,8 +184,8 @@ type run = {
   mutable output_count : int;
   mutable output_bytes : int;
   cells : (string, cell) Hashtbl.t;
-  (* What each variable held when the run first read it, and that as a
-     constant: a store into a member writes the value in place. *)
+  (* What each variable held when the run first read it, and that value as
+     a constant: a store into a member writes the value in place. *)
   initial : (string, v * const option) Hashtbl.t;
   (* The constant this run is making, when it is making one (Constants). *)
   making : string option;
@@ -221,7 +221,7 @@ let start ?making prog =
   }
 
 (* Whether the run wrote a variable of the program, which folding the code
-   that did it would lose: only a run that makes a constant may. *)
+   that did it would lose: only a run that makes a constant may write one. *)
 let wrote_globals run =
   Hashtbl.fold
     (fun g (c : cell) w ->
@@ -305,9 +305,9 @@ let global run g =
   | None ->
       let declared = Hashtbl.find_opt run.prog.globals g in
       let ty = match declared with Some g -> g.Global.ty | None -> Ty.I64 in
-      (* A constant that does not fold has no value here: its state stops a
-         read of it, and its value holds nothing until the run that makes
-         it stores one. *)
+      (* A constant that does not fold has no value here: a read of its
+         state stops the run, and its value holds nothing until the run
+         that makes the constant stores one. *)
       let value =
         match Hashtbl.find_opt run.prog.constants g with
         | Some k when g = k.state -> (
@@ -700,7 +700,7 @@ and stat run fr (s : Stat.t) =
       let c =
         match (Locals.find_opt fr.locals place.Expr.local, place.Expr.deref, place.Expr.path) with
         (* A whole local of the function being folded can be stored into
-           whether or not its value is known: the store decides it. *)
+           whether or not its value is known: the store gives it a value. *)
         | None, false, [] when Option.is_some fr.outer ->
             let c = cell ~origin:(Outer place.Expr.local) value.Expr.ty VNull in
             Locals.replace fr.locals place.Expr.local c;
@@ -776,7 +776,7 @@ and stat run fr (s : Stat.t) =
       hold run fr scope id layout
   | Stat.Spawn { task; thunk; frame; args; dest; island; _ } ->
       (* Run where it is spawned (O8): its arguments first, in order, then
-         the call, whose result is home at once. *)
+         the call, whose result is copied back at once. *)
       let values = List.map (expr run fr) args in
       let held =
         match zero frame with
@@ -786,8 +786,8 @@ and stat run fr (s : Stat.t) =
         | _ -> stop "a spawned call's frame that is not a struct"
       in
       let frame_cell = cell frame (VRecord held) in
-      (* One thread runs the fold, so a subject's own region is only where
-         the call reads it: the copy itself. *)
+      (* One thread runs the fold, so a subject needs no region of its
+         own: the field the call reads points at the copy itself. *)
       (match island with
       | Some { Expr.copy = Some c; field; _ } ->
           let base = ptr_of (Value.at frame_cell) in
@@ -869,7 +869,8 @@ and call run fn args =
       if List.length f.Func.params <> List.length args then stop "a call with the wrong arguments";
       (* A call made before with the same arguments gives what it gave then.
          A run that makes a constant changes what a constant's state holds,
-         which a call's arguments do not say, so it remembers nothing. *)
+         and a call's arguments do not show that change, so such a run
+         remembers nothing. *)
       let key =
         if run.making = None && remembers run.prog.funcs e then
           let consts = List.map export args in
@@ -993,7 +994,8 @@ and runtime run (fn : Cgt.Runtime.fn) args =
           at l.items.(Int64.to_int i - 1)
       | VList _ -> stop "an index out of range"
       | _ -> stop "an element of something not a list")
-  (* The element at [index] has moved out: the list closes over its cell. *)
+  (* The element at [index] has moved out: the list closes the gap its
+     cell leaves. *)
   | _, ((Cgt.Runtime.List_remove _ | Cgt.Runtime.List_swap_remove _) as fn), [ list; index; _ ] -> (
       let i = Int64.to_int (int_of index) - 1 in
       match load (ptr_of list) with

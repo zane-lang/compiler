@@ -67,7 +67,7 @@ let encode ctx b p =
   fitting ctx b (narrow ctx b distance) distance
 
 (* A loaded pointer that always names something aligned, a block's start
-   or a runtime record, says so as `!align`: a packed value may be at any
+   or a runtime record, is marked so with `!align`: a packed value may be at any
    byte, so a read or write is only as aligned as its address is known to
    be (Alignment), and this is how that is known for an address read from
    memory. *)

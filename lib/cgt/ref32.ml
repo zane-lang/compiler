@@ -1,6 +1,6 @@
 (* Experimental (docs/experiments/goose-comparison): the compact memory
-   layout. Each part is on by default, on every target, and set to `0` in
-   the environment when compiling, turns off. *)
+   layout. Each part is on by default, on every target, and turns off when
+   its variable is set to `0` in the environment while compiling. *)
 
 (* A switch that is on unless set to `0`. *)
 let switch name = Sys.getenv_opt name <> Some "0"
@@ -49,19 +49,20 @@ let chunk_boxes () = frames () && Sys.getenv_opt "ZANE_CHUNK_BOXES" = Some "1"
 (* `ZANE_IMAGE_BOXES`, with frame references: the runtime takes its chunks
    from a window within 16 GiB of the program's image (runtime/region.c),
    so a boxed member's block is stored as its signed distance from the
-   image in 8-byte units, in 32 bits ([Nodes.Ty.Box32]). Chunk boxes store
-   the same 32 bits, encoded their own way. *)
+   image in 8-byte units, in 32 bits ([Nodes.Ty.Box32]). Chunk boxes also
+   store 32 bits, with their own encoding. *)
 let image_boxes () = frames () && (switch "ZANE_IMAGE_BOXES" || chunk_boxes ())
 
 (* `ZANE_NICHE_SUMS`, with 32-bit boxes: a sum whose first case carries
-   nothing and whose second is a box or a reference is that word alone, 0
-   for the first case: a box never names the image's first byte, nor MiB
-   number 0, and a reference never names the image's first byte. *)
+   nothing and whose second case is a box or a reference is laid out as that
+   word alone, with 0 for the first case: a box never names the image's first
+   byte, nor MiB number 0, and a reference never names the image's first
+   byte. *)
 let niche () = image_boxes () && switch "ZANE_NICHE_SUMS"
 
 (* Experimental: with `ZANE_BUMP_REGIONS=1`, emitted code takes a box's
-   block, or an empty list's first block, at the innermost region's frontier
-   alone: it never pops a block a value returned early, and keeps no count
-   of the blocks out, so a block's only cost is the frontier's load and
-   store. A returned block waits for its scope to drain. *)
+   block, or an empty list's first block, only at the innermost region's
+   frontier: it never pops a block that a value returned early, and keeps no
+   count of the blocks handed out, so a block's only cost is the frontier's
+   load and store. A returned block waits for its scope to drain. *)
 let bump () = Sys.getenv_opt "ZANE_BUMP_REGIONS" = Some "1"

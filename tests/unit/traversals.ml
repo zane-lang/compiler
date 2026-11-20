@@ -1,5 +1,5 @@
 (* The shared traversals, Tst.Traverse and Cgt.Traverse, on one node of each
-   constructor: what they say the node is made of is exactly its children, in
+   constructor: the parts they report for the node are exactly its children, in
    the order they run. Every child is a node of its own, compared by identity,
    so a child left out, given twice or given in the wrong context fails here
    rather than in an analysis. [tag] numbers the constructors; it matches

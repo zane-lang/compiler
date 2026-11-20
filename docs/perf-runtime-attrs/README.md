@@ -33,8 +33,8 @@ none.
 In `returns`' `grow`, a node's list of children is a handle in a stack slot
 that the first push passes to `zane_list_push`. Without the attribute that
 call captures the slot, so after the recursive call before each push LLVM
-must reload the count and the room and check them. `captures(address)` tells
-it the slot stays the function's own: the list is still empty at the first
+must reload the count and the room and check them. `captures(address)` states
+that the slot stays the function's own: the list is still empty at the first
 push, which goes straight to the runtime, and the loop's first round loses
 its check (`grow` is 286 lines of optimized IR before, 267 after).
 

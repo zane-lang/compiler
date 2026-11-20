@@ -55,8 +55,8 @@ program linked from several objects wrote.
   second under the key `geo` and uses atlas. Each library is built into an
   object of its own with its stamp, and the program links all three. Every
   check it makes prints `yes` when it holds. `golden/versions.ambiguous` is
-  the error for atlas's `import geometry` when nothing says which version it
-  means.
+  the error for atlas's `import geometry` when nothing names the version it
+  refers to.
 
   `geometry11` is a later release of the first version, laid out the same,
   and `remapped` a program that uses it and atlas. atlas's object is
@@ -92,9 +92,10 @@ one element, long and short, a list of mixed elements, and 16 zeros of
 which the last is `-0.0`: only the long one of one element is pushed by a
 loop, the zeros keeping their signs.
 
-`facts_test.py` checks what codegen tells LLVM (docs/design/lowering.md §9,
-"What LLVM is told"). Its `facts` fixtures are `cells`, a library whose
-verbs write list elements through an owner and read them again; `quiet`, a
+`facts_test.py` checks the facts codegen gives LLVM
+(docs/design/lowering.md §9, "What LLVM is told"). Its `facts` fixtures are
+`cells`, a library whose verbs write list elements through an owner and read
+them again; `quiet`, a
 program over it that spawns nothing; `busy`, the same with one spawned
 call; `pool`, a library that spawns; and `relay`, a program that spawns
 nothing itself and calls `pool` as a stamped dependency; `warmer`, a
@@ -160,11 +161,11 @@ float sum, a store to `out[i]`, a walk's result written over a local and a
 sum guarded by its own running value, retired in iteration order, and a
 walk whose prefetched index is a local of one step, while a
 search keyed by a running total, a write before the walk and a walk of the
-list the loop pushes onto are left alone (`ZANE_INTERLEAVE_REPORT=1` says
-which). Each build prints the same at counts below, at and above the 64
-that interleaving needs, the float sum's bits included, and a chain with a
-link out of range stops the program with the plain loop's message after
-the same output.
+list the loop pushes onto are left alone (`ZANE_INTERLEAVE_REPORT=1` prints
+which loops are interleaved). Each build prints the same at counts below, at
+and above the 64 that interleaving needs, the float sum's bits included, and
+a chain with a link out of range stops the program with the plain loop's
+message after the same output.
 `payloads` reads a list held in one case of a variant, only in that case's
 arm and beside a call; holding the other case, it runs to the plain
 build's answer, since no prefetch reads a list's handle through a variant's

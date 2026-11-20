@@ -45,8 +45,8 @@ interleaved computes what running them in turn does.
 - Its body holds a *walk*: an inner `repeat`, bounded by its own count,
   that reads an element of a list at an index made from the element the
   same walk read on its previous trip (`c = links[c].next`,
-  `c = nodes[c].left`), the chain condition `Lookahead` already tells
-  apart (`reads_element`). A probe that steps by arithmetic gets nothing
+  `c = nodes[c].left`), the chain condition `Lookahead` already
+  distinguishes (`reads_element`). A probe that steps by arithmetic gets nothing
   from interleaving that the lookahead prefetch does not already give it,
   and is left to that.
 - The walk runs in the loop's own body, or in a verb written out there
@@ -303,7 +303,7 @@ state (I2).
 A retire half that qualifies to skip the ring (I1) runs straight after
 finish, in completion order, with no entry and no `oldest`. That is the
 common integer case (`tree`'s count of keys found, `chains`' sum), and it
-costs nothing over the model's form. The pass decides it from the CGT
+costs nothing over the model's form. The pass determines it from the CGT
 alone, by the syntactic rule I1 gives: every statement of the retire half
 is an integer `a = a ⊕ e` on a local nothing else in the loop touches or
 a store to a fresh element of a list nothing else touches, and the loop

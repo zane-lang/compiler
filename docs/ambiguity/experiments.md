@@ -83,8 +83,8 @@ an applied type (`Slots(Array<Int, 4>, 2)`), a reference (`Slots(&Pair<Int>,
 2)`) and a verb type (`Slots(Int[Int], 2)`, `Slots(Int?Err[Int], 2)`). It also
 drops type values from named constructor arguments, which nothing can receive.
 Each type is a prefix of a lambda (`Foo<1>[]() {}`, `&Foo() {}`,
-`Int[Int]() {}`), and none is an operand, so the token after it decides: `,` or
-`)` ends the argument, `(` or a further `[` continues the lambda.
+`Int[Int]() {}`), and none is an operand, so the token after the type settles
+it: `,` or `)` ends the argument, `(` or a further `[` continues the lambda.
 
 The shipped automaton goes from 50 conflict states to 44 and the stock one from
 43 to 37, all shift/reduce. The six states that go are `(` forks of a named
@@ -105,7 +105,8 @@ takes `argument_value`, a value or any `type_expr`, so a function call
 (`emptyOf(Pair<Int>)`), a method call (`registry!add(Int)`,
 `port:tallied(&Port)`) and a constructor call share one positional argument.
 A type in an ordinary call is a prefix of a lambda exactly as it is in a
-constructor's, and is no more an operand there, so the same token decides.
+constructor's, and is no more an operand there, so the same token settles the
+reading.
 
 The conflict censuses are unchanged: 44 shift/reduce states in the shipped
 automaton and 37 in the stock one. The action-erased GLR engine finds one

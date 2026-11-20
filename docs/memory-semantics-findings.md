@@ -295,7 +295,7 @@ with everything under *What holds*. Its finding that a move in a `match`
 arm or a handler counts as a move from a nested block is not one: adt.md
 §5.1 makes `=> expr` shorthand for `{ return expr }`, and error-handling.md
 §3.1 calls a handler a block, so lifetimes.md §1.3's "exact lexical block"
-already decides it.
+already settles it.
 
 ## Findings
 
@@ -579,7 +579,7 @@ The cause is `lib/tst/analyses/read_only.ml`, the `T.Arg.Block` case of
 `arg`: a block argument "may run any number of times", so it is walked
 until the taints stop growing, and the second walk sees what the first one
 stored. That assumption is stated in `design/semantics.md` §9, but the
-compiler knows better elsewhere: `lib/tst/analyses/spawns.ml` computes
+compiler handles it correctly elsewhere: `lib/tst/analyses/spawns.ml` computes
 which block arguments run more than once (`@controlflow$repeat`'s body, or
 a block a verb runs more than once, to a fixed point), and it accepts a
 `spawn p!m()` with `p` from outside in a `branch` block while refusing the

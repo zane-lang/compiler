@@ -46,7 +46,7 @@ static const zane_type holder_type = { holder_copy, holder_end, holder_move, hol
 void zane_main(void) {
 	zane_text ab = { "ab", 2, 0 }, cd = { "cd", 2, 0 }, empty = { "", 0, 0 };
 	/* Drains are unchecked until the case that checks them, whatever
-	   `ZANE_CHECK` says. */
+	   `ZANE_CHECK` is set to. */
 	zane_checking = 0;
 
 	/* Scalar constructors use decimal text that round-trips to the same

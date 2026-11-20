@@ -1,11 +1,11 @@
 (* Whether a match's arms cover every combination of its scrutinees' cases
-   (adt.md §5.2, §5.6). An arm covers exactly one combination, so what is
-   missing is counted rather than listed: the combinations number the
-   product of the case counts, which can be far too many to write out, and
-   the arms cover as many as they have distinct valid keys. Only the first
-   three missing ones are found, by walking the combinations in order and
-   skipping the covered ones, which takes at most as many steps as there
-   are arms, plus three. *)
+   (adt.md §5.2, §5.6). An arm covers exactly one combination, so the missing
+   combinations are counted rather than listed: there are as many
+   combinations as the product of the case counts, which can be far too many
+   to write out, and the arms cover as many combinations as they have
+   distinct valid keys. Only the first three missing combinations are found,
+   by walking the combinations in order and skipping the covered ones, which
+   takes at most as many steps as there are arms, plus three. *)
 
 open Env
 

@@ -5,9 +5,10 @@
    adapters -- they pattern-match on this stage's nodes and hand the result to
    a shared renderer, [Tree_graph] there and [Source.Span_text] here.
 
-   One line per node: its kind, indented by depth, and the text between its
-   span's two positions. A span that covers the wrong tokens says so in plain
-   text, which is the whole point -- the five span bugs found in review on #86,
+   One line per node: its variant label, indented by depth, and the text
+   between its span's two positions. A span that covers the wrong tokens then
+   shows the wrong text, which is the whole point -- the five span bugs found
+   in review on #86,
    and the two after them, were all invisible to a suite that only asks whether
    a file parses. `tests/parser/golden/` checks the output on every run, so a
    grammar change that moves a span shows the move as a diff.
@@ -16,8 +17,8 @@
    depth of the lines it writes, so no state outlives a call. *)
 
 (* Where a line goes: the printer [render] made, and how deep the line is.
-   Every function below takes one and hands a [deeper] one to the parts of
-   its node. *)
+   Every function below takes a [cursor] and hands a [deeper] one to the parts
+   of its node. *)
 type cursor = { printer : Source.Span_text.t; depth : int }
 
 let deeper d = { d with depth = d.depth + 1 }

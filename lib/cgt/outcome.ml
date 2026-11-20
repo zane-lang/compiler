@@ -1,5 +1,5 @@
-(* How a call can end (docs/design/lowering.md L12), and the sum a function
-   that can end more than one way returns. *)
+(* How a call can end (docs/design/lowering.md L12), and the sum that a
+   function that can end in more than one way returns. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -8,8 +8,9 @@ open Nodes
 open State
 open Type_layout
 
-(* How a verb's call can end (L12): its primary result, and the abort value
-   when it declares an abort type, and an exit when it has one. *)
+(* How a verb's call can end (L12): with its primary result, with the abort
+   value when the verb declares an abort type, and with an exit when the verb
+   can exit. *)
 type outcome = { ok : Nodes.Ty.t; aborts : Nodes.Ty.t option; exit_ : bool }
 
 let outcome st span (v : verb) =
@@ -19,9 +20,10 @@ let outcome st span (v : verb) =
     exit_ = Tst.Exits.block v.body;
   }
 
-(* A function that can end more than one way returns a sum of the three:
-   done with its result, aborted with its abort value, or exited
-   (docs/design/lowering.md §9). One that can only finish returns its result. *)
+(* A function that can end in more than one way returns a sum of the three
+   endings: done with its result, aborted with its abort value, or exited
+   (docs/design/lowering.md §9). A function that can only finish returns its
+   result. *)
 let plain o = o.aborts = None && not o.exit_
 
 let returned o =
@@ -35,9 +37,9 @@ let exited = 2
 let outcome_case o index (payload : Expr.t) =
   { Expr.node = Expr.Case { index; payload }; ty = returned o }
 
-(* Where the blocks of a call's outcome are, when it can end more
-   than one way: the result's under the done tag, and the abort value's
-   under the aborted one. *)
+(* Where the blocks of a call's outcome are, when the call can end in more
+   than one way: the result's blocks under the done tag, and the abort
+   value's blocks under the aborted tag. *)
 let outcome_layout st span (v : verb) =
   let s = v.signature in
   let name =

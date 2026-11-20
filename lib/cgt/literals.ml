@@ -44,9 +44,10 @@ let escaped s =
 let escape_pieces pieces =
   List.map (function T.Expr.Fragment s -> T.Expr.Fragment (escaped s) | p -> p) pieces
 
-(* What names a value interpolated into a literal passed on to a concept
-   parameter: the copy held for it where the literal was written (types.md
-   §2.8). No identifier is spelled this way. *)
+(* The identifier of the local that holds a value interpolated into a literal
+   passed on to a concept parameter: the copy held for the value where the
+   literal was written (types.md §2.8). No source identifier is spelled this
+   way. *)
 let interpolated_name = "\\%"
 
 let interpolates (e : T.Expr.t) =
@@ -60,7 +61,7 @@ let lookup ctx span (l : T.Local.t) =
 (* Whether a local is bound to a reference in its 32-bit form. *)
 let encoded ctx span l = match lookup ctx span l with Ref_slot _ -> true | _ -> false
 
-(* A literal, read through the concept parameters it was passed on by. A
+(* A literal, read through the concept parameters that passed it on. A
    number parameter read in a body is the number its instance was given
    (generics.md §3.5), which is an integer literal. *)
 let rec literal_of ctx (e : T.Expr.t) =

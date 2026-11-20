@@ -116,7 +116,7 @@ type Item = #struct {
 
 Item(name String) => init{ name; tags = @primitives$ListRef(String); }
 
-/// Drops what it is given.
+/// Drops its argument.
 Int weigh(item ^Item) => item.tags:size();
 
 /// Keeps the second of the two, and drops the first.
@@ -150,7 +150,7 @@ Int stash(item ^Item) {
 	return b;
 }
 
-/// Drops what it is given, called through a function value.
+/// Drops its argument, called through a function value.
 weighing Int(item ^Item) {
 	return item.tags:size();
 }

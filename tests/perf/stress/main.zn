@@ -664,7 +664,7 @@ Machine() => init{
 
 Int pop(this Machine) mut => this.stack!remove(this.stack:size());
 
-/// Runs one instruction, and says whether the machine runs on.
+/// Runs one instruction, and returns whether the machine runs on.
 Bool step(this Machine, op Op) mut => match (op) {
 	v push {
 		this.stack!push(v);

@@ -2,7 +2,7 @@
    arguments as any verb's function does, lays each out for C, and calls
    the thunk the glue defines for it, whose symbol is the verb's with
    `.ffi` after it (F8). Every call of the verb calls this function, which
-   an optimized build inlines, and the thunk with it once the glue is
+   an optimized build inlines, together with the thunk once the glue is
    linked in (F13). *)
 
 module T = Tst.Nodes
@@ -12,12 +12,12 @@ open Nodes
 open State
 open Type_layout
 
-(* The C type a value of the Zane type [t] crosses as in a function value
-   C calls (spec ffi.md §3.6, docs/design/ffi.md F11), when it is one: a
-   scalar, a `Bool`, or a C-compatible value type (§3.3), one with no
-   fields among them, which C declares as an empty struct. A value type
-   that holds itself, through the types [seen] it is reached from, is
-   none. *)
+(* The C type that a value of the Zane type [t] is passed as in a function
+   value C calls (spec ffi.md §3.6, docs/design/ffi.md F11), when [t] can be
+   passed: a scalar, a `Bool`, or a C-compatible value type (§3.3),
+   including one with no fields, which C declares as an empty struct. A
+   value type that holds itself, through the types [seen] it is reached
+   from, cannot be passed. *)
 let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
   let t = Tty.strip_mode t in
   match t with
@@ -39,10 +39,10 @@ let rec c_shape ?(seen = []) st span (t : Tty.t) : Callback.shape option =
       | _ -> None)
   | _ -> None
 
-(* What C passes a function value as a parameter of the Zane type [t]
-   (spec ffi.md §3.6): what [c_shape] gives, a string or a list as its
-   view, an array as a pointer to its elements, and a data handle as its
-   C object's pointer, a roaming owner's taken by the lambda. *)
+(* The form in which C passes a function value a parameter of the Zane type
+   [t] (spec ffi.md §3.6): the C type [c_shape] gives, a string or a list as
+   its view, an array as a pointer to its elements, and a data handle as its
+   C object's pointer, which the lambda takes over for a roaming owner. *)
 let c_param st span (t : Tty.t) : Callback.shape option =
   let handle t = match definition st t with Some (T.Decl.Handle _, _) -> true | _ -> false in
   match t with
@@ -60,8 +60,8 @@ let c_param st span (t : Tty.t) : Callback.shape option =
           | _ -> if handle t then Some (Callback.Object { owned = false }) else None))
 
 (* The C signature of the function type [fv], when C can call a value of
-   it: no subject, no abort, and C types for its parameters and result, a
-   `Unit` result returning nothing. *)
+   that type: no subject, no abort, and C types for its parameters and
+   result, where a `Unit` result returns nothing. *)
 let c_signature st span (fv : Tty.verb) =
   if Option.is_some fv.Tty.this_ || Option.is_some fv.Tty.abort then None
   else
@@ -75,8 +75,8 @@ let c_signature st span (fv : Tty.verb) =
     | Some gives when List.for_all Option.is_some takes -> Some (List.filter_map Fun.id takes, gives)
     | _ -> None
 
-(* How a value of the Zane type [t] crosses into C (spec ffi.md §3.3), as
-   semantics has already checked it does. *)
+(* How a value of the Zane type [t] is passed to C (spec ffi.md §3.3), which
+   semantics has already checked is possible. *)
 let crossing st span (t : Tty.t) : Foreign.crossing =
   let t = Tty.strip_mode t in
   match t with
@@ -86,7 +86,7 @@ let crossing st span (t : Tty.t) : Foreign.crossing =
   | _ when is_text t || is_list t -> Foreign.View
   | _ when Option.is_some (array_of t) -> Foreign.Address
   (* A function value hands C its lambda's C entry (F11), which only a
-     lambda of a type [c_signature] reads has. *)
+     lambda of a type that [c_signature] accepts has. *)
   | Tty.Verb fv when Option.is_some (c_signature st span fv) -> Foreign.Function
   | Tty.Verb _ -> Diagnostic.bug ~span ("lowering: C cannot call `" ^ Tty.to_string t ^ "`, which semantics let cross")
   | Tty.Named _ -> (
@@ -146,7 +146,7 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     | Foreign.Value, _ -> (Foreign.Value, in_c st span p.T.Local.ty value)
     | c, _ -> (c, value)
   in
-  (* A string whose C parameter is a `const char *` crosses terminated. *)
+  (* A string whose C parameter is a `const char *` is passed terminated. *)
   let c_params = match f.T.Foreign.c_function with C_interface.Function { params; _ } -> params | _ -> [] in
   let terminated i (c, value) =
     match (c, List.nth_opt c_params i) with
@@ -180,9 +180,10 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
     :: st.thunks;
   match result with
   | Foreign.Unit -> [ Stat.Eval call ]
-  (* A string C returns is taken before anything else runs (F10): the
-     block `zane_bytes_alloc` gave C during the call as it is, and any
-     other bytes, C's own, copied into a block of the string's own. *)
+  (* A string C returns is taken before anything else runs (F10): a block
+     that `zane_bytes_alloc` gave C during the call is taken unchanged, and
+     any other bytes, which are C's own, are copied into a block of the
+     string's own. *)
   | Foreign.View ->
       (* The mark is a value the take reads, not state the expect sets,
          so a fold that makes the whole take a constant leaves an expect
@@ -195,7 +196,7 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
           (st.returns (runtime Runtime.Text_taken [ call; { Expr.node = Expr.Local mark; ty = Nodes.Ty.I64 } ] Nodes.Ty.Handle));
       ]
   | Foreign.Handle -> made st ctx span v call
-  (* A struct comes back in C's layout and is rebuilt in its own. *)
+  (* A struct comes back in C's layout and is rebuilt in the Zane layout. *)
   | _ -> (
       match shape with
       | Some s when Callback.moved s ->

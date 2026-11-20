@@ -35,7 +35,8 @@ class CallTypeArgumentTests(unittest.TestCase):
              "LBRACKET INT RBRACKET LPAREN INT RPAREN LCURLY RCURLY", 1),
             # Every type is a type value, and none is an operand. Each is a
             # prefix of a lambda (`Foo<1>[]() {}`, `&Foo() {}`, `Int[Int]() {}`),
-            # and the token after it decides, so each witness keeps one reading.
+            # and the token after the type settles which reading applies, so
+            # each witness keeps one reading.
             ("x Result = Ctor(Foo<1>);",
              "UIDENT LPAREN UIDENT LESS INT MORE RPAREN SEMICOLON", 1),
             ("x Result = Ctor(Foo<1>, 2);",

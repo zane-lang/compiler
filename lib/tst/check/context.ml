@@ -1,7 +1,7 @@
-(* Pass 5's context (docs/design/semantics.md §3): what [Check] carries
+(* Pass 5's context (docs/design/semantics.md §3): the state [Check] carries
    through a body -- its scopes, locals, return and resolve targets -- and the
-   type questions it asks of a declaration's definition. Split from check.ml
-   because none of it is part of the recursive walk. *)
+   queries [Check] makes of a declaration's definition. Split from check.ml
+   because none of this is part of the recursive walk. *)
 
 open Env
 module T = Nodes
@@ -32,14 +32,14 @@ type ctx = {
   file : Env.file;
   package : string;
   is_root : bool;
-  (* Parameters in scope and what they stand for; in an instance, the
-     arguments it was instantiated at. *)
+  (* Generic parameters in scope and the types or numbers they stand for; in
+     an instance, the arguments it was instantiated at. *)
   params : (string * Ty.arg) list;
   mutable scopes : (string, binding) Hashtbl.t list;
   ret_target : ret_target;
   resolve_target : resolve_target;
   is_mut : bool;
-  (* In a constructor: what `init{ }` builds. *)
+  (* In a constructor: the type that `init{ }` builds. *)
   building : Ty.t option;
 }
 
@@ -59,9 +59,9 @@ let bind ctx role (local : T.Local.t) =
   | top :: _ -> Hashtbl.replace top local.T.Local.name { local; role }
   | [] -> ()
 
-(* D14: a local may not shadow a name already in scope -- an enclosing local
-   or parameter, a parameter of the generic signature, or a package-scope name
-   the file can write. *)
+(* D14: a local may not shadow an identifier already in scope -- an enclosing
+   local or parameter, a parameter of the generic signature, or a
+   package-scope identifier the file can write. *)
 let declare env ctx role (name : N.Name.t) ty =
   let text = name.N.Name.text and span = name.N.Name.span in
   (match find_local ctx text with
@@ -88,10 +88,10 @@ let declare env ctx role (name : N.Name.t) ty =
   bind ctx role local;
   local
 
-(* `^` says how a place holds its owner, not what the value is (memory.md
+(* `^` marks how a place holds its owner, not what type the value has (memory.md
    §2.1), so no expression's type carries it: a `^T` local read, and a call
-   that returns `^T`, are values of type `T`. What the place holds is read
-   from the local's or the signature's declared type. *)
+   that returns `^T`, are values of type `T`. Whether a place holds a roaming
+   owner is read from the local's or the signature's declared type. *)
 let mk node ty span =
   let ty = match ty with Ty.Roaming t -> t | t -> t in
   { T.Expr.node; ty; span }

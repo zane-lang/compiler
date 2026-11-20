@@ -193,7 +193,7 @@ Int pair(n Int) {
 }
 
 Unit main() {
-	// Each scalar at its edges: a wrap, the one quotient that wraps, a NaN
+	// Each scalar at its edges: a wrap, the only quotient that wraps, a NaN
 	// and a negative zero.
 	check(@operators$lessThan(@operators$add(Int(9223372036854775807), Int(1)), Int(0)));
 	check(@operators$lessThan(@operators$add(@operators$negate(Int(9223372036854775807)), @operators$divide(@operators$negate(Int(1)), @operators$negate(Int(1)))), Int(0)));

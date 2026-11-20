@@ -74,7 +74,7 @@ Marker() => init{
 	values = @primitives$ListRef(Int);
 }
 
-/// Marks each value past the limit, and says how many there were.
+/// Marks each value past the limit, and returns how many there were.
 Int mark(this Marker) mut {
 	marked Int(0);
 	i Int(1);

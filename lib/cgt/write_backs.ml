@@ -40,10 +40,10 @@ let line st (w : written) =
 (* The file for the places [ws]. *)
 let to_text st ws = String.concat "\n" (header :: List.sort_uniq compare (List.map (line st) ws)) ^ "\n"
 
-(* The places a file holds, or [None] when it is not one. *)
+(* The places a file holds, or [None] when the text is not such a file. *)
 let of_text text =
-  (* Every held type is spelled: an empty one would match no read, leaving
-     the place it guards unprotected. *)
+  (* Every held type must be spelled out: an empty spelling would match no
+     read, leaving the place it guards unprotected. *)
   let spelled = List.for_all (fun h -> h <> "") in
   let parse l =
     match String.split_on_char '\t' l with

@@ -127,7 +127,7 @@ void zane_main(void) {
 
 	/* A call out reaches no region of this context (its subject, if it
 	   writes one, has a region of its own), so emitted code still takes
-	   blocks in the innermost region itself, and a drain opens the one
+	   blocks in the innermost region itself, and a drain opens the region
 	   around it. */
 	check(zane_open == scope);
 	zane_join((char *)f);

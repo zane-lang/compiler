@@ -2,44 +2,46 @@
    docs/design/ffi.md F6), read from clang's AST rather than parsed here.
 
    Each interface header is compiled alone with the package's flags, since
-   two headers that are each valid need not be valid together, and the
-   linked clang writes every function, variable and typedef whose expansion
-   location is in it, and every struct those reach, laid out for the
-   build's target (clang_stubs.cpp). A declaration only an included header
-   makes is not in the table: such a header is seen by the C compiler and
-   by nothing else.
+   two headers that are each valid need not be valid together. For each
+   header, the linked clang writes every function, variable and typedef
+   whose expansion location is in that header, and every struct those
+   declarations reach, laid out for the build's target (clang_stubs.cpp).
+   A declaration made only by an included header is not in the table: only
+   the C compiler sees such a header.
 
-   A type is canonical, so a typedef is read as what it names, and an
-   integer type carries its size and its width, the bits that hold its
-   value, from the target's own information. *)
+   Every type is canonical, so a typedef is read as the type it names. An
+   integer type carries its size and its width (the number of bits that
+   hold its value), both taken from the target's own information. *)
 
 type ctype =
   | Void
   | Bool
-  (* Its size and width in bits, its name, as `unsigned long`, and the
-     standard typedef it was written through, as `int64_t`, when it was:
-     the spec's types name both kinds (spec ffi.md §3.3), and a canonical
-     `long` alone cannot say it was an `int64_t`. *)
+  (* The integer type's size and width in bits, its C name, as `unsigned
+     long`, and the standard typedef it was written through, as `int64_t`,
+     if any. The spec's types name both the C name and the typedef (spec
+     ffi.md §3.3), and the canonical `long` alone does not record that the
+     source wrote `int64_t`. *)
   | Int of { signed : bool; size : int; width : int; name : string; standard : string option }
-  (* Its size in bits, whether it is IEEE 754 binary32 or binary64, and its
-     name. *)
+  (* The floating type's size in bits, whether it is IEEE 754 binary32 or
+     binary64, and its C name. *)
   | Float of { size : int; ieee : bool; name : string }
-  (* Whether what it points to is `const`, and what that is. *)
+  (* Whether the pointee is `const`, and the pointee's type. *)
   | Pointer of { const : bool; pointee : ctype }
-  (* A struct or union, by its identity, which is how C spells it:
-     `struct` or `union` and its tag, as `struct file`, or the typedef that
-     names an anonymous one, as `vec3`. A tag and a typedef name are in
-     separate namespaces, and the identity keeps them apart. *)
+  (* A struct or union, identified the way C spells it: `struct` or
+     `union` and its tag, as `struct file`, or the typedef that names an
+     anonymous struct or union, as `vec3`. Tags and typedef names live in
+     separate namespaces, and this identity keeps them apart. *)
   | Record of { union : bool; name : string }
   | Array of { count : int; element : ctype }
   | Function of { params : ctype list; result : ctype; variadic : bool }
   (* A function declared without a prototype, as `int f();`. *)
   | Unprototyped of { result : ctype }
-  (* Any other, by its spelling: an enum, a vector, a complex type. *)
+  (* Any other C type, such as an enum, a vector or a complex type, by its
+     spelling. *)
   | Other of string
 
-(* Whether [c] is `const char *`, which a string parameter may cross as,
-   terminated (spec ffi.md §3.4). *)
+(* Whether [c] is `const char *`, the C type a string parameter may be
+   passed as when it is terminated (spec ffi.md §3.4). *)
 let is_c_string = function
   | Pointer { const = true; pointee = Int { size = 8; name = "char"; _ } } -> true
   | _ -> false
@@ -48,26 +50,28 @@ type field = { field : string; ty : ctype; offset : int; bit_width : int option 
 
 type record = {
   union : bool;
-  (* Whether an interface header declares it, as a handle's C type must
-     be declared (spec ffi.md §4.1). *)
+  (* Whether an interface header declares this record. A handle's C type
+     must be declared there (spec ffi.md §4.1). *)
   declared : bool;
-  (* Its size, alignment and fields, when it is complete. *)
+  (* The record's size, alignment and fields, when the record is
+     complete. *)
   layout : layout option;
 }
 
 and layout = { size : int; align : int; fields : field list }
 
-(* A function's type, whether it has external linkage, and its
-   parameters' and its result's types as the header spells them, which the
-   glue names them by (docs/design/ffi.md F8). *)
+(* A function's type, whether it has external linkage, and the types of
+   its parameters and result as the header spells them. The glue uses
+   these spellings to name the types (docs/design/ffi.md F8). *)
 type func = { ty : ctype; external_ : bool; spelled : string list; spelled_result : string }
 (* A variable's type is read without its top-level `const`, which
    [constant] keeps. *)
 type var = { ty : ctype; external_ : bool; thread_local : bool; constant : bool }
 
-(* A package's table, by name, and the variables its C code defines with
-   external linkage, which its compiled sources say rather than its
-   headers: a foreign variable names one (spec ffi.md §5.1). *)
+(* A package's table of declarations, by name, and the variables its C
+   code defines with external linkage. Those variables come from the
+   package's compiled sources rather than its headers, and a foreign
+   variable names one of them (spec ffi.md §5.1). *)
 type t = {
   functions : (string * func) list;
   variables : (string * var) list;
@@ -83,8 +87,9 @@ exception Malformed of string
 
 let number w = match int_of_string_opt w with Some n -> n | None -> raise (Malformed (w ^ " is no number"))
 
-(* The words of [text]: bare tokens, and names written as their length,
-   `:` and their bytes, which may hold spaces. *)
+(* The words of [text]: bare tokens, and names written as their length in
+   bytes, `:`, and their bytes. A name written this way may contain
+   spaces. *)
 let words text =
   let n = String.length text in
   let rec skip i = if i < n && text.[i] = ' ' then skip (i + 1) else i in
@@ -200,11 +205,11 @@ let read text =
     defined = [];
   }
 
-(* Two tables as one: each name's first entry, in the order the headers
-   are read, with a struct one header declares and another completes
-   taken as declared and complete, and a function one header declares
-   without a prototype and another with one taken with the prototype, as
-   C's composite type is. *)
+(* Two tables merged into one, keeping each name's first entry in the
+   order the headers are read. A struct that one header declares and
+   another completes is taken as declared and complete. A function that
+   one header declares without a prototype and another with a prototype is
+   taken with the prototype, as C's composite type is. *)
 let merge a b =
   let union_by_name xs ys = xs @ List.filter (fun (n, _) -> not (List.mem_assoc n xs)) ys in
   let records =

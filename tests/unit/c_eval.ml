@@ -382,9 +382,9 @@ let agree base =
                 cases))
 
 (* The stopping cases are compiled for x86-64 Linux on every machine: what
-   the IR says of a case's undefined behaviour is the target's ABI's, and
+   the IR records about a case's undefined behaviour is the target's ABI's, and
    AArch64's passes a large aggregate by the address of the caller's copy
-   with nothing in the IR to say the copy ends with the call. `zig cc`
+   with nothing in the IR to mark that the copy ends with the call. `zig cc`
    gives them glibc's headers on any machine. *)
 let stop base =
   with_zig_cc @@ fun zig ->
@@ -490,7 +490,7 @@ let views base =
 
 (* Two modules each defining a `static` helper of one name, as the
    program's C and a retained dependency's may: a call of it stops, since
-   the name alone does not say whose it is. *)
+   the name alone does not identify which module's helper is meant. *)
 let shared_static base =
   let source k =
     Printf.sprintf

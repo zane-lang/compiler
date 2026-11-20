@@ -19,8 +19,8 @@ source → CST → SST → TST → CGT → (optimized CGT) → binary
 ```
 
 1. **parsing** reads source text into the concrete syntax tree (CST);
-2. **desugaring** rewrites it to the simplified syntax tree (SST), which says
-   each thing one way;
+2. **desugaring** rewrites it to the simplified syntax tree (SST), which has one
+   form for each construct;
 3. **semantics** resolves names and checks types, producing the typed tree (TST);
 4. **lowering** turns it into the code-generation tree (CGT);
 5. **optimization**, in optimized builds, evaluates at compile time what the
@@ -29,11 +29,11 @@ source → CST → SST → TST → CGT → (optimized CGT) → binary
 
 [`docs/design/stages.md`](docs/design/stages.md) explains each stage, and
 [`docs/README.md`](docs/README.md) indexes every design document. The grammar is
-proven unambiguous; [`docs/ambiguity/`](docs/ambiguity/README.md) says how.
+proven unambiguous; [`docs/ambiguity/`](docs/ambiguity/README.md) describes the proof.
 
 The compiler follows the [language specification](https://github.com/zane-lang/spec).
-Where it deliberately does something else, or decides what the spec leaves
-open, [`docs/spec-divergences.md`](docs/spec-divergences.md) says so.
+Where it deliberately does something else, or settles what the spec leaves
+open, [`docs/spec-divergences.md`](docs/spec-divergences.md) lists the difference.
 
 ## Building it
 

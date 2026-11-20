@@ -8,8 +8,8 @@
    integer derived from one, a sign-only result and a NaN of unknown bits.
    Stored, each of their bytes is a fragment of the value, and a load
    gives the value back only when it reads all of its fragments in order
-   as a type that holds it; reading them any other way reads what the
-   running process alone knows, and stops the fold. *)
+   as a type that holds it; reading them any other way gives bytes only
+   the running process has, and stops the fold. *)
 
 open Value
 
@@ -21,8 +21,9 @@ type kind =
   | Global of { name : string; unnamed : bool }
   (* A global another object defines: its address and nothing else. *)
   | Extern of string
-  (* A function's address: nothing is read or written there. One no module
-     defines a body for may be another's under a second name. *)
+  (* A function's address: nothing is read or written there. A function
+     no module defines a body for may be another function under a second
+     name. *)
   | Function of { name : string; defined : bool }
   (* A copy of a string, array or list Zane lends C (F18), standing for
      storage whose identity the evaluator does not know. *)
@@ -68,9 +69,9 @@ and fl = { double : bool; bits : int64; known : bool }
 and ptr = { alloc : alloc; off : int }
 
 (* [p] moved by [d] bytes. An offset kept in range can be held exactly
-   and is never confused with another: one that leaves it, or a move of
-   such a size, is one no allocation spans, whose wrapping only the
-   running address would decide. *)
+   and is never confused with another: an offset that leaves the range,
+   or a move of such a size, is larger than any allocation, and whether
+   it wraps depends on the running address. *)
 let moved p d =
   let limit = 0x1_0000_0000_0000L in
   let out x = x > limit || x < Int64.neg limit in
@@ -259,7 +260,7 @@ let fill p n b =
 (* ---------------------------------------------------------------------- *)
 
 (* Whether two pointers into different allocations are unequal, as C
-   gives them, or whether their order is only the running process's: it
+   gives them, or whether only the running process can order them: it
    is, where either allocation stands for storage of unknown identity (a
    view, or a variable or function no module defines, which a library may
    export under more than one name), may be merged with an equal one, is pointed one past its end, which C lets
@@ -277,7 +278,7 @@ let distinct p q =
     stop "a comparison of an address one past its allocation's end";
   (* An address moved outside its allocation, as integer arithmetic may,
      can equal one in any other. *)
-  (* Storage that has ended may be handed out again, as another's. *)
+  (* Storage that has ended may be allocated again, as another allocation. *)
   if p.alloc.freed || q.alloc.freed then stop "a comparison of an address whose storage has ended";
   let outside r = r.off < 0 || r.off > r.alloc.size in
   if outside p || outside q then stop "a comparison of an address outside its allocation";

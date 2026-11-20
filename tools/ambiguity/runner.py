@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Running the engine and showing what it says while it says it.
+"""Running the engine and showing what the engine reports while it reports it.
 
 Turning a profile into the engine's flags, starting it, and streaming its
 output to the terminal and into the saved report at the same time. A search can

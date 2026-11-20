@@ -1,52 +1,56 @@
-(* Scopes: a store may not raise a value above what it names (lifetimes.md
-   §1.1, §1.4, §1.7, §1.10, §1.11). An analysis over the finished TST
-   (docs/design/semantics.md D1).
+(* Scopes: a store may not put a value into a destination that outlives the
+   owners the value names (lifetimes.md §1.1, §1.4, §1.7, §1.10, §1.11). An
+   analysis over the finished TST (docs/design/semantics.md D1).
 
-   Every place has a scope. A local's is the block that declares it, and a
-   field's or element's is its root symbol's. A `^T` parameter is an owner of
+   Every place has a scope. A local's scope is the block that declares it,
+   and a field's or element's scope is its root symbol's. A `^T` parameter is an owner of
    the body, scoped to the body's top block (§1.5). Any other parameter,
    `this` included, and a constructor's `init{ }` stand for places in the
    caller's frame: their scope is the call site, which outlives every block
    of the body.
 
-   What a value [names] is the scopes of the owners it reaches through a
-   reference: its own, if it is one, and those it carries (§1.10). A store --
+   The scopes a value [names] are the scopes of the owners it reaches through
+   a reference: the scope of the value's own owner, if the value is a
+   reference, and the scopes of the references it carries (§1.10). A store --
    a `let`, an assignment, a field of `init{ }`, a return -- is legal only
    when every scope the stored value names outlives the destination's. A
    block outlives the blocks nested in it; the call site outlives the body.
 
-   A local's names are the union of every value stored in it, at any path,
-   less what a reported store could not keep, so a body is walked until they
-   stop growing and then once more to report. A
-   call's result names what its arguments name, and the scope of every place
-   a reference parameter mints one from, since a verb may return a reference
-   rooted in any `&T` parameter (§1.7). §1.4 needs no check of its own: a
-   symbol moves only in its declaring block, so the owner it moves into is
-   declared there or above.
+   A local's names are the union of the names of every value stored in it, at
+   any path, minus the names a reported store could not keep, so a body is
+   walked until the locals' names stop growing and then once more to report.
+   A call's result names what its arguments name, and the scope of every place
+   that a reference parameter mints a reference from, since a verb may return
+   a reference rooted in any `&T` parameter (§1.7). §1.4 needs no check of its
+   own: a symbol moves only in its declaring block, so the owner it moves into
+   is declared in that block or an enclosing one.
 
-   A store the body cannot settle -- one from a parameter into a place reached
-   from another -- is where the first comes to rest (§1.11), and is published
-   in the verb's [summary]. Each call substitutes its arguments: what the one
-   names is stored into the place the other is, and compared there. A call in
-   a body can itself store a parameter into another, so summaries are
-   transitive, and are computed to a fixed point before any body reports. *)
+   A store that the body cannot settle -- a store from one parameter into a
+   place reached from another parameter -- is where the first parameter comes
+   to rest (§1.11), and is published in the verb's [summary]. Each call
+   substitutes its arguments: the names of the first argument are stored into
+   the place of the second, and compared there. A call in a body can itself
+   store one parameter into another, so summaries are transitive, and are
+   computed to a fixed point before any body reports. *)
 
 module T = Nodes
 module S = Signature
 
-(* [Param i] is the verb's parameter [i], the subject first: the caller's,
-   like [Caller], but told apart from the others. *)
+(* [Param i] is the verb's parameter [i], counting the subject first. Like
+   [Caller], it is a scope in the caller's frame, but it is kept distinct
+   from the other parameters. *)
 type scope = Caller | Global | Block of int | Param of int
 
-(* Each parameter that comes to rest in a place reached from another, as the
-   pair of their indices. *)
+(* Each parameter that comes to rest in a place reached from another
+   parameter, as the pair of their indices. *)
 module Rests = Set.Make (struct
   type t = int * int
 
   let compare = compare
 end)
 
-(* An intrinsic has no body to summarise: `push` keeps its value in `this`. *)
+(* An intrinsic has no body to summarise, so its summary is written here:
+   `push` keeps its value argument in `this`. *)
 let summary_of summaries (r : T.Verb_ref.t) =
   match r.T.Verb_ref.owner with
   | S.Declared id -> Fixpoint.read summaries id
@@ -69,7 +73,8 @@ type walk = {
   (* The block each local is declared in, and each block's parent. *)
   declared : (int, int) Hashtbl.t;
   parent : (int, int) Hashtbl.t;
-  (* Each parameter's index; a lambda's are -1, since no summary names them. *)
+  (* Each parameter's index; a lambda's parameters have index -1, since no
+     summary names them. *)
   params : (int, int) Hashtbl.t;
   (* The `^T` parameters, which the body owns (§1.5). *)
   roaming : (int, unit) Hashtbl.t;
@@ -77,15 +82,16 @@ type walk = {
   mutable rests : Rests.t;
   mutable block : int;
   mutable fresh : int;
-  (* Where a `return` sends its value: the verb's caller, or the match it is
-     an arm of. A `resolve` sends its value to its handler's expression. *)
+  (* Where a `return` sends its value: the verb's caller, or the match whose
+     arm holds the `return`. A `resolve` sends its value to its handler's
+     expression. *)
   mutable ret : sink;
   (* Where an `abort` sends its value: the verb's caller's handler, at the
      verb's abort type. *)
   mutable abort : Ty.t;
   mutable resolve : (Ty.t * Names.t ref) list;
-  (* What a match's arms or a handler's `resolve` hand on, by the span of the
-     expression they belong to. *)
+  (* The names that a match's arms or a handler's `resolve` hand on, keyed by
+     the span of the expression they belong to. *)
   results : (Source.Span.t, Names.t) Hashtbl.t;
   mutable report : bool;
   mutable grew : bool;
@@ -95,7 +101,8 @@ type walk = {
 let rec within w b d =
   b = d || match Hashtbl.find_opt w.parent d with Some p -> within w b p | None -> false
 
-(* Whether scope [a] outlives scope [d]: lives at least as long. *)
+(* Whether scope [a] outlives scope [d], meaning [a] lives at least as long
+   as [d]. *)
 let outlives w a d =
   match (a, d) with
   | (Caller | Global | Param _), _ -> true
@@ -136,8 +143,9 @@ let keep env t n = if carries env t then n else Names.empty
 (* What a value names                                                     *)
 (* ---------------------------------------------------------------------- *)
 
-(* The scope of the owner at place [e], for a reference minted from it. A
-   step through a reference leaves the root's tree for the one it names. *)
+(* The scope of the owner at place [e], for a reference minted from that
+   place. A step through a reference leaves the root's tree for the tree the
+   reference names. *)
 let rec place env w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> Names.singleton (scope_of_local w l, l.T.Local.name)
@@ -148,7 +156,7 @@ let rec place env w (e : T.Expr.t) =
       if Ty.is_ref target.T.Expr.ty then names env w target else place env w target
   | _ -> if Ty.is_ref e.T.Expr.ty then names env w e else Names.empty
 
-(* What a value of an expression names, before any store. *)
+(* The names of an expression's value, before any store. *)
 and names env w (e : T.Expr.t) =
   keep env e.T.Expr.ty
     (match e.T.Expr.node with
@@ -189,18 +197,19 @@ and names env w (e : T.Expr.t) =
         passed env w (References.param_types env impl) [ T.Arg.Value value ]
     | _ -> Names.empty)
     (* A match's arms, and a handler's `resolve`, were walked before the
-       store asked: what they handed on is kept by the expression's span. *)
+       store asked for the names: the names they handed on are kept under the
+       expression's span. *)
     |> Names.union (keep env e.T.Expr.ty (result w e))
 
-(* What a value names once stored where a value of type [into] goes: a
-   reference minted from a place names that place's owner. *)
+(* The names of a value once it is stored where a value of type [into] goes:
+   a reference minted from a place names that place's owner. *)
 and stored env w into (v : T.Expr.t) =
   keep env into
     (if Ty.is_ref into && not (Ty.is_ref v.T.Expr.ty) then place env w v else names env w v)
 
-(* A verb may hand back a reference rooted in any `&T` parameter, or one a
-   parameter carries, so its result names what each argument names as that
-   parameter takes it. *)
+(* A verb may hand back a reference rooted in any `&T` parameter, or a
+   reference that a parameter carries, so the verb's result names what each
+   argument names once stored as its parameter's type. *)
 and passed env w tys args =
   let rec go tys args acc =
     match (tys, args) with
@@ -223,17 +232,18 @@ and fields_names env w ty fields =
 (* Stores                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-(* What of [n] a store into [dest] may keep: every name that outlives it, and
-   a parameter's, which only a call settles. A name that does not is a store
-   [check] reports, and the destination does not take it on, so one mistake
-   is reported once rather than at every later use of what it was stored
-   into. *)
+(* The part of [n] that a store into [dest] may keep: every name whose scope
+   outlives [dest], and a parameter's name when [dest] is a parameter, which
+   only a call settles. [check] reports a store of any other name, and the
+   destination does not take that name on, so one mistake is reported once
+   rather than at every later use of the destination. *)
 let legal w dest n =
   Names.filter (fun (o, _) -> match (o, dest) with Param _, Param _ -> true | _ -> outlives w o dest) n
 
-(* §1.1: every scope a stored value names outlives the destination's. One
-   parameter stored into another's place comes to rest there (§1.11), which
-   only a call can settle. [via] says which call stored it. *)
+(* §1.1: every scope a stored value names outlives the destination's. A
+   parameter stored into another parameter's place comes to rest there
+   (§1.11), which only a call can settle. [via] names the call that stored
+   the value. *)
 let check env ?(via = "") w (at : T.Expr.t) dest (what : string) n =
   Names.iter
     (fun (o, name) ->
@@ -254,8 +264,9 @@ let check env ?(via = "") w (at : T.Expr.t) dest (what : string) n =
               ^ via))
     n
 
-(* The scope of an assignment's destination, the local it is reached from
-   unless that is a parameter, and how a message names it. *)
+(* The scope of an assignment's destination, the local the destination is
+   reached from unless that local is a parameter, and the text a message uses
+   to name the destination. *)
 let rec destination w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) ->
@@ -298,7 +309,7 @@ let rec expr env w (e : T.Expr.t) =
       handler_block env w e handler
   | T.Expr.Init fields ->
       (* `init{ }` fills an object whose destination the body cannot see: the
-         caller's, like a return (§1.1). *)
+         destination is in the caller's frame, as for a return (§1.1). *)
       List.iter
         (fun (f : T.Field_value.t) ->
           let v = f.T.Field_value.value in
@@ -317,7 +328,7 @@ let rec expr env w (e : T.Expr.t) =
       List.iter
         (fun (a : T.Arm.t) ->
           (* A binder is its scrutinee's payload, so it names what the
-             scrutinee does, and is declared in the arm. *)
+             scrutinee names, and it is declared in the arm. *)
           let binders =
             List.concat
               (List.mapi
@@ -361,8 +372,8 @@ let rec expr env w (e : T.Expr.t) =
       rest env w impl [ T.Arg.Value value ];
       opt_handler env w e handler
   | T.Expr.Lambda l ->
-      (* A lambda captures nothing (concurrency.md §5.2): its parameters are
-         its caller's, and so is its return. *)
+      (* A lambda captures nothing (concurrency.md §5.2): its parameters
+         belong to its caller, and its return goes to its caller. *)
       (* A `^T` parameter is the body's own, declared in its top block. *)
       let roaming, lent = List.partition (fun (p : T.Local.t) -> Ty.is_roaming p.T.Local.ty) l.T.Lambda.params in
       List.iter (fun (p : T.Local.t) -> Hashtbl.replace w.params p.T.Local.id (-1)) lent;
@@ -381,9 +392,10 @@ let rec expr env w (e : T.Expr.t) =
       w.abort <- a;
       w.resolve <- s
 
-(* §1.11: each parameter the callee keeps is stored into the place the
-   argument for the other names, and the local that place is in now names it
-   too. A subject is a borrow, never minted a reference for. *)
+(* §1.11: each argument whose parameter the callee keeps is stored into the
+   place named by the argument for the other parameter of the pair, and the
+   local holding that place now names the stored argument too. A subject is a
+   borrow, and no reference is minted for it. *)
 and rest env w callee args =
   let rs = summary_of w.summaries callee in
   if not (Rests.is_empty rs) then begin
@@ -405,7 +417,7 @@ and rest env w callee args =
   end
 
 (* A function type carries no summary, so a call through a function value
-   that may write its subject is taken to keep every argument there
+   that may write its subject is taken to keep every argument in the subject
    (lifetimes.md §1.11). *)
 and rest_value env w (v : Ty.verb) args =
   match v.Ty.this_ with
@@ -428,8 +440,8 @@ and rests env w rs ~method_ tys via args =
         | _ -> ())
     rs
 
-(* Argument [i], [v], kept in the place argument [j], [d], names: checked
-   against each root of that place, and recorded as held there. *)
+(* Argument [i], [v], kept in the place that argument [j], [d], names: [v] is
+   checked against each root of that place, and recorded as held there. *)
 and rest_kept env w ~method_ tys via (i, j) v d =
   let n =
     if method_ && i = 0 then if Ty.is_ref v.T.Expr.ty then names env w v else place env w v
@@ -446,8 +458,9 @@ and rest_kept env w ~method_ tys via (i, j) v d =
   let kept = Names.fold (fun (o, _) n -> legal w o n) roots n in
   Option.iter (fun l -> add w l kept) (root_local w d)
 
-(* The local an argument is a place in, unless it is a parameter or the place
-   is reached through a reference: that local holds what is stored there. *)
+(* The local that holds an argument's place, unless that local is a parameter
+   or the place is reached through a reference: that local holds every value
+   stored in the place. *)
 and root_local w (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) when not (Hashtbl.mem w.params l.T.Local.id) -> Some l
@@ -478,8 +491,9 @@ and arg env w (call : T.Expr.t) = function
 and opt_handler env w e = Option.iter (handler_block env w e)
 
 and handler_block env w (e : T.Expr.t) (h : T.Handler.t) =
-  (* The handler's binder holds what the call aborted with, which may carry
-     a reference to whatever its arguments name, as its result may. *)
+  (* The handler's binder holds the value the call aborted with, which may
+     carry a reference to anything the call's arguments name, as the call's
+     result may. *)
   Option.iter
     (fun (b : T.Local.t) -> add w b (names env w { e with T.Expr.ty = b.T.Local.ty }))
     h.T.Handler.binder;
@@ -556,7 +570,8 @@ let fresh summaries =
   }
 
 (* Walk until no local names anything new, then once more if [report]. Block
-   numbers restart each walk, so every walk numbers them alike. *)
+   numbers restart at each walk, so every walk numbers the blocks the same
+   way. *)
 let walk summaries ~report decl (ret, abort) (params : T.Local.t list) body =
   let w = fresh summaries in
   List.iteri

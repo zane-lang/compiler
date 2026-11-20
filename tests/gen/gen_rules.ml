@@ -9,8 +9,8 @@
    it stops, naming the file, at one without the other (fixture_pairing.ml),
    so no fixture goes untested and no golden file outlives its fixture.
 
-   It runs in the directory it writes rules for, and the golden files decide
-   which rules there are:
+   It runs in the directory it writes rules for, and the golden files
+   determine which rules there are:
 
    - codegen: `golden/NAME.cgt` prints fixture NAME's code-generation tree,
      `golden/NAME.optimized.cgt` the tree an optimized build makes of it,

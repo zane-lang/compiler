@@ -4,13 +4,13 @@
 ; measure (tests/runtime/abi), what stage 5's evaluator makes of the tree,
 ; what LLVM is told about each runtime function, how codegen reads a snapshot, which loops it marks to be unrolled, which lists a loop reads once before it and whose pushes' room it makes first, which loops strip mining cuts into runs (loops.ml), the processor codegen tunes for and which targets it accepts, and
 ; how a build keeps its compiled runtime and links. The golden suites test the
-; same code end to end; these say which helper broke, rather than where in a
+; same code end to end; these show which helper broke, rather than where in a
 ; golden file the difference surfaced. They also check that semantics run twice in one process gives the
 ; same tree (it keeps no numbering from one check to the next), that the
 ; test rules' generator pairs every fixture with a golden file, and that the
 ; driver checks a stamp and keeps a file its rewrite did not create, and the
 ; C interface's front half (foreign_c.ml): `c.coda`'s patterns and paths,
-; what a C compiler's include list says, a C source compiled by the linked
+; a C compiler's include list, a C source compiled by the linked
 ; clang, a global an `__asm__` label names read by its label, a Mach-O
 ; alias renamed with its target, a dependency's C module made a retained
 ; copy, the file of C module hashes beside an object and its rows, and the glue's

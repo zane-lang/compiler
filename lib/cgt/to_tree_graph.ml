@@ -1,5 +1,5 @@
-(* The CGT as a tree to print, the `--cgt` view. Every expression shows the
-   machine type it has. *)
+(* The CGT as a tree to print, the `--cgt` view. Every expression shows its
+   machine type. *)
 
 open Tree_graph
 open Nodes
@@ -40,8 +40,8 @@ let positions (ps : Layout.position list) =
 let layout (l : Layout.t) = Leaf l
 
 (* A spawned call's subject region (Expr.island): the frame member the
-   subject is read through, the member a copy of it is made in, if any, and
-   its size and layout. *)
+   subject is read through, the member a copy of the subject is made in, if
+   any, and the subject's size and layout. *)
 let subject_region (i : Expr.island) =
   fields
     ([ ("field", Leaf (string_of_int i.Expr.field)) ]
@@ -246,8 +246,8 @@ and stat = function
            @ match island with Some i -> [ ("island", subject_region i) ] | None -> []))
   | Stat.Join task -> Leaf (Printf.sprintf "join #%d" task)
 
-(* A function local to its object, as every function of a program is, says
-   nothing about its linkage. *)
+(* A function local to its object, as every function of a program is, prints
+   no linkage. *)
 let linkage (f : Func.t) =
   match f.Func.linkage with
   | Linkage.Local -> []

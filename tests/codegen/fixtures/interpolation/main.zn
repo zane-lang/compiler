@@ -38,7 +38,7 @@ Unit later(text @concepts$String, change @concepts$Block) {
 
 String greet(who String) => String("hi \%who!");
 
-/// Says when its implicit constructor runs.
+/// Prints `read loud` each time its implicit constructor runs.
 type Loud = struct { _value String; }
 
 Loud(value String) => init{ _value = value; }

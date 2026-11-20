@@ -3,8 +3,8 @@
 
 module Nodes = Nodes
 
-(** [parse filename text] parses one source file. [filename] is what every
-    position, and so every diagnostic, names. *)
+(** [parse filename text] parses one source file. Every position, and so
+    every diagnostic, names [filename] as its file. *)
 val parse : string -> string -> (Nodes.Package.t, Diagnostic.t) result
 
 (** The tree as `zanec --cst` prints it. *)
@@ -15,8 +15,9 @@ val to_node : Nodes.Package.t -> Tree_graph.node
 val to_span_text : source:string -> Nodes.Package.t -> string
 
 (** Whether the whole of a string is one lowercase identifier, as the lexer
-    reads one (lexical.md §3): a name such as a package's, given anywhere but
-    in source, is held to the rule the source is. A keyword is not one. *)
+    reads one (lexical.md §3). A name given outside source, such as a
+    package's name on the command line, follows the same rule as a name in
+    source. A keyword is not a lowercase identifier. *)
 val is_lower_identifier : string -> bool
 
 (** A string literal's structure (lexical.md §7.1), read from the text the
@@ -28,7 +29,7 @@ module Text_literal : sig
         (** An interpolation site [\%name], and the byte offset of [name] in
             the written text. *)
     | Bad_name of { found : found; offset : int }
-        (** A [\%] no value identifier follows, and the offset of the
+        (** A [\%] that no value identifier follows, and the offset of the
             [\%]. *)
 
   and found = Type_identifier of string | Keyword of string | Nothing

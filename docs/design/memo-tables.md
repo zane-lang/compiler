@@ -78,7 +78,7 @@ change as the search moves on, keeps positions it never asks for again.
 
 ### Without the tag
 
-An entry of the arguments, the result and a meta word whose work tells an
+An entry of the arguments, the result and a meta word whose work distinguishes an
 empty entry, 0, from a written one. A shorter entry fits more of them in
 64 KiB: `ttt`'s fell from 72 to 64 bytes, a cache line each, and the table
 from 512 entries to 1024, which made it 44% faster. `overlap`'s doubled

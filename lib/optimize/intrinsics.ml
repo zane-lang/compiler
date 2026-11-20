@@ -1,9 +1,9 @@
-(* What each function of the runtime is to a fold (docs/design/optimization.md
+(* How a fold treats each function of the runtime (docs/design/optimization.md
    O3). Every intrinsic reaches the CGT either as ordinary nodes -- an
    operator as a [Binary], `branch` as an [If] -- or as a call into the
    runtime, so this match over [Cgt.Runtime.fn] is the whole list. It is
    exhaustive on purpose: a function added to the runtime does not compile
-   until it says which class it is in.
+   until this match gives the function's class.
 
    [Computed] runs at compile time. [Output] runs too, and what it did is
    replayed where the folded code was. [Input] gives a value only the
@@ -14,8 +14,8 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
-  (* A wait is when the running program does what follows it, which no
-     replay could keep, so a fold stops there. *)
+  (* What follows a wait runs when the running program reaches the wait,
+     a timing no replay could keep, so a fold stops there. *)
   | Sleep -> Input
   (* A String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
@@ -42,15 +42,15 @@ let classify : Cgt.Runtime.fn -> t = function
       Computed
   (* Codegen calls these for nodes of the tree rather than the tree naming
      them: a scope, a held slot, a copy, a box, a spawn, a run of pushes, and
-     the walks it emits for each type. The evaluator gives each node its
-     meaning directly. *)
+     the walks it emits for each type. The evaluator evaluates each such
+     node directly. *)
   | List_reserve | List_room | Scope_enter | Scope_drain | Hold | Too_deep | Promote | Arrive | Copy
   | Overwrite | Box | Spawn | Join | Snapshot | Out_of_range | Prefetch | Island
   | Region_at | Alloc | Alloc_held | Relocate | Box_held | Box_in | Free | Leaves | Defer | Defer_return
   | Overwrite_handles | Overwrite_settled | Handle_end | Handle_set ->
       Computed
 
-(* What a math function of `@math$` on operands of type [t] is to a fold.
+(* How a fold treats a math function of `@math$` on operands of type [t].
    An exact one is [Computed]. An approximate one is [Input]: its result is
    the C math library's where the program runs (math.md §2.6), which the
    compiler's own may not match. So is an [F32] `fma`, which a double would

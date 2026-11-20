@@ -81,7 +81,7 @@ Unit check(holds Truth) {
 	return Unit();
 }
 
-/// A value that says when it is read.
+/// A value that prints its name when it is read.
 Num say(value Num, name String) {
 	@program$console!print(name);
 	return value;

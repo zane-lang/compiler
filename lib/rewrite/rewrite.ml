@@ -1,13 +1,13 @@
 (* A library's object file with its `!` placeholder turned into a version
    stamp, as fetching does to a release's objects
    (docs/design/separate-compilation.md C9, dependencies.md §6.1). ELF,
-   Mach-O and COFF objects are read; each format's module says how its
-   symbols name themselves. *)
+   Mach-O and COFF objects are read; each format's module describes how that
+   format stores symbol names. *)
 
 let is_stamp = Name.is_stamp
 
-(* Whether two stamps are of one package: whether their identity hashes are
-   one. *)
+(* Whether two stamps belong to one package, which holds when their identity
+   hashes are equal. *)
 let same_package a b = Name.identity a = Name.identity b
 
 (* The object [input] with each symbol renamed by [rename], and how many

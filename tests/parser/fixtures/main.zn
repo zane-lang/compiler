@@ -27,7 +27,7 @@ import math$[floor, ceil];
 // ---------------------------------------------------------------------------
 
 /// The operators the calculator understands. Peers carry no payload, so
-/// everything an operator knows about itself is attached from the outside.
+/// all data about an operator is attached from the outside.
 type Operator = enum [ add, sub, mul, div ];
 
 /// An enum map attaches uniform external data to every member of an enum. It
@@ -195,7 +195,7 @@ Environment.of(names Array<String, 4>, values Array<Float, 4>) => init{
 (this Environment)[index Int] => this.values[index];
 
 /// A read-only method, called with `:`. It aborts rather than returning a
-/// sentinel, so every caller has to say what an unknown name means.
+/// sentinel, so every caller has to handle an unknown name.
 ///
 /// Counted repetition is a `mut` method on the counter handed a block, not a
 /// construct: the counter is an ordinary local the block captures, and the
@@ -203,7 +203,7 @@ Environment.of(names Array<String, 4>, values Array<Float, 4>) => init{
 Float?String lookup(this Environment, wanted String) {
 	index Int = Int(1);
 	index!to(this._count) {
-		// `if` is a call too: its block is the one trailing its arguments.
+		// `if` is a call too: its block is the block argument trailing its arguments.
 		if(this.names[index] == wanted) {
 			return this.values[index];
 		}
@@ -453,7 +453,7 @@ Unit main() {
 	double Float(value Float) => value * Float(2);
 
 	// The same shorthand with a block body. It is a declaration either way, so
-	// what decides the terminator is the shape of the body, not the form.
+	// the shape of the body, not the form, determines the terminator.
 	clamp Float(value Float) {
 		return value;
 	}
@@ -463,8 +463,8 @@ Unit main() {
 	reading String = describe(Operator.mul);
 
 	// A map literal is a `{ }` body of `;`-terminated `key, value` entries. It
-	// carries no introducing token, so what tells it from a block argument is
-	// the mark after its first expression.
+	// carries no introducing token, so the mark after its first expression
+	// distinguishes a map literal from a block argument.
 	labels Map<String, Float> = {
 		"x", Float(3);
 		"y", Float(4);

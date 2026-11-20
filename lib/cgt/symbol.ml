@@ -12,11 +12,11 @@ module Tty = Tst.Ty
    (`name@VERSION`), and `%` means nothing to them. *)
 let namespace n = "%" ^ n
 
-(* What goes before a package's name in a symbol: `!` for the library an
+(* The prefix before a package's name in a symbol: `!` for the library an
    object is built for, whose symbols fetching rewrites, a dependency's
    version and identity hash, or nothing
    (docs/design/separate-compilation.md C5, C6). A type a package declares
-   carries it as the package's verbs do, so that two versions of one
+   carries the prefix as the package's verbs do, so that two versions of one
    library give an instance of the same generic two names. *)
 type stamp = string -> string
 
@@ -61,7 +61,7 @@ and concept stamp = function
   | Tty.Block -> namespace "concepts" ^ "$Block"
   | Tty.Type_value -> "Type"
 
-(* A verb type: its result, `?` and its abort type when it has one, and its
+(* A verb type: its result, `?` and its abort type when the verb type has one, and its
    parameters in brackets, `%primitives$Int[this pkg$Player, pkg$Weapon] mut`. *)
 and verb_type stamp (v : Tty.verb) =
   let ty = ty_ stamp in
@@ -85,8 +85,8 @@ let ty ?(stamp = unstamped) t = ty_ stamp t
 
    Two overloads never take the same parameter types (functions.md §4.1), and
    two instances of one generic never take the same arguments, so no two verbs
-   share a name. An explicit `T Type` or number parameter writes its kind; the
-   argument it was given is among the instance's. *)
+   share a name. An explicit `T Type` or number parameter is written as its
+   kind; the argument it was given is among the instance's arguments. *)
 let verb ?(stamp = unstamped) (s : S.t) (instance : (Tty.param * Tty.arg) list) =
   let sub = Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.Tty.id, a)) instance) in
   let param (p : S.param) =

@@ -69,15 +69,16 @@ let is_array_ref = function
   | _ -> false
 
 (* A reference type: a `#` type, a `ListRef` or an `ArrayRef`, whose
-   instances are owned (memory.md §2.1). A roaming owner is one of its type. *)
+   instances are owned (memory.md §2.1). A roaming owner has the reference
+   type it owns. *)
 let reference st t =
   let t = match t with Tty.Roaming t -> t | t -> t in
   is_list_ref t || is_array_ref t || match definition st t with Some (_, true) -> true | _ -> false
 
-(* The types a type holds inline: its members and payloads, what it is
-   distinct from, and an array's elements. A reference holds an address, a
-   list's elements are in its block, and an array of none holds nothing, so
-   no cycle passes through it. *)
+(* The types a type holds inline: its members and payloads, the type a
+   distinct type wraps, and an array's elements. A reference holds an
+   address, a list's elements are in its block, and an array of no elements
+   holds nothing, so no cycle passes through any of these. *)
 let inline st t =
   match (definition st t, array_of t) with
   | Some ((T.Decl.Struct ms | T.Decl.Variant ms), _), _ ->
@@ -88,9 +89,9 @@ let inline st t =
 
 (* A walk down a type's members, gone down to [t] (Tty.Growth). Semantics
    rejects a type that holds itself at a growing argument (generics.md §2.4),
-   the only kind whose members lead to ever new types, so a walk that keeps
-   growing is a type that check missed: an internal error, not a hang or a
-   stack overflow. *)
+   the only kind of type whose members lead to ever new types, so a walk that
+   keeps growing means semantics missed such a type: an internal error, not a
+   hang or a stack overflow. *)
 let down ?span path t =
   match Tty.Growth.step path t with
   | Some path -> path
@@ -100,7 +101,7 @@ let down ?span path t =
 
 (* adt.md §4: a member is boxed when its type leads back to the type that
    holds it along owning edges, since no finite inline layout exists for it.
-   A boxed member is a pointer to its payload's block. Each answer is kept,
+   A boxed member is a pointer to its payload's block. Each result is kept,
    so a long chain of types is walked once per member, not once per use. *)
 let leads_back st ?(through = fun _ -> inline st) holder member =
   let seen = Hashtbl.create 16 in
@@ -121,9 +122,9 @@ let leads_back st ?(through = fun _ -> inline st) holder member =
    payload, since that payload's box already breaks the cycle. *)
 let one_box () = Sys.getenv_opt "ZANE_ONE_BOX" <> Some "0" && Sys.getenv_opt "ZANE_POOLED_VARIANTS" <> Some "1"
 
-(* What a struct's member leads through on its way back to the struct under
-   [one_box]: a variant only through the payloads that are not already boxed
-   for leading back to it. *)
+(* The types a struct's member leads through on its way back to the struct
+   under [one_box]: through a variant, only through the payloads that are not
+   already boxed for leading back to that variant. *)
 let unboxed_through st _ t =
   match definition st t with
   | Some (T.Decl.Variant cs, _) ->
@@ -145,11 +146,11 @@ let boxed st holder member =
 
 (* Experimental (docs/experiments/goose-comparison): with
    ZANE_POOLED_VARIANTS=1 in the environment, a variant whose payload leads
-   back to it is pooled. Where it is owned it is a root, a list of bytes
-   whose block holds the root node's offset and then every node of the
+   back to it is pooled. Where the variant is owned it is a root, a list of
+   bytes whose block holds the root node's offset and then every node of the
    value; inside its pool each node is the variant's sum with its payload
-   inline, and each member of the variant's own type in it is a 32-bit link,
-   the offset from the link to the node it names. *)
+   inline, and each member of the variant's own type in the node is a 32-bit
+   link, the offset from the link to the node it names. *)
 let pooling = Sys.getenv_opt "ZANE_POOLED_VARIANTS" = Some "1"
 
 let unroamed = function Tty.Roaming t -> t | t -> t
@@ -162,8 +163,8 @@ let pooled st t =
   | Some (T.Decl.Variant cs, _) -> List.exists (fun (_, c) -> boxed st t c) cs
   | _ -> false
 
-(* A struct a pooled variant's payload is, inline in its node: one with a
-   member of a pooled variant that leads back to it. *)
+(* A struct that is a pooled variant's payload, inline in its node: a struct
+   with a member of a pooled variant that leads back to the struct. *)
 let cycle_struct st t =
   pooling
   &&
@@ -172,8 +173,8 @@ let cycle_struct st t =
   | Some (T.Decl.Struct ms, _) -> List.exists (fun (_, m) -> pooled st m && boxed st t m) ms
   | _ -> false
 
-(* A value struct of one member is that member (L5), so reading or storing
-   the member is reading or storing the struct. *)
+(* A value struct with one member is laid out as that member (L5), so reading
+   or storing the member is reading or storing the struct. *)
 let collapsed st t =
   match definition st t with
   | Some (T.Decl.Struct [ (_, m) ], false) -> not (boxed st t m)
@@ -181,11 +182,11 @@ let collapsed st t =
 
 (* L5: a storage primitive has a machine layout, a string or a list is a
    handle, and an array is its elements inline. A value struct has its
-   members', in the order Nodes.Ty.order places them, except that one of a
-   single member has that member's (concepts-vs-primitives.md) and an empty
-   one has none. A
-   value variant is a sum of its payloads, and
-   an enum a sum of cases with none. A reference type's instance has the
+   members' layouts, in the order Nodes.Ty.order places them, except that a
+   struct of a single member has that member's layout
+   (concepts-vs-primitives.md) and an empty struct has no layout. A value
+   variant is a sum of its payloads, and an enum a sum of cases with no
+   payload. A reference type's instance has the
    same shape and nothing more (memory.md §3.3), a reference is the address
    of the owner it names (§4.1), and a boxed member a pointer (adt.md §4).
    A function value is the address of the function a lambda was lifted to
@@ -220,8 +221,8 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (
       match array_of t with
-      (* An array of none holds nothing of its element, which may be the
-         type that holds the array ([inline]). *)
+      (* An array of no elements holds nothing of its element type, which
+         may be the type that holds the array ([inline]). *)
       | Some (_, 0) -> Nodes.Ty.Array (Nodes.Ty.Void, 0)
       | Some (e, n) -> Nodes.Ty.Array ((if ref_slot e then Nodes.Ty.Ref else shape st span e), n)
       | None -> unhandled span t)
@@ -246,17 +247,18 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | _ -> unhandled span t)
   | _ -> unhandled span t
 
-(* The layout of the member [m] of [holder]: a pointer when it is boxed, a
-   reference's 32-bit form in a member (experimental), else its type's. *)
+(* The layout of the member [m] of [holder]: a pointer when the member is
+   boxed, a reference's 32-bit form in a member (experimental), else the
+   layout of the member's type. *)
 and member_shape st span holder m =
   if boxed st holder m then if pooled st m then Nodes.Ty.list_handle () else box_type ()
   else if ref_slot m then Nodes.Ty.Ref
   else shape st span m
 
 (* Where each declared member of the struct [t] goes in its layout
-   (Nodes.Ty.order), by the layouts of its members, once for each type. A
-   pooled variant's node lays out a struct it holds in the same order, so
-   one index names a member in both. *)
+   (Nodes.Ty.order), computed from the layouts of its members, once for each
+   type. A pooled variant's node lays out a struct it holds in the same
+   order, so one index names a member in both layouts. *)
 let member_order st t =
   let t = unroamed (Tty.strip_mode t) in
   match Hashtbl.find_opt st.orders t with
@@ -297,10 +299,10 @@ let bytes n =
   in
   scaled [ ("GiB", 1 lsl 30); ("MiB", 1 lsl 20); ("KiB", 1 lsl 10) ]
 
-(* A type's layout, refused where it is named when its size is past the
+(* A type's layout, refused where the type is named when its size is past the
    limit no value can reach (Nodes.Ty.limit), or past the main context's
    range of frames (`--fixed-region`), which could then never hold a value
-   of it (docs/design/lowering.md §9). Each layout is checked once. *)
+   of the type (docs/design/lowering.md §9). Each layout is checked once. *)
 let ty st span (t : Tty.t) : Nodes.Ty.t =
   let lowered = shape st span t in
   if not (Hashtbl.mem st.sized lowered) then begin
@@ -324,10 +326,10 @@ let stride st span t =
   max 1 (Nodes.Ty.round_up size align)
 
 (* A foreign handle type's free and set thunks (docs/design/ffi.md F8),
-   each recorded for the glue the first time a layout names it. Each is
-   named after the type, by a suffix no walk of the type has. An outside
-   handle's reach a capability (F17), since its object is outside state. A
-   capability has neither. *)
+   each recorded for the glue the first time a layout names the type. Each
+   thunk is named after the type, with a suffix that no walk of the type has.
+   An outside handle's thunks reach a capability (F17), since its object is
+   outside state. A capability has neither thunk. *)
 let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
   match (t, h.T.Handle.free) with
   | Tty.Named ({ package; _ }, _), Some free ->
@@ -352,9 +354,9 @@ let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
       Some (free, set)
   | _ -> None
 
-(* The tag a position under case [i] of the lowered sum [lowered] names:
-   as its 4-byte tag, its packed tag's byte, its niche or its byte niche
-   holds the case. *)
+(* The tag that a position under case [i] of the lowered sum [lowered] names,
+   in whichever form the sum holds the case: its 4-byte tag, its packed tag's
+   byte, its niche or its byte niche. *)
 let case_tag lowered i =
   match lowered with
   | Nodes.Ty.Sum ts when Nodes.Ty.niche ts -> Layout.niche_tag i
@@ -369,7 +371,7 @@ let case_tag lowered i =
    boxed member, down through variant payloads under the tag that makes each
    live, and each foreign handle that owns its C object. An array whose
    elements own blocks is one position, which names its element's layout,
-   so that its positions do not grow with its length
+   so that the array's positions do not grow with its length
    (docs/design/lowering.md §9). A reference is an address, and owns
    nothing. *)
 let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Layout.position list =
@@ -434,7 +436,7 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
           | _ -> [])
       | None -> [])
 
-(* The layout of a pool's bytes, which own nothing a walk follows. *)
+(* The layout of a pool's bytes, which own nothing that a walk follows. *)
 and pool_bytes st =
   let name = "zane.pool" in
   if not (Hashtbl.mem st.layouts name) then begin
@@ -445,7 +447,7 @@ and pool_bytes st =
 
 (* A type's layout, by the type's symbol (Symbol.ty), which is also the name
    of its table in the IR. A layout that names itself, through a box, finds
-   its name taken before it is done. *)
+   its own name already taken before the layout is finished. *)
 and layout ?path st span (t : Tty.t) : Layout.t =
   let name = Symbol.ty t in
   if not (Hashtbl.mem st.layouts name) then begin
@@ -461,8 +463,8 @@ let packed_nodes () = Sys.getenv_opt "ZANE_PACKED_NODES" = Some "1"
 
 let packing t = if packed_nodes () then Nodes.Ty.Packed t else t
 
-(* A pooled variant [p]'s node: its sum, each payload inline, a member of
-   [p]'s type a link. The prototype pools only a variant whose payloads are
+(* A pooled variant [p]'s node: its sum, with each payload inline and each
+   member of [p]'s type as a link. The prototype pools only a variant whose payloads are
    [p] itself, a struct whose members of a pooled type are [p], or a type
    that owns no block, so a node owns nothing outside its pool. *)
 let node_shape st span p =
@@ -506,7 +508,7 @@ let node_ty st span t =
 
 (* Where a pooled variant's nodes keep their links, for the runtime's
    copy of a subtree: for each of the first four cases, a mask with a bit
-   set for each byte of the node a link starts at. *)
+   set for each byte of the node at which a link starts. *)
 let node_masks st span p =
   let p = unroamed p in
   let node = node_shape st span p in
@@ -542,15 +544,15 @@ let slot st t id =
   if not (Tty.is_ref t || reference st t) then st.values <- id :: st.values;
   Slot id
 
-(* Whether a local of this type is a roaming owner: one the body may move
-   on, or that dies with it (lifetimes.md §1.5). *)
+(* Whether a local of this type is a roaming owner: an owner the body may
+   move on, or that dies with the body (lifetimes.md §1.5). *)
 let roaming st t = Tty.is_roaming t && reference st t
 
 (* Whether a place is reached through an owner: a member or a case of a
-   reference-type instance, or of one a reference names, an element of a
-   `ListRef` or an `ArrayRef`, and an element of an array or a value list
-   reached through one. A
-   spawned call may write back a value there while another thread reads it
+   reference-type instance, or of an instance a reference names, an element
+   of a `ListRef` or an `ArrayRef`, and an element of an array or a value
+   list reached through an owner. A spawned call may write back a value
+   there while another thread reads it
    (concurrency.md §4.4). *)
 let rec through_owner st (e : T.Expr.t) =
   match e.T.Expr.node with
@@ -563,8 +565,9 @@ let rec through_owner st (e : T.Expr.t) =
   | T.Expr.Subscript _ -> true
   | _ -> false
 
-(* Whether a value of type [outer] holds one of type [inner]: is it, or has
-   it among the members it holds inline or boxed, however deep. *)
+(* Whether a value of type [outer] holds a value of type [inner]: [outer] is
+   [inner], or has [inner] among the members it holds inline or boxed,
+   however deep. *)
 let holds st outer inner =
   let seen = Hashtbl.create 8 in
   let rec go t =
@@ -576,14 +579,15 @@ let holds st outer inner =
   in
   go (Tty.strip_mode outer)
 
-(* A type an owner is of, with what it is distinct from looked through. *)
+(* An owner's type, with a distinct type looked through to the type it
+   wraps. *)
 let rec owner_type st t =
   match definition st t with Some (T.Decl.Distinct u, _) -> owner_type st u | _ -> t
 
-(* Where a place reached through an owner is: the type of the innermost
-   owner, and the steps from it down to the place, or [None] when a
-   declared subscript names it, whose body may name any place inside its
-   target. A value holds no owner (memory.md §2.10), so every byte of a
+(* The location of a place reached through an owner: the type of the
+   innermost owner, and the steps from it down to the place, or [None] when a
+   declared subscript names the place, since the subscript's body may name
+   any place inside its target. A value holds no owner (memory.md §2.10), so every byte of a
    value inside an owner is reached from that owner alone, by one path. *)
 let rec owned_place st (e : T.Expr.t) =
   let owner (target : T.Expr.t) =
@@ -600,8 +604,8 @@ let rec owned_place st (e : T.Expr.t) =
       down target Elem
   | _ -> None
 
-(* Two places overlap when they are in owners of one type and one's steps
-   begin the other's. *)
+(* Two places overlap when they are in owners of one type and one place's
+   steps begin the other's. *)
 let overlap (o, steps) (o', steps') =
   let rec prefix = function
     | [], _ | _, [] -> true
@@ -609,16 +613,16 @@ let overlap (o, steps) (o', steps') =
   in
   Tty.equal o o' && prefix (steps, steps')
 
-(* What a spawned call writes back into the place [e], when it is reached
-   through an owner. *)
+(* The write-back a spawned call makes into the place [e], when [e] is
+   reached through an owner. *)
 let written_into st (e : T.Expr.t) =
   { of_type = Tty.strip_mode e.T.Expr.ty; place = owned_place st e }
 
 (* Whether a read of the place [e], reached through an owner, takes a
    snapshot: a spawned call may write back into a place that overlaps it
-   while the read takes its bytes (concurrency.md §4.4). Where either
-   place is not known, the read takes one when its type holds the written
-   value's, or that holds its type. *)
+   while the read takes its bytes (concurrency.md §4.4). Where either place
+   is not known, the read takes a snapshot when its type holds the written
+   value's type, or the written value's type holds its type. *)
 let rec snapshots st (e : T.Expr.t) =
   match st.written_back with
   | None -> true
@@ -633,11 +637,12 @@ let rec snapshots st (e : T.Expr.t) =
         ws
       || program_overlaps st t at
 
-(* The program a library's object is built for names its places by
-   spelling (Write_backs). Two places overlap as [overlap] says, compared
-   spelled out; otherwise [t] and the written value's type are one held by
-   the other when what [t] holds, itself included, meets what the written
-   value holds, itself included, which is that or more. *)
+(* The program that a library's object is built for names its places by
+   spelling (Write_backs). Two places overlap as [overlap] determines,
+   compared in their spelled-out form; otherwise [t] and the written value's
+   type are taken as one holding the other when the types [t] holds, [t]
+   included, meet the types the written value holds, the written value's
+   type included, which is that relation or more. *)
 and program_overlaps st t at =
   st.program_written <> []
   &&
@@ -653,8 +658,8 @@ and program_overlaps st t at =
       | _ -> List.exists (fun h -> List.mem h w.holding) (Lazy.force held))
     st.program_written
 
-(* Every type a value of type [t] holds, [t] itself first: what [holds]
-   walks, each with its mode looked through, which can only add to it. *)
+(* Every type a value of type [t] holds, [t] itself first: the types [holds]
+   walks, each with its mode looked through, which can only add types. *)
 and held_types st t =
   let seen = Hashtbl.create 8 in
   let rec go acc t =
@@ -668,7 +673,7 @@ and held_types st t =
   List.rev (go [] t)
 
 (* Whether a value of this type owns a dynamic block (memory.md §3.6), which
-   it returns when it dies and copies when it is copied. *)
+   the value returns when it dies and copies when it is copied. *)
 let owns st span t = (not (Tty.is_ref t)) && positions st span t 0 [] <> []
 
 (* Whether a local of this type is held in its scope's arena: an owner, or a

@@ -2,11 +2,12 @@
    analysis over the finished TST (docs/design/semantics.md D1).
 
    A verb exits when `@controlflow$exitFromCall` is in its own frame: its
-   body, or a block written there. A call to it ends the run of the block the
-   call is written in. So such a call must be written in a block: a body
-   cannot end without the `return` it ends in. A lambda is called through a
-   function value, whose type does not say that it exits, so a lambda's own
-   frame holds no `@controlflow$exitFromCall` at all. *)
+   body, or a block written there. A call to such a verb ends the run of the
+   block the call is written in, so the call must be written in a block: a
+   body cannot end without the `return` it ends in. A lambda is called through
+   a function value, and a function value's type does not record whether the
+   function exits, so a lambda's own frame may hold no
+   `@controlflow$exitFromCall` at all. *)
 
 module T = Nodes
 module S = Signature
@@ -28,7 +29,7 @@ and expr_exits (e : T.Expr.t) =
 (* Whether `@controlflow$exitFromCall` is in a block's own frame. *)
 let block b = exits b <> []
 
-(* The verb a call names, when it names a declared one. *)
+(* The verb a call names, when the call names a declared verb. *)
 let callee (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Call { callee = r; _ }
@@ -84,9 +85,9 @@ let run env (p : T.Program.t) =
         | Same x -> walk in_block x
         | Arm b | Handler b -> walk_block in_block b
         | Block b -> walk_block true b
-        (* A lambda has a frame of its own, so its body is in no block. A call
-           through a function value cannot say that it exits, so the body
-           may not (control-flow.md §4.2). *)
+        (* A lambda has a frame of its own, so its body is in no block. A
+           call through a function value cannot record that the function
+           exits, so the lambda's body may not exit (control-flow.md §4.2). *)
         | Lambda b ->
             List.iter
               (fun (x : T.Expr.t) ->

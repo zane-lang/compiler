@@ -1,8 +1,8 @@
-(* The TST as a tree to print. Every expression shows its type, since that is
-   what this stage adds; a leaf expression shows it on the same line, as
-   `value : type`.
+(* The TST as a tree to print. Every expression shows its type, since types
+   are what this stage adds; a leaf expression shows its type on the same
+   line, as `value : type`.
 
-   [~bodies:false] prints declarations only -- what passes 1 to 4 settled,
+   [~bodies:false] prints declarations only -- what passes 1 to 4 resolved,
    the `--decls` view -- and [~bodies:true] the whole tree with every body and
    every generic instance, the `--tst` view. *)
 

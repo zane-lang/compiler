@@ -14,9 +14,9 @@ open Outcome
 open Build
 open Lower
 
-(* Whether a slot of type [t] has a layout lowering knows the size of: a
-   declared type, a list or a text. A runtime value such as `Console` is
-   the runtime's own, and has none. *)
+(* Whether a slot of type [t] has a layout whose size lowering knows: a
+   declared type, a list or a text. A runtime value such as `Console`
+   belongs to the runtime, and has no such layout. *)
 let rec laid_out (t : Tty.t) =
   match t with
   | Tty.Roaming t -> laid_out t
@@ -131,14 +131,14 @@ let func st (v : verb) : Func.t =
     { Func.symbol = symbol st v; linkage; params = given; places; ret = returned o; body; values = st.values }
   end
 
-(* L16. The function that makes a package constant: the first call makes
-   its value, in a scope of its own, and stores it in the constant's
-   variable, whose blocks then move into the constants' region; every
-   call gives the variable's address. A context that finds another making
-   it waits for it. A program's constants live as long as it does, as
-   that region does, so nothing ends them. The constant is local to a
-   program's object, and shared by every object of a library or a stamped
-   dependency that reads it, as a generic instance is. *)
+(* L16. The function that makes a package constant: the first call makes the
+   constant's value, in a scope of its own, and stores it in the constant's
+   variable, whose blocks then move into the constants' region; every call
+   returns the variable's address. A context that finds another context
+   making the constant waits for it. A program's constants live as long as
+   the program, as that region does, so nothing ends them. The constant is
+   local to a program's object, and shared by every object of a library or a
+   stamped dependency that reads it, as a generic instance is. *)
 let made st decl : Func.t =
   let c = Hashtbl.find st.constants decl in
   let span = c.value.T.Expr.span in
@@ -182,10 +182,11 @@ let made st decl : Func.t =
     values = [];
   }
 
-(* docs/design/symbols.md: a lambda is called by the verb it is written in
-   and its place among that verb's lambdas, counted from 1 in source order,
-   nested ones included, and a package lambda-variable's by the variable.
-   [owner] is the verb's symbol, the variable's, or an enum map's. *)
+(* docs/design/symbols.md: a lambda is named after the verb it is written in
+   and its position among that verb's lambdas, counted from 1 in source
+   order, nested lambdas included, and a package lambda-variable's lambda is
+   named after the variable. [owner] is the verb's symbol, the variable's, or
+   an enum map's. *)
 let name_lambdas st owner (b : T.Block.t) =
   let n = ref 0 in
   let rec block (b : T.Block.t) =
@@ -201,12 +202,12 @@ let name_lambdas st owner (b : T.Block.t) =
   in
   block b
 
-(* The functions a library's object holds, besides what they call: every
+(* The functions a library's object holds, besides the functions they call: every
    verb of each of its own packages that is not generic and has a function of its
    own (L11), and every lambda-variable, which other objects call by name
    (docs/design/separate-compilation.md C5); and the free and set thunks of
-   each of its foreign handle types, which ends and overwrites in other
-   objects call (docs/design/ffi.md F8). *)
+   each of its foreign handle types, which other objects call when they end
+   or overwrite a handle (docs/design/ffi.md F8). *)
 let library_roots st (root : T.Package.t) =
   List.iter
     (fun (d : T.Decl.t) ->
@@ -226,8 +227,8 @@ let library_roots st (root : T.Package.t) =
       | _ -> ())
     root.T.Package.decls
 
-(* What a stamped dependency's glue holds, which a consumer writes again
-   to compare with the glue its release was built from
+(* The thunks a stamped dependency's glue holds, which a consumer writes again
+   to compare with the glue the dependency's release was built from
    (docs/design/ffi.md F13): a thunk for every foreign verb of [pkg] and
    the free and set thunks of each of its foreign handle types, as its own
    library build lowers them ([library_roots]), whichever of them the
@@ -246,7 +247,7 @@ let roots_of_glue st (pkg : T.Package.t) =
 (* Every call the program spawns: a spawn anywhere in any package of the
    build, a stamped dependency's included, since its objects are built from
    the source checked here (docs/design/separate-compilation.md C2). A spawn
-   read where it is written runs at once, but counts too. *)
+   whose value is read where it is written runs at once, but counts too. *)
 let spawned (p : T.Program.t) =
   let found = ref [] in
   let call (e : T.Expr.t) =
@@ -280,8 +281,9 @@ let spawned (p : T.Program.t) =
 (* The places spawned calls may write back into (concurrency.md §4.4): each
    `mut` call's subject reached through an owner, which the call works on a
    copy of and writes back when it returns (Lower_spawn). A subject whose
-   type, or whose owner's, names a type parameter is in a generic verb's
-   body, which is lowered only as its instances, and they are walked too. *)
+   type, or whose owner's type, names a type parameter is in a generic verb's
+   body, which is lowered only as its instances, so the instances are walked
+   too. *)
 let written_back st calls =
   let subject (e : T.Expr.t) =
     match e.T.Expr.node with
@@ -313,20 +315,20 @@ let written_back st calls =
 (* A program lowers from its root package's `main`; a [library] from every
    function its own packages declare, into an object with no entry.
 
-   A package given a stamp is named by it already: its identity is its
-   stamped name (docs/design/separate-compilation.md C6, C10), which a `%`
-   in it gives away, since no package name holds one. The packages that
-   share the first package's stamp, or are unstamped with it, are the
-   project being compiled: its library packages, which a library's object
-   holds every one of (dependencies.md §3.1). Any other stamp is a
+   A package given a stamp is already named with it: its identity is its
+   stamped name (docs/design/separate-compilation.md C6, C10), which can be
+   recognized by its `%`, since no package name contains one. The packages
+   that share the first package's stamp, or are unstamped like it, are the
+   project being compiled: its library packages, all of which a library's
+   object holds (dependencies.md §3.1). A package with any other stamp is a
    dependency, which arrives as objects of its own, and an unstamped
-   dependency of a stamped package is compiled into its module (C6). A
-   library's own packages without a stamp are named with the `!`
-   placeholder, and ones with a stamp are named with it, as a dependency
-   compiled from source is. *)
+   dependency of a stamped package is compiled into that package's module
+   (C6). A library's own packages without a stamp are named with the `!`
+   placeholder, and packages with a stamp are named with their stamp, as a
+   dependency compiled from source is. *)
 (* L16's constants, in the order they are made: the packages a package
    depends on first, and within a package in the order declared. A constant
-   that is a lambda is a function, made by nothing. *)
+   that is a lambda is a function, which needs no making. *)
 let constants_in_order (p : T.Program.t) =
   let constant (d : T.Decl.t) =
     match d.T.Decl.node with
@@ -339,7 +341,7 @@ let constants_in_order (p : T.Program.t) =
     (List.rev p.T.Program.packages)
 
 (* The entry the runtime calls, `zane.start`: [makes], then a call to
-   [entry], `main`'s symbol among [funcs], whose result it drops. When
+   [entry], `main`'s symbol among [funcs], whose result the entry drops. When
    `main` declares its abort type, `@primitives$String`, the call is
    switched on how it ended: an abort hands its message to the runtime,
    which reports it and ends the program with status 1 (packages.md §6.3). *)
@@ -389,10 +391,11 @@ let start_function st main span entry makes (funcs : Func.t list) =
     values = [];
   }
 
-(* The state lowering [p] starts from: every declaration and instance
-   known, and the places spawned calls write back into, a library's given
-   by the program it is built for, [program_write_backs], when it has one.
-   Also which packages are the project's own and which stamped. *)
+(* The state that lowering [p] starts from: every declaration and instance
+   known, and the places spawned calls write back into, which for a library
+   come from the program it is built for, [program_write_backs], when there
+   is one. Also which packages are the project's own and which are
+   stamped. *)
 let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
@@ -403,11 +406,11 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
   let stamp p = if library && own p && root = "" then "!" else "" in
   let stamped p = (not (own p)) && stamp_of p <> "" in
   (* A program none of whose code spawns runs on one thread, so nothing
-     writes back while it reads (lowering.md §9). A library's code may run
-     in a program that spawns. *)
+     writes back while the program reads (lowering.md §9). A library's code
+     may run in a program that spawns. *)
   let calls = spawned p in
-  (* A table filled for a program built earlier in this process says
-     nothing about this one; only the optimizer refills it. *)
+  (* A table filled for a program built earlier in this process does not
+     apply to this program; only the optimizer refills it. *)
   Hashtbl.reset List_pure.functions;
   Hashtbl.reset List_pure.handles;
   Hashtbl.reset List_pure.pushers;
@@ -472,8 +475,8 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
     (fun (d : T.Defaults.t) ->
       Hashtbl.replace st.defaults (key d.T.Defaults.decl d.T.Defaults.args) d.T.Defaults.values)
     p.T.Program.defaults;
-  (* An instance's signature still names its parameters; its body already
-     has its arguments. *)
+  (* An instance's signature still names its type parameters; its body
+     already has its type arguments. *)
   List.iter
     (fun (i : T.Instance.t) ->
       let sub = Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.id, a)) i.T.Instance.args) in
@@ -487,8 +490,9 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
   else (
     match program_write_backs with
     | Some ws ->
-        (* The program's places are in hand, its spawns' and every
-           package's in its build, this library's among them. *)
+        (* The program's write-back places are already known: those of its
+           spawns, in every package of its build, this library's
+           included. *)
         st.written_back <- Some (written_back st calls);
         st.program_written <- ws
     | None -> ());
@@ -516,7 +520,7 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
       | r :: _ -> r
       | [] -> Diagnostic.bug "lowering: assembly gave it no packages"
     in
-    (* In the order calls first reach them, the roots first. *)
+    (* In the order that calls first reach the functions, the roots first. *)
     let rec drain acc =
       match Queue.take_opt st.pending with
       | Some v -> drain (func st v :: acc)
@@ -575,21 +579,21 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
           if (outcome st span main).exit_ then Diagnostic.bug ~span "lowering: `main` can exit";
           (* L16: every package constant is made before `main` runs, the
              packages a package depends on first, and within a package in
-             the order declared. One that reads another makes that one
-             first. *)
+             the order declared. A constant that reads another constant
+             makes that constant first. *)
           let constants = constants_in_order p in
           (* The runtime calls `void zane_main(void)` (runtime/zane.h), so
              the entry is always a function of that type: one that makes the
              constants, if there are any, and then calls `main`, discarding
              its result, or reporting its abort when it declares one
              ([start_function]). Calling `main` itself would give the runtime a
-             function whose type depends on what `main` returns. A result
+             function whose type depends on `main`'s result type. A result
              that is an owner or owns a block is held in the start
-             function's own arena, as any dropped result like it is, so a
-             large one takes a frame of the program's range rather than the
+             function's own arena, as any such dropped result is, so a large
+             result takes a frame of the program's range rather than the
              machine stack. *)
           let entry = symbol st main in
-          (* Made before [finish] drains, so what they call is lowered. *)
+          (* Made before [finish] drains, so the functions they call are lowered. *)
           let makes = List.map (fun decl -> Stat.Eval (constant st decl)) constants in
           finish
             ~start:(fun funcs -> [ start_function st main span entry makes funcs ])

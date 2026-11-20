@@ -1,29 +1,30 @@
 (* Every node of the desugared tree, with the source text its span covers.
 
-   [Cst.To_span_text] over the SST, and it answers one more question than that
-   one does. Each line carries the node's *variant*, not just its kind, so the
-   expectation shows the rewrites of docs/design/desugaring.md having happened:
+   This is [Cst.To_span_text] over the SST, and it shows one more thing than
+   [Cst.To_span_text] does. Each line carries the node's *variant*, not just its
+   kind, so the expectation shows that the rewrites of
+   docs/design/desugaring.md have happened:
 
      verb_call Flip       | a >= b
        verb_call Op Less  | a >= b
          operator Less    | >=
 
-   Three lines that say a `>=` became `~(a < b)`, and that the `<` still points
-   at the `>=` the author wrote. A checked-in expectation therefore fails both
+   These three lines show that a `>=` became `~(a < b)`, and that the `<` still
+   points at the `>=` the author wrote. A checked-in expectation therefore fails both
    when a span moves and when a desugaring changes shape, which is what a pass
    whose whole job is to change shape needs from a test.
 
-   The second thing it checks is the rule [Lower] holds itself to: every
+   The second thing the dump checks is the rule [Lower] holds itself to: every
    synthesized node takes the span of the syntax it came from. A node that
-   pointed nowhere would print `<INVALID SPAN>`, and one that pointed at the
-   wrong thing would print the wrong text.
+   pointed nowhere would print `<INVALID SPAN>`, and a node that pointed at the
+   wrong syntax would print the wrong text.
 
    [render] makes the printer, and every function below is handed it with the
    depth of the lines it writes, as in [Cst.To_span_text]. *)
 
 (* Where a line goes: the printer [render] made, and how deep the line is.
-   Every function below takes one and hands a [deeper] one to the parts of
-   its node. *)
+   Every function below takes a [cursor] and hands a [deeper] one to the parts
+   of its node. *)
 type cursor = { printer : Source.Span_text.t; depth : int }
 
 let deeper d = { d with depth = d.depth + 1 }
@@ -190,7 +191,7 @@ and param d (x : Param.t) =
   param_type (deeper d) x.Param.type_
 
 (* Never [None] any more: a bare `x` was written out into `x = x`, and the
-   synthesized value prints under it spanning just the name. *)
+   synthesized value prints under the field, spanning just the field name. *)
 and field_arg d (x : Field_arg.t) =
   line d "field_arg" x.Field_arg.span;
   name (deeper d) "name" x.Field_arg.name;
@@ -272,9 +273,9 @@ and constructor_args d (x : Constructor_args.t) =
       line d "constructor_args Fields" x.Constructor_args.span;
       each (deeper d) field_arg fields
 
-(* One node for all three call spellings; the label says which was written and,
+(* One node for all three call spellings; the label shows which spelling was written and,
    for a method, with which marker. A method's subject is [args]'s first
-   element, so it prints as the first `call_arg` under the call. *)
+   element, so the subject prints as the first `call_arg` under the call. *)
 and verb_call d (x : Verb_call.t) =
   let at = x.Verb_call.span in
   match x.Verb_call.node with

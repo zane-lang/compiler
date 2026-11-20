@@ -1,4 +1,4 @@
-(* What codegen and the optimizer decide about a loop's lists: the pushes
+(* What codegen and the optimizer determine about a loop's lists: the pushes
    whose room is made before the loop, the functions that cannot change a
    list's count, and the lists read once before the loop. *)
 
@@ -39,7 +39,7 @@ let looped_pushes () =
 
 (* A function cannot change a list's count when nothing it runs can
    (Loop_pushes.pure). An imported function's body is another object's, so
-   its empty body says nothing, and it is never taken to be one; nor is a
+   its empty body proves nothing, and it is never taken to be one; nor is a
    function that calls it. *)
 let list_pure () =
   let module C = Cgt.Nodes in

@@ -9,12 +9,13 @@ module Runtime = Runtime
 (** The math functions of `@math$`, and which of them are exact. *)
 module Math = Math
 
-(** What each node is made of, a walk over every node, and a rewrite, for
+(** The parts of each node, a walk over every node, and a rewrite, for
     every pass over the tree, and whether statements can end other than
-    after their last ([leaves]). *)
+    after their last statement ([leaves]). *)
 module Traverse = Traverse
 
-(** The functions remembered while the program runs, with `--memoize`. *)
+(** The functions whose results are memoized while the program runs, with
+    `--memoize`. *)
 module Memo = Memo
 
 (** Experimental: whether the compact layout is on: 32-bit references and
@@ -28,11 +29,12 @@ module List_pure = List_pure
     alone: its reads of every other place are plain loads. *)
 type write_backs
 
-(** The program, from the root package's `main`, or from every function of
-    the root when it is a [library]. A construct lowering does not handle
-    yet is refused with a diagnostic at it, and so is a type no main
-    context's range of frames of [fixed_region] bytes could hold
-    ([Runtime.default_fixed_region] when absent). [import_bodies] retains
+(** The program, lowered from the root package's `main`, or from every
+    function of the root when the build is a [library]. A construct that
+    lowering does not handle yet is refused with a diagnostic at the
+    construct, and so is a type that the main context's range of frames of
+    [fixed_region] bytes could not hold ([Runtime.default_fixed_region] when
+    absent). [import_bodies] retains
     reachable stamped dependencies' functions with linkage that lets LLVM
     inline them and defines nothing, and [foreign_roots] lowers every thunk
     of a stamped dependency's glue, for a build that writes that glue again
@@ -49,7 +51,8 @@ val lower :
 (** The file of the places the program writes back into. *)
 val write_backs : Tst.Nodes.Program.t -> (string, Diagnostic.t) result
 
-(** The places such a file names, or [None] when it is not one. *)
+(** The places such a file names, or [None] when the text is not such a
+    file. *)
 val read_write_backs : string -> write_backs option
 
 (** The tree as `zanec --cgt` prints it. *)

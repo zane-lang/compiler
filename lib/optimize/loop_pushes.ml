@@ -155,7 +155,7 @@ let grows_stat = function Stat.Spawn _ | Stat.Join _ | Stat.Overwrite _ -> true 
 (* The functions with a body for which [bad] finds nothing, calling only
    functions [table] keeps: every one is taken to be such a function, then
    each that is not is dropped, until none changes. An imported function's
-   body is another object's, so it is never one. *)
+   body is another object's, so an imported function is never kept. *)
 let settle table (p : Program.t) bad =
   Hashtbl.reset table;
   List.iter

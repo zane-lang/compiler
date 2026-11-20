@@ -2,15 +2,15 @@
    verb was declared in a package or supplied by an intrinsic namespace, so
    overload resolution is one procedure for both (functions.md §5).
 
-   Pass 4 builds one of these per verb declaration (docs/design/semantics.md §3);
-   [Intrinsics] builds the rest. *)
+   Pass 4 builds one signature per verb declaration (docs/design/semantics.md §3);
+   [Intrinsics] builds the signatures of the intrinsics. *)
 
-(* Which declaration a call resolved to. An intrinsic has no declaration, so
-   it is named by its spelling, `@controlflow$branch`. *)
+(* The declaration a call resolved to. An intrinsic has no declaration, so
+   it is identified by its spelling, `@controlflow$branch`. *)
 type owner = Declared of int | Intrinsic of string
 
-(* Where a verb was declared, which is what the home-package rules compare
-   against: a package, or the intrinsic namespace that supplies it. *)
+(* Where a verb was declared, which the home-package rules compare against:
+   a package, or the intrinsic namespace that supplies the verb. *)
 type home = Package of string | Namespace of string
 
 type kind =
@@ -35,7 +35,8 @@ type param = {
 
 type t = {
   owner : owner;
-  (* How a diagnostic names it: `first`, `+`, `Span.point`, `@primitives$I64`. *)
+  (* The verb's name as a diagnostic writes it: `first`, `+`, `Span.point`,
+     `@primitives$I64`. *)
   name : string;
   home : home;
   kind : kind;
@@ -74,8 +75,9 @@ let to_string s =
   let list ps = String.concat ", " (List.map param ps) in
   let mut_ = if s.is_mut then " mut" else "" in
   match (s.kind, s.params) with
-  (* A constructor's name is its return type, and a subscript writes none
-     (functions.md §2.9): each is printed the way it is declared. *)
+  (* A constructor's name is its return type, and a subscript writes no
+     return type (functions.md §2.9): each is printed the way it is
+     declared. *)
   | Constructor { implicit; fields; _ }, ps ->
       (if implicit then "implicit " else "")
       ^ s.name

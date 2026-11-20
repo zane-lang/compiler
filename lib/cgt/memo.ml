@@ -1,8 +1,9 @@
-(* Calls remembered while the program runs, unless `--no-memoize`
-   (docs/design/memoization.md): which functions get a table (M1), each one
-   split into a body copy and a plain copy beside the dispatcher codegen
-   emits (M2), what a lookup is charged and a hit credited (M3), and the
-   loops that decide once whether their calls look (M4). *)
+(* Call results memoized while the program runs, unless `--no-memoize`
+   (docs/design/memoization.md): which functions get a table (M1), how each
+   such function is split into a body copy and a plain copy beside the
+   dispatcher that codegen emits (M2), what a lookup is charged and a hit
+   credited (M3), and the loops that decide once whether their calls look
+   up their results (M4). *)
 
 open Nodes
 
@@ -15,17 +16,17 @@ type t = {
   (* What a lookup is charged, in sixteenths of one of the function's
      calls (see [charge]). *)
   charge : int;
-  (* The weight of its cheapest call, which each miss adds to the work
-     counted (see [least]). *)
+  (* The weight of the function's cheapest call, which each miss adds to
+     the work counted (see [least]). *)
   cheapest : int;
   (* What a hit is credited for each unit of the work it saved, in
      sixteenths of a call, shifted left by [credit_shift] (see [credit]). *)
   credit : int;
 }
 
-(* The 8-byte words a value of [t] is remembered in: its bytes, rounded
-   up. [None] for a type that owns a block or holds an address anywhere in
-   it, whose value is more than its bytes. *)
+(* The number of 8-byte words a memoized value of [t] takes: its bytes,
+   rounded up. [None] for a type that owns a block or holds an address
+   anywhere in it, since such a value is more than its bytes. *)
 let rec fixed (t : Ty.t) =
   match t with
   | Ty.Handle | Ty.Handle16 | Ty.Ptr | Ty.Ref | Ty.Box32 -> false
@@ -40,7 +41,8 @@ let rec scalars (t : Ty.t) =
   | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.for_all scalars ts
   | _ -> false
 
-(* A value of scalars only takes a word for each; any other its bytes. *)
+(* A value made only of scalars takes one word for each scalar; any other
+   value takes its bytes, rounded up to words. *)
 let words (t : Ty.t) =
   if scalars t then
     let rec count (t : Ty.t) = match t with Ty.Void -> 0 | Ty.Struct ts | Ty.Packed (Ty.Struct ts) -> List.fold_left (fun n t -> n + count t) 0 ts | _ -> 1 in
@@ -59,10 +61,11 @@ let fits (f : Func.t) =
   | Some k, Some r -> k >= 1 && k <= most_key_words && r >= 1 && r <= most_result_words
   | _ -> false
 
-(* A runtime function a remembered body may call: one that computes or
-   makes a package constant, and neither outputs, reads the program's
-   arguments, spawns, nor ends the program. A constant is made by its first read, so the miss
-   that computes a result has made every constant the result depends on. *)
+(* A runtime function a memoized body may call: one that computes or makes
+   a package constant, and neither outputs, reads the program's arguments,
+   spawns, nor ends the program. A constant is made by its first read, so the
+   miss that computes a result has made every constant the result depends
+   on. *)
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Sleep | Runtime.Arguments
   | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
@@ -70,7 +73,7 @@ let computes : Runtime.fn -> bool = function
       false
   | _ -> true
 
-(* What the program has, `@program$console` and `@program$runtime`, which
+(* The program's own values, `@program$console` and `@program$runtime`, which
    only the root package reaches, and without an argument (lower.ml). *)
 let program_value symbol = String.starts_with ~prefix:"zane.value." symbol
 
@@ -79,7 +82,7 @@ let program_value symbol = String.starts_with ~prefix:"zane.value." symbol
    lists. A package constant is the same on every call; a global in
    [outside], a foreign variable's C global, is state outside the program
    (lower.ml), and a C function can read and change state of its own, so
-   a call to one is not. *)
+   neither such a global nor a call to a C function counts. *)
 let alone ~outside (f : Func.t) =
   not
     (Traverse.exists_in f.Func.body
@@ -156,18 +159,18 @@ let components (funcs : (string, Func.t) Hashtbl.t) edges =
 let suffix_body = ".memo"
 let suffix_plain = ".plain"
 
-(* A dispatcher's state: how far its lookups have cost more than its hits
-   saved, in sixteenths of a call. At [limit], 128 calls, it has stopped
-   looking. *)
+(* A dispatcher's state: how much more its lookups have cost than its hits
+   saved, in sixteenths of a call. At [limit], 128 calls, the dispatcher
+   stops looking up results. *)
 let state_symbol s = s ^ ".memo.state"
 let scale = 16
 let limit = 128 * scale
 
-(* The weight of one call to [f], for comparing a lookup with it: a node
-   each, a loop's body eight times over, and the weight of each function
-   it calls that is not remembered, whose work a call to [f] includes. A
-   remembered callee weighs one node: its own work is counted by the
-   calls a hit saves. *)
+(* The weight of one call to [f], for comparing a lookup with the call: one
+   per node, a loop's body eight times over, and the weight of each function
+   it calls that is not memoized, whose work a call to [f] includes. A
+   memoized callee weighs one node: its own work is counted by the calls a
+   hit saves. *)
 let weight funcs remembered =
   let known = Hashtbl.create 16 in
   let rec of_func s =
@@ -198,12 +201,12 @@ let weight funcs remembered =
   of_func
 
 (* The operations one call to [f] runs, roughly the instructions an
-   optimized build gives it: what computes or touches memory counts one, a
-   branch one, a loop's body eight times over or as many times as a
-   constant count says, a switch its dearest case, and a call one and the
-   operations of the function called. What only names a value, a local, a constant or a verb's
-   expansion, counts nothing, since an optimized build keeps it in a
-   register or folds it away. *)
+   optimized build gives it: an operation that computes or touches memory
+   counts one, a branch one, a loop's body eight times over or as many times
+   as a constant count gives, a switch its most expensive case, and a call
+   one plus the operations of the function called. A node that only names a
+   value, a local, a constant or a verb's expansion counts nothing, since an
+   optimized build keeps it in a register or folds it away. *)
 let operations funcs =
   let known = Hashtbl.create 16 in
   let cap n = min 100_000 n in
@@ -233,7 +236,8 @@ let operations funcs =
       | Stat.Assign { place; _ } when not place.Expr.deref -> 0
       | _ -> times
     in
-    (* A switch runs one of its cases: the dearest, at most. *)
+    (* A switch runs one of its cases, so it costs at most its most expensive
+   case. *)
     let within = List.map (stats inner) bodies in
     let body = match st with Stat.Switch _ -> List.fold_left max 0 within | _ -> List.fold_left ( + ) 0 within in
     cap (own + List.fold_left (fun n e -> n + expr times e) 0 es + body)
@@ -261,9 +265,9 @@ let least funcs remembered =
   let known = Hashtbl.create 16 in
   let inf = max_int / 4 in
   let ( +. ) a b = min inf (a + b) in
-  (* A part's exits: for each place it may leave to, the function's return
-     ([None]) or the end of the expansion a label names, the cheapest cost
-     to get there. *)
+  (* A part's exits: for each place the part may leave to, which is the
+     function's return ([None]) or the end of the expansion a label names,
+     the cheapest cost to get there. *)
   let join a b =
     List.fold_left
       (fun acc (k, c) -> match List.assoc_opt k acc with Some d when d <= c -> acc | _ -> (k, c) :: List.remove_assoc k acc)
@@ -345,10 +349,11 @@ let least funcs remembered =
 let lookup_cost (f : Func.t) =
   24 + (6 * List.fold_left (fun n (_, t) -> n + Option.value ~default:0 (words t)) 0 f.Func.params)
 
-(* What a lookup of [f] is charged, in sixteenths of a call: its cost
-   against the weight of a call. A function whose calls are heavy pays
-   little for each lookup, so it can look up for long before its hits
-   start to pay; one whose calls are light pays up to four calls. *)
+(* What a lookup of [f] is charged, in sixteenths of a call: the lookup's cost
+   relative to the weight of a call. A function whose calls are heavy pays
+   little for each lookup, so it can look up results for a long time before
+   its hits start to pay; a function whose calls are light pays up to four
+   calls per lookup. *)
 let charge weigh (f : Func.t) =
   let w = max 1 (weigh f.Func.symbol) in
   max 1 (min (4 * scale) (((scale * lookup_cost f) + (w / 2)) / w))
@@ -359,7 +364,7 @@ let charge weigh (f : Func.t) =
 let credit_shift = 16
 let credit weigh (f : Func.t) = (scale lsl credit_shift) / max 1 (weigh f.Func.symbol)
 
-(* Every id a function names: one numbering covers locals, scopes, labels
+(* Every id a function uses: one numbering covers locals, scopes, labels
    and tasks (lower.ml's [fresh]). *)
 let largest_id (f : Func.t) =
   let m = ref 0 in
@@ -431,7 +436,7 @@ let renumber next body =
   in
   stats body
 
-(* The functions remembered that [body] calls, by symbol, for which [outside]
+(* The memoized functions that [body] calls, by symbol, for which [outside]
    holds: those whose cycle the caller is not in. *)
 let called_in remembered outside body =
   let found = ref [] in
@@ -445,14 +450,15 @@ let called_in remembered outside body =
     body;
   !found
 
-(* Each loop of [body] that calls remembered functions from outside their
-   cycle, run in two versions (#262). The decision is made once, before the
-   loop: when every dispatcher it calls has stopped looking, the loop runs
-   as written, with each of those calls made to the plain copy, so nothing
-   in it checks a dispatcher and LLVM may optimize it as it would the
-   original. Otherwise a second copy runs, calling through the dispatchers
-   and checking before each round whether they have all stopped; if they
-   have, it leaves, and the first version runs the rounds left. *)
+(* Each loop of [body] that calls memoized functions from outside their
+   cycle, run in two versions (#262). The choice is made once, before the
+   loop: when every dispatcher the loop calls has stopped looking up results,
+   the loop runs as written, with each of those calls made to the plain copy,
+   so nothing in it checks a dispatcher and LLVM may optimize it as it would
+   the original. Otherwise a second copy runs, calling through the
+   dispatchers and checking before each round whether they have all stopped;
+   if they have, the second copy leaves, and the first version runs the
+   remaining rounds. *)
 let version remembered outside next body =
   let i64 n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 } in
   let local id t = { Expr.node = Expr.Local id; ty = t } in
@@ -517,13 +523,13 @@ let version remembered outside next body =
   in
   stats body
 
-(* The program with each remembered function replaced by its two copies,
-   and the functions remembered, whose dispatchers codegen emits. In a
-   program that spawns, and in a library, whose functions a program that
-   spawns may call, threads share each table, whose entries' tags guard
-   them (Memos), and each keeps its state of its own; a remembered
-   function reads only its arguments and constants, so a result any thread
-   made is the one every thread would. *)
+(* The program with each memoized function replaced by its two copies, and
+   the memoized functions, whose dispatchers codegen emits. In a program that
+   spawns, and in a library, whose functions a program that spawns may call,
+   threads share each table, whose entries are guarded by their tags
+   (Memos), and each thread keeps its own dispatcher state; a memoized
+   function reads only its arguments and constants, so a result that any
+   thread computed is the result every thread would compute. *)
 let plan (p : Program.t) =
   let funcs = Hashtbl.create 64 in
   List.iter
@@ -532,8 +538,9 @@ let plan (p : Program.t) =
   let sites = Hashtbl.create 64 in
   Hashtbl.iter (fun s f -> Hashtbl.replace sites s (calls f)) funcs;
   let callees s = List.map fst (Hashtbl.find sites s) in
-  (* Pure: alone, and calling only pure functions with bodies here. The
-     greatest such set, so a cycle of pure functions is pure. *)
+  (* Pure: [alone] holds, and the function calls only pure functions whose
+     bodies are here. The greatest such set, so a cycle of pure functions is
+     pure. *)
   let outside = Hashtbl.create 8 in
   List.iter
     (fun (g : Global.t) -> if g.Global.linkage = Linkage.Imported then Hashtbl.replace outside g.Global.symbol ())
@@ -552,8 +559,8 @@ let plan (p : Program.t) =
   done;
   let comp = components funcs callees in
   let same a b = Hashtbl.find_opt comp a = Some (Hashtbl.find comp b) in
-  (* Called in a loop of a function outside its own cycle, which may ask
-     for the same arguments again. *)
+  (* Called in a loop of a function outside its own cycle, which may call it
+     with the same arguments again. *)
   let looped = Hashtbl.create 8 in
   Hashtbl.iter
     (fun c l -> List.iter (fun (d, inside) -> if inside && Hashtbl.mem comp d && not (same c d) then Hashtbl.replace looped d ()) l)

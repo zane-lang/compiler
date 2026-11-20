@@ -357,13 +357,13 @@ let expand s item =
       (Automaton.class_representatives engine.automaton
          (Recognizer.possible_tokens engine item.frontier))
 
-(* The deadline alone does not mean the deadline stopped anything. The loop
+(* A passed deadline alone does not show that it stopped anything. The loop
    also exits with a drained queue, and expanding the last frontier can carry
    the clock past the deadline on its way out - so a search that finished the
    whole token bound would be recorded as timed out, and reported as a
    curtailed run when it is the conclusive one. Only work still queued makes
    the deadline the reason. A dropped frontier keeps its own reason whatever
-   the clock says: the bound was not covered, so the run is not exhaustive. *)
+   the clock reads: the bound was not covered, so the run is not exhaustive. *)
 let stop_reason s =
   if Hashtbl.length s.found >= s.max_witnesses then Some "the witness limit was reached"
   else if s.dropped then Some "the memory budget dropped part of the search space"

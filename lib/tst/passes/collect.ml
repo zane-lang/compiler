@@ -33,10 +33,11 @@ let declaration env (tables : names) pkg file (d : N.Decl.t) =
       make (Enum_map { enum; property; type_; entries })
   | N.Decl.Verb v -> make (Verb v)
 
-(* A name that is not a verb names one thing: two types, two constants, or a
-   constant and a function of the same name leave a plain name meaning two
-   things with no call site to choose between them. Functions overload, and
-   whether two of them may is pass 4's question. *)
+(* An identifier that does not name a verb names exactly one declaration: two
+   types, two constants, or a constant and a function with the same
+   identifier would leave a plain identifier naming two declarations with no
+   call site to choose between them. Functions overload, and pass 4 decides
+   whether two functions may overload each other. *)
 let file_under_names env (pkg : package) (decl : decl) =
   let report_twice (first : decl) at what =
     error env at
@@ -72,8 +73,9 @@ let new_file ~package path =
 (* Pass 2                                                                 *)
 (* ---------------------------------------------------------------------- *)
 
-(* How a file has already spelled a package, so a second spelling of the same
-   entity is caught at the import that adds it (packages.md §3.4). *)
+(* The spellings a file has already used for a package, so that a second
+   spelling of the same package is caught at the import that adds it
+   (packages.md §3.4). *)
 type form = Whole of string | All_members | One_member of string
 
 let form_to_string pkg = function
@@ -91,8 +93,8 @@ let members_of env pkg name = package_types env pkg name @ package_values env pk
 
 let import_file env (file : file) (decls : N.Decl.t list) =
   let forms : (string, form * Span.t) Hashtbl.t = Hashtbl.create 8 in
-  (* The one spelling rule: each new form of a package checked against the
-     forms already written for it. *)
+  (* The spelling rule: each new spelling of a package is checked against
+     the spellings already written for it. *)
   let record pkg form at =
     match
       List.find_opt (fun (f, _) -> conflicts f form) (Hashtbl.find_all forms pkg)
@@ -111,7 +113,8 @@ let import_file env (file : file) (decls : N.Decl.t list) =
         Hashtbl.add forms pkg (form, at);
         true
   in
-  (* The package an import's key names, reported where it names none. *)
+  (* The package an import's key names; an error is reported where the key
+   names no package. *)
   let imported (name : N.Name.t) =
     match resolve_key env file (name_of name) with
     | Found id -> Some id
@@ -189,8 +192,8 @@ let import_file env (file : file) (decls : N.Decl.t list) =
         let names =
           Hashtbl.fold (fun n _ acc -> n :: acc) target.types []
           @ Hashtbl.fold (fun n _ acc -> n :: acc) target.values []
-          (* A method is reached through its subject's type, except one whose
-             subject is a type parameter, which is reached by its name
+          (* A method is found through its subject's type, except a method
+             whose subject is a type parameter, which is found by its name
              (functions.md §6.1). *)
           @ Hashtbl.fold (fun n () acc -> n :: acc) target.any_methods []
           |> List.filter (fun n -> not (is_private n))
@@ -231,11 +234,11 @@ let report_collision env name b (d : decl) seen =
            (quote name) (quote b.from) (quote name) where_other)
   | [] -> ()
 
-(* A bare name two imports bring, or an import and the file's own package,
-   is legal only as an overload set of functions (packages.md §3.8). Anything
-   else is reported at the import that brought the second meaning; an import
-   never shadows. The function-against-function case needs signatures, and is
-   [check_import_overloads]. *)
+(* A bare identifier that two imports bring, or that an import and the file's
+   own package both declare, is legal only as an overload set of functions
+   (packages.md §3.8). Any other case is reported at the import that brought
+   the second declaration; an import never shadows. The case of two functions
+   needs signatures, and [check_import_overloads] handles it. *)
 let check_import_collisions env (file : file) =
   let names = Hashtbl.fold (fun n _ acc -> n :: acc) file.bare [] |> List.sort_uniq String.compare in
   List.iter
@@ -275,8 +278,9 @@ let report_overload env name b (d : decl) seen =
            (quote name) (quote b.from) (quote name) (where other.span))
   | None -> ()
 
-(* The half of §3.8 that waits for signatures: functions of one bare name,
-   from different packages, must differ in their parameter types. *)
+(* The half of §3.8 that waits for signatures: functions with one bare
+   identifier, from different packages, must differ in their parameter
+   types. *)
 let check_import_overloads env (file : file) =
   let names = Hashtbl.fold (fun n _ acc -> n :: acc) file.bare [] |> List.sort_uniq String.compare in
   List.iter

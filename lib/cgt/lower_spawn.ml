@@ -1,7 +1,7 @@
 (* Lowering's spawned calls (docs/design/lowering.md §9): the frame a
-   spawned call's arguments are stored in, the function that runs it on
-   another thread, and what settles how it ended. The walk in [Lower] is
-   [w]. *)
+   spawned call's arguments are stored in, the function that runs the call
+   on another thread, and the code that settles how the call ended. The walk
+   in [Lower] is [w]. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -14,15 +14,16 @@ open Verbs
 open Outcome
 open Build
 
-(* A spawned call has a function to run on another thread, which a verb
-   expanded where it is called has not (L11). It gets one of its own, named
-   `zane.expanded.N`: the verb with each literal it was given bound where
-   its body reads it, one function for each verb and set of literals. A
-   block argument cannot be spawned (concurrency.md §3.1), and an array
-   literal's elements are values the spawn makes, so its parameter becomes
-   one the function takes, of the array's type. So does each value
-   interpolated into a string literal (types.md §2.8): the function takes a
-   string for it, and the literal it is given reads that parameter. *)
+(* A spawned call needs a function to run on another thread, which a verb
+   expanded where it is called does not have (L11). Such a verb gets a
+   function of its own, named `zane.expanded.N`: the verb with each literal it
+   was given bound where its body reads the literal, one function for each
+   verb and set of literals. A block argument cannot be spawned (concurrency.md
+   §3.1), and an array literal's elements are values the spawn makes, so the
+   array literal's parameter becomes a parameter the function takes, of the
+   array's type. So does each value interpolated into a string literal
+   (types.md §2.8): the function takes a string for the value, and the
+   literal it is given reads that parameter. *)
 let specialized st ctx span (v : verb) args =
   let concept (p : T.Local.t) = match p.T.Local.ty with Tty.Concept c -> Some c | _ -> None in
   let pairs = List.combine v.params args in
@@ -90,12 +91,12 @@ let specialized st ctx span (v : verb) args =
   (v', List.map snd kept)
 
 (* A spawned call to an intrinsic, which has no function of its own, runs
-   through one named `zane.intrinsic.N` that takes the call's arguments
-   and makes the call. One the program has, such as `@program$console`,
-   stays where the call reads it. A `mut` method's subject that is a place
-   of the program's is the function's own `mut` subject, `this`, lent by its
-   address as a declared method's is (L6), so the call writes the caller's
-   place. *)
+   through a function named `zane.intrinsic.N` that takes the call's
+   arguments and makes the call. An argument the program has, such as
+   `@program$console`, stays where the call reads it. A `mut` method's
+   subject that is a place of the program's is the function's own `mut`
+   subject, `this`, lent by its address as a declared method's subject is
+   (L6), so the call writes the caller's place. *)
 let wrapped st span (callee : T.Verb_ref.t) args ret =
   let spelling = match callee.owner with S.Intrinsic s -> s | S.Declared _ -> "" in
   (* A worker is a `mut` method in the function table, called by name
@@ -155,8 +156,8 @@ let wrapped st span (callee : T.Verb_ref.t) args ret =
   (v, List.map snd taken)
 
 (* A spawned call to [v]'s function, or through [fn], a function value's
-   address, which runs before the arguments and rides in the frame ahead of
-   them. [writes] is whether the call may write its subject. *)
+   address, which runs before the arguments and is stored in the frame ahead
+   of them. [writes] is whether the call may write its subject. *)
 let spawn_call w st ctx span v fn ~writes passed handler =
   let o = outcome st span v in
   let whole = returned o in
@@ -164,8 +165,9 @@ let spawn_call w st ctx span v fn ~writes passed handler =
   (* A `mut` subject reached through an owner is copied into the frame,
      and the call works on the copy, which it writes back when it
      returns (§4.4). A function value's subject is lent by its address
-     (L14), so one it may not write is read into the frame here, where
-     the spawn is written, as a subject passed by value is. *)
+     (L14), so a subject the function value may not write is read into the
+     frame here, where the spawn is written, as a subject passed by value
+     is. *)
   let subject =
     match (v.params, passed) with
     | this :: _, T.Arg.Value subject :: _
@@ -195,8 +197,8 @@ let spawn_call w st ctx span v fn ~writes passed handler =
   let stored = fns @ args in
   let copied = List.length stored in
   (* A subject that owns blocks is written in a region of its own
-     (Expr.island). A copy is read through a pointer after it, which the
-     region's maker repoints. *)
+     (Expr.island). The copy is read through a pointer stored after it,
+     which the region's maker repoints. *)
   let island =
     if not writes then None
     else
@@ -332,9 +334,10 @@ let spawn_call w st ctx span v fn ~writes passed handler =
 (* concurrency.md §3. A spawned call's arguments run here, as any call's do
    (L6), and are stored in a frame in this block's arena. A function of its
    own reads them from there on a thread of the pool, calls the verb, and
-   stores how it ended at the frame's start. The block waits for the call
-   before it drains (§4.1), and the result comes home to a slot reserved in
-   the same arena: at a read of the local it is bound to, or at the drain.
+   stores how the call ended at the frame's start. The block waits for the
+   call before it drains (§4.1), and the result is copied back to a slot
+   reserved in the same arena: at a read of the local the call is bound to,
+   or at the drain.
 
    A call that can abort or exit settles on this thread, once, where it is
    first read, or where the block ends when nothing reads it first

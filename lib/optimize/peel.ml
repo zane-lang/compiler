@@ -5,7 +5,7 @@
    builds a leaf in its caller when `depth - 1` is 0, and `check(p.left)`
    counts one when `p.left` is a leaf, where each was a call before. LLVM
    never inlines a function into itself, and runs no partial inliner at
-   `-O2`, so this is stage 5's to do (O11).
+   `-O2`, so stage 5 does it (O11).
 
    A function's copy is its body with every arm of a branch or a switch
    that calls anything, or does more than a few steps of work, replaced by

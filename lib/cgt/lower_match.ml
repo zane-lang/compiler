@@ -1,6 +1,6 @@
 (* Lowering's `match`es, handlers and case reads (docs/design/lowering.md):
-   what switches on a sum's case, and the handler that runs where an
-   operation aborted. The walk in [Lower] is [w]. *)
+   the code that switches on a sum's case, and the handler that runs where
+   an operation aborted. The walk in [Lower] is [w]. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -21,7 +21,7 @@ let handle w ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value
         let id = fresh st in
         Hashtbl.replace ctx.env l.T.Local.id (slot st l.T.Local.ty id);
         [ bind_local st scope l id value ]
-    (* An abort value no binder names, of type [dropped], is still held
+    (* An abort value that no binder names, of type [dropped], is still held
        here when it is an owner or owns a block, so the drain ends it. *)
     | None, Some t when held st span t -> [ bind st scope span t (fresh st) value ]
     | None, _ -> [ Stat.Eval value ]
@@ -36,11 +36,12 @@ let handle w ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value
   close st scope body
 
 (* L13. The scrutinees are reached once, in order, and a switch on each one's
-   tag nests inside the last; the semantic pass wrote one arm per
-   combination of cases, so each arm is lowered once, where its combination
-   is reached. A binder is the address of its case's payload, in the
-   scrutinee's own storage when it is a place, so a write through it is a
-   write to the payload. A `return` in an arm is the `match`'s value. *)
+   tag nests inside the switch on the previous one; the semantic pass wrote
+   one arm per combination of cases, so each arm is lowered once, where its
+   combination is reached. A binder is the address of its case's payload, in
+   the scrutinee's own storage when the scrutinee is a place, so a write
+   through the binder is a write to the payload. A `return` in an arm gives
+   the `match`'s value. *)
 let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let t = ty st span ret in
   let label = fresh st in
@@ -59,7 +60,7 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
               let value = w.value_of st ctx e in
               let id = fresh st in
               let pointer = fresh st in
-              (* A fresh instance is held here, like any other. *)
+              (* A fresh instance is held here, like any other fresh value. *)
               let at = Stat.Let { id = pointer; value = ptr (Expr.Address id) } in
               ([ bind st ctx.scope span tsty id value; at ], pointer)
         in
@@ -67,7 +68,7 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
         (pointer, sum_of st span tsty whole, tsty, lets))
       scrutinees
   in
-  (* An arm's abort is the `match`'s (error-handling.md §3.5). *)
+  (* An arm's abort is the `match`'s abort (error-handling.md §3.5). *)
   let abort = match handler with Some h -> handle w st ctx h label result | None -> ctx.abort in
   let inner = { ctx with exit = Leave { label; result; ret }; abort } in
   let selects chosen (a : T.Arm.t) =
@@ -84,7 +85,7 @@ let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
         let bound = fresh st in
         if pooled st tsty then begin
           (* A pooled variant's payload is inline in its node,
-             and one of its own type is a link. *)
+             and a payload of the variant's own type is a link. *)
           let within = node_shape st span tsty in
           let at = ptr (Expr.Offset { base = local_ptr pointer; within; path }) in
           let value =
@@ -168,13 +169,14 @@ let map_read w st ctx span target map ret =
       }
 
 (* A handler, run where its operation aborted: its binder holds the abort
-   value, and a `resolve` gives the operation its value and goes past it. *)
+   value, and a `resolve` gives the operation its value and continues after
+   the operation. *)
 
 (* A case read of an owner, or of a value that owns a block, as a place: the
    payload where the variant holds it when the case is live, or else a slot
    reserved in this scope before the read, which the handler's `resolve`
-   fills. Either way what the read gives has one owner, and a copy of it
-   owns blocks of its own. *)
+   fills. Either way the value the read gives has one owner, and a copy of
+   that value owns blocks of its own. *)
 let case_place w st ctx span (target : T.Expr.t) case handler ret =
   if pooled st (Tty.strip_mode target.T.Expr.ty) then refuse span "pooled variants: a case read";
   let t = ty st span ret in
@@ -215,8 +217,9 @@ let case_place w st ctx span (target : T.Expr.t) case handler ret =
   in
   ptr (Expr.Expand { label; body; result = Some result })
 
-(* A case read is its payload when the case is live, and runs its handler
-   when another is (adt.md §5.2). The other cases fall through to it. *)
+(* A case read gives its payload when the case is live, and runs its handler
+   when another case is live (adt.md §5.2). The other cases fall through to
+   the handler. *)
 let case_read w st ctx span (target : T.Expr.t) case handler ret =
   if pooled st (Tty.strip_mode target.T.Expr.ty) then refuse span "pooled variants: a case read";
   let t = ty st span ret in

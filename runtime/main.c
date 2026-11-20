@@ -239,7 +239,7 @@ static void zane_keep_arguments(int argc, char **argv) {
    every call it spawned has returned. What its own region still holds --
    the package constants and what they own -- goes with the program. On Windows stdout and stderr start in
    text mode, which would write each `\n` as `\r\n`; a program writes the
-   bytes it says, as it does everywhere else. */
+   bytes it prints, as it does everywhere else. */
 int main(int argc, char **argv) {
 	zane_keep_arguments(argc, argv);
 	const char *check = getenv("ZANE_CHECK");

@@ -1,5 +1,5 @@
 /// Eight running hashes in an `Array<Int, 8>`, each byte of the input
-/// mixed into the one at `bitAnd(i - 1, 7) + 1`, as SHA-256's message
+/// mixed into the hash at `bitAnd(i - 1, 7) + 1`, as SHA-256's message
 /// schedule or a multi-lane checksum keeps them. The loop is cut into runs
 /// of eight whose index is a constant within each run, so the eight hashes
 /// stay in registers.

@@ -336,7 +336,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
 
     def test_a_value_closed_by_a_brace_takes_a_member_postfix(self) -> None:
         # `.`, `:` and `!` open no statement, so after a match, an `init` or a
-        # constructor call by fields the next token alone says whether the
+        # constructor call by fields the next token alone determines whether the
         # value goes on (syntax.md §4.9).
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT MATCH LPAREN LIDENT "
@@ -460,7 +460,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         # The one obligation in docs/ambiguity/README.md that turned out to be a bug
         # rather than a fork: `import core$ main Unit() { }` had two complete
         # derivations, since both readings are a run of declarations. Each is
-        # reachable on its own once the `;` says where the import stops, and
+        # reachable on its own once the `;` marks where the import stops, and
         # the unterminated spelling is no longer a program at all.
         self.assert_derivations(
             "IMPORT LIDENT DOLLAR LIDENT UIDENT LPAREN RPAREN LCURLY RCURLY EOF",

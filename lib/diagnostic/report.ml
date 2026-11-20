@@ -1,25 +1,26 @@
-(* One thing a stage has to say about the source it was given.
+(* One error or warning that a stage reports about the source it was given.
 
-   A span rather than a single position, because what is wrong usually covers
-   some text -- a token, an alias, a whole argument -- and the renderer draws a
-   caret under all of it. A report about a point, such as the place a statement
-   should have ended, uses an empty span. *)
+   A report has a span rather than a single position, because the faulty source
+   usually covers some text -- a token, an alias, a whole argument -- and the
+   renderer draws a caret under all of it. A report about a point, such as the
+   place a statement should have ended, uses an empty span. *)
 
 module Severity = struct
-  (* A refusal, or a warning a build goes on after: what the C compiler
-     says of a package's own C code (docs/design/ffi.md F2). *)
+  (* An error refuses the input. A warning lets the build go on, such as a
+     warning the C compiler gives about a package's own C code
+     (docs/design/ffi.md F2). *)
   type t = Error | Warning
 
   let label = function Error -> "Error" | Warning -> "Warning"
 end
 
-(* What a report is about. Most are about text, and have a span to put a
-   caret under. A few are about a directory -- missing, unlistable, empty, or
-   named the same as another -- or about a file that could not be read, and
-   have no text to point into. *)
+(* The location a report is about. Most reports are about text, and have a span
+   to put a caret under. A few are about a directory -- missing, unlistable,
+   empty, or named the same as another -- or about a file that could not be
+   read, and have no text to point into. *)
 module Location = struct
-  (* [Invocation] is the command the compiler was run with: a report about
-     its flags, which point into no file. *)
+  (* [Invocation] is the command the compiler was run with. A report about
+     the command's flags uses it, since flags point into no file. *)
   type t = Span of Source.Span.t | File of string | Directory of string | Invocation
 
   (* The path, and the byte offset into it, that reports are sorted by. *)

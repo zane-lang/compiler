@@ -4,7 +4,7 @@
    [$loc], which is the pair of positions delimiting the production that built
    the node, so a span covers exactly the tokens the node was reduced from.
 
-   It is also where a [Diagnostic.t] points, and its renderer draws a caret
+   A span is also where a [Diagnostic.t] points, and the renderer draws a caret
    from the two positions. Keeping the pair on the node is what lets a pass
    that runs *after* the parse -- the statement check today, the desugaring and
    everything downstream of it later -- report against source the same way the

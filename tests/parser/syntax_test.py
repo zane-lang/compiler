@@ -6,7 +6,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 # The compiler itself, reading the source on stdin: `--cst` stops after the
-# parse, so the exit status says whether it was accepted.
+# parse, so the exit status shows whether the source was accepted.
 COMPILER = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
 
 class ParserSyntaxTestCase(unittest.TestCase):
@@ -330,10 +330,11 @@ class BlockArgumentTests(ParserSyntaxTestCase):
         self.assert_parses(
             'Unit use() { done Unit = run({ work(); }) ? e { resolve Unit(); } }'
         )
-        # A statement closed by its own brace takes no terminator, which says
-        # nothing about what is written inside it: a continuation in the
-        # closing call's own argument, or in a constructor field's default, is
-        # the same mistake and is rejected the same way.
+        # A statement closed by its own brace takes no terminator, which
+        # leaves the rules for what is written inside it unchanged: a
+        # continuation in the closing call's own argument, or in a
+        # constructor field's default, is the same mistake and is rejected
+        # the same way.
         self.assert_rejects(
             "Unit use() { run(wrap() { g(); } + Int(1)) { h(); } }"
         )
@@ -346,7 +347,7 @@ class TerminatorTests(ParserSyntaxTestCase):
     """Where a statement ends: its terminator, or the brace that closes it."""
 
     def test_a_statement_ends_where_its_terminator_says(self) -> None:
-        # A statement is closed by a `;` or by a `}`, and the grammar decides
+        # A statement is closed by a `;` or by a `}`, and the grammar determines
         # which (lexical.md §6.3). The terminator used to be optional there,
         # with the mismatch checked after the parse -- and then after
         # `abort false` a `[` could either continue the expression or open the
@@ -570,8 +571,8 @@ class TerminatorTests(ParserSyntaxTestCase):
 
     def test_package_and_import_are_terminated(self) -> None:
         # They end on a bare name -- `import pkg$` ends just before one -- so
-        # their `;` also says where they stop, which nothing about their own
-        # shape does.
+        # their `;` also marks where they stop, which nothing in their own
+        # shape marks.
         self.assert_parses("package demo;")
         self.assert_rejects("package demo")
         self.assert_parses("import std;")

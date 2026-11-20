@@ -30,7 +30,7 @@ Unit literals() {
 	fraction Float = Float(2);
 	sum Int = @operators$add(Int(1), 2.5);
 
-	/// The explicit number disagrees with the one the array carries.
+	/// The explicit number disagrees with the number the array carries.
 	sized Int = measured(numbers, 4);
 
 	/// `n` is a number parameter because the body writes it in a type, so

@@ -13,7 +13,8 @@ module S = Signature
    them (docs/spec-divergences.md §5). *)
 let digits s = String.concat "" (String.split_on_char '\'' s)
 
-(* Whether [text], written for the primitive [name], fits it. *)
+(* Whether the literal [text], written for the primitive [name], fits that
+   primitive. *)
 let fits name (literal : T.Expr.node) =
   match (name, literal) with
   | "I64", T.Expr.Integer_lit s -> Option.is_some (Int64.of_string_opt (digits s))
@@ -74,7 +75,7 @@ let run env (p : T.Program.t) =
     (fun (i : T.Instance.t) -> Env.in_instance env i (fun () -> block env i.T.Instance.body))
     p.T.Program.instances;
   (* A field constructor's defaults, which a call that leaves an entry out
-     builds from. *)
+     uses for that entry. *)
   List.iter
     (fun (d : T.Defaults.t) -> List.iter (fun (_, e) -> expr env e) d.T.Defaults.values)
     p.T.Program.defaults

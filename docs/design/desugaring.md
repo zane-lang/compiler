@@ -25,7 +25,8 @@ edit cannot silently make a quotation here disagree with what it links to.
 A rewrite belongs in the SST when it needs **nothing but the syntax tree**. The
 CST is a whole package's worth of source, so "nothing but the syntax" includes
 looking at another declaration in the same file — but it stops at the file
-boundary and it stops at types. A rewrite that has to know what a name refers
+boundary and it stops at types. A rewrite that needs to resolve what a name
+refers
 to, what package a member came from, or what type an expression has is not a
 desugaring; it is name resolution or type checking wearing a desugaring's
 clothes. Those are listed in §4 so they are refused deliberately rather than
@@ -110,7 +111,7 @@ A foreign verb's `foreign "symbol"` body
 §3.11) is not a statement list at all. The CST's `Body.Foreign` arm becomes
 the `foreign` field of the SST's `Func` or `Meth`, with an empty body
 spanning the clause, so the verb is still a function or a method to every
-pass, and the field says its body is C.
+pass, and the field marks its body as C.
 
 ### 2.2 `and` and `or`
 
@@ -276,8 +277,7 @@ files Fs foreign "zane_fs"   ->   files Fs = <the global zane_fs>
 
 `Decl.ForeignVar` becomes a `Var` whose value is the expression
 `Foreign_global`, which nothing else makes. Semantics types it as the
-declared type, since only the declaration says what the global is a handle
-of, and the symbol is then a local or a package constant like any other.
+declared type, since only the declaration states what type of handle the global is, and the symbol is then a local or a package constant like any other.
 
 ### 2.8 Parentheses
 

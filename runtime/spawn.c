@@ -163,7 +163,7 @@ static void zane_start(void) {
 
 /* `@runtime$Runtime`'s `setThreads` and `setThreadsAuto` (§2.4): the pool
    resized, now or when it starts. A count below one resizes nothing, and
-   the call aborts: 0 says so. The pool keeps at most one thread fewer than
+   the call aborts, as it does for 0. The pool keeps at most one thread fewer than
    it has deques. */
 int64_t zane_set_threads(int64_t count) {
 	if (count < 1) return 0;

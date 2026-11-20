@@ -1,4 +1,4 @@
-(* How a build keeps its compiled runtime, finds the one a release bundles,
+(* How a build keeps its compiled runtime, finds the runtime a release bundles,
    and links: through the LLD in the compiler with the command its C
    compiler gives or the release bundles, or through the C compiler. *)
 
@@ -46,7 +46,7 @@ let cached_runtime () =
   check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
   let uncached = Build.runtime_object ~cc ~triple:host ~optimize:false work in
   check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached));
-  (* What a C compiler says it is is asked once, and again only once the
+  (* A C compiler is asked what it is once, and again only once the
      file it runs has changed. *)
   if Sys.unix then begin
     let asked = Filename.concat directory "asked" and fake = Filename.concat directory "fake-cc" in
@@ -341,7 +341,7 @@ let host_spelling () =
 
 (* A compiler in a released toolchain's layout links with the toolchain's
    own `zig cc` and its runtimes, unless the environment names another C
-   compiler or `zig`; one outside it is told nothing. *)
+   compiler or `zig`; a compiler outside the layout gets [None]. *)
 let released_toolchain () =
   let module Build = Codegen__Build in
   let directory = Filename.temp_dir "zane-release" "" in
@@ -372,7 +372,7 @@ let released_toolchain () =
 (* An optimized build takes the bodies of the runtime's functions it calls
    from the runtime's bitcode, compiled once for each C compiler and kept;
    a C compiler that makes none is asked once. A body is kept only where
-   copying it into the program means what calling the runtime's does. *)
+   copying it into the program behaves as calling the runtime's does. *)
 let runtime_bodies () =
   let module Build = Codegen__Build in
   let module Bodies = Codegen__Runtime_bodies in

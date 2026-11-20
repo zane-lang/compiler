@@ -13,7 +13,7 @@ name: Grammar verification
 # The job runs on every pull request, so it can be a required check: one that
 # never started would hold a merge forever. A pull request that touches
 # neither the grammar nor the proofs passes it at once, after
-# `.github/scripts/ci-suites` says so.
+# `.github/scripts/ci-suites` reports that neither changed.
 on:
   pull_request:
   merge_group:

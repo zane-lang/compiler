@@ -39,7 +39,7 @@ type operand = Reg of int | Const of const | Asm | Metadata
 type callee = Direct of string | Indirect of operand | Inline_asm
 
 (* An instruction: its opcode as LLVM names it, its result type, its flags
-   (c_ir_stubs.cpp), and what the opcode takes. *)
+   (c_ir_stubs.cpp), and the opcode's operands. *)
 type op =
   | Plain of { pred : int; args : operand array }
   | Cast of { from : ty; arg : operand }
@@ -391,8 +391,9 @@ let make modules =
    declaration in the first declaring it. Renaming gives every name with
    external linkage one module (F9), so a name two modules define is local
    to each, as a `static` function of the program's C and one of a retained
-   dependency's may be: which the caller means is its own module's, which
-   a name alone does not say, so reaching it stops. *)
+   dependency's may be: the caller means its own module's definition, and
+   the name alone does not identify that module, so the fold stops on
+   reaching such a name. *)
 let lookup t table read decode defines name =
   match Hashtbl.find_opt table name with
   | Some x -> x

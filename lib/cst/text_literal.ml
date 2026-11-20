@@ -1,6 +1,7 @@
 (* A string literal's structure (lexical.md §7.1). The lexer keeps a
-   literal's text as it was written, between its quotes; this scans it once,
-   left to right, for the three forms the language defines inside one: a
+   literal's text as it was written, between its quotes; this module scans
+   that text once, left to right, for the three forms the language defines
+   inside a literal: a
    backslash before a quote is the quote, a backslash before a backslash is
    that backslash, and `\%name` is an interpolation site. Any
    other backslash stays in the text with the character after it, for the
@@ -11,19 +12,19 @@ open Sedlexing
 type part =
   (* Literal text, with its escaped quotes and backslashes already read. *)
   | Text of string
-  (* `\%name`: the name, and the byte offset of its first character in the
-     written text. *)
+  (* `\%name`: the identifier, and the byte offset of its first character in
+     the written text. *)
   | Name of { text : string; offset : int }
-  (* A `\%` that no value identifier follows, and where it starts: a type
-     identifier or a keyword follows it, or neither does. *)
+  (* A `\%` that no value identifier follows, and the offset where it starts:
+     a type identifier or a keyword follows the `\%`, or neither does. *)
   | Bad_name of { found : found; offset : int }
 
 and found = Type_identifier of string | Keyword of string | Nothing
 
 (* The identifier at byte [start] of [s], as the lexer's LIDENT and UIDENT
-   rules read one (lexical.md §4): the longest one, so `\%name.txt` names
-   `name`, and `.txt` is text. The bytes are read from [s] where they are,
-   as far as the identifier goes. *)
+   rules read one (lexical.md §4): the longest identifier, so `\%name.txt`
+   names `name`, and `.txt` is text. The identifier's bytes are read from [s]
+   in place. *)
 let identifier s start =
   let i = ref start in
   let next () =

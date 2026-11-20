@@ -1,7 +1,7 @@
 /// Output replayed from a remembered call is charged (docs/design/
 /// optimization.md O6): `tree` makes its previous level twice and prints
 /// once at its base, so after its first call each level is remembered and
-/// replays what the one below output. Ten levels of `w` fold to what they
+/// replays what the level below output. Ten levels of `w` fold to what they
 /// print; seventeen levels of `""` make more outputs than the cap, which
 /// counts outputs with no text, and stay runtime code. `forty`, which
 /// nothing calls, is still folded and stops at the cap rather than make

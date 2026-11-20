@@ -1,15 +1,15 @@
 (* Lowering: the TST to the CGT (docs/design/lowering.md).
 
-   What is lowered is what `main` reaches. A verb is lowered once, the first
-   time a call reaches it, so a program pays only for the verbs it uses and a
-   package's other declarations need not lower yet. Anything lowering cannot
-   handle yet is refused with a diagnostic at the node, rather than lowered
-   wrongly.
+   Lowering covers only the code that `main` reaches. A verb is lowered once,
+   the first time a call reaches it, so a program pays only for the verbs it
+   uses and a package's other declarations do not need to be lowerable yet.
+   A construct that lowering cannot handle yet is refused with a diagnostic at
+   the node, rather than lowered wrongly.
 
    This file is the recursive walk over a verb's body: its expressions,
-   the storage they read, and its blocks and statements. What it reads is
-   beside it: [State], [Type_layout], [Literals], [Verbs], [Outcome] and
-   [Build]. The rest of lowering is in modules outside the walk's
+   the storage they read, and its blocks and statements. The modules the walk
+   reads sit beside this file: [State], [Type_layout], [Literals], [Verbs],
+   [Outcome] and [Build]. The rest of lowering is in modules outside the walk's
    recursion, each taking the walk as an argument ([State.walk]):
    [Lower_intrinsics] the runtime's and a list's intrinsics, operations and
    math functions; [Lower_data] primitives, arrays, structs and field
@@ -71,9 +71,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
     when Lower_intrinsics.runs spelling ->
       Lower_intrinsics.call walk st ctx span e
   | T.Expr.Subscript _ -> (
-      (* The element's own storage: for an `&` element, what it holds is the
-         reference, so this reads it rather than asking [addr] for the
-         reference, which would ask back here. *)
+      (* The element's own storage: an `&` element holds the reference, so
+         this reads the reference directly rather than asking [addr] for it,
+         which would call back here. *)
       match storage st ctx span e with
       | Some p -> loaded_ref ~slot:(ref_slot e.T.Expr.ty) { Expr.node = Expr.Deref p; ty = ty st span e.T.Expr.ty }
       | None -> Diagnostic.bug ~span "lowering: a subscript with no address")
@@ -159,8 +159,8 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       Lower_match.case_read walk st ctx span target case handler e.T.Expr.ty
   | T.Expr.Map_read { target; map; _ } ->
       Lower_match.map_read walk st ctx span target map e.T.Expr.ty
-  (* A spawned call read where it is written is waited for at once, which
-     is the call itself (docs/design/lowering.md §9). *)
+  (* A spawned call whose value is read where it is written is waited for
+     at once, which makes it the call itself (docs/design/lowering.md §9). *)
   | T.Expr.Spawn call -> expr st ctx call
   | T.Expr.Lambda l ->
       { Expr.node = Expr.Function (Lower_lambda.lambda st span e.T.Expr.ty l); ty = Nodes.Ty.Ptr }
@@ -174,7 +174,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call_value { callee; args; handler } ->
       Lower_calls.call_value walk st ctx span callee args handler
   (* A worker's `Unit` as a value, as a spawned call's frame reads it: the
-     loop, then nothing. *)
+     worker's loop, then no value. *)
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ } when Tst.Intrinsics.is_worker spelling ->
       let body = stat st ctx { T.Stat.node = T.Stat.Expr e; span } in
       { Expr.node = Expr.Expand { label = fresh st; body; result = None }; ty = Nodes.Ty.Void }
@@ -183,7 +183,8 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
       refuse span (Printf.sprintf "lowering does not handle `%s` used as a value yet" spelling)
   (* A foreign variable's capability is the address of its C global, under
      the name its package's renaming gives it (docs/design/ffi.md F9,
-     F12), and a stamp no drain reads, since nothing ends a capability. *)
+     F12), and a stamp that no drain reads, since nothing ends a
+     capability. *)
   | T.Expr.Foreign_global { symbol; package } ->
       let global = st.stamp package ^ package ^ "$%c$" ^ symbol in
       if not (List.exists (fun (g : Global.t) -> g.Global.symbol = global) st.globals) then
@@ -232,17 +233,17 @@ and joined st settle (value : Expr.t) =
 (* Storage, moves and borrows                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* A value read where its type's own storage is wanted: through a reference,
-   the owner it names. *)
+(* A value read where its type's own storage is wanted: for a reference, the
+   owner the reference names. *)
 and value_of st ctx (e : T.Expr.t) =
   if Tty.is_ref e.T.Expr.ty then
     let t = ty st e.T.Expr.span (Tty.strip_mode e.T.Expr.ty) in
     { Expr.node = Expr.Deref (expr st ctx e); ty = t }
   else read st ctx e
 
-(* A value read out of its place. One reached through an owner is read as a
-   snapshot (concurrency.md §4.4), or read where it is when no spawned call
-   can write back a value it holds or that holds it. *)
+(* A value read out of its place. A value reached through an owner is read as
+   a snapshot (concurrency.md §4.4), or read in place when no spawned call can
+   write back a value that it holds or that holds it. *)
 and read st ctx (e : T.Expr.t) =
   let span = e.T.Expr.span in
   if through_owner st e && not (reference st e.T.Expr.ty) then
@@ -253,8 +254,9 @@ and read st ctx (e : T.Expr.t) =
     | None -> expr st ctx e
   else expr st ctx e
 
-(* The address of the value a place holds (L10): through a reference, the
-   owner it names (memory.md §4.1); otherwise the place's own storage. *)
+(* The address of the value a place holds (L10): for a reference, the owner
+   the reference names (memory.md §4.1); otherwise the place's own
+   storage. *)
 and addr st ctx span (e : T.Expr.t) : Expr.t option =
   if Tty.is_ref e.T.Expr.ty then Some (expr st ctx e) else storage st ctx span e
 
@@ -315,13 +317,13 @@ and reference_to st ctx span (e : T.Expr.t) =
     | Some p -> p
     | None -> Diagnostic.bug ~span "lowering expected a reference source here"
 
-(* A value on its way into storage of type [dst]: a reference there is
+(* A value on its way into storage of type [dst]: a reference stored there is
    minted or copied, and a reference-type owner read from a place moves,
    which spends the place (lifetimes.md §1.6). *)
 and moved st ctx span dst (e : T.Expr.t) =
   if pooled st dst && Option.is_some (node_place st ctx span e) then begin
-    (* A subtree leaves its pool as a copy in a pool of its own; one moved
-       out leaves its nodes behind, unused (docs/experiments). *)
+    (* A subtree leaves its pool as a copy in a pool of its own; a subtree
+       moved out leaves its nodes behind, unused (docs/experiments). *)
     let int k = { Expr.node = Expr.Int k; ty = Nodes.Ty.I64 } in
     let handle = ty st span dst in
     let out = fresh st and label = fresh st and result = fresh st in
@@ -356,9 +358,9 @@ and moved st ctx span dst (e : T.Expr.t) =
     { Expr.node = Expr.Copy { value; layout = layout st span dst }; ty = value.Expr.ty }
   else read st ctx e
 
-(* Whether an expression reads a value something else owns, rather than
-   making a fresh one: a place, a member of any value, which a fresh value
-   is borrowed for, an element, or what a case read gives. *)
+(* Whether an expression reads a value that something else owns, rather than
+   making a fresh value: a place, a member of any value (a fresh value is
+   borrowed for the member), an element, or the payload a case read gives. *)
 and is_place (e : T.Expr.t) =
   Tty.is_ref e.T.Expr.ty
   ||
@@ -367,9 +369,9 @@ and is_place (e : T.Expr.t) =
   | _ -> false
 
 (* A value read where it is only looked at, as a value parameter or an
-   operand: a place is read where it is, and a fresh owner, or a fresh value
-   that owns a block, is held in this scope first, so the scope's drain ends
-   it and returns its blocks. *)
+   operand: a place is read in place, and a fresh owner, or a fresh value
+   that owns a block, is first held in this scope, so the scope's drain ends
+   the value and returns its blocks. *)
 and borrow st ctx span (e : T.Expr.t) =
   if held st span e.T.Expr.ty && not (is_place e) then begin
     let value = expr st ctx e in
@@ -386,8 +388,8 @@ and borrow st ctx span (e : T.Expr.t) =
   end
   else value_of st ctx e
 
-(* The address a callee is lent (L6): the caller's place, or a fresh value
-   stored here first, which this scope then holds. *)
+(* The address a callee is lent (L6): the caller's place, or the address of a
+   fresh value first stored here, which this scope then holds. *)
 and lend st ctx span (a : T.Expr.t) =
   match addr st ctx span a with
   | Some p -> p
@@ -402,9 +404,9 @@ and lend st ctx span (a : T.Expr.t) =
       ptr (Expr.Expand { label; body; result = Some result })
 
 (* Experimental pooled variants (Type_layout.pooled). The address of the
-   node, or of the payload inside one, that a place in a pool names: a
-   [Node] local, or a member of one, a link followed to its node. [None]
-   for a place outside every pool. *)
+   node, or of the payload inside a node, that a place in a pool names: a
+   [Node] local, or a member of a node, with a link followed to its node.
+   [None] for a place outside every pool. *)
 and node_place st ctx span (e : T.Expr.t) : Expr.t option =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
@@ -420,8 +422,9 @@ and node_place st ctx span (e : T.Expr.t) : Expr.t option =
           else Some at)
   | _ -> None
 
-(* The node a pooled variant's place or fresh root has at its top: a place
-   in a pool is one, and a root's is found through its pool. *)
+(* The node at the top of a pooled variant's place or fresh root: a place in
+   a pool is itself a node, and a root's top node is found through its
+   pool. *)
 and view st ctx span (e : T.Expr.t) : Expr.t =
   match node_place st ctx span e with
   | Some p -> p
@@ -431,8 +434,8 @@ and view st ctx span (e : T.Expr.t) : Expr.t =
       let size = { Expr.node = Expr.Int (Int64.of_int size); ty = Nodes.Ty.I64 } in
       ptr (Expr.Runtime { fn = Runtime.Pool_root; args = [ lend st ctx span e; size ] })
 
-(* A pooled variant built as a value: a pool of its own, made here, that
-   [into] builds it in. *)
+(* A pooled variant built as a value: a pool of its own, made here, in which
+   [into] builds the variant. *)
 and pool_value st ctx span (e : T.Expr.t) =
   let handle = ty st span (Tty.strip_mode e.T.Expr.ty) in
   let h = fresh st and label = fresh st and result = fresh st in
@@ -448,10 +451,10 @@ and pool_value st ctx span (e : T.Expr.t) =
   { Expr.node = Expr.Expand { label; body; result = Some result }; ty = handle }
 
 (* Experimental pooled variants: the pooled variant [e] built at the end of
-   the pool at [dest], and where its top node is there. A case is built
-   node by node, its subtrees first; a call to a function that pours its
-   result (Lower_calls.pours) is given the pool; anything else is made as
-   a value and its pool copied on. *)
+   the pool at [dest], and the position of its top node there. A case is
+   built node by node, its subtrees first; a call to a function that pours
+   its result (Lower_calls.pours) is given the pool; any other expression is
+   made as a value and its pool is copied over. *)
 and into st ctx span dest (e : T.Expr.t) : Expr.t =
   let t = Tty.strip_mode e.T.Expr.ty in
   let poured =
@@ -527,7 +530,8 @@ and payload_pieces st (payload : T.Expr.t) : (int * T.Expr.t) list option =
 
 (* A case of the pooled variant [t] built at the end of the pool at [dest]:
    the subtrees its links name first, then its node, whose links the
-   runtime writes (runtime/list.c). Where its node is. *)
+   runtime writes (runtime/list.c). Returns the position of the case's
+   node. *)
 and pool_into st ctx span dest t case payload =
   let int k = { Expr.node = Expr.Int (Int64.of_int k); ty = Nodes.Ty.I64 } in
   let i64 id = { Expr.node = Expr.Local id; ty = Nodes.Ty.I64 } in
@@ -545,7 +549,8 @@ and pool_into st ctx span dest t case payload =
       let outer = ty st span c and inner = node_ty st span c in
       let ms = Nodes.Ty.members inner in
       let offsets = Nodes.Ty.member_offsets inner in
-      (* In its layout's order, which [member_index] gives a member's place in. *)
+      (* In the layout's order, in which [member_index] gives each member's
+         position. *)
       let members =
         match definition st (Tty.strip_mode c) with
         | Some (T.Decl.Struct ms, _) -> List.map snd (placed_members st c ms)
@@ -632,7 +637,8 @@ and pool_into st ctx span dest t case payload =
 
 (* L8: a block that holds a reference-type local has an arena of its own.
    [enter] runs first, in the block's scope: a function's `^T` parameters
-   are held there, so the body's drain ends any it did not move on. *)
+   are held there, so the body's drain ends any `^T` parameter the body did
+   not move on. *)
 and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   let scope = { arena = None; settles = []; wants = [] } in
   let entered = enter scope in
@@ -643,10 +649,11 @@ and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   close st scope body
 
 (* A block argument's code, where it was written. An exit ends this run of
-   it (docs/spec-divergences.md §6). *)
+   the block (docs/spec-divergences.md §6). *)
 and code ?(looping = false) st ctx span (arg : T.Arg.t) =
-  (* A loop's body runs inside the loop, and so does a block it runs, wherever
-     the block was written; inside a walk is inside it still (State.loop). *)
+  (* A loop's body runs inside the loop, and so does a block the body runs,
+     wherever the block was written; code inside a walk is still inside the
+     loop (State.loop). *)
   let within (c : ctx) =
     let loop =
       match (c.loop, ctx.loop) with
@@ -677,8 +684,8 @@ and code ?(looping = false) st ctx span (arg : T.Arg.t) =
   | T.Arg.Value _ -> Diagnostic.bug ~span "lowering expected a block here"
 
 (* Whether an overwrite of [target] replaces the foreign handles it holds
-   through their setters (spec ffi.md §4.3): a settled place does, and so
-   does one the caller lends, whose owner may be settled. *)
+   through their setters (spec ffi.md §4.3): it does for a settled place, and
+   for a place the caller lends, whose owner may be settled. *)
 and setters st span (target : T.Expr.t) =
   through_setters st span target.T.Expr.ty
   &&
@@ -689,10 +696,11 @@ and setters st span (target : T.Expr.t) =
 and stat st ctx (s : T.Stat.t) : Stat.t list =
   let span = s.T.Stat.span in
   match s.T.Stat.node with
-  (* A local bound to a spawned call waits for it where it is read. *)
-  (* A local's type may differ from the call's only as storage that holds
-     it (Tty.held_as): a function type's `mut`, which changes nothing it
-     holds. *)
+  (* A local bound to a spawned call waits for the call where the local is
+   read. *)
+  (* A local's type may differ from the call's type only as storage that
+     holds the call's value (Tty.held_as): by a function type's `mut`,
+     which changes nothing about the value held. *)
   | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Spawn call; _ } } ->
       if ty st span local.T.Local.ty <> ty st span call.T.Expr.ty then
         Diagnostic.bug ~span "lowering expected a spawned call bound to a local of the type it returns";
@@ -736,14 +744,15 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
       in
       if held st span t then
         (* An owner, or a value that owns blocks, is replaced in place
-           (memory.md §2.2): at the same address, each boxed member's block
-           kept, and the rest of what it replaces returning its blocks. *)
+           (memory.md §2.2): at the same address, with each boxed member's
+           block kept, and the rest of the replaced value returning its
+           blocks. *)
         let address = address () in
         let value = moved st ctx span t value in
         [ Stat.Overwrite { address; value; layout = layout st span t; setters = setters st span target } ]
       else
-        (* A reference stored in a member, or in the payload a binder is,
-           is in its 32-bit form (Ref32). *)
+        (* A reference stored in a member, or in the payload that a binder
+           names, is in its 32-bit form (Ref32). *)
         let stored v =
           match target.T.Expr.node with
           | T.Expr.Var (T.Name_ref.Local l) -> stored_ref ~slot:(encoded ctx span l) v
@@ -788,9 +797,9 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
               Stat.While { cond = worker_step st ctx span subject step test; body = [ Stat.Eval wait ] };
             ]
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
-  (* A fresh value nothing keeps is held here, so the drain ends it. One
-     that owns no block has nothing to end, so nothing holds it: such as
-     the element a discarded `swapRemove` moves out. *)
+  (* A fresh value that nothing keeps is held here, so the drain ends it. A
+     fresh value that owns no block has nothing to end, so nothing holds
+     it: for example, the element a discarded `swapRemove` moves out. *)
   | T.Stat.Expr e when owns st span e.T.Expr.ty && not (is_place e) ->
       [ bind st ctx.scope span e.T.Expr.ty (fresh st) (expr st ctx e) ]
   | T.Stat.Expr e -> [ Stat.Eval (expr st ctx e) ]
@@ -802,9 +811,9 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           [ Stat.Return (st.returns (escape st span st.ret None (moved st ctx span st.ret e))) ]
       | Leave { label; result; ret } ->
           leave label result (escape st span ret (Some label) (moved st ctx span ret e)))
-  (* An abort hands its value to the caller's handler as a return hands it
-     to the caller, at the declared abort type: an `&T` abort type takes a
-     reference, whatever the expression's own type. *)
+  (* An abort hands its value to the caller's handler as a return hands its
+     value to the caller, at the declared abort type: an `&T` abort type
+     takes a reference, whatever the expression's own type. *)
   | T.Stat.Abort e -> ctx.abort span (escape st span st.aborts None (moved st ctx span st.aborts e))
   | T.Stat.Resolve e -> (
       match ctx.resolve with
@@ -820,9 +829,9 @@ and worker_subject st ctx span (subject : T.Expr.t) : Stat.t list * T.Expr.t =
   else worker_held st ctx span subject
 
 (* A worker's operand that is neither a variable nor a lambda written in
-   place, run once into a slot of this scope before the first step: so a
-   step made by a call is made once, and a written lambda stays where it
-   is, which lets a step's body be written out in the loop. *)
+   place is run once into a slot of this scope before the first step. So a
+   step made by a call is made once, and a written lambda stays in place,
+   which lets a step's body be written out in the loop. *)
 and worker_held st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
   match e.T.Expr.node with
   | T.Expr.Var _ | T.Expr.Lambda _ -> ([], e)
@@ -836,10 +845,11 @@ and worker_held st ctx span (e : T.Expr.t) : Stat.t list * T.Expr.t =
 (* A worker's condition (control-flow.md §4.1): `test(step(subject))`,
    the step called with the subject as its `this`, as `subject!step()`
    is, and its result read as `@primitives$Bool` by the checker's `test`.
-   It runs on every pass, so it is lowered as a loop body is (State.loop),
-   and a small function it calls is written out where it is called. What
-   a pass holds, such as a step's result that owns a block, is in an arena
-   of the pass's own, which drains before the next. *)
+   The condition runs on every pass, so it is lowered as a loop body is
+   (State.loop), and a small function it calls is written out where it is
+   called. The values a pass holds, such as a step's result that owns a
+   block, are in an arena of the pass's own, which drains before the next
+   pass. *)
 and worker_step st ctx span (subject : T.Expr.t) (step : T.Expr.t) (test : T.Expr.t) =
   let ret = match Tty.strip_mode step.T.Expr.ty with Tty.Verb v -> v.Tty.ret | _ -> Tty.Error in
   let called = { T.Expr.node = T.Expr.Call_value { callee = step; args = [ T.Arg.Value subject ]; handler = None }; ty = ret; span } in
@@ -857,9 +867,9 @@ and worker_step st ctx span (subject : T.Expr.t) (step : T.Expr.t) (test : T.Exp
     { Expr.node = Expr.Expand { label; body; result = Some result }; ty = cond.Expr.ty }
 
 (* Where an assignment stores: a local, or the place a `mut` subject points
-   at, and the members below it. A struct of one member adds no step. A
-   place reached through a reference has no local to start from, and is
-   stored through its address instead. *)
+   at, and the members below it. A struct with one member adds no step. A
+   place reached through a reference has no local to start from, so the
+   value is stored through the place's address instead. *)
 and place st ctx span (target : T.Expr.t) : Expr.place option =
   match target.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> (
@@ -883,7 +893,7 @@ and place st ctx span (target : T.Expr.t) : Expr.place option =
         (place st ctx span inner)
   | _ -> None
 
-(* The walk, as the modules outside its recursion take it. *)
+(* The walk, in the form the modules outside its recursion take it. *)
 and walk =
   {
     expr;

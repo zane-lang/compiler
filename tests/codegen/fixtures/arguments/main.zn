@@ -1,6 +1,6 @@
 /// The program's arguments (effects.md §6.6), and numbers read from text
 /// (types.md §2.10). Both builds run with the `arguments` file beside this
-/// one, a line each. What only the source decides folds in the optimized
+/// one, a line each. What depends only on the source folds in the optimized
 /// build, and what depends on the arguments, a read of the runtime, is left
 /// for the program. Each check prints `yes` when it holds and `no` when it
 /// does not.
@@ -82,7 +82,7 @@ Unit main() {
 	check(@operators$equal(integer(args[Int(10)], Int(1)), Int(1)));
 
 	// Division by a divisor read at run time: by zero gives zero, and by -1
-	// negates, wrapping the one quotient an I64 cannot hold.
+	// negates, wrapping the only quotient an I64 cannot hold.
 	answer Int = integer(args[Int(1)], Int(0));
 	least Int = integer(args[Int(8)], Int(0));
 	minusSeven Int = integer(args[Int(2)], Int(0));

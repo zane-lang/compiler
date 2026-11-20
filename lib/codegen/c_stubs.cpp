@@ -166,7 +166,7 @@ static bool used_beyond(llvm::Value *v, const std::set<llvm::Function *> &fs) {
    copy of a header's state, which only [f] sets up for the glue's
    functions that read it. A function [f] reaches that something else uses
    too could read such state for it, and a call through a pointer could
-   reach any function, so either is taken to. */
+   reach any function, so either counts as such a use. */
 static bool sets_up_private_state(llvm::Function &f) {
   std::set<llvm::Function *> reached{&f};
   std::vector<llvm::Function *> to_read{&f};
@@ -399,18 +399,17 @@ static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariabl
    one variable: the source's renamed [shared_prefix] [tag] `.` and its
    name and made visible to the link, and the glue's made a declaration of
    it. Within one translation unit a name at file scope, or a function's
-   own static, is one variable, so the source's of that name is the
-   header's, and the glue's functions read and write the state the
+   own static, is one variable, so the source's variable of that name is
+   the header's, and the glue's functions read and write the state the
    source's do, and see a constant at the address they see it at, as the C
-   alone would. A constant is one only with the same value, which may
-   point at other objects the two modules each have a copy of. A private
-   function whose address the glue takes, as a comparison with a pointer
-   to it does, is shared the same way, so the glue sees the address the
-   source's pointers hold; one only called stays the glue's own, to
-   inline. A constructor or destructor is shared so too, and the glue's
-   list then leaves it to the source's ([drop_repeated]), unless it sets up
-   private state the glue keeps a copy of, which only the glue's own
-   sets up. */
+   alone would. A constant is shared only when both copies hold the same
+   value, which may point at other objects the two modules each have a copy
+   of. A private function whose address the glue takes, as a comparison with a
+   pointer to it does, is shared the same way, so the glue sees the address
+   the source's pointers hold; one only called stays the glue's own, to
+   inline. A constructor or destructor is shared so too, and the glue's list
+   then leaves it to the source's ([drop_repeated]), unless it sets up private
+   state the glue keeps a copy of, which only the glue's own sets up. */
 extern "C" value zane_share_state(value glue, value source, value tag) {
   CAMLparam3(glue, source, tag);
   llvm::Module *g = module_of(glue), *s = module_of(source);

@@ -1,5 +1,5 @@
-(* A `let`-bound value that is not a function counts as what it is: the
-   `match` named `label` is the fifth level and the `if` inside it the sixth.
+(* A `let`-bound value that is not a function counts as the expression it
+   binds: `label`'s `match` is the fifth level and the `if` in it the sixth.
    A function bound by `let = function` counts its cases, so `bound`'s inner
    `try` is the sixth level too. *)
 let describe args =

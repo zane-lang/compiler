@@ -30,10 +30,10 @@ binary
 6. **codegen** — lowers the CGT to LLVM IR and produces the binary. How
    lowering and codegen are designed is in [`lowering.md`](lowering.md).
 
-The CST captures only what the source says: every shorthand the grammar admits
+The CST captures only what the source spells: every shorthand the grammar admits
 is a node of its own, and a form written two ways is two shapes in the tree.
 
-The SST says the same thing one way. It is still untyped and still holds
+The SST expresses the same program one way. It is still untyped and still holds
 unresolved names — what it no longer holds is a choice of spelling. The rewrites
 that get there are inventoried in [`desugaring.md`](desugaring.md), along with
 the ones that look like they belong and do not.

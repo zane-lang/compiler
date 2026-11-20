@@ -1,5 +1,5 @@
-(* What the rewriter does to one symbol name (docs/design/separate-compilation.md
-   C5, C9): every `!` becomes the stamp. No other `!` can stand in a symbol,
+(* The rewriter's change to one symbol name (docs/design/separate-compilation.md
+   C5, C9): every `!` becomes the stamp. A symbol contains no other `!`,
    since no operator is spelled with one and a mutating call's `!` is not
    part of the verb's name. *)
 
@@ -29,11 +29,11 @@ let is_tag_char = function
   | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '.' | '_' | '+' | '-' -> true
   | _ -> false
 
-(* What remapping does to one symbol name (C11, dependencies.md §15.6):
-   every stamp [from] becomes [to_]. A stamp starts a package's name, so one
-   counts only where no tag character comes before it, or after nothing but
-   the `_` Mach-O puts before every name; `v1.0%...%` inside
-   `xv1.0%...%` is part of another tag. *)
+(* Remapping's change to one symbol name (C11, dependencies.md §15.6):
+   every stamp [from] becomes [to_]. A stamp starts a package's name, so an
+   occurrence of [from] counts only where no tag character comes before it,
+   or where only the `_` that Mach-O puts before every name comes before
+   it; `v1.0%...%` inside `xv1.0%...%` is part of another tag. *)
 let remap ~from ~to_ name =
   let n = String.length name and k = String.length from in
   let buffer = Buffer.create (n + 16) in

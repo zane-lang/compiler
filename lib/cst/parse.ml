@@ -14,10 +14,10 @@ module Span = Source.Span
    classes), so non-ASCII input is ordinary rather than exotic. *)
 let byte_positions lexbuf = Sedlexing.lexing_bytes_positions lexbuf
 
-(* The package, or the one reason it was refused. At most one: the parse
-   stops at the first failure, and GLR makes collecting more a separate
-   question. The caller decides how to show it; [Diagnostic.render] is the
-   text a terminal wants. *)
+(* The package, or the single diagnostic that refused it. There is at most
+   one diagnostic: the parse stops at the first failure, and under GLR,
+   collecting more would be a separate problem. The caller decides how to show
+   the diagnostic; [Diagnostic.render] gives the text for a terminal. *)
 let package filename input =
   (* [Sedlexing.Utf8.from_string] raises [Sedlexing.MalFormed] on invalid UTF-8,
      so it has to sit inside the handler too. Until it returns there is no
