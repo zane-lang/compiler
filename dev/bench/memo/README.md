@@ -18,7 +18,7 @@ is picked when:
 
 A call's operations estimate what an optimized build runs: computations,
 memory accesses, branches and calls, a loop's body as often as a constant
-count says or else eight times, a switch's dearest case, and nothing for
+count gives or else eight times, a switch's dearest case, and nothing for
 naming a local, a constant or a verb's expansion. Every build picks from the
 tree alone, so a tiered build's two tiers pick the same. `lib/codegen/emit.ml` (`memo`)
 emits a gate, a lookup and two copies of each picked function.
@@ -28,7 +28,7 @@ measured against the weight of one of the function's calls, which is
 estimated from the size of its body and of the functions it calls. A hit is
 credited with the work it saved, counted from below: the cheapest path
 through each call it skipped, with a loop run as often as a constant count
-says and any other loop run no times. The function
+gives and any other loop run no times. The function
 stops looking for good once its lookups have cost 128 calls more than its
 hits saved. Because the charge is relative, a function with heavy calls can
 look up for longer before its hits start to pay, as a search does before its

@@ -22,7 +22,7 @@ from tools.ambiguity.runner import engine_arguments, run_engine
 
 def add_overrides(command: argparse.ArgumentParser) -> None:
     # Every flag - value settings, toggles, and modes alike - is registered from
-    # the one registry, so there is no separate cli-only flag list to maintain.
+    # one shared registry, so there is no separate cli-only flag list to maintain.
     for setting in SETTINGS:
         if setting.kind == "value":
             options: dict[str, Any] = {

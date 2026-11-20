@@ -45,7 +45,7 @@ on:
 
 # The token this job carries is read-only. A command that runs here can read
 # it, so there is nothing to be gained by granting it more: anything that has
-# to write to the repository should be a workflow that says what it writes.
+# to write to the repository should be a workflow that declares what it writes.
 permissions:
   contents: read
 
@@ -69,10 +69,10 @@ jobs:
       # a token or an app dispatching on somebody's behalf. It is advisory,
       # and deliberately so. The collaborator-permission endpoint wants push
       # access to answer, and the token this job carries is read-only, so on
-      # most runs it will decline to say - and raising the token's access just
-      # to ask whether the actor has access would give away more than the
-      # check is worth. A definitive "no" stops the run; anything else says
-      # so and leaves the platform rule to do its job.
+      # most runs it will decline to answer - and raising the token's access
+      # just to ask whether the actor has access would give away more than
+      # the check is worth. A definitive "no" stops the run; anything else is
+      # logged and leaves the platform rule to do its job.
       - name: Check the actor can write to this repository
         env:
           GH_TOKEN: ${{ github.token }}

@@ -2,7 +2,7 @@
    line and its cadence, the compact number and clock formats, and the search
    progress record as it is rendered and persisted.
 
-   Presentation only. Nothing here knows what an automaton or a stack is. *)
+   Presentation only. Nothing here depends on automata or stacks. *)
 
 (* Everything this tool prints is written as it is produced, not at the end.
 

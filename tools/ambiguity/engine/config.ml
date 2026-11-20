@@ -1,9 +1,9 @@
 (* How a run is configured: the machine settings read from the environment,
    the flags the command line accepts, the memory limits derived from both, and
-   the refusal of flag combinations that cannot mean anything together.
+   the refusal of flag combinations that make no sense together.
 
    [Automaton.words] splits a token list the same way the grammar's own token
-   declarations are split; nothing else here knows about the automaton. *)
+   declarations are split; nothing else here depends on the automaton. *)
 
 let environment name =
   match Sys.getenv_opt name with
@@ -137,7 +137,7 @@ let parse_options () =
     dump_classes = !dump_classes;
   }
 
-(* Everything a run needs to know before it builds anything, read and checked
+(* Every setting a run needs before it builds anything, read and checked
    in one place so a bad setting is refused at the start rather than at the
    moment the run first depends on it. *)
 type settings = {
