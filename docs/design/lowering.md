@@ -514,7 +514,7 @@ with what it builds from in the parts it includes (`emit_types.ml`,
 binds what they lack (`llvm_stubs.c`), and `build.ml` writes the object file
 and links it with the runtime, reading a failed link's errors with
 `link_errors.ml`. The
-runtime is written as nine parts in `runtime/` (`main.c`, `arena.c`,
+runtime is written as twelve parts in `runtime/` (`main.c`, `arena.c`,
 `region.c`, `block.c` and so on), with `zane.h` as the ABI that emitted code calls,
 `zane_abi.h` as the offsets and sizes emitted code relies on, which codegen
 reads as `Abi`, and `zane_internal.h` as what the parts share. `runtime/dune` joins the parts in
@@ -833,6 +833,29 @@ test passing.
     that moves a fresh owner into a callee that can drop it keeps an arena,
     so the owner goes with the block. Issue
     [#210](https://github.com/zane-lang/compiler/issues/210).
+13. **Worker pools.** `@primitives$WorkerPool<T, S, E>`
+    ([`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+    §6) adds no node to the CGT. A pool is a 16-byte handle, the runtime
+    object's address and a stamp, laid out as a foreign handle whose free
+    thunk is the runtime's `zane_workers_free` (`Type_layout.is_pool`). So
+    the scope that holds a pool lists it as it lists a foreign handle, and
+    its drain ends the pool, which waits until every element's step has
+    returned false and the funnel has applied every event (§6.7). Each
+    operation is a runtime call (`Lower_workers`): the constructor copies
+    the state into the pool, `start` moves or copies the element into a
+    region of its own, `state` reads a snapshot from a buffer of the
+    runtime's thread, `elements` makes a list, and the checker's publish
+    lambda copies the event into the funnel's queue. The runtime calls a
+    step and a funnel through a thunk, `zane.step.N` for each `start` and
+    `zane.funnel.N` for each constructor with state, which reads a frame
+    the runtime fills and calls the function value, as `zane.spawn.N`
+    calls a spawned verb. Each step and funnel call runs in a context of
+    its own, which names the pool, so a publish made in a call that the
+    step spawns reaches the same pool. The runtime runs the pools' work as
+    jobs after the spawned calls, and keeps a worker that waits on a timer
+    in a heap of deadlines, holding no thread (`runtime/workers.c`). A
+    program that makes a pool is not single-threaded
+    (`Program.spawned`). The runtime is tested in C on its own.
 
 ---
 
@@ -905,6 +928,8 @@ test passing.
     run moves the frontier back to the record. Only a scope that spawns a
     call looks for one to wait for: a spawned call waits on the innermost
     open scope where it starts, which is the scope its frame is placed in.
+    A scope that holds a worker pool holds it as a foreign handle, whose
+    end waits for the pool's work, so its drain is the runtime's.
     Only a scope that places a slot that may hold a handle looks for one.
     Otherwise both call the runtime, which does the same.
     A reserved slot and a spawned call's header

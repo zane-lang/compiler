@@ -208,7 +208,8 @@ let enter env fr b size =
    frame, so the code moves the frontier back to its record itself.
    Otherwise the runtime drains it. Only a scope that spawns a call can have
    one to wait for, and only one that places a slot holding a handle can
-   hold one, so no other scope checks. *)
+   hold one, so no other scope checks. A worker pool is such a handle, and
+   its end waits for the pool's work (Lower_workers). *)
 let drain_scope env fr b m =
   let ptr = env.ptr in
   let null = Llvm.const_null ptr in

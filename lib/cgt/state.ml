@@ -194,8 +194,8 @@ type state = {
   (* Retain reachable stamped dependency bodies for optimization. They are
      never emitted as ordinary definitions in this object's code. *)
   import_bodies : bool;
-  (* Whether this is a program none of whose code spawns, which runs on
-     one thread. *)
+  (* Whether this is a program none of whose code spawns or makes a worker
+     pool, which runs on one thread. *)
   exclusive : bool;
   (* The places a spawned call may write a value back into, reached through
      an owner (concurrency.md §4.4), or [None] for a library, into whose

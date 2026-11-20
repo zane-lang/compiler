@@ -128,6 +128,7 @@ classified:
 | `Array`, `ArrayRef`, `fill`, `[]` | `Record`, a counted loop, `Array_at` | computed |
 | `@controlflow$branch`, `repeat` | `If`, `Repeat` | computed |
 | `@controlflow$work`, `workEvery` | `While`, and `Sleep` between `workEvery`'s steps | computed; `Sleep` input |
+| `@primitives$WorkerPool`, `start`, `state`, `elements`, a publish | `Workers_new`, `Workers_start`, `Workers_state`, `Workers_elements`, `Workers_publish` | input |
 | storage: slots, boxes, copies, moves, overwrites, scopes | the nodes and the runtime calls codegen makes for them | computed (O5) |
 | `spawn` | `Spawn`, `Join`, `Snapshot`, `Writeback` | computed (O8) |
 | package constants | `Constant_begin`, `Constant_end` | computed (O9) |
@@ -148,7 +149,10 @@ no value of the program depends on it. An intrinsic added later that reads
 input, a console read or the time, joins `arguments` in the input class.
 `workEvery`'s wait is one too: it reads nothing, but when the program does
 what follows it is what the wait is for, and no replay could keep that, so a
-fold stops there. A `work` loop folds like a `repeat` that leaves early: the
+fold stops there. So does a worker pool's every operation: its work runs on
+the program's threads beside the code after `start`, and a publish is a
+write the funnel makes there (`concurrency.md` §6.5), so no fold evaluates
+one. A `work` loop folds like a `repeat` that leaves early: the
 evaluator runs its step until it returns false, within the fold's budget.
 A foreign handle's stamp is the next of a count the running program keeps
 ([`ffi.md`](ffi.md) F12); a fold that makes one keeps a count of its own,

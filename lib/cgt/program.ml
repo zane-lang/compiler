@@ -244,10 +244,11 @@ let roots_of_glue st (pkg : T.Package.t) =
       | _ -> ())
     pkg.T.Package.decls
 
-(* Every call the program spawns: a spawn anywhere in any package of the
-   build, a stamped dependency's included, since its objects are built from
-   the source checked here (docs/design/separate-compilation.md C2). A spawn
-   whose value is read where it is written runs at once, but counts too. *)
+(* Every call the program spawns, and every worker pool it makes: a spawn or
+   a pool anywhere in any package of the build, a stamped dependency's
+   included, since its objects are built from the source checked here
+   (docs/design/separate-compilation.md C2). A spawn whose value is read
+   where it is written runs at once, but counts too. *)
 let spawned (p : T.Program.t) =
   let found = ref [] in
   let call (e : T.Expr.t) =
@@ -414,9 +415,9 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
   let exports p = library && own p in
   let stamp p = if library && own p && root = "" then "!" else "" in
   let stamped p = (not (own p)) && stamp_of p <> "" in
-  (* A program none of whose code spawns runs on one thread, so nothing
-     writes back while the program reads (lowering.md §9). A library's code
-     may run in a program that spawns. *)
+  (* A program none of whose code spawns or makes a worker pool runs on one
+     thread, so nothing writes back while the program reads (lowering.md
+     §9). A library's code may run in a program that spawns. *)
   let calls = spawned p in
   (* A table filled for a program built earlier in this process does not
      apply to this program; only the optimizer refills it. *)

@@ -15,7 +15,8 @@
    math functions; [Lower_data] primitives, arrays, structs and field
    constructors; [Lower_calls] subscripts, calls, their arguments and
    expansion; [Lower_match] `match`es, handlers and case reads;
-   [Lower_spawn] spawned calls; and [Lower_lambda] lambdas. [Program]
+   [Lower_spawn] spawned calls; [Lower_workers] worker pools; and
+   [Lower_lambda] lambdas. [Program]
    lowers a whole program with the walk. *)
 
 module T = Tst.Nodes

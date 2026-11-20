@@ -60,8 +60,8 @@ The choice reads the tree alone, never what LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
 tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
-In a program that spawns, and in a library, whose functions a program that
-spawns may call, every thread uses one table for each function, so a result
+In a program that spawns or makes a worker pool, and in a library, whose
+functions such a program may call, every thread uses one table for each function, so a result
 one thread made can be a hit on every other while its entry holds it. A
 remembered function reads only its arguments and constants, so the result
 is the same whichever thread made it. The entry's meta word then guards it:
@@ -82,7 +82,7 @@ state is written on every lookup, which threads sharing it would contend
 for. A stamped dependency is built as a library, so its functions keep
 tables in its object, which the program's calls into it use; the bodies the
 program takes in to optimize with get none. A program that spawns nothing
-keeps plain entries, which no miss marks.
+and makes no worker pool keeps plain entries, which no miss marks.
 
 ## M2. A function becomes four
 

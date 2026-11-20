@@ -187,7 +187,12 @@ checks the generic verbs nothing instantiates, which ask for none.
    ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1, §2.4, [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md)
    §2.3); a type argument of the wrong kind, reported where it is written
    ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6),
-   including a `^` or a `ListRef` element filled with an `&` type, and through
+   including a `^` or a `ListRef` element filled with an `&` type, a worker
+   pool's state or events filled with a reference type, and its element with
+   one that reaches an `&` to anything but a capability through the fields it
+   owns ([`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+   §6.1, §6.4; a capability is a handle with no free function, or the
+   program's console or runtime), and through
    a generic alias as through the type it names; a type that holds itself at
    a growing argument
    ([`generics.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/generics.md)
@@ -506,6 +511,7 @@ Where the typing rules need care:
 | Name | Looked up in local scopes, then the file's import map and own package (§2–§3 of `packages.md`). A lambda body sees no enclosing locals: "Lambdas do not capture" (`functions.md` §7.4). A block argument does (`control-flow.md` §2.2). |
 | Method call | Candidates from the subject type's home package, then the current package, then, when neither has one that applies, the methods for a subject of any type that the file writes bare: the current package's and those an import brings (`functions.md` §6.1, `generics.md` §3.7). A method for any type is in no type's home, so only that third stage and a qualified callee reach it; a qualified callee names its package. The subject is never coerced (`types.md` §4.6). `:` must call a non-`mut` method and `!` a `mut` one (§2.5). |
 | Worker | `@controlflow$work(subject, step)` and `@controlflow$workEvery(subject, interval, step)` are `mut` methods over a generic subject `S` in the intrinsic table, called with function syntax, so every check and analysis that follows a `!` call's write follows theirs: the subject is never coerced and must be writable. The step is `R[this S] mut`; the checker reads `R` off it and appends a last argument, `test`, a lambda `@primitives$Bool(result R)` returning `result` through the implicit constructor to `@primitives$Bool`, so the conversion a condition gets at `branch` is made of the step's result (`control-flow.md` §4.1). |
+| Worker pool | `@primitives$WorkerPool<T, S, E>` is a reference primitive and `@primitives$EventSource` a value primitive, a timer's interval as an `I64` (`concurrency.md` §6). The constructor's funnel is `F[this S, E] mut`, so `E` is read off its parameter, and `F` is any type, so that `core` passes a funnel returning its own `Unit`. `start` has four overloads, with state or without and with sources or without, each spelled apart (`@primitives$start`, `startOn`, `startAlone`, `startAloneOn`). A call resolves against the overload without its last parameters, and `Check.pool_method` then appends what the checker supplies: `test`, as for a worker, and for a pool with state `publish`, a lambda `P(event E) { return @primitives$publish(event); }` whose return converts the `@primitives$Unit` to the `P` the step's publish function returns, through the implicit constructor. No program names `@primitives$publish`. The stateless overloads take a pool of any `S` and `E`, which `core` narrows. `elements` is rejected on a pool of reference-typed elements, since a copy of an owner would be a second owner. |
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). An operand is passed as written, so resolution stops after the generic phase and a literal operand needs an overload declaring its concept type (§2.7). `~` on a numeric literal calls nothing: it is typed as the literal of the opposite sign, and on a literal parameter as an internal `@concepts$negate` call that lowering folds once the literal is known. A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `match` | Every case covered by exactly one arm; every arm yields the same type — no arm is a coercion site, so "the same" is exact (`adt.md` §5). |
@@ -704,7 +710,10 @@ a `core` needs to be written at all: the constructors, none of them implicit,
 that build an `@primitives$String` from an `@concepts$String` and a container
 primitive from its literal, element access on `@primitives$Array`,
 `@primitives$List` and `@primitives$ListRef`, and `push`, `size`, `remove`
-and `swapRemove` on both lists, one overload per list. An index, a size and a count are each an
+and `swapRemove` on both lists, one overload per list. The worker pool's
+signatures are widened the same way (§5, "Worker pool"): its step, funnel
+and publish function return any type that converts, so that `core` can pass
+lambdas written with its own `Bool` and `Unit`. An index, a size and a count are each an
 `@primitives$I64`. `remove` and `swapRemove` give the element at an index as
 `^T`, which moves it out, and the list closes over its place: `remove` moves
 the later elements down, keeping their order, and `swapRemove` moves the

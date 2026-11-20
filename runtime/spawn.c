@@ -26,10 +26,13 @@ zane_deque zane_deques[ZANE_DEQUES];
 static int64_t zane_slots = 1;              /* deques made, the first included */
 static _Thread_local int64_t zane_mine;     /* this thread's deque, or the first */
 
-/* The pool's threads, started with the first spawn. It keeps `wanted` of
-   them, one per processor until the program sets a number, and a thread
-   over that number leaves when it next finds no work. `queued` counts the
-   calls in every deque, and a thread sleeps only while there are none. */
+/* The pool's threads, started with the first spawn or the first job of a
+   worker pool (zane_pool_wake). It keeps `wanted` of them, one per
+   processor until the program sets a number, and a thread over that number
+   leaves when it next finds no work. `queued` counts the calls in every
+   deque, and a thread sleeps only while there are none and no worker
+   pool's job is queued (`zane_jobs`, workers.c); while a pool's worker
+   waits on a timer, it sleeps no longer than the next deadline. */
 pthread_mutex_t zane_pool = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t zane_waiting = PTHREAD_COND_INITIALIZER;
 pthread_cond_t zane_finished = PTHREAD_COND_INITIALIZER;
