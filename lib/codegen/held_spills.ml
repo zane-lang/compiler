@@ -73,6 +73,16 @@ let keeps = function
   | Some n -> not (starts "zane_" n)
   | None -> true
 
+(* Experimental, within the experiment (ZANE_HELD_LATE=1): a call to a Zane
+   function is left given the alloca, which Held_late, after LLVM's passes,
+   gives the frame slot if the call is still there. *)
+let late = Sys.getenv_opt "ZANE_HELD_LATE" = Some "1"
+
+(* Whether [name] is a Zane function's call, left to Held_late. *)
+let left ~after = function
+  | Some n -> late && (not after) && (not (starts "zane_" n)) && not (starts "llvm." n)
+  | None -> false
+
 (* Intrinsics SROA reads an alloca through. *)
 let through = function
   | Some n ->
@@ -83,7 +93,8 @@ type use = Spill of Llvm.llvalue * int * int64 (* a call, its operand, the offse
 
 (* The uses of [p], an address [offset] bytes into the alloca, or [None]
    when one of them gives up on it. *)
-let rec uses dl p offset acc =
+let rec uses ?(after = false) dl p offset acc =
+  let uses = uses ~after in
   let result = ref (Some acc) in
   Llvm.iter_uses
     (fun u ->
@@ -100,7 +111,8 @@ let rec uses dl p offset acc =
               | None -> result := None)
           | Llvm.Opcode.Call ->
               let name = callee i in
-              if through name then ()
+              if through name || left ~after name then ()
+              else if name = Some "llvm.assume" then ()
               else if keeps name || Llvm.operand i (Llvm.num_operands i - 1) == p then result := None
               else begin
                 let spills = ref acc in
@@ -143,13 +155,37 @@ let next_instr i =
   | Llvm.Before n -> n
   | Llvm.At_end _ -> Diagnostic.bug "held allocas: a call ends its block"
 
+(* [a], of type [ty], given [slot] around each call [spills] names: the
+   bytes the call may touch stored to the slot before the call and loaded
+   back after it, and the call given the slot at the same offset. A list
+   operation's first operand is a list's handle, and the call touches only
+   that; any other call is taken to touch the whole value. Copying only the
+   handle keeps the rest of the value what it was before the call, so that
+   LLVM still knows a field the call cannot change, such as another list's
+   block, as the same value across it. *)
+let spill ctx ty a slot spills =
+  let i8 = Llvm.i8_type ctx and i64 = Llvm.i64_type ctx in
+  let at p offset b = if offset = 0L then p else Llvm.build_in_bounds_gep i8 p [| Llvm.const_of_int64 i64 offset true |] "" b in
+  List.iter
+    (function
+      | Fine -> ()
+      | Spill (c, k, offset) ->
+          let b = Llvm.builder_before ctx c and after = Llvm.builder_before ctx (next_instr c) in
+          let handle = k = 0 && match callee c with Some n -> starts "zane_list_" n | None -> false in
+          let t, o = if handle then (List_handle.header ctx, offset) else (ty, 0L) in
+          let into p = at p o b in
+          let from = into a and dest = into slot in
+          ignore (Llvm.build_store (Llvm.build_load t from "" b) dest b);
+          ignore (Llvm.build_store (Llvm.build_load t dest "" after) from after);
+          Llvm.set_operand c k (at slot offset b))
+    (List.rev spills)
+
 (* The held allocas of [fn], each kept, given its frame slot around the
    calls it reaches, or replaced by its frame slot. *)
 let run ctx fn =
   if on && !order <> [] then begin
     let m = Llvm.global_parent fn in
     let dl = Llvm_target.DataLayout.of_string (Llvm.data_layout m) in
-    let i8 = Llvm.i8_type ctx and i64 = Llvm.i64_type ctx in
     List.iter
       (fun (a, h) ->
         let verdict = uses dl a 0L [] in
@@ -168,25 +204,7 @@ let run ctx fn =
               h.fills;
             Llvm.replace_all_uses_with a h.slot;
             Llvm.delete_instruction a
-        | Some spills ->
-            let seen = ref [] in
-            List.iter
-              (function
-                | Fine -> ()
-                | Spill (c, k, offset) ->
-                    let b = Llvm.builder_before ctx c in
-                    if not (List.memq c !seen) then begin
-                      seen := c :: !seen;
-                      ignore (Llvm.build_store (Llvm.build_load h.ty a "" b) h.slot b);
-                      let after = Llvm.builder_before ctx (next_instr c) in
-                      ignore (Llvm.build_store (Llvm.build_load h.ty h.slot "" after) a after)
-                    end;
-                    let at =
-                      if offset = 0L then h.slot
-                      else Llvm.build_in_bounds_gep i8 h.slot [| Llvm.const_of_int64 i64 offset true |] "" b
-                    in
-                    Llvm.set_operand c k at)
-              (List.rev spills))
+        | Some spills -> spill ctx h.ty a h.slot spills)
       (List.rev !order)
   end;
   start ()

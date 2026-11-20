@@ -112,6 +112,38 @@ value zane_assume_dereferenceable(value block, value type, value assume, value a
   CAMLreturn(Val_unit);
 }
 
+/* Experimental (docs/experiments/held-allocas): `call void @llvm.assume(i1
+   true) ["nonnull"(alloca), "dereferenceable"(slot, size)]` at the end of
+   [block]: the mark that names a held local's alloca and its frame slot
+   through LLVM's passes, which lib/codegen/held_late.ml reads and removes.
+   A use in an assume's bundle is one SROA drops when it promotes the
+   alloca. */
+value zane_assume_held(value block, value type, value assume, value alloca, value slot, value size) {
+  CAMLparam5(block, type, assume, alloca, slot);
+  CAMLxparam1(size);
+  LLVMTypeRef t = (LLVMTypeRef)from_val(type);
+  LLVMContextRef context = LLVMGetTypeContext(t);
+  LLVMBuilderRef b = LLVMCreateBuilderInContext(context);
+  LLVMPositionBuilderAtEnd(b, (LLVMBasicBlockRef)from_val(block));
+  LLVMValueRef named[] = { (LLVMValueRef)from_val(alloca) };
+  LLVMValueRef bytes[] = { (LLVMValueRef)from_val(slot), (LLVMValueRef)from_val(size) };
+  LLVMOperandBundleRef bundles[] = {
+    LLVMCreateOperandBundle("nonnull", strlen("nonnull"), named, 1),
+    LLVMCreateOperandBundle("dereferenceable", strlen("dereferenceable"), bytes, 2),
+  };
+  LLVMValueRef yes = LLVMConstInt(LLVMInt1TypeInContext(context), 1, 0);
+  LLVMBuildCallWithOperandBundles(b, t, (LLVMValueRef)from_val(assume), &yes, 1, bundles, 2, "");
+  LLVMDisposeOperandBundle(bundles[0]);
+  LLVMDisposeOperandBundle(bundles[1]);
+  LLVMDisposeBuilder(b);
+  CAMLreturn(Val_unit);
+}
+
+value zane_assume_held_bytecode(value *argv, int argc) {
+  (void)argc;
+  return zane_assume_held(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
 value zane_assume_dereferenceable_bytecode(value *argv, int argc) {
   (void)argc;
   return zane_assume_dereferenceable(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);

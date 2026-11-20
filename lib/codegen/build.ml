@@ -896,6 +896,7 @@ let rewrites tm m =
   rewrite tm m "leaf peel" Leaf_peel.run Leaf_peel.again;
   rewrite tm m "loop inline" Loop_inline.run Loop_inline.again;
   if Frame_scopes.on () then rewrite tm m "frame scopes" Frame_scopes.run Frame_scopes.again;
+  if Held_late.on () then rewrite tm m "held late" Held_late.run Held_late.again;
   if Sys.getenv_opt "ZANE_FRAME_SHADOW" <> Some "0" then rewrite tm m "frame shadow" Frame_shadow.run Frame_shadow.again;
   rewrite tm m "merged checks" Merged_checks.run Merged_checks.again;
   rewrite tm m "arm checks" Arm_checks.run Arm_checks.again;
