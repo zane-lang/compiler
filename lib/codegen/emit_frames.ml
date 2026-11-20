@@ -294,14 +294,8 @@ let held_slot env fr b scope id ~bytes ~layout:l t =
     let offset = Hashtbl.find fr.offsets id in
     let slot = byte_at env b arena offset in
     if Held_spills.late then begin
-      let assume, assume_ty =
-        match Llvm.lookup_function "llvm.assume" env.m with
-        | Some f -> (f, value_type f)
-        | None ->
-            let t = Llvm.function_type (Llvm.void_type env.ctx) [| Llvm.i1_type env.ctx |] in
-            (Llvm.declare_function "llvm.assume" t env.m, t)
-      in
-      assume_held (Llvm.insertion_block b) assume_ty assume a slot (Llvm.const_int env.i64 bytes)
+      let f = Held_spills.anchor env.m in
+      ignore (Llvm.build_call (value_type f) f [| a; slot |] "" b)
     end;
     Held_spills.record a { Held_spills.slot; offset; ty = t; arena; layout = l; fills = [] };
     a

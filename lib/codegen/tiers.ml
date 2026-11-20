@@ -115,7 +115,8 @@ let exports m =
        (fun v ->
          let thread = Llvm.classify_value v = Llvm.ValueKind.GlobalVariable && Llvm.is_thread_local v in
          (Llvm.value_name v, if thread then thread_address m v else v))
-       (shared m)
+       (* Held_late removes the experiment's anchors after the passes. *)
+       (List.filter (fun v -> Llvm.value_name v <> Held_spills.anchor_name) (shared m))
     @ List.map (fun f -> (Llvm.value_name f ^ value_suffix, f)) (callable m))
 
 let copy_attrs ~from ~into ~site =

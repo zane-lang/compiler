@@ -56,8 +56,10 @@ let of_arena arena = List.rev (List.filter (fun (_, h) -> h.arena == arena) !ord
 let start () = order := []
 
 let callee i =
-  let f = Llvm.operand i (Llvm.num_operands i - 1) in
-  if Llvm.classify_value f = Llvm.ValueKind.Function then Some (Llvm.value_name f) else None
+  if Llvm.instr_opcode i <> Llvm.Opcode.Call then None
+  else
+    let f = Llvm.operand i (Llvm.num_operands i - 1) in
+    if Llvm.classify_value f = Llvm.ValueKind.Function then Some (Llvm.value_name f) else None
 
 let starts p s = String.length s >= String.length p && String.sub s 0 (String.length p) = p
 
@@ -78,6 +80,31 @@ let keeps = function
    gives the frame slot if the call is still there. *)
 let late = Sys.getenv_opt "ZANE_HELD_LATE" = Some "1"
 
+(* The anchor of a held alloca left to Held_late: a call given the alloca
+   and its frame slot, declared to touch only memory nothing else reaches
+   and to neither read nor keep either address, so that LLVM's passes keep
+   the alloca whole, never splitting it or folding it away, while they
+   still read its loads and stores as a local's. Held_late removes it. *)
+let anchor_name = "zane_held_anchor"
+
+let anchor m =
+  match Llvm.lookup_function anchor_name m with
+  | Some f -> f
+  | None ->
+      let ctx = Llvm.module_context m in
+      let ptr = Llvm.pointer_type ctx in
+      let f = Llvm.declare_function anchor_name (Llvm.function_type (Llvm.void_type ctx) [| ptr; ptr |]) m in
+      let text =
+        "declare void @f(ptr readnone captures(none), ptr readnone captures(none)) memory(inaccessiblemem: readwrite) nounwind willreturn"
+      in
+      let parsed = Llvm_irreader.parse_ir ctx (Llvm.MemoryBuffer.of_string text) in
+      let g = Option.get (Llvm.lookup_function "f" parsed) in
+      List.iter
+        (fun index -> Array.iter (fun a -> Llvm.add_function_attr f a index) (Llvm_extra.function_attrs g index))
+        [ Llvm.AttrIndex.Function; Llvm.AttrIndex.Param 0; Llvm.AttrIndex.Param 1 ];
+      Llvm.dispose_module parsed;
+      f
+
 (* Whether [name] is a Zane function's call, left to Held_late. *)
 let left ~after = function
   | Some n -> late && (not after) && (not (starts "zane_" n)) && not (starts "llvm." n)
@@ -93,8 +120,8 @@ type use = Spill of Llvm.llvalue * int * int64 (* a call, its operand, the offse
 
 (* The uses of [p], an address [offset] bytes into the alloca, or [None]
    when one of them gives up on it. *)
-let rec uses ?(after = false) dl p offset acc =
-  let uses = uses ~after in
+let rec uses ?(after = false) ?(every = false) dl p offset acc =
+  let uses = uses ~after ~every in
   let result = ref (Some acc) in
   Llvm.iter_uses
     (fun u ->
@@ -112,8 +139,11 @@ let rec uses ?(after = false) dl p offset acc =
           | Llvm.Opcode.Call ->
               let name = callee i in
               if through name || left ~after name then ()
-              else if name = Some "llvm.assume" then ()
-              else if keeps name || Llvm.operand i (Llvm.num_operands i - 1) == p then result := None
+              else if name = Some "llvm.assume" || name = Some anchor_name then ()
+              else if
+                (if every then name = Some "zane_hold" || name = None else keeps name)
+                || Llvm.operand i (Llvm.num_operands i - 1) == p
+              then result := None
               else begin
                 let spills = ref acc in
                 for k = 0 to Llvm.num_operands i - 2 do

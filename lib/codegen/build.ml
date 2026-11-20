@@ -959,7 +959,8 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       Llvm_passbuilder.run_passes m pipeline tm (Llvm_passbuilder.create_passbuilder_options ())
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
-             if optimize then rewrites tm m;
+             if optimize then rewrites tm m
+             else if Held_late.on () then rewrite tm m "held late" Held_late.run Held_late.again;
              (* EXPERIMENT: the optimized module, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
@@ -1414,6 +1415,9 @@ let shared_library ?target ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m
             @ (if thread_sanitizing () then [ "tsan" ] else [])
             (* The switch that rewrites tier 1 as it is prepared. *)
             @ (if Frame_scopes.on () then [ "frame-scopes" ] else [])
+            @ (if Held_spills.on then [ "held-allocas" ] else [])
+            @ (if Held_late.on () then [ "held-late" ] else [])
+            @ (if Sys.getenv_opt "ZANE_FRAME_SHADOW" = Some "0" then [ "no-frame-shadow" ] else [])
             @ Passes.llvm_options)
         in
         Filename.concat (Filename.concat cache "tier")

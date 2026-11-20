@@ -41,12 +41,6 @@ external assume_dereferenceable :
   Llvm.llbasicblock -> Llvm.lltype -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> unit
   = "zane_assume_dereferenceable_bytecode" "zane_assume_dereferenceable"
 
-(* Experimental (docs/experiments/held-allocas): the mark naming a held
-   alloca and its frame slot (llvm_stubs.c). *)
-external assume_held :
-  Llvm.llbasicblock -> Llvm.lltype -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> Llvm.llvalue -> unit
-  = "zane_assume_held_bytecode" "zane_assume_held"
-
 (* The bindings' `param_types`, `struct_element_types` and `function_attrs`,
    correct when they give nothing (llvm_stubs.c). Codegen uses these
    instead. *)
