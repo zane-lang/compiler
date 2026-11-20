@@ -85,3 +85,17 @@ let import loc node =
 
 let type_axis loc node =
   ({ Nodes.Type_axis.node; span = Span.of_loc loc } : Nodes.Type_axis.t)
+
+(* A function type whose return slot introduces its type parameter,
+   `^T Type[Int]` (generics.md §3.2): the introduction is the return of the
+   first suffix, and each later suffix returns the type before it, as
+   [type_expr] folds them. *)
+let introduced_verb_type ~loc name marker first rest =
+  let intro =
+    ret_type loc
+      (Nodes.Ret_type.Introduced { name; concept = concept loc Nodes.Concept.Type; marker })
+  in
+  List.fold_left
+    (fun (type_ : Nodes.Type_expr.t) suffix ->
+      suffix { Nodes.Ret_type.node = Nodes.Ret_type.Safe type_; span = type_.Nodes.Type_expr.span })
+    (first intro) rest

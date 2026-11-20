@@ -390,6 +390,14 @@ File "fixtures/typing/reject/bad/lambdas.zn", line 6, characters 23-29:
 6 |     generic Int(value T Type) => Int(1);
   |                       ^^^^^^
 Error: `T` introduces a parameter, and only a named verb may: a generic function value is not specified (generics.md §9)
+File "fixtures/typing/reject/bad/lambdas.zn", line 9, characters 20-27:
+9 |     wraps Int(make ^T Type[Int]) => Int(1);
+  |                    ^^^^^^^
+Error: `T` introduces a parameter, and only a named verb may: a generic function value is not specified (generics.md §9)
+File "fixtures/typing/reject/bad/lambdas.zn", line 12, characters 43-106:
+12 |     narrow @primitives$ArrayRef<Int, 2> = @primitives$ArrayRef.fill(2, Int(at @primitives$I32) => Int(1));
+   |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `ArrayRef.fill`'s `make` takes its position as `@primitives$I32`, and a position is `@primitives$I64`, with no implicit constructor between them (generics.md §8.4)
 File "fixtures/typing/reject/bad/literals.zn", line 5, characters 28-43:
 5 | type Scaled<T Type, factor @concepts$Float> = struct { item T; }
   |                            ^^^^^^^^^^^^^^^

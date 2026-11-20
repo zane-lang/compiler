@@ -20,21 +20,50 @@ let member w st ctx span holder t (e : T.Expr.t) =
   if boxed st holder t && not (pooled st t) then boxed_value (ptr (Expr.Box { value; layout = layout st span t }))
   else stored_ref ~slot:(ref_slot t) value
 
-(* `ArrayRef.fill(n, make)` (generics.md §8.4): a slot this scope holds,
-   each element made by calling `make` with its position, counted from 1, in
-   order, and moved into place; then the whole array moves out of the slot,
-   which is spent, into wherever the call's value goes. *)
-let fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
+(* `ArrayRef.fill(n, make, index)` (generics.md §8.4): a slot this scope
+   holds, each element made by `make(index(position))`, the position counted
+   from 1, in order, and moved into place; then the whole array moves out of
+   the slot, which is spent, into wherever the call's value goes. [index] is
+   the checker's conversion of a position to the type `make` takes it as
+   (Check.fill_index). A [make] that is neither a variable nor a lambda
+   written in place is run once, before the first element. *)
+let fill w st ctx span (make : T.Expr.t) (index : T.Expr.t) (t : Tty.t) : Expr.t =
   match (array_of (Tty.strip_mode t), make.T.Expr.ty) with
   | Some (e, n), Tty.Verb fv ->
       let arr = ty st span t in
       let int k = { Expr.node = Expr.Int (Int64.of_int k); ty = Nodes.Ty.I64 } in
-      let f = fresh st and slot = fresh st and i = fresh st and made = fresh st in
+      let slot = fresh st and i = fresh st and made = fresh st in
       let label = fresh st and result = fresh st in
-      let v = value_verb "value" fv (value_params span fv) { T.Block.stats = []; span } in
-      let fn = { Expr.node = Expr.Local f; ty = Nodes.Ty.Ptr } in
+      let local name ty id =
+        let l = { T.Local.id = -id; name; ty; span } in
+        Hashtbl.replace ctx.env l.T.Local.id (Type_layout.slot st ty id);
+        { T.Expr.node = T.Expr.Var (T.Name_ref.Local l); ty; span }
+      in
+      let held, make =
+        match make.T.Expr.node with
+        | T.Expr.Var _ | T.Expr.Lambda _ -> ([], make)
+        | _ ->
+            let f = fresh st in
+            ([ Stat.Let { id = f; value = w.value_of st ctx make } ], local "make" make.T.Expr.ty f)
+      in
+      let index_ty = match Tty.strip_mode index.T.Expr.ty with Tty.Verb iv -> iv.Tty.ret | _ -> Tty.Error in
+      (* The checker writes [index] as a lambda returning its parameter
+         converted, so its body is expanded in place with the position as
+         that parameter, and no function is lifted for it. *)
+      let converted =
+        match index.T.Expr.node with
+        | T.Expr.Lambda { params = [ p ]; body = { stats = [ { node = T.Stat.Return e; _ } ]; _ } } ->
+            Hashtbl.replace ctx.env p.T.Local.id (Type_layout.slot st p.T.Local.ty i);
+            e
+        | _ ->
+            let position = local "position" Tty.i64_primitive i in
+            { T.Expr.node = T.Expr.Call_value { callee = index; args = [ T.Arg.Value position ]; handler = None }; ty = index_ty; span }
+      in
+      let call =
+        w.expr st ctx
+          { T.Expr.node = T.Expr.Call_value { callee = make; args = [ T.Arg.Value converted ]; handler = None }; ty = fv.Tty.ret; span }
+      in
       let index = { Expr.node = Expr.Local i; ty = Nodes.Ty.I64 } in
-      let call = Lower_calls.invoke w ~fn st ctx span v [ index ] None in
       let at =
         ptr
           (Expr.Runtime
@@ -46,8 +75,8 @@ let fill w st ctx span (make : T.Expr.t) (t : Tty.t) : Expr.t =
       let next = { Expr.node = Expr.Binary { op = Expr.Add; left = index; right = int 1 }; ty = Nodes.Ty.I64 } in
       let whole = layout st span t in
       let body =
-        [
-          Stat.Let { id = f; value = w.value_of st ctx make };
+        held
+        @ [
           Stat.Reserve { id = slot; scope = arena st ctx.scope; ty = arr; layout = whole };
           Stat.Let { id = i; value = int 1 };
           Stat.Repeat
@@ -120,7 +149,7 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
   (* A new list is empty, and owns no block until its first `push`. *)
   | ("List" | "ListRef"), [ _ ] ->
       { Expr.node = Expr.Runtime { fn = Runtime.List_new; args = [] }; ty = Nodes.Ty.list_handle () }
-  | "ArrayRef.fill", [ _; T.Arg.Value make ] -> fill w st ctx span make t
+  | "ArrayRef.fill", [ _; T.Arg.Value make; T.Arg.Value index ] -> fill w st ctx span make index t
   | ("Array" | "ArrayRef" | "ArrayRef.refs" | "ArrayRef.roaming"), [ T.Arg.Value v ] -> (
       match ((literal_of ctx v).T.Expr.node, array_of (Tty.strip_mode t)) with
       | T.Expr.Array_lit values, Some (e, n) when List.length values = n ->

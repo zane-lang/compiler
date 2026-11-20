@@ -89,6 +89,7 @@ and ret_type v acc (r : Ret_type.t) =
   match r.Ret_type.node with
   | Ret_type.Safe t -> v.type_expr acc t
   | Ret_type.Abort { ok; abort } -> v.type_expr (v.type_expr acc ok) abort
+  | Ret_type.Introduced _ -> acc
 
 let collect_types = { type_expr = (fun acc t -> t :: acc); call = (fun acc _ -> acc) }
 let collect_calls = { type_expr = (fun acc _ -> acc); call = (fun acc c -> c :: acc) }

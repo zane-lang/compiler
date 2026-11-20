@@ -527,6 +527,9 @@ and Ret_type : sig
   and node =
     | Safe of Type_expr.t
     | Abort of { ok : Type_expr.t; abort : Type_expr.t }
+    (* A function type's return slot that introduces its type parameter,
+       `^T Type[Int]` (generics.md §3.2): written only there. *)
+    | Introduced of { name : Name.t; concept : Concept.t; marker : Marker.t }
 end = Ret_type
 
 and Func_lambda : sig

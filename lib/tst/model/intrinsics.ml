@@ -206,6 +206,7 @@ let constructors =
   let moded mode e n = Ty.Concept (Ty.Array_lit (mode (Ty.Param e), Ty.Number_param n)) in
   let fill_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
   let fill_length = Ty.fresh_param ~name:"n" ~kind:Ty.Number_kind in
+  let fill_index = Ty.fresh_param ~name:"I" ~kind:Ty.Type_kind in
   List.map (fun s -> ctor s [ param "value" (Ty.Concept (concept s)) ] (prim s)) ("U8" :: scalars)
   @ List.map
       (fun (target, member, source) -> ctor ?member target [ param "value" (prim source) ] (prim target))
@@ -239,18 +240,26 @@ let constructors =
       ctor ~generics:[ roaming_element; roaming_length ] ~member:"roaming" "ArrayRef"
         [ param "values" (moded (fun t -> Ty.Roaming t) roaming_element roaming_length) ]
         (fixed "ArrayRef" roaming_element roaming_length);
-      ctor ~generics:[ fill_element; fill_length ] ~member:"fill" "ArrayRef"
+      (* `make` takes the position as an `I`: `@primitives$I64`, or a type
+         with an implicit constructor from it, as a worker's step result
+         reaches `@primitives$Bool` (generics.md §8.4). The last parameter,
+         `index`, is the checker's: a lambda converting each position to an
+         `I` (Check.fill_index). *)
+      ctor ~generics:[ fill_element; fill_length; fill_index ] ~member:"fill" "ArrayRef"
         [
           param ~binds:fill_length "n" (Ty.Concept Ty.Integer_lit);
           param "make"
             (Ty.Verb
                {
                  Ty.this_ = None;
-                 params = [ prim "I64" ];
+                 params = [ Ty.Param fill_index ];
                  ret = Ty.Roaming (Ty.Param fill_element);
                  abort = None;
                  is_mut = false;
                });
+          param "index"
+            (Ty.Verb
+               { Ty.this_ = None; params = [ prim "I64" ]; ret = Ty.Param fill_index; abort = None; is_mut = false });
         ]
         (fixed "ArrayRef" fill_element fill_length);
       ctor ~generics:[ list_element ] "List"
@@ -512,6 +521,11 @@ let control_functions =
     f "exitFromCall" [];
   ]
   @ List.map worker [ ("work", []); ("workEvery", [ param "interval" (prim "I64") ]) ]
+
+(* Whether [s] is `@primitives$ArrayRef.fill`, whose call takes the
+   checker's [index]. *)
+let is_fill (s : S.t) =
+  s.S.home = S.Namespace "primitives" && s.S.name = "@primitives$ArrayRef.fill"
 
 (* Whether [spelling] runs a worker, so its call takes the checker's [test]. *)
 let is_worker spelling = spelling = "@controlflow$work" || spelling = "@controlflow$workEvery"

@@ -210,6 +210,14 @@ then run it again, read the golden diff and promote that.
   type that boxes itself through one; a number parameter read as its number;
   and `@primitives$I32` arithmetic, which wraps at its own width. Every check
   prints `yes` when it holds and `no` when it does not.
+- `fillIndex` is `@primitives$ArrayRef.fill` with a lambda that takes its
+  position as a type with an implicit constructor from `@primitives$I64`
+  (spec generics.md §8.4): called directly, through a wrapper whose `fill`
+  introduces its element type at the return slot of `make`'s type (§3.2),
+  for values and for owners, and many times in a loop, which returns every
+  block it made. A parameter slot's introduction is read off a function
+  value too. Every check prints `yes` when it holds and `no` when it does
+  not.
 - `bounds` indexes past an array's end: the program stops with status 1 after
   what it wrote so far, and says why on stderr. `boundsNegative` does the same
   with a negative index.

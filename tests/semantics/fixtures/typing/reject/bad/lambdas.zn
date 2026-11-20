@@ -4,5 +4,11 @@ Unit lambdas() {
 	outer Int = Int(1);
 	reads Int() => outer;
 	generic Int(value T Type) => Int(1);
+	// A function type's introduction in a lambda's parameter is still one
+	// in a lambda.
+	wraps Int(make ^T Type[Int]) => Int(1);
+	// `fill`'s lambda takes its position as a type `@primitives$I64` has no
+	// implicit constructor to.
+	narrow @primitives$ArrayRef<Int, 2> = @primitives$ArrayRef.fill(2, Int(at @primitives$I32) => Int(1));
 	return Unit();
 }

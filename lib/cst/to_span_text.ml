@@ -108,6 +108,9 @@ and ret_type_ d (x : Ret_type.t) =
   | Ret_type.Abort { ok; abort } ->
       type_expr d ok;
       type_expr d abort
+  | Ret_type.Introduced { name = n; concept = c; _ } ->
+      name d "name" n;
+      concept d c
 
 and generic_arg d (x : Generic_arg.t) =
   line d "generic_arg" x.Generic_arg.span;
