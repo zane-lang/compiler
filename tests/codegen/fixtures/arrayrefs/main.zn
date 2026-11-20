@@ -4,7 +4,10 @@
 /// fixed storage: an element of a settled `ArrayRef` may be referenced, and
 /// is overwritten in place, so the reference observes the replacement
 /// (memory.md §2.2, §2.8). A declared subscript that projects one is a
-/// reference source too (functions.md §2.9). Each check prints `yes` when it
+/// reference source too (functions.md §2.9). A declared subscript whose
+/// element is an `&`, generic or not, names where that reference is held,
+/// so a read through it reaches the owner the reference names. Each check
+/// prints `yes` when it
 /// holds and `no` when it does not.
 package arrayrefs;
 
@@ -51,6 +54,28 @@ Unit replace(this Squad, index Int, player ^Player) mut {
 	return Unit();
 }
 
+/// An owner whose members are references, projected by a subscript: the
+/// element is where a reference is held, so a read through the subscript
+/// follows that reference to the owner it names.
+type Roster = #struct {
+	_picks @primitives$ArrayRef<&Player, 2>;
+}
+
+Roster(a &Player, b &Player) => init{ _picks = @primitives$ArrayRef.refs([a, b]); }
+
+(this Roster)[index Int] => this._picks[index];
+
+/// The same through a generic subscript, instantiated with an `&` element.
+type Shelf<T Type, n @concepts$Int> = #struct {
+	_items @primitives$ArrayRef<T, n>;
+}
+
+Shelf<&T, n>.refs(values @concepts$Array<&T Type, n @concepts$Int>) => init{
+	_items = @primitives$ArrayRef.refs(values);
+}
+
+(this Shelf<T Type, n @concepts$Int>)[index Int] => this._items[index];
+
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
 	no String.escaped("no\n");
@@ -95,6 +120,20 @@ Unit main() {
 	lead &Player = squad[Int(1)];
 	squad!replace(Int(1), Player(Int(50)));
 	check(@operators$equal(lead.score, Int(50)));
+
+	// A declared subscript whose element is an `&`: a read follows the
+	// reference the element holds, and a store replaces that reference.
+	ann Player(Int(31));
+	bob Player(Int(32));
+	roster Roster(ann, bob);
+	check(@operators$equal(roster[Int(1)].score, Int(31)));
+	check(@operators$equal(roster[Int(2)].score, Int(32)));
+	shelf Shelf<&Player, 2> = Shelf.refs([bob, ann]);
+	check(@operators$equal(shelf[Int(1)].score, Int(32)));
+	picked &Player = shelf[Int(2)];
+	check(@operators$equal(picked.score, Int(31)));
+	shelf[Int(1)] = ann;
+	check(@operators$equal(shelf[Int(1)].score, Int(31)));
 
 	// A roaming `ArrayRef` moves whole, and settles where it lands.
 	spare ^@primitives$ArrayRef<Player, 3> = @primitives$ArrayRef.roaming([Player(Int(4)), Player(Int(5)), Player(Int(6))]);
