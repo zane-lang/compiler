@@ -213,7 +213,7 @@ baseline's number of checks, so their causes are elsewhere.
 ## Outcome
 
 The experiment is not merged. Its code stays on the branch
-`claude/exciting-sagan-cre7ap`, off unless `ZANE_HELD_ALLOCAS=1` is set.
+`experiment/held-allocas`, off unless `ZANE_HELD_ALLOCAS=1` is set.
 
 - **Step 6 is a small net gain.** Optimized builds are 0.36% faster
   overall and tiered builds 0.68%. Most of that comes from `pushes`
