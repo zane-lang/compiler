@@ -157,3 +157,55 @@ against the baseline (`handover` +13.5%, `subjects` +9.0%, `cursor`
 ([`baseline-no-shadow.txt`](baseline-no-shadow.txt)). The locals it keeps in
 registers are given to Zane functions, `mut` subjects mostly, so they take
 their frame slots here. `frame_shadow` still gains, so it stays.
+
+## Step 7: the late pass
+
+**Design.** `ZANE_HELD_LATE=1`, with `ZANE_HELD_ALLOCAS=1`. A held alloca
+given to a Zane function is no longer given its frame slot before LLVM's
+passes (step 5). `Held_spills` anchors it where it is held with a call to
+`zane_held_anchor`, given the alloca and its frame slot. The anchor is
+declared to touch only memory nothing else reaches and to neither read nor
+keep either address, so the passes keep the alloca whole but still read its
+loads and stores as a local's. After the passes, `lib/codegen/held_late.ml`
+settles each anchored alloca as `Held_spills` settles one before them, and
+removes the anchors.
+- A runtime call is given the frame slot around the call. A list operation
+  copies only the list's handle there and back, so the other fields stay
+  the same values across the call.
+- If a Zane call is still there, the alloca's uses take the frame slot.
+- Where LLVM copied the hold (an unrolled or peeled loop), each anchor stores
+  its slot into a cell, and each call loads its slot from there.
+
+The first form of the anchor was an `llvm.assume` operand bundle. SROA
+drops such uses, which left poison in the tier 1 build. A plain build, and
+tier 0, settle the anchors without running LLVM's passes. Tier 1's cache key
+now includes the experiment's switches: earlier tiered numbers taken across
+switches may have reused another configuration's tier 1.
+
+**Results.** `just test-compiler` was rerun only in part:
+`tests/objects/facts_test.py` passes with both switches. Against the
+baseline ([`step7-late.txt`](step7-late.txt)):
+
+| build | geomean | against step 6 |
+| --- | ---: | ---: |
+| optimized | +2.00% | +2.36% |
+| tiered | −0.32% | +0.36% |
+| plain | +0.01% | 0.00% |
+
+| program | build | against step 6 |
+| --- | --- | ---: |
+| wrapped | optimized | +196.9% |
+| rotations | optimized | +9.9% |
+| paths | optimized | +6.3% |
+| pairs | optimized | +4.7% |
+| interp | optimized | +4.2% |
+| tables | optimized | −10.5% |
+| tokens | optimized | −12.5% |
+
+Without `wrapped`, optimized is −0.03% against step 6. `wrapped` loses
+because O2 now sees its `State`'s list size as a local's value. IndVars
+turns the unrolled hash loop's eight index checks into compares against a
+`umin` of exit counts. `Range_checks` joins only checks of the form
+`icmp ult index, size`, so 18 checks stay in the loop (3 in the baseline),
+and the SLP vectorizer leaves it scalar. The other losses keep the
+baseline's number of checks, so their causes are elsewhere.
