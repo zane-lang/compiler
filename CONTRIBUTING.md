@@ -1,8 +1,8 @@
 # Contributing
 
 How changes to the compiler are written and what has to change with them.
-[`docs/README.md`](docs/README.md) lists the design document for each part of the compiler is
-designed; the [`justfile`](justfile) has the recipes that build and test it.
+[`docs/README.md`](docs/README.md) lists the design document for each part of the compiler;
+the [`justfile`](justfile) has the recipes that build and test it.
 
 ## Writing code
 

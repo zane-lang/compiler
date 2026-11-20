@@ -4,7 +4,7 @@
    longer there. *)
 type stage = Cst | Sst
 
-(* The run the binary was asked to do. One file is enough for the first two
+(* The request the binary was asked to carry out. One file is enough for the first two
    stages, which never look past that file. Semantics takes packages instead
    (docs/design/semantics.md §2): each `--package` names one package, and the
    first package is the root.
@@ -104,8 +104,8 @@ type request =
   | Remap of { from : string; to_ : string; input : string; output : string }
   | Bundle_runtime of { dir : string; target : string; optimize : bool }
 
-(* A command the binary cannot run: the arguments match no run the binary
-   knows, or a source file they name cannot be read. Exits with status 2. *)
+(* A command the binary cannot run: the arguments form no [request], or a
+   source file they name cannot be read. Exits with status 2. *)
 exception Usage of string option
 
 let read_file path =
