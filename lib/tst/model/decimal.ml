@@ -2,9 +2,10 @@
    single nearest the literal, ties to even. [float_of_string] rounds the
    decimal to a double first, and rounding that double to a single again is
    wrong in exactly one case: when the double lands on the midpoint between
-   two singles, the literal may lie to one side of it, and the second rounding
-   then breaks a tie the literal never had. The exact comparison below settles
-   that case; every other double rounds to the same single the literal does.
+   two singles, the literal may lie to one side of that midpoint, and the
+   second rounding then breaks a tie the literal never had. The exact
+   comparison below settles that case; every other double rounds to the same
+   single as the literal.
    The text is the literal's digits and its `.`, with no sign. *)
 
 (* A double rounded to the nearest single, ties to even. *)
@@ -52,7 +53,7 @@ let exact f =
     (strip_leading (String.sub d 0 cut), strip_trailing (String.sub d cut (-e)))
   end
 
-(* Which side of [f] the literal [text] lies on, as [compare] gives it. *)
+(* Which side of [f] the literal [text] lies on, as [compare] returns it. *)
 let compare_decimal text f =
   let whole, fraction =
     match String.index_opt text '.' with
@@ -76,10 +77,11 @@ let to_single text =
   let r = single d in
   if (not (Float.is_finite d)) || d = r then r
   else
-    (* The single on d's other side, and whether d sits halfway between. A
-       literal has no sign, so both are non-negative and the next single up
-       is one more in the bits; one past the largest finite single is its
-       infinity, which is where rounding up from that midpoint goes. *)
+    (* The single on d's other side, and whether d sits halfway between the
+       two singles. A literal has no sign, so both singles are non-negative,
+       and the next single up is one more in the bits; one past the largest
+       finite single is infinity, which is where rounding up from that
+       midpoint goes. *)
     let step = if d > r then 1l else -1l in
     let other = Int32.float_of_bits (Int32.add (Int32.bits_of_float r) step) in
     let midpoint =

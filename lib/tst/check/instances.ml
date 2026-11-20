@@ -1,6 +1,6 @@
 (* Generic instances (D12): the instances pass 5 records as calls resolve to
-   generic verbs, how many of one declaration make recursion, and the rule
-   that a concept type is never storage. *)
+   generic verbs, how many instances of one declaration count as endless
+   recursion, and the rule that a concept type is never storage. *)
 
 open Env
 module T = Nodes
@@ -12,9 +12,9 @@ open Context
 (* How many instances of one declaration along one chain of instantiations
    are enough to call it recursion without end: `f<T>` calling `f<Pair<T>>`,
    which no program can finish instantiating. Instances are deduplicated by
-   their arguments, so a chain that only revisits a fixed set of them stops
-   growing; only one that keeps reaching new arguments gets this deep. Uses
-   on separate chains, however many, are not counted together. *)
+   their arguments, so a chain that only revisits a fixed set of arguments
+   stops growing; only a chain that keeps reaching new arguments gets this
+   deep. Uses on separate chains, however many, are not counted together. *)
 let instance_limit = 64
 
 (* The first few links of a chain, outermost first, by the names of their
@@ -48,10 +48,11 @@ let verb_ref (s : S.t) subst =
 
 
 (* A concept type is never storage (syntax.md §2.8), and a generic call can
-   make it one no written type shows: `Jar(body)` builds a `Jar` whose field
-   holds the block, which never escapes the call it is written at
-   (control-flow.md §2.2). A call whose result is itself a concept, as
-   `echo(body)` is, stores nothing; where that value goes is checked there. *)
+   make a concept type into storage without any written type showing it:
+   `Jar(body)` builds a `Jar` whose field holds the block, which never escapes
+   the call it is written at (control-flow.md §2.2). A call whose result is
+   itself a concept, as `echo(body)` is, stores nothing; the place that value
+   goes to is checked where it goes. *)
 let check_result env (s : S.t) subst at =
   let ret = Ty.subst subst s.ret in
   match (ret, Type_decls.concept_in ret) with
@@ -63,11 +64,11 @@ let check_result env (s : S.t) subst at =
       false
 
 (* generics.md §3.6: an instance that puts a reference type where a value
-   mould holds only values, or a value type under an `&`, is reported at the type's origin, the argument it
-   was read from: a type passed as a value, or the value an inferred one was
-   inferred from. A generic verb that only forwards its parameter is never
-   the origin, so the instance is not made, and nothing inside it reports
-   the same mistake again. *)
+   mould holds only values, or a value type under an `&`, is reported at the
+   type's origin, the argument the type was read from: a type passed as a
+   value, or the value an inferred type was inferred from. A generic verb that
+   only forwards its parameter is never the origin, so the instance is not
+   made, and nothing inside it reports the same mistake again. *)
 let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
   let instantiated = List.map (fun (p : S.param) -> (p, Ty.subst subst p.S.ty)) s.params in
   (* A subscript's result is a place, and a constructor's is the value it
@@ -115,9 +116,10 @@ let check_kinds env (s : S.t) subst at (args : T.Arg.t option list) =
       error env (Option.value ~default:at origin) (Type_decls.describe_wrong_kind f);
       false
 
-(* A call that builds storage out of a concept was reported, and its instance
-   would only report it again. A body checked without requests, as a generic
-   verb nothing instantiates is, asks for no instances. *)
+(* A call that builds storage out of a concept was already reported, and its
+   instance would only report the same error again. A body checked without
+   requests, as a generic verb that nothing instantiates is, asks for no
+   instances. *)
 let request env ?(args = []) (s : S.t) subst at =
   match (s.owner, env.instances.requests) with
   | _ when not (check_result env s subst at) -> ()
@@ -136,8 +138,8 @@ let request env ?(args = []) (s : S.t) subst at =
           let chain = id :: !(requests.current_chain) in
           let count = List.length (List.filter (Int.equal id) chain) in
           if count > instance_limit then begin
-            (* Reported once: the instances still waiting on this declaration
-               ask for no more of it. *)
+            (* Reported once: the instances still waiting on this
+               declaration request no more instances of it. *)
             Hashtbl.replace requests.runaway id ();
             error env at
               (Printf.sprintf

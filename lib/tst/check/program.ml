@@ -43,10 +43,10 @@ let check_body env (d : decl) (s : S.t) subst =
       Some (locals, typed)
 
 (* A field constructor's defaults are values of their entries' types, and a
-   default is a declaration, not a coercion site. Each is typed with the
-   constructor's parameters as [subst] gives them, and given with its entry's
-   slot; an instance's are typed again, and only a declaration's [report]
-   whether a default fits its entry. *)
+   default is a declaration, not a coercion site. Each default is typed with
+   the constructor's parameters as [subst] gives them, and returned with its
+   entry's slot; an instance's defaults are typed again, and only a
+   declaration's defaults [report] whether a default fits its entry. *)
 let typed_defaults env ?(report = true) (d : decl) (s : S.t) subst =
   match d.kind with
   | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields fs; _ }; _ }; _ } ->
@@ -87,8 +87,9 @@ let package_context env (d : decl) =
     building = None;
   }
 
-(* An enum-map entry is a coercion site (adt.md §6): exact, or converted by
-   the one implicit constructor that applies. *)
+(* An enum-map entry is a coercion site (adt.md §6): its value matches
+   exactly, or is converted by the single implicit constructor that
+   applies. *)
 let coerce_to env ctx (v : T.Expr.t) dst =
   if Ty.assignable ~dst ~src:v.T.Expr.ty then v
   else
@@ -112,8 +113,9 @@ let coerce_to env ctx (v : T.Expr.t) dst =
 let type_definition env (info : type_info) : T.Decl.definition =
   match info.definition with
   | Some (Handle h) ->
-      (* A handle no foreign verb makes is none's: a data handle when it
-         has a free function, and a capability otherwise. *)
+      (* A handle that no foreign verb makes has no kind from a verb: it is a
+         data handle when it has a free function, and a capability
+         otherwise. *)
       let kind =
         match Verbs.handle_kind env.verbs info.tid with
         | Some k -> k
@@ -126,7 +128,8 @@ let type_definition env (info : type_info) : T.Decl.definition =
   | Some (Distinct t) -> T.Decl.Distinct t
   | None -> T.Decl.Distinct Ty.Error
 
-(* A generic subscript is checked per instance; any other is checked here. *)
+(* A generic subscript is checked per instance; any other subscript is checked
+   here. *)
 let subscript_declaration env (d : decl) (s : S.t) =
   if s.generics <> [] then T.Decl.Subscript { signature = s; params = []; value = None }
   else
@@ -145,8 +148,9 @@ let verb_declaration env (d : decl) (s : S.t) =
     | Verb { N.Verb_decl.node = N.Verb_decl.Func { foreign = Some _; _ } | N.Verb_decl.Meth { foreign = Some _; _ }; _ } -> true
     | _ -> false
   in
-  (* A foreign verb's body is C. One [Foreign_decls] refused has none, and
-     is left out, as a verb whose signature did not resolve is. *)
+  (* A foreign verb's body is C. A foreign verb that [Foreign_decls] refused
+     has no body, and is left out, as a verb whose signature did not resolve
+     is. *)
   if foreign then Option.map (fun f -> T.Decl.Verb { signature = s; body = T.Decl.Foreign f }) (Verbs.foreign_verb env.verbs d.id)
   else if s.generics <> [] then Some (T.Decl.Verb { signature = s; body = T.Decl.Per_instance })
   else
@@ -220,10 +224,10 @@ let run env (instances : instances) : T.Program.t =
         { T.Package.name; decls = List.filter_map (declaration env) pkg.decls })
       (Names.package_order env.names)
   in
-  (* The latest instance asked for is checked first, so a chain is followed
-     to its end before the instances beside it: one that never ends reaches
-     the limit after as many steps, not after every instance its branches
-     would have asked for. *)
+  (* The latest instance requested is checked first, so a chain is followed
+     to its end before the instances beside it: a chain that never ends
+     reaches the limit after as many steps as the limit, not after every
+     instance its branches would have requested. *)
   while not (Stack.is_empty requests.pending) do
     let p = Stack.pop requests.pending in
     requests.current_chain := p.p_decl.id :: p.p_chain;
@@ -252,14 +256,15 @@ let run env (instances : instances) : T.Program.t =
                 :: !(env.instances.checked)
           | None -> ()))
   done;
-  (* D12 checks a generic body once per instantiation, so one nothing
-     instantiates would go unchecked. It is checked once more where it is
-     declared, with every type parameter standing for [Ty.Error]: what depends
-     on the parameter is accepted as it is for any expression that failed to
-     type, and what does not -- a name that resolves nowhere, a call no
-     overload takes -- is reported. A number parameter stays the parameter it
-     is. Nothing from this check enters the tree; there is no instance to
-     hold it. It runs without requests, so it asks for no instances. *)
+  (* D12 checks a generic body once per instantiation, so a generic body that
+     nothing instantiates would go unchecked. Each generic body is therefore
+     checked once more where it is declared, with every type parameter
+     standing for [Ty.Error]: code that depends on the parameter is accepted,
+     as for any expression that failed to type, and code that does not -- an
+     identifier that resolves nowhere, a call no overload takes -- is
+     reported. A number parameter stays a number parameter. Nothing from this
+     check enters the tree, since there is no instance to hold it. The check
+     runs without requests, so it requests no instances. *)
   let instantiated_subscripts = Hashtbl.create 16 in
   Hashtbl.iter
     (fun _ ((t : S.t), _, _, _) ->

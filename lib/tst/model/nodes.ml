@@ -1,11 +1,11 @@
 (* The typed syntax tree: the SST with every name resolved and every
    expression typed (docs/design/stages.md, docs/design/semantics.md §6).
 
-   Read against lib/sst/nodes.ml. What this tree adds is a [ty] on every
-   expression and a resolved reference wherever the SST held a name. What it
-   takes away is every question resolution answered: which overload a call
-   picked, whether `Expr.intLit(x)` is a case or a named constructor, whether
-   `a.b` is a field, a case read or an enum-map read. No later stage repeats a
+   Read against lib/sst/nodes.ml. This tree adds a [ty] to every expression
+   and a resolved reference wherever the SST held a name. It removes every
+   ambiguity that resolution settled: which overload a call picked, whether
+   `Expr.intLit(x)` is a case or a named constructor, whether `a.b` is a
+   field, a case read or an enum-map read. No later stage repeats a
    lookup. *)
 
 module Span = Source.Span
@@ -39,13 +39,13 @@ module Name_ref = struct
     | Intrinsic of string
 end
 
-(* What a foreign verb is (ffi.md §3): the C function its body is, as its
-   package's interface headers declare it, and what it reads and writes
-   outside the program, which its signature states (§5.2). *)
+(* A foreign verb (ffi.md §3): the C function that is its body, as its
+   package's interface headers declare it, and the state outside the program
+   that it reads and writes, which its signature states (§5.2). *)
 module Foreign = struct
   type access =
-    (* A function, or a method on a data handle: nothing outside the
-       program. *)
+    (* A function, or a method on a data handle: it reads and writes
+       nothing outside the program. *)
     | Pure
     (* A method without `mut` on a foreign capability. *)
     | Reads
@@ -79,8 +79,8 @@ module rec Expr : sig
     (* A type written where a value goes, passed to an explicit `Type`
        parameter (generics.md §5.3). *)
     | Type_arg of Ty.t
-    (* D10: the SST's [TypeMember] and [Constructor], split by what they
-       turned out to be. *)
+    (* D10: the SST's [TypeMember] and [Constructor], split by whether each
+       resolved to an enum member, a case form or a constructor call. *)
     | Enum_member of string
     | Case of { case : string; payload : t }
     | Construct of {
@@ -129,7 +129,8 @@ module rec Expr : sig
     | Invalid
 
   (* An interpolated value is the `@primitives$String` its site requires: the
-     symbol it names, or that symbol converted by an implicit constructor. *)
+     symbol the site names, or that symbol converted by an implicit
+     constructor. *)
   and piece = Fragment of string | Interpolation of t
 end =
   Expr
@@ -205,15 +206,15 @@ module Decl = struct
   type body =
     | Checked of { params : Local.t list; body : Block.t }
     (* A generic verb's body is checked once per instantiation (D12), so the
-       declaration itself carries none; its instances do. *)
+       declaration itself carries no body; its instances do. *)
     | Per_instance
     (* A foreign verb's body is a C function (ffi.md §3.1): a call to it is
        a call of the C function, made where the call is. *)
     | Foreign of Foreign.t
 
-  (* What a foreign handle's values refer to (ffi.md §4.1, §4.2): a C
-     global, outside state reached through a capability, or state of the
-     program's own. *)
+  (* The kind of storage a foreign handle's values refer to (ffi.md §4.1,
+     §4.2): a C global, outside state reached through a capability, or the
+     program's own state. *)
   type handle_kind = Capability | Outside | Data
 
   type definition =
@@ -253,8 +254,8 @@ module Instance = struct
     args : (Ty.param * Ty.arg) list;
     params : Local.t list;
     body : Block.t;
-    (* What made the instance, for a diagnostic inside it: the generic, its
-       arguments, and the call that required it. *)
+    (* The origin of the instance, for a diagnostic inside it: the generic,
+       its arguments, and the call that required the instance. *)
     note : string option;
   }
 end
@@ -265,8 +266,8 @@ end
 
 (* A field constructor's defaults (types.md §3.3), typed where the
    constructor is declared: per entry slot, the value a call that omits the
-   entry passes. A generic constructor has them per instance, which [args]
-   names; a declaration has none. *)
+   entry passes. A generic constructor has its defaults per instance, which
+   [args] identifies; for a declaration, [args] is empty. *)
 module Defaults = struct
   type t = { decl : int; args : (Ty.param * Ty.arg) list; values : (int * Expr.t) list }
 end

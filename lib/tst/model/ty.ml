@@ -1,4 +1,4 @@
-(* What an expression's type can be. See docs/design/semantics.md §4.
+(* The types an expression can have. See docs/design/semantics.md §4.
 
    A [Named] type is a `type` declaration applied to its arguments; an `alias`
    never appears here, because it is expanded where it is written (D5), so two
@@ -15,12 +15,12 @@ type kind = Type_kind | Number_kind
 
 (* A type or number parameter, introduced by a type's header or at its first
    marked occurrence in a verb signature (generics.md §3.2). [id] is unique
-   across the build, so two verbs that both call their parameter `T` never
-   confuse one for the other. *)
+   across the build, so the parameters of two verbs that both call their
+   parameter `T` are never confused. *)
 type param = { id : int; name : string; kind : kind }
 
-(* A declared type is named by its defining package and its name, which is
-   also what a compiled symbol will carry (packages.md §3.3). *)
+(* A declared type is identified by its defining package and its name, which
+   a compiled symbol also carries (packages.md §3.3). *)
 type type_id = { package : string; name : string }
 
 type t =
@@ -42,20 +42,21 @@ and arg = Type of t | Number of number
 and number = Known of int | Number_param of param
 
 and concept =
-  (* `@concepts$Int`: an integer literal, and what a number parameter is
-     declared with and reads as in a body (generics.md §3.3). *)
+  (* `@concepts$Int`: the type of an integer literal, and the concept a
+     number parameter is declared with and has as its type in a body
+     (generics.md §3.3). *)
   | Integer_lit
   | Decimal_lit
   | Text_lit
   | Array_lit of t * number
   (* An array literal whose elements are owners of [t] and references to
-     it: only `&t` elements take both (generics.md §8.4), so nothing reads
-     an element type off it. *)
+     [t]: only `&t` elements accept both (generics.md §8.4), so nothing
+     reads an element type off this literal. *)
   | Mixed_lit of t * number
   | Map_lit of t * t
   (* A block argument: statements that yield nothing (control-flow.md §2.4). *)
   | Block
-  (* The type of a type written where a value goes: what a `T Type` value
+  (* The type of a type written where a value goes, which a `T Type` value
      parameter accepts (generics.md §5.3). *)
   | Type_value
 
@@ -68,7 +69,8 @@ and verb = {
 }
 
 (* The intrinsic namespaces' own parameters, made once as [Intrinsics]
-   loads. A check numbers its own after these, through [Env.fresh_param]. *)
+   loads. A check numbers its own parameters after these, through
+   [Env.fresh_param]. *)
 let next_param = ref 0
 
 let fresh_param ~name ~kind =
@@ -158,7 +160,7 @@ and verb_to_string v =
 (* Substitution                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-(* What each parameter stands for, by [param.id]. *)
+(* The type or number each parameter stands for, by [param.id]. *)
 type subst = (int * arg) list
 
 let rec subst (s : subst) t =
@@ -200,7 +202,8 @@ and subst_concept s = function
   | Map_lit (k, v) -> Map_lit (subst s k, subst s v)
   | c -> c
 
-(* What each of a generic's [params] stands for, given its [args]. The counts
+(* The type or number each of a generic's [params] stands for, given its
+   [args]. The counts
    always agree: [Type_decls.apply_args] reports a wrong count in the program
    and builds no type from it, so a [Named] type with the wrong number of
    arguments is a compiler bug. *)
@@ -239,7 +242,7 @@ let free_params t =
   go t;
   List.rev !seen
 
-(* How many constructors a type is built from. *)
+(* How many type constructors a type is built from. *)
 let rec size = function
   | Named (_, args) | Intrinsic { args; _ } -> 1 + args_size args
   | Reference t | Roaming t -> 1 + size t
@@ -258,8 +261,8 @@ and args_size args = List.fold_left (fun n a -> n + match a with Type t -> size 
    type that holds itself at a growing argument (generics.md §2.4), so in a
    checked program a declaration reappears larger only through an argument
    that names no parameter, a bounded number of times, and a chain of
-   distinct declarations, however long, never grows. A declaration grown
-   past [limit] times is a type that check missed. *)
+   distinct declarations, however long, never grows. A declaration that grew
+   more than [limit] times is a type that Type_decls missed. *)
 module Growth = struct
   module Decls = Map.Make (struct
     type t = type_id
@@ -291,9 +294,9 @@ end
 (* Comparison                                                           *)
 (* ---------------------------------------------------------------------- *)
 
-(* The passing mode is not part of what a value is: a `&T`, a `^T` and a `T`
-   one carry the same type, and which mode a position may take is a question
-   for the lifetime analysis (docs/design/semantics.md D1), not for typing. So the
+(* The passing mode is not part of a value's type: a `&T` value, a `^T` value
+   and a `T` value carry the same type, and the lifetime analysis, not typing,
+   decides which mode a position may take (docs/design/semantics.md D1). So the
    comparisons below look through a mode marker, `&` or `^`, at the top of either side. *)
 let strip_mode = function Reference t | Roaming t -> t | t -> t
 let is_ref = function Reference _ -> true | _ -> false
@@ -339,17 +342,17 @@ and concept_equal a b =
   | Map_lit (k, v), Map_lit (k', v') -> equal k k' && equal v v'
   | x, y -> x = y
 
-(* [src] as storage of type [dst] holds it: the one relaxation the spec gives
-   function values, that a lambda that does not declare `mut` may be held by
-   a `mut` function type (functions.md §7.2), and is then held as one that
-   does. An argument is held the same way (§4.1 keeps it from matching two
-   overloads). *)
+(* [src] as storage of type [dst] holds it. This is the only relaxation the
+   spec gives function values: a lambda that does not declare `mut` may be
+   held by a `mut` function type (functions.md §7.2), and is then held as a
+   `mut` function. An argument is held the same way (§4.1 keeps such an
+   argument from matching two overloads). *)
 let held_as ~dst ~src =
   match (strip_mode dst, strip_mode src) with
   | Verb d, Verb s when d.is_mut && not s.is_mut -> Verb { s with is_mut = true }
   (* An array literal passed as `&T` elements holds each element as an `&T`
-     parameter would: an owner as a reference to it, and a reference as
-     itself. *)
+     parameter would: an owner as a reference to that owner, and a reference
+     as the reference itself. *)
   | Concept (Array_lit (Reference _, _)), Concept (Array_lit (s, n) | Mixed_lit (s, n))
     when not (is_ref s) ->
       Concept (Array_lit (Reference s, n))
@@ -360,7 +363,7 @@ let held_as ~dst ~src =
    `return`. Exact, up to the passing mode and [held_as]. *)
 let assignable ~dst ~src = equal (strip_mode dst) (held_as ~dst ~src)
 
-(* A function type without its `mut`, which overload identity does not read
+(* A function type without its `mut`, which overload identity ignores
    (functions.md §4.1). *)
 let without_mut = function Verb v -> Verb { v with is_mut = false } | t -> t
 
@@ -382,23 +385,25 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
   | Error, _ -> Some s
   (* An open parameter binds even to [Error], so a type that failed to
      resolve -- or a generic body checked with its parameters unknown -- still
-     fixes it, and what depends on it is accepted rather than unbound. *)
+     fixes the parameter, and code that depends on the parameter is accepted
+     rather than left unbound. *)
   | Param p, _ when is_open p -> (
       match List.assoc_opt p.id s with
       | Some (Type bound) -> if equal bound actual then Some s else None
       | Some (Number _) -> None
       | None -> (
           match actual with
-          (* Neither fixes a type: a literal's concept type, and a literal
-             whose element type only a named `&T` decides. *)
+          (* Neither of these fixes a type: a literal's concept type, and a
+             literal whose element type only a named `&T` determines. *)
           | Concept (Mixed_lit _) -> None
           | _ -> if is_bare_literal actual then None else Some ((p.id, Type actual) :: s)))
   | _, Error -> Some s
   (* `^T` over a type parameter takes an owner when it is filled with a
      reference type and borrows a value otherwise (memory.md §2.9), so a
      function type's `^T` is filled from a value type's result written bare.
-     Only a value type may fill it that way, which kinds decide: the caller
-     checks the filled type ([Type_decls.modes_agree]). *)
+     Only a value type may fill `^T` that way, and the kinds of the types
+     decide whether it is one: the caller checks the filled type
+     ([Type_decls.modes_agree]). *)
   | Roaming (Param p), actual when is_open p && not (is_roaming actual) ->
       unify ~open_ s (Param p) actual
   | Named (x, xs), Named (y, ys) when x = y -> unify_args ~open_ s xs ys
@@ -452,9 +457,10 @@ and unify_concept ~open_ s x y =
   | x, y -> if x = y then Some s else None
 
 (* A signature's parameter list, spelled so that two lists that differ only
-   in what their parameters are called read the same: each parameter becomes
-   its position of first occurrence. That is overload identity
-   (functions.md §4.1), and it is how two generic overloads compare. *)
+   in the identifiers of their type parameters read the same: each type
+   parameter becomes its position of first occurrence. This spelling is
+   overload identity (functions.md §4.1), and two generic overloads are
+   compared by it. *)
 let canonical ts =
   let order = ref [] in
   let index p =

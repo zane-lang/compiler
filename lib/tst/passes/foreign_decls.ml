@@ -6,9 +6,9 @@
 
    Pass 4 runs this last, since a handle's kind is read from the foreign
    verbs that return it, and a verb's handles are checked against their
-   kinds. What it learns goes into pass 4's tables: each handle type's kind,
-   and each foreign verb's C function and what it reads and writes outside
-   the program (§5.2). A foreign variable, which is a value, is checked in
+   kinds. The results go into pass 4's tables: each handle type's kind, and
+   each foreign verb's C function and the state outside the program it reads
+   and writes (§5.2). A foreign variable, which is a value, is checked in
    pass 5 through [global]. *)
 
 open Env
@@ -35,9 +35,10 @@ let handle_of env (t : Ty.t) =
 
 let is_capability (h : Nodes.Handle.t) = h.Nodes.Handle.free = None
 
-(* The struct a handle's `cType` names in [iface], by its identity: a
-   typedef of a struct, or the tag of a struct, that an interface header
-   declares, completely or not, or that a header it includes does (§4.1). *)
+(* The struct a handle's `cType` names in [iface], by its identity: a typedef
+   of a struct, or the tag of a struct, that an interface header declares,
+   completely or not, or that a header included by an interface header
+   declares (§4.1). *)
 let record_of iface c_type =
   match List.assoc_opt c_type iface.C.typedefs with
   | Some (C.Record { union = false; name }) -> Some name

@@ -1,9 +1,9 @@
 module T = Nodes
 
 (* Whether a run of statements ends on every path: some statement in it
-   leaves for good. A call never counts -- which calls exit their caller is
-   not something a signature says -- and neither does a `match`, whose arms
-   `return` to it rather than out of the verb. *)
+   leaves for good. A call never counts -- a signature does not record which
+   calls exit their caller -- and neither does a `match`, whose arms `return`
+   to the `match` rather than out of the verb. *)
 let ends ~resolve (stats : T.Stat.t list) =
   List.exists
     (fun (s : T.Stat.t) ->

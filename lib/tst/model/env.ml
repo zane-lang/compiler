@@ -1,15 +1,16 @@
 (* Everything the passes share about one build: the declarations of every
    package, each file's import map, and the tables each later pass fills in.
-   [start] makes one per check, and every pass takes it as an argument, so
-   two checks share nothing and a function's parameters say what it reads.
+   [start] makes one environment per check, and every pass takes it as an
+   argument, so two checks share nothing and a function's parameters show
+   which tables it reads.
 
-   The passes run in order (docs/design/semantics.md §3) and each reads only what the
-   ones before it wrote. The tables are grouped by the pass that fills them:
-   [names], [types], [verbs] and [instances], with the counters apart. A pass
-   is given empty tables for its group, fills them, and hands on a view of
-   them ([Names], [Types], [Verbs]) that has no way to write; [t] holds one
-   slot per group, so a pass's type lists which groups it reads and shows that the
-   passes before it have run. The tables are mutable because a pass fills
+   The passes run in order (docs/design/semantics.md §3) and each reads only the
+   tables the passes before it wrote. The tables are grouped by the pass that
+   fills them: [names], [types], [verbs] and [instances], with the counters
+   kept separately. A pass is given empty tables for its group, fills them,
+   and hands on a read-only view of them ([Names], [Types], [Verbs]); [t]
+   holds one slot per group, so a pass's type lists which groups it reads
+   and shows that the passes before it have run. The tables are mutable because a pass fills
    them as it runs, revising some entries on the way (a subscript's result is
    [None] while it is computed, and a verb's promoted parameters grow until a
    fixed point settles). *)
@@ -21,8 +22,8 @@ module Span = Source.Span
 (* Diagnostics                                                            *)
 (* ---------------------------------------------------------------------- *)
 
-(* Where something is, for a message that points at a second place: the file
-   and line. *)
+(* The file and line of a second location, for a message that points at
+   two places. *)
 let where (span : Span.t) =
   Printf.sprintf "%s:%d" span.Span.start_.Lexing.pos_fname
     span.Span.start_.Lexing.pos_lnum
@@ -49,17 +50,18 @@ type kind =
       entries : (N.Name.t * N.Expr.t) list;
     }
 
-(* What a file may write, and what it means (packages.md §3.3). *)
+(* The qualifiers and bare identifiers a file may write, and the packages and
+   members they stand for (packages.md §3.3). *)
 type file = {
   path : string;
   package : string;
   (* `import pkg` and `import pkg as alias`: the spelling before `$` and the
      package it names. *)
   qualifiers : (string, string * Span.t) Hashtbl.t;
-  (* Every other form: a bare spelling and the members it brings, as the
-     package and the member's own name. A name that more than one import
-     brings is a legal overload set of functions or an error at the import
-     (§3.8). *)
+  (* Every other form: a bare spelling and the members it brings, each as
+     the package and the member's own name. An identifier that more than one
+     import brings is either a legal overload set of functions or an error at
+     the import (§3.8). *)
   bare : (string, bare) Hashtbl.t;
 }
 
@@ -69,16 +71,17 @@ type decl = { id : int; package : string; file : file; span : Span.t; kind : kin
 
 type package = {
   (* The package's identity in the build: its name, after its stamp when it
-     has one (Assembly). Declarations, types and symbols name it by this. *)
+     has one (Assembly). Declarations, types and symbols name the package by
+     this identity. *)
   name : string;
-  (* The name its files declare and its manifest gives it. *)
+  (* The name the package's files declare and its manifest gives it. *)
   declared : string;
-  (* The package each of its import keys names, by identity, when the driver
-     gave them. *)
+  (* The package that each of this package's import keys names, by identity,
+     when the driver gave the keys. *)
   imports : (string * string) list;
-  (* Whether it imports through those keys alone, which it does whenever the
-     driver gave the build's imports; otherwise an import names a package by
-     its name. *)
+  (* Whether the package imports through those keys alone, which it does
+     whenever the driver gave the build's imports; otherwise an import names
+     a package by its name. *)
   keyed : bool;
   is_root : bool;
   files : file list;
@@ -86,12 +89,13 @@ type package = {
   (* Plain-name lookup reads these two and nothing else. *)
   types : (string, decl) Hashtbl.t;
   values : (string, decl list) Hashtbl.t;
-  (* Names reached only by method lookup, kept so an import of one can be
-     told apart from an import of nothing (§3.6). *)
+  (* Identifiers reached only by method lookup, kept so that an import of
+     such an identifier can be told apart from an import of nothing
+     (§3.6). *)
   method_names : (string, unit) Hashtbl.t;
   (* The methods whose subject is a type parameter (generics.md §3.7). No
-     subject type reaches one, so it is reached by its name, as a function
-     is, and an import may bring it (packages.md §3.6). *)
+     subject type leads to such a method, so it is found by its name, as a
+     function is, and an import may bring it (packages.md §3.6). *)
   any_methods : (string, unit) Hashtbl.t;
 }
 
@@ -130,8 +134,9 @@ type definition =
   | Variant of (string * Ty.t) list
   | Enum of string list
   | Distinct of Ty.t
-  (* A foreign handle (ffi.md §4.1): the C type its objects have, and the
-     C functions that replace and release one, when Zane owns them. *)
+  (* A foreign handle (ffi.md §4.1): the C type of its objects, and the C
+     functions that replace and release an object, when Zane owns the
+     objects. *)
   | Handle of Nodes.Handle.t
 
 type type_info = {
@@ -161,9 +166,9 @@ type enum_map = {
   map_ty : Ty.t;
 }
 
-(* A generic instance pass 5 still has to check (D12), with the declarations
-   of the instances being checked when it was asked for, innermost first: the
-   chain of instantiations that led to it. *)
+(* A generic instance that pass 5 still has to check (D12), with the
+   declarations of the instances being checked when it was requested,
+   innermost first: the chain of instantiations that led to it. *)
 type pending = {
   p_decl : decl;
   p_sig : Signature.t;
@@ -193,9 +198,10 @@ type types = {
 }
 
 (* The checks pass 3 holds back while it runs, in the order they were
-   asked for: whether a type is a reference type may depend on a definition
-   not yet resolved, so a marker, and the kinds of a type's arguments with
-   the arguments written explicitly, wait for every type to be defined. *)
+   requested: whether a type is a reference type may depend on a definition
+   not yet resolved, so the check of a marker, and the check of a type's
+   explicitly written arguments against their kinds, wait until every type is
+   defined. *)
 type deferred = {
   marks : (Ty.t * Span.t) Queue.t;
   kinds : (Ty.t * (Ty.arg * Span.t) list * Span.t) Queue.t;
@@ -205,8 +211,8 @@ type deferred = {
    every verb where a call site finds it -- constructors under the type they
    build, methods under their name, operators under their token, subscripts
    under nothing, since a subscript is found by its subject -- the enum maps,
-   and each verb's parameters promoted to number parameters because a call
-   hands them to one, and those it declares so. *)
+   and each verb's number parameters: those it declares, and those promoted
+   to number parameters because a call hands them to a number parameter. *)
 type verbs = {
   signatures : (int, Signature.t) Hashtbl.t;
   constant_types : (int, Ty.t) Hashtbl.t;
@@ -218,17 +224,18 @@ type verbs = {
   enum_maps : (Ty.type_id * string, enum_map list) Hashtbl.t;
   promoted : (int, string list) Hashtbl.t;
   own_numbers : (int, string list) Hashtbl.t;
-  (* Each foreign handle type's kind, once every foreign verb that makes
-     one is known (ffi.md §4.2), and each foreign verb's C function, by
-     declaration ([Foreign_decls]). *)
+  (* Each foreign handle type's kind, once every foreign verb that makes a
+     handle of that type is known (ffi.md §4.2), and each foreign verb's C
+     function, by declaration ([Foreign_decls]). *)
   handle_kinds : (Ty.type_id, Nodes.Decl.handle_kind) Hashtbl.t;
   foreign_verbs : (int, Nodes.Foreign.t) Hashtbl.t;
 }
 
-(* Pass 5 ([Program]) asks for generic instances while it checks bodies: the
-   instances recorded, by key, the declarations instantiated at all, those
-   whose chain of instantiations ran past the limit, those still to check,
-   and the chain of the instance being checked (empty outside one). *)
+(* Pass 5 ([Program]) requests generic instances while it checks bodies: the
+   instances recorded, by key, the declarations instantiated at all, the
+   declarations whose chain of instantiations ran past the limit, the
+   instances still to check, and the chain of the instance being checked
+   (empty outside an instance). *)
 type requests = {
   instance_keys : (string, unit) Hashtbl.t;
   instantiated : (int, unit) Hashtbl.t;
@@ -238,11 +245,12 @@ type requests = {
 }
 
 (* Pass 5 ([Program] and [Check]): the instance requests, while instances may
-   be asked for -- a generic verb nothing instantiates is checked where it is
-   declared with none, and asks for no instances -- the instances checked; a
-   subscript's result type per set of arguments, [None] while it is
-   computed, which is how one that depends on itself is caught, and the body
-   typed for it; and the field-constructor defaults the program carries. *)
+   be requested -- a generic verb that nothing instantiates is checked where
+   it is declared without requests, and requests no instances -- and the
+   instances checked; a subscript's result type per set of arguments, which
+   is [None] while it is computed so that a subscript that depends on itself
+   is caught, and the body typed for it; and the field-constructor defaults
+   the program carries. *)
 type instances = {
   requests : requests option;
   checked : Nodes.Instance.t list ref;
@@ -251,9 +259,9 @@ type instances = {
   defaults : Nodes.Defaults.t list ref;
 }
 
-(* The next declaration's, type parameter's and local's numbers. [Intrinsics]
-   made its own type parameters when it loaded, so a check numbers its own
-   after them. *)
+(* The next numbers for a declaration, a type parameter and a local.
+   [Intrinsics] made its own type parameters when it loaded, so a check
+   numbers its type parameters after those. *)
 type counters = {
   next_decl : int ref;
   next_param : int ref;
@@ -264,8 +272,8 @@ type counters = {
 (* What the passes after one read of it                                   *)
 (* ---------------------------------------------------------------------- *)
 
-(* A pass reads the groups before it through these, which have no way to
-   write. *)
+(* A pass reads the groups of the passes before it through these read-only
+   views. *)
 module Names : sig
   type t
 
@@ -284,9 +292,9 @@ end = struct
   let fold_decls f t acc = Hashtbl.fold f t.decls acc
 end
 
-(* Whether pass 3 has run is whether the view still holds the checks it
+(* Pass 3 has run exactly when the view no longer holds the checks pass 3
    defers: [defining] makes the view pass 3 reads while it runs, and [view]
-   the one it hands on. *)
+   makes the view pass 3 hands on. *)
 module Types : sig
   type t
 
@@ -341,17 +349,19 @@ end = struct
   let foreign_verb t id = Hashtbl.find_opt t.foreign_verbs id
 end
 
-(* What a pass is given: the diagnostics, the note an error carries (set
-   while a generic instance is being checked, so an error inside its body
-   names the instantiation that exposed it, D12), the counters, and one slot
-   per group. A pass reads the groups before it through their views and fills
-   its own; a group not yet filled is [()]. *)
+(* The environment a pass is given: the diagnostics, the note an error
+   carries (set while a generic instance is being checked, so an error inside
+   the instance's body names the instantiation that exposed it, D12), the
+   counters, and one slot per group. A pass reads the groups of earlier
+   passes through their views and fills its own group; a group not yet filled
+   is [()]. *)
 type ('names, 'types, 'verbs, 'instances) t = {
   diagnostics : Diagnostic.t list ref;
   note : string option ref;
   counters : counters;
-  (* What each package's C code declares and defines, by package identity
-     (docs/design/ffi.md F6): the input foreign verbs are checked against. *)
+  (* The declarations and definitions in each package's C code, by package
+     identity (docs/design/ffi.md F6), which foreign verbs are checked
+     against. *)
   interfaces : (string, C_interface.t) Hashtbl.t;
   names : 'names;
   types : 'types;
@@ -375,7 +385,8 @@ let start () =
     instances = ();
   }
 
-(* Each group's tables, empty but for what the intrinsic namespaces supply. *)
+(* Each group's tables, empty except for the entries the intrinsic namespaces
+   supply. *)
 let names () = { packages = Hashtbl.create 16; package_order = ref []; decls = Hashtbl.create 256 }
 
 let types () =
@@ -422,8 +433,8 @@ let instances () =
     defaults = ref [];
   }
 
-(* A check whose every group is filled and empty, as pass 5 sees it: what a
-   test of one of its parts runs against. *)
+(* A check whose every group is filled but empty, as pass 5 sees it: a test
+   of one of pass 5's parts runs against this check. *)
 let create () =
   {
     (start ()) with
@@ -437,7 +448,7 @@ let create () =
 (* Reading and writing them                                               *)
 (* ---------------------------------------------------------------------- *)
 
-(* Runs [f] with [note] set, and puts back the note it found however [f]
+(* Runs [f] with [note] set, and restores the previous note however [f]
    ends. *)
 let with_note env n f =
   let saved = !(env.note) in
@@ -461,10 +472,10 @@ let fresh_param env ~name ~kind =
 
 (* The signature a call names: a declared verb's, or an intrinsic method's
    or function's. The overloads of one `@operators$` spelling differ only in
-   the primitive they take, which no analysis asking this reads: every
-   parameter is a value, and none is a subject. A generic overload is told
-   apart by its own parameters, which the call's instance fills: a list's
-   methods are one overload on `List` and one on `ListRef`. *)
+   the primitive they take, which no analysis that calls this function reads:
+   every parameter is a value, and none is a subject. A generic overload is
+   told apart by its own parameters, which the call's instance fills: a
+   list's methods are one overload on `List` and one on `ListRef`. *)
 let intrinsic_signatures =
   Intrinsics.methods @ List.map (fun ((_, n), sg) -> (n, sg)) Intrinsics.functions
 
@@ -490,11 +501,11 @@ let signature_of env (r : Nodes.Verb_ref.t) =
 
 let package env name = Names.package env.names name
 
-(* What a key in an import, or a qualifier, names from a file
+(* The package that a key in an import, or a qualifier, names from a file
    (dependencies.md §8). When the driver gave the build's imports, a package
-   imports through its keys alone, and one given none imports nothing
-   (packages.md §4.3); otherwise it imports a package by its declared name,
-   which then has to name one package of the build. *)
+   imports through its keys alone, and a package given no keys imports
+   nothing (packages.md §4.3); otherwise a package imports another package by
+   its declared name, which then has to name one package of the build. *)
 type key = Found of string | Own | Unknown | Not_given | Ambiguous of string list
 
 let resolve_key env (file : file) key =
@@ -534,8 +545,8 @@ let key_message key = function
 (* Plain-name lookup                                                      *)
 (* ---------------------------------------------------------------------- *)
 
-(* A declaration another package may reach: every one but those named with a
-   leading `_` (packages.md §4.1). *)
+(* Whether another package may reach a declaration: every declaration except
+   those named with a leading `_` (packages.md §4.1). *)
 let accessible ~from (d : decl) =
   String.equal d.package from || not (is_private (decl_name d))
 
@@ -545,9 +556,9 @@ let package_types env pkg name =
 let package_values env pkg name =
   Option.value ~default:[] (Hashtbl.find_opt (package env pkg).values name)
 
-(* What a bare name means in a file: its own package's declarations of that
-   name, and whatever its imports bring under that spelling (packages.md
-   §3.2–§3.3). *)
+(* The declarations a bare identifier stands for in a file: its own package's
+   declarations of that identifier, and every member its imports bring under
+   that spelling (packages.md §3.2–§3.3). *)
 let bare_entries (file : file) name ~members =
   let own = members file.package name in
   let imported =
@@ -585,9 +596,9 @@ let qualified env (file : file) q name ~members =
       (pkg, found, reachable))
     (qualified_package env file q)
 
-(* For a name that is not in scope: another package of the build that
-   declares an accessible one, which is almost always the import the file is
-   missing. *)
+(* For an identifier that is not in scope: another package of the build that
+   declares an accessible declaration of that identifier, which is almost
+   always the import the file is missing. *)
 let declared_elsewhere env (file : file) name ~members =
   List.find_opt
     (fun pkg ->

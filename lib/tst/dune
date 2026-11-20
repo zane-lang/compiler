@@ -1,11 +1,11 @@
 ; Stage 3: semantics, which builds the typed syntax tree. See
-; docs/design/semantics.md. The subdirectories say what kind of module each
-; is, and `unqualified` keeps every module name flat, so none of them is
-; named after its directory:
+; docs/design/semantics.md. Each subdirectory groups one kind of module, and
+; `unqualified` keeps every module name flat, so no module is named after its
+; directory:
 ;
-; - model/     the tree and what it is built from: [Nodes], [Ty],
-;              [Signature], [Env] and [Intrinsics], and [Traverse], what each
-;              node is made of;
+; - model/     the tree and its building blocks: [Nodes], [Ty], [Signature],
+;              [Env] and [Intrinsics], and [Traverse], which lists the
+;              children of each node;
 ; - passes/    [Assembly] groups files into packages, then [Collect] (passes
 ;              1 and 2), [Type_decls] (3) and [Verb_signatures] (4);
 ; - check/     pass 5, [Check], and the parts of it that are not the

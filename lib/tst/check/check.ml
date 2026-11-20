@@ -8,13 +8,14 @@
    functions.md §5.
 
    A generic verb's body is checked once per instantiation (D12). Resolving a
-   call to one records the instance; [run] checks each instance once, with its
-   parameters replaced by the arguments it was called with, and an instance may
-   ask for more.
+   call to a generic verb records the instance; [run] checks each instance
+   once, with its parameters replaced by the arguments it was called with, and
+   checking an instance may request more instances.
 
-   This file is the recursive walk. What it reads but is not part of it is
-   beside it: [Context], [Instances], [Overloads], [Termination] and
-   [Coverage]; [Program] runs the walk over every body of the build. *)
+   This file is the recursive walk. The modules the walk reads but that are
+   not part of it sit beside this file: [Context], [Instances], [Overloads],
+   [Termination] and [Coverage]; [Program] runs the walk over every body of
+   the build. *)
 
 open Env
 module N = Sst.Nodes
@@ -32,7 +33,8 @@ open Termination
 
 (* The span of [length] bytes at [offset] in a string literal's written
    text, which starts after the opening quote of the literal at [span].
-   Spans asked for left to right each go on from where the last ended. *)
+   Spans requested left to right each continue from where the previous span
+   ended. *)
 let within_literal (span : Source.Span.t) written =
   let rec advance (p : Lexing.position) i upto =
     if i >= upto then p
@@ -53,8 +55,8 @@ let within_literal (span : Source.Span.t) written =
     last := (offset + length, end_);
     { Source.Span.start_; end_ }
 
-(* How a constructor call names what it builds, for a message: the type,
-   and the member when it names one. *)
+(* How a constructor call names the type it builds, for a message: the
+   type, and the member when the call names one. *)
 let constructor_named built member =
   quote
     ((match built with Ty.Named (tid, _) -> tid.Ty.name | t -> Ty.to_string t)
@@ -63,8 +65,9 @@ let constructor_named built member =
 (* The constructors of [built] named [member] that this call can reach, if
    accessible: declared in the home of the type or in this package, or
    implicit. An implicit constructor is declared in the home of one of its
-   two types (types.md §4.5), so one in the source type's home is reached
-   by an explicit call as a coercion site reaches it (§4.1). *)
+   two types (types.md §4.5), so an explicit call reaches an implicit
+   constructor in the source type's home the same way a coercion site
+   reaches it (§4.1). *)
 let constructor_candidates env ctx built member =
   let homes = List.filter_map Verb_signatures.home [ built ] @ [ S.Package ctx.package ] in
   let named_member (s : S.t) =
@@ -94,8 +97,8 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.IntLit s -> mk (T.Expr.Integer_lit s) (Ty.Concept Ty.Integer_lit) span
   | N.Expr.DecimalLit s -> mk (T.Expr.Decimal_lit s) (Ty.Concept Ty.Decimal_lit) span
   | N.Expr.StrLit s -> text_literal env ctx span s
-  (* Desugaring makes one only as a declaration's value, which
-     [local_declaration] and a package constant type before they get here. *)
+  (* Desugaring makes a foreign global only as a declaration's value, which
+     [local_declaration] and package constants type before reaching here. *)
   | N.Expr.Foreign_global _ -> Diagnostic.bug ~span "a foreign variable's value outside its declaration"
   | N.Expr.BoolLit b -> mk (T.Expr.Bool_lit b) Ty.bool_primitive span
   | N.Expr.CollectionLit items -> array_literal env ctx span items
@@ -103,10 +106,10 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.NameExpr n -> name_value env ctx n
   | N.Expr.TypeMember { type_; member } -> type_member env ctx span type_ member
   | N.Expr.TypeValue te -> (
-      (* Checked where it is written, as a declared type is. A type that
-         fails anywhere in it is not passed on, so neither the call nor an
-         instance reports it again: `&Missing` is not also a reference
-         filling a `ListRef`. *)
+      (* Checked where it is written, as a declared type is. A type with
+         an error anywhere in it is not passed on, so neither the call nor
+         an instance reports the error again: `&Missing` is not also
+         reported as a reference filling a `ListRef`. *)
       let before = !(env.diagnostics) in
       let failed () = !(env.diagnostics) != before in
       match Type_decls.resolve env (type_scope ctx) te with
@@ -139,9 +142,9 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
         ~ret_type:l.N.Meth_lambda.ret_type ~is_mut:l.N.Meth_lambda.is_mut ~body:l.N.Meth_lambda.body
 
 (* lexical.md §7.1: the literal's structure, read once. Each interpolation
-   site names a value symbol of this scope, and requires `@primitives$String`:
-   a coercion site, so the one implicit constructor that applies converts
-   anything else (types.md §2.8). *)
+   site names a value symbol of this scope, and requires `@primitives$String`.
+   Each site is a coercion site, so a value of another type is converted by
+   the single implicit constructor that applies (types.md §2.8). *)
 and text_literal env ctx span written =
   let at = within_literal span written in
   let piece = function
@@ -189,9 +192,10 @@ and interpolated env (v : T.Expr.t) =
              (String.concat ", " (List.map (fun ((s : S.t), _) -> quote (S.to_string s)) several)));
         v
 
-(* syntax.md §2.9: every element already has the one element type; nothing
-   searches for a common one. A literal of owners of one type and references
-   to it is the exception, which only `&T` elements take (generics.md §8.4). *)
+(* syntax.md §2.9: every element must already have the same element type;
+   nothing searches for a common type. The exception is a literal that mixes
+   owners of one type and references to that type, which only `&T` elements
+   accept (generics.md §8.4). *)
 and array_literal env ctx span items =
   let items = List.map (expr env ctx) items in
   let owned (i : T.Expr.t) = match i.T.Expr.ty with Ty.Reference t -> t | t -> t in
@@ -396,8 +400,9 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
             (Printf.sprintf "%s has no member %s" (quote (Ty.to_string ty)) (quote f));
           invalid span)
 
-(* A `_` field is private to the package that declares its type, whatever
-   kind of verb names it (types.md §2.3). *)
+(* A `_` field is private to the package that declares its type, whether a
+   function, a method, a constructor or an operator names it (types.md
+   §2.3). *)
 and private_field env ctx span (tid : Ty.type_id) f =
   if is_private f && not (String.equal tid.Ty.package ctx.package) then
     error env span
@@ -513,8 +518,9 @@ and type_handler env ctx ~abort ~ok (h : N.Abort_handle.t) : T.Handler.t =
 
 and handler_opt env ctx ~abort ~ok handle = Option.map (type_handler env ctx ~abort ~ok) handle
 
-(* What an abortable operation's call site owes: a handler when it can
-   abort, none when it cannot (error-handling.md §6). In the value position
+(* What an abortable operation's call site must write: a handler when the
+   operation can abort, and none when it cannot (error-handling.md §6). In
+   the value position
    of an arm's `return`, an unhandled abort flows out through the `match`
    instead (adt.md §5.4). *)
 and owe_handler env ~flow ctx ~what ~span ~abort ~ok handle =
@@ -552,7 +558,8 @@ and actual_of env ctx (a : N.Call_arg.t) =
 
 (* A block argument captures the scope it is written in (control-flow.md
    §2.2) and yields nothing: a `return`, `resolve` or `abort` in it acts on
-   what encloses the call (control-flow.md §2.3, §2.4). *)
+   the verb or handler that encloses the call (control-flow.md §2.3,
+   §2.4). *)
 and block_argument env ctx (b : N.Block.t) = (block_in env (push ctx) b, Ty.Concept Ty.Block)
 
 and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
@@ -670,11 +677,11 @@ and intrinsic_call env ~flow ctx span name cands actuals handle =
 (* `@controlflow$work` and `@controlflow$workEvery` (control-flow.md §4.1).
    The call writes its subject as a `!` call does, so that argument is a
    subject: never converted, and checked writable. The step's result type
-   `R` is read off the step, and the last parameter, `test`, is the
-   checker's: a lambda converting an `R` to `@primitives$Bool` by the
-   implicit constructor that applies, as a condition reaches `branch`. A
-   call cannot write that conversion itself, since it would convert a
-   function value's result rather than a value. *)
+   `R` is read off the step, and the checker supplies the last parameter,
+   `test`: a lambda converting an `R` to `@primitives$Bool` by the implicit
+   constructor that applies, as a condition reaches `branch`. A call cannot
+   write that conversion itself, since the conversion applies to a function
+   value's result rather than to a value. *)
 and worker_call env ~flow ctx span name cands actuals handle =
   let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
   let written (s : S.t) = { s with S.params = List.filteri (fun i _ -> i < List.length s.S.params - 1) s.S.params } in
@@ -700,7 +707,8 @@ and worker_call env ~flow ctx span name cands actuals handle =
           T.Expr.Call { callee; args; handler })
 
 (* The `test` of a worker call: `@primitives$Bool(result R) { return result; }`,
-   its return converting by the one implicit constructor from `R`. *)
+   whose return converts its value by the single implicit constructor from
+   `R`. *)
 and worker_test env span result =
   let dst = Intrinsics.prim "Bool" in
   let local = fresh_local env "result" result span in
@@ -730,8 +738,8 @@ and worker_test env span result =
   let v = { Ty.this_ = None; params = [ result ]; ret = dst; abort = None; is_mut = false } in
   mk (T.Expr.Lambda { params = [ local ]; body }) (Ty.Verb v) span
 
-(* Calling a function value. It is one value with one type, so there is one
-   candidate; its arguments are still coercion sites. *)
+(* Calling a function value. A function value is one value with one type, so
+   there is one candidate; the call's arguments are still coercion sites. *)
 and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
   match Ty.strip_mode fn.T.Expr.ty with
   | Ty.Error ->
@@ -741,8 +749,8 @@ and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
       let params =
         (match v.Ty.this_ with Some t -> [ t ] | None -> []) @ v.Ty.params
       in
-      (* A lambda-variable is named in a message by its own name; any other
-         function value has none to give. *)
+      (* A message names a lambda-variable by its own identifier; any other
+         function value has no identifier to give. *)
       let name, what =
         match fn.T.Expr.node with
         | T.Expr.Var (T.Name_ref.Local { T.Local.name; _ })
@@ -794,8 +802,8 @@ and write_subject env ctx (subject : actual) =
   | T.Arg.Block _ -> ()
 
 (* The methods named [text] whose subject is a type parameter
-   (generics.md §3.7) that the file writes bare: its own package's, and
-   those an import spells [text] (functions.md §6.1, step 3). *)
+   (generics.md §3.7) that the file writes bare: the methods of its own
+   package, and those an import spells [text] (functions.md §6.1, step 3). *)
 and any_type (s : S.t) = match s.S.params with { S.ty = Ty.Param _; _ } :: _ -> true | _ -> false
 
 and any_subject env ctx text =
@@ -813,8 +821,8 @@ and any_subject env ctx text =
 and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
   let subject = List.hd actuals in
-  (* A method declared for every type is no type's own, so only step 3
-     and a qualified call reach it. *)
+  (* A method declared for every type belongs to no single type, so only
+     step 3 and a qualified call reach it. *)
   let named_in ?(any = false) home name =
     Verbs.methods env.verbs name
     |> List.filter (fun (s : S.t) -> s.home = home && accessible_sig ctx s && (any || not (any_type s)))
@@ -945,8 +953,9 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
     | N.Constructor_args.Positional ps -> List.iter (fun a -> ignore (actual_of env ctx a)) ps
     | N.Constructor_args.Fields fs -> List.iter (fun (f : N.Field_arg.t) -> ignore (expr env ctx f.N.Field_arg.value)) fs
   in
-  (* What the name builds, before any arguments: a generic type is named
-     bare, and its arguments are inferred (generics.md §5.1). *)
+  (* The type that the constructor name builds, before any arguments: a
+     generic type is named bare, and its arguments are inferred (generics.md
+     §5.1). *)
   let target : [ `Type of Ty.t * Ty.param list | `None ] =
     match head with
     | Type_decls.Unknown -> `None
@@ -963,10 +972,11 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
     | Type_decls.Intrinsic_type info ->
         let params = List.map (fun k -> Env.fresh_param env ~name:"_" ~kind:k) info.params in
         `Type (Ty.Intrinsic { namespace = info.namespace; name = info.name; args = List.map Type_decls.param_arg params }, params)
-    (* A type parameter bound to a type holding the error type builds
-       something already reported, or, in a body nothing instantiates, which
-       Program checks with its type parameters bound to the error type,
-       something not yet known. Neither is reported again. *)
+    (* A type parameter bound to a type holding the error type builds either
+       a type whose error was already reported, or, in a body that nothing
+       instantiates (which Program checks with its type parameters bound to
+       the error type), a type not yet known. Neither case is reported
+       again. *)
     | Type_decls.Bound (Ty.Type t) when Ty.contains_error t -> `None
     | Type_decls.Bound (Ty.Type t) -> `Type (t, [])
     | Type_decls.Bound (Ty.Number _) ->
@@ -1101,8 +1111,9 @@ and field_constructor_call env ctx span what cands (fs : N.Field_arg.t list) =
           (T.Expr.Construct_fields { ctor = verb_ref o.sig_ o.subst; fields; handler = None })
           (Ty.subst o.subst o.sig_.ret) span
 
-(* adt.md §3.2: naming a case and supplying its one payload, which is a
-   coercion site. Not a constructor verb, so there is nothing to name. *)
+(* adt.md §3.2: naming a case and supplying its single payload, which is a
+   coercion site. A case form is not a constructor verb, so no verb is
+   named. *)
 and case_form env ctx span tid payload built open_ case (args : N.Constructor_args.t) =
   match args.N.Constructor_args.node with
   | N.Constructor_args.Positional [ a ] -> (
@@ -1144,7 +1155,7 @@ and case_form env ctx span tid payload built open_ case (args : N.Constructor_ar
       invalid span
 
 (* operators.md §2.2: the candidates are the operand types' home packages'
-   operators, and nothing an import brings. Operands evaluate in written
+   operators, and no operator an import brings. Operands evaluate in written
    order and are passed in the order the desugaring gives (§2.3), each as
    written, with no implicit constructor inserted (§2.7). *)
 (* ---------------------------------------------------------------------- *)
@@ -1382,8 +1393,8 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
 (* ---------------------------------------------------------------------- *)
 
 (* A lambda does not capture (functions.md §7.4): its body sees its own
-   parameters and the package-scope names of its file, and no local of the
-   verb it is written in. *)
+   parameters and the package-scope identifiers of its file, and no local of
+   the verb it is written in. *)
 and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
   let sc = type_scope ctx in
   let inner_scope = Hashtbl.create 8 in
@@ -1403,9 +1414,9 @@ and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
           match Type_decls.param_type env sc p.N.Param.type_ with
           (* A concept-typed parameter is fixed where a named verb is
              instantiated, and a lambda is one value of one exact type
-             (functions.md §7.2): over a `Type` or a number it would be a
-             generic function value, which is not specified (generics.md
-             §9). *)
+             (functions.md §7.2): a lambda over a `Type` or a number would
+             be a generic function value, which the spec does not define
+             (generics.md §9). *)
           | Ty.Concept _ as c ->
               error env p.N.Param.span
                 (Printf.sprintf
@@ -1533,8 +1544,8 @@ and escapes env (v : T.Expr.t) =
    declared type already. *)
 and local_declaration env ctx (d : N.Decl.t) =
   match d.N.Decl.node with
-  (* A foreign variable: its value is the global, and its type the one it
-     declares (ffi.md §5.1). *)
+  (* A foreign variable: its value is the C global, and its type is the type
+     it declares (ffi.md §5.1). *)
   | N.Decl.Var { name; type_; value = { N.Expr.node = N.Expr.Foreign_global symbol; span } } ->
       let declared = Type_decls.resolve env (type_scope ctx) type_ in
       let v = Foreign_decls.global env ~package:ctx.package ~span ~declared symbol in
@@ -1560,8 +1571,8 @@ and local_declaration env ctx (d : N.Decl.t) =
 
 (* `p Pair(Int(1), Int(2))` declares `p` as the bare `Pair`, since the
    shorthand writes the constructor's name and a call carries no `< >`
-   (docs/design/desugaring.md §2.7). A generic type named with no arguments takes
-   them from the value it is declared with. *)
+   (docs/design/desugaring.md §2.7). A generic type named with no arguments
+   takes its arguments from the value it is declared with. *)
 and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   match te.N.Type_expr.node with
   | N.Type_expr.Path { name; generics = [] } -> (
@@ -1587,9 +1598,9 @@ and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
   | _ -> Type_decls.resolve env (type_scope ctx) te
 
 (* The binding a place is reached through. A field, an element or a case
-   payload of a read-only binding is read-only too (effects.md §4.1). A case
-   read is a subject a `!` call may name, but not a place an assignment may
-   write, so only [~cases] follows it. *)
+   payload of a read-only binding is read-only too (effects.md §4.1). A `!`
+   call may name a case read as its subject, but an assignment may not write
+   a case read, so only [~cases] follows a case read. *)
 and place_root ?(cases = false) (e : T.Expr.t) =
   match e.T.Expr.node with
   | T.Expr.Var (T.Name_ref.Local l) -> `Local l
@@ -1645,9 +1656,9 @@ and assign env ctx span target value =
 (* Subscripts                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* A subscript declares no result type: it is the type of the place its body
-   projects (functions.md §2.9), typed per set of arguments like any generic
-   body. *)
+(* A subscript declares no result type: its result type is the type of the
+   place its body projects (functions.md §2.9), typed per set of arguments
+   like any generic body. *)
 and subscript_key id subst (s : S.t) =
   string_of_int id ^ ":"
   ^ String.concat "," (List.map (fun (_, a) -> Ty.arg_to_string a) (binding_args s subst))
@@ -1695,8 +1706,8 @@ and subscript_body env (d : decl) (s : S.t) subst =
 (* Verb bodies                                                            *)
 (* ---------------------------------------------------------------------- *)
 
-(* Where each of a verb's parameters was written, by name: the spans its
-   locals take, the same ones a lambda's parameters take. *)
+(* Where each of a verb's parameters was written, by name: these are the
+   spans the parameters' locals take, as for a lambda's parameters. *)
 and param_spans (d : decl) =
   let params ps = List.map (fun (p : N.Param.t) -> (p.N.Param.name.N.Name.text, p.N.Param.span)) ps in
   let this_ (t : N.Type_expr.t) = ("this", t.N.Type_expr.span) in
@@ -1719,8 +1730,8 @@ and param_spans (d : decl) =
   | _ -> []
 
 (* The context a verb's body is checked in, at one set of generic arguments:
-   its parameters as locals, and the explicit `T Type` / `n @concepts$Int` ones as the
-   types and numbers they were given. *)
+   its parameters as locals, and the explicit `T Type` / `n @concepts$Int`
+   parameters bound to the types and numbers they were given. *)
 and verb_context env (d : decl) (s : S.t) subst =
   let pkg = package env d.package in
   let spans = param_spans d in

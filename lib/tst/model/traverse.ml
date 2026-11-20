@@ -1,11 +1,12 @@
-(* Walking the typed syntax tree, for every analysis over it: what each
-   expression and statement is made of. An analysis keeps only what is its
-   own, such as which parts it goes into and what it does at each node. *)
+(* Walking the typed syntax tree, for every analysis over it: the parts of
+   each expression and statement. An analysis keeps only its own decisions,
+   such as which parts it walks into and what it does at each node. *)
 
 module T = Nodes
 
-(* The parts of an expression, by the context each is in: the same as the
-   expression's, a handler's body, a block argument, or a lambda's body. *)
+(* The parts of an expression, tagged with the context each part is in: the
+   same context as the expression's, a handler's body, a block argument, or a
+   lambda's body. *)
 type part =
   | Same of T.Expr.t
   | Arm of T.Block.t
