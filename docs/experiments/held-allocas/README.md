@@ -222,9 +222,9 @@ The experiment is not merged. Its code stays on the branch
 - **The late pass (step 7) loses.** It is +2.36% optimized against step 6,
   almost all of it from `wrapped`, and a wash without that program. It is
   dropped.
-- **Nothing is generalized.** `frame_shadow` still gains on top of step 6
-  (step 6), so it stays, and the experiment would add a second mechanism
-  beside it, not replace it.
+- **Nothing is generalized.** With step 6 on, turning `frame_shadow` off
+  costs 1.3% (step 6), so it stays, and the experiment would add a second
+  mechanism beside it, not replace it.
 - **The cost is too high for the gain.** Merging would add a rewriting pass
   that every change to how held locals are emitted or drained must keep
   sound, changes to checked drains and to the inline push's fast path, and a
