@@ -41,7 +41,7 @@ int64_t zane_threads, zane_wanted, zane_queued;
 /* The pool's threads that wait: in a join of a call running elsewhere, in
    a `register`'s wait for its event source, or for a constant another
    thread is making. The pool keeps a thread more for each, so a wait holds
-   back only the code that waits (concurrency.md §3.4). */
+   back only the caller of the waiting call (concurrency.md §3.4). */
 static int64_t zane_blocked;
 
 /* How many threads the pool keeps now: one fewer than it has deques at
@@ -218,8 +218,9 @@ void zane_set_threads_auto(void) { zane_set_threads(zane_processors()); }
 
 /* A pool thread about to wait gets a thread to stand in for it, and the
    stand-in leaves once the pool next finds it idle after the wait. A thread
-   outside the pool needs none, since no queued work waits for it. Whether
-   this thread is one of the pool's, for zane_block_end. */
+   outside the pool needs none, since no queued work waits for it. Returns 1
+   when this thread is one of the pool's, and zane_block_end takes that
+   result. */
 int zane_block_begin(void) {
 	if (!zane_mine) return 0;
 	pthread_mutex_lock(&zane_pool);

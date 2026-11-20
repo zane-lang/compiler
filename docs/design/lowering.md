@@ -239,8 +239,8 @@ before the first step (`zane_tick_start`). Its loop's body waits for the
 next deadline through `zane_tick`, so a step that returns false leaves at
 once without a last wait. A pool thread that waits there has a stand-in
 thread for the wait (`zane_block_begin`, `runtime/spawn.c`), as one that
-joins a call running elsewhere does, so the wait holds back only the code
-that waits (spec concurrency.md §3.4). The step's value is
+joins a call running elsewhere does, so the wait holds back only the
+caller of the waiting call (spec concurrency.md §3.4). The step's value is
 a lifted lambda's address, a constant LLVM sees, so a step written where
 the worker runs is inlined, and an optimized build makes one loop of it
 with no call through the function value (`tests/objects`, the `workers`

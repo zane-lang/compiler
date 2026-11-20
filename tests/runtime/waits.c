@@ -1,7 +1,7 @@
-/* A wait holds back only the code that waits (concurrency.md §3.4), tested
+/* A waiting call holds back only its caller (concurrency.md §3.4), tested
    in C on its own: the timer a `register` waits on (zane_tick), and the
-   stand-in thread a pool thread gets while it waits, in a process whose
-   pool has one thread from the start. Each check prints `yes` when it
+   stand-in thread the pool starts for a pool thread while that thread
+   waits. The pool in this process has one thread from its start. Each check prints `yes` when it
    holds and `no` when it does not. */
 
 #include "walks.h"

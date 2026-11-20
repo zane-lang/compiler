@@ -151,11 +151,11 @@ worker started with no source wakes when the funnel changes the state; and
 with one thread an ending pool runs its own work. Drains are checked
 throughout.
 
-`waits.c` holds a wait to holding back only the code that waits
-(concurrency.md §3.4): a `register`'s timer (`zane_tick`) waits until its
-deadline and merges missed ticks, and with a pool of one thread, a call
-spawned while a spawned `register` waits still runs, on the stand-in thread
-the waiting one gets. It runs in a process of its own, so the pool has one
+`waits.c` checks that a waiting call holds back only its caller
+(concurrency.md §3.4). A `register`'s timer (`zane_tick`) waits until its
+deadline and merges missed ticks. With a pool of one thread, a call spawned
+while a spawned `register` waits still runs, on the stand-in thread that
+the pool starts for the waiting thread. It runs in a process of its own, so the pool has one
 thread from its start.
 
 `work.c` covers the copies, moves, overwrites and ends whose walks hand

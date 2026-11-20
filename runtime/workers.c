@@ -164,8 +164,8 @@ static int64_t zane_now(void) {
 int64_t zane_tick_start(int64_t interval) { return interval < 1 ? 0 : zane_now() + interval; }
 
 /* The wait between two steps of a `register` on a timer: until `deadline`,
-   on a stand-in's terms when this is a pool thread (zane_block_begin), so
-   the wait holds back only the code that waits (concurrency.md §3.4). The
+   with a stand-in thread when this is a pool thread (zane_block_begin), so
+   the wait holds back only the `register`'s caller (concurrency.md §3.4). The
    next deadline is the first after the wait, so missed ticks merge as a
    pool's do (zane_consume). An interval below 1 waits not at all. */
 int64_t zane_tick(int64_t interval, int64_t deadline) {

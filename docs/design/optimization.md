@@ -147,9 +147,9 @@ fold stops where it is reached, and everything computed before it still
 folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
 no value of the program depends on it. An intrinsic added later that reads
 input, a console read or the time, joins `arguments` in the input class.
-`register`'s timer is one too: its first deadline reads the clock, and when the program does
-what follows a wait is what the wait is for, and no replay could keep that, so a
-fold stops there. So does a worker pool's every operation: its work runs on
+`register`'s timer is another input: its first deadline reads the clock, and
+the code after each wait runs at a moment that no replay could reproduce, so
+a fold stops there. So does a worker pool's every operation: its work runs on
 the program's threads beside the code after `start`, and a publish is a
 write the funnel makes there (`concurrency.md` §6.5), so no fold evaluates
 one. A `work` loop folds like a `repeat` that leaves early: the

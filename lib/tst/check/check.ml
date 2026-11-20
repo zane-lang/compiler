@@ -654,7 +654,7 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           (invalid span, None)
       | _ when Intrinsics.is_worker ("@" ^ ns ^ "$" ^ text) ->
           (* A worker intrinsic is a method of its subject (control-flow.md
-             §4.1), so the function form names nothing. *)
+             §4.1), so no function of that name exists. *)
           error env at
             (Printf.sprintf
                "%s is a `mut` method of its subject, called as `subject!%s(...)` (control-flow.md §4.1)"
