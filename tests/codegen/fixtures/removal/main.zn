@@ -52,7 +52,7 @@ Int growAndGive(this ListRef<Row>, n Int) mut {
 	return Int(1);
 }
 
-/// A list made by a call, which says when it runs.
+/// A list made by a call, which prints `list ` when it runs.
 ^Row made() {
 	@program$console!print(String("list "));
 	row ^Row = @primitives$ListRef(Int);
@@ -60,7 +60,7 @@ Int growAndGive(this ListRef<Row>, n Int) mut {
 	return row;
 }
 
-/// An index given by a call, which says when it runs.
+/// An index given by a call, which prints `index` when it runs.
 Int firstIndex() {
 	@program$console!print(String.escaped("index\n"));
 	return Int(1);

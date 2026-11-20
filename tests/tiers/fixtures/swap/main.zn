@@ -1,5 +1,5 @@
-/// Says it started, then works in calls of its own for as many rounds as its
-/// argument says, so tier 1 can take over while it runs (docs/design/tiers.md).
+/// Prints that it started, then works in calls of its own for as many rounds
+/// as its argument gives, so tier 1 can take over while it runs (docs/design/tiers.md).
 package swap;
 
 alias Int = @primitives$I64;

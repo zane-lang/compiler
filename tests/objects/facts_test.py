@@ -1,4 +1,4 @@
-"""What codegen tells LLVM about a program, and what LLVM makes of it
+"""The facts codegen gives LLVM about a program, and what LLVM makes of it
 (docs/design/lowering.md §9, "What LLVM is told")."""
 
 from pathlib import Path
@@ -515,7 +515,7 @@ class FactsTests(unittest.TestCase):
             self.assertNotRegex(result.stdout, r"call [^\n]*@" + name + r"\(")
 
     def test_elif_joins_the_if_before_it(self):
-        # Each way into an `elif` already decides its `~this` half, so the
+        # Each way into an `elif` already determines its `~this` half, so the
         # pair is one chain, as C's `else if` is, and neither body's work is
         # made a select that every pass round the loop pays for
         # (Passes.optimized).
@@ -572,7 +572,7 @@ class FactsTests(unittest.TestCase):
         # go round 1,000 and 4 times (Emit.versioned), and IRCE splits the
         # long copy into a main loop with no checks and the iterations after
         # it, whose block names it gives (Passes.optimized): both of
-        # bounce's loops, the one in `step`, inlined into `main`, and the
+        # bounce's loops, the loop in `step`, inlined into `main`, and the
         # one in `main` itself. A plain build, whose passes have no use for
         # the copies, emits each loop once.
         ir = run(ZANEC, "--ll", *packages("bounce"))

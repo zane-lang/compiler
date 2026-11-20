@@ -341,7 +341,7 @@ let runtime_abi () =
             && List.for_all2 (fun c t -> abi c = Some t) params params'))
     R.all;
   (* `zane_main` is the one function the program defines rather than calls,
-     and `zane_tier_up` the one codegen calls without a node of the tree:
+     and `zane_tier_up` the function codegen calls without a node of the tree:
      tier 0 of a tiered build calls it first (docs/design/tiers.md). *)
   List.iter
     (fun (name, _, _) ->
@@ -468,7 +468,7 @@ let stops f = match f () with _ -> false | exception Value.Stop _ -> true
 (* The evaluator's arithmetic is codegen's (lib/codegen/emit.ml). *)
 (* An F32 literal rounds once, from the decimal straight to the single
    (Tst.Decimal): where the double nearest the literal is the midpoint of two
-   singles, the literal's own side of it decides. *)
+   singles, the literal's own side of that midpoint determines the result. *)
 let single_literals () =
   let bits text = Int32.bits_of_float (Tst.Decimal.to_single text) in
   check "a literal just above a midpoint rounds up"
@@ -1720,8 +1720,8 @@ let undefined_foreign () =
        (Build.other_link_errors
           "ld.lld: error: undefined symbol: zfs_exists\n>>> referenced by x.o:(f)\nclang: error: linker command failed with exit code 1\n"))
 
-(* A message names a dependency's types without the stamp that tells its
-   versions apart, unless it names two versions of one package. *)
+(* A message names a dependency's types without the stamp that distinguishes
+   its versions, unless it names two versions of one package. *)
 let unstamped_messages () =
   let shown message = Diagnostic.render ~source:"" (Diagnostic.about_invocation message) in
   check "a stamp is left out"
@@ -1805,8 +1805,8 @@ let light_references () =
   check "a scope of scalars is light, unless switched off" (Codegen__Loop_shapes.light 1 [ scalar ] = on);
   check "not when it stores a reference" (Codegen__Loop_shapes.light 1 [ stored ] = (on && not (Cgt.Ref32.frames ())))
 
-(* Range checks' exit rule reads a counter's incoming values only once it
-   knows the counter is a phi: an exit-shaped test of a function's
+(* Range checks' exit rule reads a counter's incoming values only once the
+   counter is known to be a phi: an exit-shaped test of a function's
    argument, `(a + 1) == n >> 3` ending a block, is left as it is. *)
 let range_checks_non_phi () =
   let ctx = Llvm.create_context () in

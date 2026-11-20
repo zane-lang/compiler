@@ -36,7 +36,7 @@ Int pinned(p &Person) {
 	return pin.at.age;
 }
 
-/// Its owner holds a scalar, and the only call returns one.
+/// Its owner holds a scalar, and the only call returns a scalar.
 Int helper(n Int) {
 	p Person(n);
 	return pinned(p);

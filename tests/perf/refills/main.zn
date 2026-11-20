@@ -86,7 +86,7 @@ Unit bit(this Writer, value Int) mut {
 }
 
 /// Each symbol's bits, written from the high one down, as many as its
-/// weight in the table says, with the table's bounds kept as the coder's
+/// weight in the table gives, with the table's bounds kept as the coder's
 /// range.
 Int encode(symbols ListRef<Int>, weights ListRef<Int>) {
 	out Writer();

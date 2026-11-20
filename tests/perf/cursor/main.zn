@@ -75,7 +75,7 @@ Unit advance(this Cursor) mut {
 	return Unit();
 }
 
-/// Moves past the spaces at the position, and says how many there were.
+/// Moves past the spaces at the position, and returns how many there were.
 Int skip(this Cursor) mut {
 	from Int = this.at;
 	i Int(1);

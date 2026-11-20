@@ -1,6 +1,6 @@
 /// `Int` wraps on overflow (operators.md §2.6): `max + 1` is `min`, with no
 /// trap and no undefined behavior. The operands are read from the `arguments`
-/// file beside this program, so no build knows them while it compiles, and each
+/// file beside this program, so no build has them while it compiles, and each
 /// check is one an optimizer would settle the other way if the program's
 /// arithmetic promised not to overflow (LLVM's `nsw`): a sum that is larger
 /// than its operand, a doubling that halves back, a count of steps that did not

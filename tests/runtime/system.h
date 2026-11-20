@@ -133,8 +133,8 @@ typedef struct {
 	test_fd release, err;
 } test_child;
 
-/* Starts case `name` with argument `arg` in a child, its stdout as `out`
-   says (to `to` for CHILD_TO). 0 when it could not start. */
+/* Starts case `name` with argument `arg` in a child, its stdout sent where
+   `out` selects (to `to` for CHILD_TO). 0 when it could not start. */
 static inline int child_start(test_child *c, const char *name, const char *arg, int out, test_fd to) {
 	const char *self = test_self();
 	test_fd in[2], err[2];
@@ -232,7 +232,7 @@ static inline int child_ended(test_child *c, int status, char *text, size_t room
 #endif
 }
 
-/* Whether case `name` with `arg`, its stdout as `out` says, ends with
+/* Whether case `name` with `arg`, its stdout where `out` selects, ends with
    `status` and with `expected` on its stderr, within ten seconds. When it
    does not, how it ended goes to this test's stderr, beside the `no`. */
 static inline int child_stops(const char *name, const char *arg, int out, test_fd to, int status, const char *expected) {

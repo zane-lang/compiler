@@ -233,7 +233,7 @@ static void exercise_replaced(void) {
 	check(zane_blocks() == 0);
 }
 
-/* Of several returned blocks a growth could take, it takes the one of its
+/* Of several returned blocks a growth could take, it takes the block of its
    own size, so a small list leaves a larger block for a larger request:
    with a 2 MiB block and a 4 MiB one returned, the 4 MiB stack the newer,
    a list growing to 2 MiB takes the 2 MiB block. */
@@ -355,7 +355,7 @@ static void exercise_pool_not_listed(void) {
    usable bytes, the ones kept longest going back first: of three lists of
    32 MiB, only the one its scope gave back last stays, which is the first
    made, since a scope gives its blocks back newest first. Whether a later
-   list lands at an old address says nothing, as the system may map a
+   list lands at an old address proves nothing, as the system may map a
    released range there again. */
 static void exercise_warm_budget(void) {
 	zane_mark *scope = zane_scope_enter(0);

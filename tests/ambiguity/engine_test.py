@@ -13,8 +13,8 @@ from tests.ambiguity.engine_support import ENGINE, TINY_GRAMMAR, engine_environm
 
 
 # Witnesses are announced by "Found N complete ambiguity families." The search
-# says "no complete ambiguity was found" when there are none, so this has to be
-# anchored: a bare "complete ambiguity" substring matches both.
+# prints "no complete ambiguity was found" when there are none, so this pattern
+# has to be anchored: a bare "complete ambiguity" substring matches both.
 WITNESS_LINE = re.compile(r"^Found \d+ complete ambiguity", re.MULTILINE)
 # Every search reports how it ended, whether or not it found witnesses and
 # whether or not a limit curtailed it.
@@ -189,7 +189,7 @@ class EngineTestCase(unittest.TestCase):
 
 
 class SearchTerminationTests(EngineTestCase):
-    """Every search says how it ended, so silence is never the explanation."""
+    """Every search reports how it ended: silence is never the explanation."""
 
     def test_an_exhausted_bound_says_so(self) -> None:
         # The conclusive case: nothing of this length is ambiguous because
@@ -201,7 +201,7 @@ class SearchTerminationTests(EngineTestCase):
 
     def test_a_curtailed_search_names_its_limit(self) -> None:
         # A deadline of zero stops the search before it can rule anything
-        # out, and the report has to say which of the two happened.
+        # out, and the report has to name which of the two happened.
         output = self.search(AMBIGUOUS_EXPRESSION, max_tokens="16", timeout="0")
         self.assertRegex(output, TERMINATION_LINE)
         self.assertIn("the timeout was reached", output)

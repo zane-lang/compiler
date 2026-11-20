@@ -19,12 +19,13 @@
 ; rewrite still produces the shape it should, and promote it with
 ; `dune promote`.
 ;
-; Three fixtures. `main.zn` is the one the parser suite already reaches for,
-; and it covers the breadth of the grammar. `fixtures/utf8.zn` covers the one input
-; class it does not: spans are byte offsets, and while a file is ASCII a
-; code-point offset is indistinguishable from a byte one. They diverge at the
-; first multibyte character and every span after it shifts -- which is exactly
-; the bug found on #86, after the suite had been green through it.
+; Three fixtures. `main.zn` is the fixture the parser suite already reaches
+; for, and it covers the breadth of the grammar. `fixtures/utf8.zn` covers the
+; only input class `main.zn` does not: spans are byte offsets, and while a
+; file is ASCII a code-point offset is indistinguishable from a byte one. They
+; diverge at the first multibyte character and every span after it shifts --
+; which is exactly the bug found on #86, after the suite had been green
+; through it.
 ;
 ; `fixtures/desugar.zn` is the third, and unlike the other two it was written for these
 ; tests: every rewrite in docs/design/desugaring.md 2 appears in it at least once.

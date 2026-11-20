@@ -1,6 +1,6 @@
 ; Writes the repetitive rules of the test directories beside it; see the
-; comment at the top of gen_rules.ml. Which fixture each golden file is
-; for is fixture_pairing.ml, which tests/unit/ tests on its own.
+; comment at the top of gen_rules.ml. fixture_pairing.ml pairs each golden
+; file with its fixture, and tests/unit/ tests fixture_pairing.ml alone.
 (library
  (name fixture_pairing)
  (modules fixture_pairing))

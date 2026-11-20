@@ -78,7 +78,7 @@ Bool[this Counter] mut counting(seed I64) {
 	}
 }
 
-/// A subject's own method is preferred to the one for every type.
+/// A subject's own method is preferred to the method for every type.
 type Own = struct {
 	ran I64;
 }

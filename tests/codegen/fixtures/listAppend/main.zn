@@ -32,7 +32,7 @@ I64 growAndGive(this @primitives$List<Row>, n I64) mut {
 	return I64(1);
 }
 
-/// The first index, which says each time it runs.
+/// The first index, which prints ` pick ` each time it runs.
 I64 pick() {
 	@program$console!print(String(" pick "));
 	return I64(1);

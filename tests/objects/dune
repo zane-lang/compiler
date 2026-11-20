@@ -1,5 +1,5 @@
 ; Libraries built into objects of their own
-; (docs/design/separate-compilation.md). README.md says what each fixture is
+; (docs/design/separate-compilation.md). README.md lists what each fixture is
 ; for. A library's code-generation tree shows each function's linkage, and
 ; its object's defined symbols are listed by `llvm-nm`, without their
 ; addresses. A listing held to a golden file is of an object built for
@@ -426,8 +426,8 @@
  (action
   (diff golden/versions.out versions.out.actual.unchecked)))
 
-; Without the keys, atlas's `import geometry` could mean either version, and
-; the compiler says so rather than choose.
+; Without the keys, atlas's `import geometry` could refer to either version,
+; and the compiler reports the ambiguity rather than choose.
 
 (rule
  (deps (source_tree fixtures/versions))
@@ -711,7 +711,7 @@
  (action
   (run python3 %{dep:optimization_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
-; What codegen tells LLVM: no snapshot in a program none of whose code
+; The facts codegen gives LLVM: no snapshot in a program none of whose code
 ; spawns, snapshots kept wherever a spawned call may write back (in a
 ; library built for one program, where that program writes back), the
 ; runtime's small list operations made in line, and the type-based alias

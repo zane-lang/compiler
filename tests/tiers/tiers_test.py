@@ -3,8 +3,8 @@ it runs, the libraries the runtime must refuse, and the cache of tier-1
 libraries.
 
 Each test builds into a directory of its own, with a cache directory of its
-own, so none sees another's libraries. `fixtures/swap` says it started, then
-works in calls of its own for as many rounds as its argument says;
+own, so none sees another's libraries. `fixtures/swap` prints that it started,
+then works in calls of its own for as many rounds as its argument gives;
 `fixtures/other` is another program. `just test-compiler` runs these.
 """
 
@@ -60,8 +60,8 @@ class Tiers(unittest.TestCase):
     def run_tiered(self, exe, library, put=None):
         """Runs *exe* with tier 1 at *library*, which *put* puts in place
         once the program has printed its first line; its output and what
-        the runtime said. Its output goes to a terminal, so the program
-        writes each line as it prints it: Windows's pseudo-console where
+        the runtime wrote to stderr. Its output goes to a terminal, so the
+        program writes each line as it prints it: Windows's pseudo-console where
         *put* waits for a line (conpty.py), and a pipe read once it ends
         otherwise, since the lines are the same."""
         env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_LOG="1")
@@ -177,7 +177,7 @@ class Tiers(unittest.TestCase):
         self.assertFalse(Path(f"{second}.partial").exists())
 
     def test_tier_0_links_the_optimized_runtime(self):
-        # Tier 1 calls tier 0's runtime, so tier 0 takes the one an
+        # Tier 1 calls tier 0's runtime, so tier 0 takes the runtime an
         # optimized build compiles, and the cache holds one runtime for both,
         # with the one bitcode both take the runtime's bodies from.
         def kept(suffix):

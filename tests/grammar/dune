@@ -24,8 +24,8 @@
   (diff golden/parser.conflicts.census parser.conflicts.census.actual)))
 
 ; The same census of the stock automaton -- the grammar as written, with no
-; `--GLR` rewrite -- which is the one `just explain` and the ambiguity tools
-; read, and the one the ledger's family table is tallied on.
+; `--GLR` rewrite -- which is the automaton `just explain` and the ambiguity
+; tools read, and the automaton the ledger's family table is tallied on.
 
 (rule
  (copy ../../lib/cst/parser.mly stock.mly))

@@ -61,7 +61,7 @@ Unit main() {
 	// An `I32` wraps at 32 bits.
 	check(@operators$equal(@operators$add(i32(2147483647), i32(1)), minI32()));
 
-	// An integer division by zero gives zero, and the one quotient an integer
+	// An integer division by zero gives zero, and the only quotient an integer
 	// cannot hold wraps (operators.md §2.6).
 	check(@operators$equal(@operators$divide(i32(7), i32(0)), i32(0)));
 	check(@operators$equal(@operators$divide(@operators$negate(i64(7)), i64(0)), i64(0)));

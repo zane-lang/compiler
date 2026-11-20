@@ -181,7 +181,7 @@ prefix-tokens = ["UIDENT", "LPAREN", "RPAREN"]
             self.assertEqual(
                 setting.profile_key, setting.key in profiles.PROFILE_KEYS
             )
-        # dry-run is a mode, so it is the one flag that is not a TOML key.
+        # dry-run is a mode, so dry-run is the only flag that is not a TOML key.
         self.assertNotIn("dry-run", profiles.PROFILE_KEYS)
         self.assertIn("breadth-first", profiles.PROFILE_KEYS)
 

@@ -3,8 +3,8 @@
 One directory per thing tested. Each suite has a `just` recipe, and `just test`
 runs the compiler, grammar, ambiguity-tool and grammar-generator suites. CI
 runs the slower ones separately, so a change that cannot affect the grammar or
-the ambiguity tools does not wait on them (`.github/scripts/ci-suites` decides
-which).
+the ambiguity tools does not wait on them (`.github/scripts/ci-suites` selects
+which suites run).
 
 ## `just test-compiler`
 
@@ -54,7 +54,7 @@ is the slow suite.
 
 The ambiguity tools' own tests in `ambiguity/`: the search engine on small
 grammars, the search CLI and its profiles, and the visible-stack proof's
-checker. They say whether the tools are right, not whether the grammar is.
+checker. They test whether the tools are right, not whether the grammar is.
 
 ## `just test-grammar-generation` and `just test-highlighting`
 

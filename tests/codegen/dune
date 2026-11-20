@@ -1,5 +1,5 @@
 ; Stages 4 and 6: lowering and codegen (docs/design/lowering.md). README.md
-; says what each fixture is for. The LLVM module's own text is not a golden
+; lists what each fixture is for. The LLVM module's own text is not a golden
 ; file, since it is LLVM's to print and changes with the LLVM release.
 
 ; The rules themselves are written from the golden files by

@@ -127,7 +127,7 @@ class MemoTests(unittest.TestCase):
         return sorted(n[: -len(".memo.state")] for n in names if n.endswith(".memo.state"))
 
     def test_tables_start_on_a_cache_line(self):
-        # So where a table lands in the binary does not decide which of its
+        # So where a table lands in the binary does not determine which of its
         # entries straddle two cache lines: by its address in the image, or
         # where the image holds no symbols, by the alignment the module
         # gives it.

@@ -188,8 +188,8 @@ class BackendTests(unittest.TestCase):
 
     @needs(SPAN_DUMP.exists(), 'requires span_dump.exe')
     def test_parameter_captures_are_the_compilers_parameters(self):
-        # The compiler's CST says which names are parameters; the shared query
-        # captures every one of them where it is declared, and nothing else.
+        # The compiler's CST marks which identifiers are parameters; the shared
+        # query captures every parameter where it is declared, and nothing else.
         # Uses are Neovim's own captures, checked by tests/highlighting/neovim.lua.
         sources = accepted_sources() + [p.read_bytes() for p in sorted((ROOT / 'tests/parser/fixtures').glob('*.zn'))]
         # A closed file in the class's own runtime directory, which is removed
