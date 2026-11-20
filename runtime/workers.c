@@ -399,7 +399,8 @@ static void zane_run_step(zane_member *m) {
 	zane_consume(m, zane_now());
 	zane_step_frame frame = { m->step, m->test, m->publish, m->value, NULL, 0 };
 	char *snapshot = NULL;
-	if (p->state) {
+	/* A state of no bytes, a `Unit`, has nothing to read. */
+	if (p->state && (p->state_size || p->state_type)) {
 		snapshot = malloc((size_t)(p->state_size < 8 ? 8 : p->state_size));
 		if (!snapshot) zane_broken("out of memory for a state snapshot");
 		pthread_mutex_lock(&p->state_lock);
@@ -524,12 +525,12 @@ int zane_workers_run_one(zane_workers *only) {
 
 /* ---- What emitted code calls ------------------------------------------- */
 
-/* A new pool (§6.1), its handle written at `out`. A pool with state is
-   given the state, which it copies into its own region, the funnel, and
-   the funnel's thunk; a pool without has `state` null. Events are
-   `event_size` bytes of `event_type`. */
-void zane_workers_new(char *out, char *state, int64_t state_size, const zane_type *state_type, void *funnel,
-                      void (*funnel_thunk)(char *), int64_t event_size, const zane_type *event_type) {
+/* A new pool (§6.1), whose handle is its address and a stamp that the
+   caller takes. A pool `stateful` is given the state, which it copies into
+   its own region, the funnel, and the funnel's thunk; a pool without reads
+   none of them. Events are `event_size` bytes of `event_type`. */
+void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const zane_type *state_type, void *funnel,
+                       void (*funnel_thunk)(char *), int64_t event_size, const zane_type *event_type) {
 	zane_workers *p = calloc(1, sizeof *p);
 	if (!p) zane_broken("out of memory for a worker pool");
 	p->funnel_job.pool = p;
@@ -540,7 +541,7 @@ void zane_workers_new(char *out, char *state, int64_t state_size, const zane_typ
 	pthread_cond_init(&p->done, NULL);
 	zane_region_init(&p->state_mark);
 	zane_region_init(&p->queue_mark);
-	if (state) {
+	if (stateful) {
 		p->state = zane_copy_into(&p->state_mark, state, state_size, state_type);
 		p->state_size = state_size;
 		p->state_type = state_type;
@@ -549,9 +550,7 @@ void zane_workers_new(char *out, char *state, int64_t state_size, const zane_typ
 	p->funnel_thunk = funnel_thunk;
 	p->event_size = event_size;
 	p->event_type = event_type;
-	int64_t stamp = zane_handle_made(p);
-	memcpy(out, &p, sizeof p);
-	memcpy(out + sizeof p, &stamp, sizeof stamp);
+	return p;
 }
 
 static zane_workers *zane_workers_at(const char *handle) {
@@ -563,11 +562,11 @@ static zane_workers *zane_workers_at(const char *handle) {
 
 /* A worker added (§6.2): the element at `element`, `size` bytes of `type`,
    which the call owns and moves into a region of its own, and the step
-   that runs on it through `thunk`. `sources` is the list of event sources,
-   each an interval of nanoseconds, or null when it was started with none.
-   Its first call comes right after this one returns. */
+   that runs on it through `thunk`. With `has_sources`, `sources` is the
+   list of event sources, each an interval of nanoseconds; without, it is
+   not read. Its first call comes right after this one returns. */
 void zane_workers_start(char *handle, char *element, int64_t size, const zane_type *type, void (*thunk)(char *),
-                        void *step, void *test, void *publish, const zane_list *sources) {
+                        void *step, void *test, void *publish, int64_t has_sources, const zane_list *sources) {
 	zane_workers *p = zane_workers_at(handle);
 	zane_member *m = calloc(1, sizeof *m);
 	if (!m) zane_broken("out of memory for a worker");
@@ -586,7 +585,7 @@ void zane_workers_start(char *handle, char *element, int64_t size, const zane_ty
 	m->step = step;
 	m->test = test;
 	m->publish = publish;
-	if (sources) {
+	if (has_sources) {
 		m->sources = 1;
 		int64_t n = ZL_COUNT(sources);
 		if (n) {
@@ -626,6 +625,9 @@ void zane_workers_publish(char *event, int64_t size, const zane_type *type) {
 		fputs("a worker pool's publish function was called outside the work of its pool\n", stderr);
 		exit(1);
 	}
+	/* A pool built without state has no funnel: a stateful step on it can
+	   only publish `Unit`s, which change nothing. */
+	if (!p->funnel_thunk) return;
 	zane_event *e = malloc(sizeof *e + (size_t)(size < 8 ? 8 : size));
 	if (!e) zane_broken("out of memory for an event");
 	e->next = NULL;
@@ -653,20 +655,32 @@ void zane_workers_publish(char *event, int64_t size, const zane_type *type) {
 	if (queue) zane_pool_wake();
 }
 
-/* A snapshot of the state (§6.6), copied to `out` in the innermost
-   scope. */
-void zane_workers_state(char *handle, char *out) {
+/* A snapshot of the state (§6.6): its bytes in a buffer of this thread's,
+   which the caller reads before it calls here again, and its blocks
+   copied into the innermost scope, as a fresh value's are made. */
+static _Thread_local char *zane_state_buffer;
+static _Thread_local int64_t zane_state_room;
+
+char *zane_workers_state(char *handle) {
 	zane_workers *p = zane_workers_at(handle);
-	if (!p->state) return;
+	int64_t size = p->state_size < 16 ? 16 : p->state_size;
+	if (zane_state_room < size) {
+		free(zane_state_buffer);
+		zane_state_buffer = malloc((size_t)size);
+		if (!zane_state_buffer) zane_broken("out of memory for a state snapshot");
+		zane_state_room = size;
+	}
+	if (!p->state) return zane_state_buffer;
 	pthread_mutex_lock(&p->state_lock);
-	memcpy(out, p->state, (size_t)p->state_size);
-	zane_copy(out, p->state_type);
+	memcpy(zane_state_buffer, p->state, (size_t)p->state_size);
+	zane_copy(zane_state_buffer, p->state_type);
 	pthread_mutex_unlock(&p->state_lock);
+	return zane_state_buffer;
 }
 
 /* A list of a snapshot of each element (§6.6), in the order they started,
    each taken whole between two calls of its step. */
-void zane_workers_elements(char *handle, zane_list *out, int64_t stride, const zane_type *type) {
+void zane_workers_elements(zane_list *out, char *handle, int64_t stride, const zane_type *type) {
 	zane_workers *p = zane_workers_at(handle);
 	zane_list_new(out);
 	pthread_mutex_lock(&p->lock);

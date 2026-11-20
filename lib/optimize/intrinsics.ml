@@ -35,6 +35,10 @@ let classify : Cgt.Runtime.fn -> t = function
   (* Whether the thread has a context is a fact of the running program,
      and only a call from C, which no fold makes, runs either. *)
   | Callback_attach | Callback_detach -> Input
+  (* A worker pool's work runs on the running program's threads, beside
+     the code after `start`, and a publish is a write the funnel makes
+     there, so a fold stops at each (concurrency.md §6.5). *)
+  | Workers_new | Workers_start | Workers_publish | Workers_state | Workers_elements -> Input
   | Text_join | Text_expect | Text_taken | Text_equal | Text_i32 | Text_i64 | Text_f32 | Text_f64
   | List_new | List_push | List_at | List_remove _ | List_swap_remove _ | Array_at | Constant_begin
   | Constant_end | Writeback

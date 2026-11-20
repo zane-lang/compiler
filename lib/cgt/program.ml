@@ -253,12 +253,21 @@ let spawned (p : T.Program.t) =
   let call (e : T.Expr.t) =
     found := (match e.T.Expr.node with T.Expr.Spawn inner -> inner | _ -> e) :: !found
   in
+  (* A worker pool runs its work on the pool's threads (concurrency.md
+     §6), so a program that makes one runs on more than one thread; its
+     constructor counts, as its owner is no subject a spawned call writes
+     back. *)
+  let pooled (e : T.Expr.t) =
+    match e.T.Expr.node with
+    | T.Expr.Construct { ctor = { owner = S.Intrinsic "@primitives$WorkerPool"; _ }; _ } -> found := e :: !found
+    | _ -> ()
+  in
   let rec block (b : T.Block.t) = List.iter stat b.T.Block.stats
   and stat (s : T.Stat.t) =
     (match s.T.Stat.node with T.Stat.Spawn e -> call e | _ -> ());
     List.iter expr (Tst.Traverse.stat_exprs s)
   and expr (e : T.Expr.t) =
-    (match e.T.Expr.node with T.Expr.Spawn inner -> call inner | _ -> ());
+    (match e.T.Expr.node with T.Expr.Spawn inner -> call inner | _ -> pooled e);
     List.iter
       (function
         | Tst.Traverse.Same x -> expr x

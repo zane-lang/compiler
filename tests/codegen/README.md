@@ -363,6 +363,17 @@ makes of them.
   preferred to the one for every type, and a spawned worker, which its
   scope waits for before the subject is read, spawned through a method and
   as the intrinsic itself. A worker used as a value is its `Unit`.
+- `workerPools` runs worker pools (concurrency.md §6). Ten counters
+  publish 55 events to a funnel, which sums them into a state that owns a
+  list and checks each counter's events arrive in order, with four threads
+  and with one; the state is read while they run. Elements that own a list
+  and hold the console, a capability, each check their list in their last
+  step. One worker waits on a timer and one on an always-ready source. A
+  worker started with no source wakes only when the funnel changes the
+  state, which a second worker changes by publishing from calls it spawns.
+  The elements are read while their steps run. Each pool's scope prints
+  `drained` after it ends, so the golden file shows that the scope waits
+  for every line its workers print.
 
 ## Rejects
 

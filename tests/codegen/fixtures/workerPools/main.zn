@@ -1,0 +1,262 @@
+/// Worker pools (concurrency.md §6): a pool's elements, each run by its
+/// step until the step returns false, beside the code after `start` and
+/// beside each other; a funnel that applies the events the steps publish
+/// to the pool's shared state; timers; reads of the state and of the
+/// elements; and the scope that holds a pool, which waits for all of it
+/// before it ends. A worker's checks are made where they can be known: in
+/// the funnel once every event has arrived, or in an element's last step.
+/// The program's console is a capability, so an element may print through
+/// it. Each check prints `yes` when it holds and `no` when it does not, and
+/// the order of the lines is the same however the workers interleave.
+package workerPools;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias Console = @runtime$Console;
+alias Pool<T Type, S Type, E Type> = @primitives$WorkerPool<T, S, E>;
+alias Source = @primitives$EventSource;
+
+type Bool = struct {
+	_value @primitives$Bool;
+}
+implicit Bool(v @primitives$Bool) => init{ _value = v; }
+implicit @primitives$Bool(v Bool) => v._value;
+
+/// Marks a pool's scope ended: every line its workers print comes
+/// before it.
+Unit drained() {
+	@program$console!print(String.escaped("drained\n"));
+	return Unit();
+}
+
+Unit check(ok @primitives$Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+/// A worker that publishes 1 to its limit, each with its id.
+type Counter = struct {
+	id I64;
+	n I64;
+	limit I64;
+}
+Counter(id I64, limit I64) => init{ id; n = I64(0); limit; }
+
+type Sent = struct {
+	id I64;
+	seq I64;
+}
+Sent(id I64, seq I64) => init{ id; seq; }
+
+/// The funnel's tally: the sum of what arrived, how many events, the last
+/// sequence number from each worker, and whether any arrived out of order.
+/// It owns a block, its list.
+type Tally = struct {
+	sum I64;
+	events I64;
+	last @primitives$List<I64>;
+	disordered @primitives$Bool;
+	expected I64;
+}
+Tally(workers I64, expected I64) => init{
+	sum = I64(0);
+	events = I64(0);
+	last = zeros(workers);
+	disordered = false;
+	expected;
+}
+
+@primitives$List<I64> zeros(n I64) {
+	l @primitives$List<I64> = @primitives$List(I64);
+	@controlflow$repeat(n, { l!push(I64(0)); });
+	return l;
+}
+
+Unit tally(this Tally, event Sent) mut {
+	this.sum = @operators$add(this.sum, event.seq);
+	this.events = @operators$add(this.events, I64(1));
+	@controlflow$branch(@operators$not(@operators$equal(event.seq, @operators$add(this.last[event.id], I64(1)))), {
+		this.disordered = true;
+	});
+	this.last[event.id] = event.seq;
+	@controlflow$branch(@operators$equal(this.events, this.expected), {
+		check(@operators$not(this.disordered));
+	});
+	return Unit();
+}
+
+/// Sends a number through a publish function value, from a call the step
+/// spawns: the event reaches the pool the step belongs to.
+Unit send(publish Unit[Sent], id I64, seq I64) {
+	publish(Sent(id, seq));
+	return Unit();
+}
+
+/// An element with a console, a capability, and a list of its own: it
+/// grows its list to its limit and checks it in its last step.
+type Speaker = #struct {
+	out &Console;
+	seen @primitives$List<I64>;
+	limit I64;
+}
+Speaker(out &Console, limit I64) => init{ out; seen = @primitives$List(I64); limit; }
+
+/// A check printed through the element's console, which only a `mut`
+/// method of the element writes.
+Unit say(this Speaker, ok @primitives$Bool) mut {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { this.out!print(yes); });
+	@controlflow$branch(@operators$not(ok), { this.out!print(no); });
+	return Unit();
+}
+
+/// A watcher started with no event source waits for the state alone: its
+/// step runs again only when the funnel has changed the state.
+type Watcher = #struct {
+	out &Console;
+	calls I64;
+}
+Watcher(out &Console) => init{ out; calls = I64(0); }
+
+Unit say(this Watcher, ok @primitives$Bool) mut {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { this.out!print(yes); });
+	@controlflow$branch(@operators$not(ok), { this.out!print(no); });
+	return Unit();
+}
+
+type Count = struct {
+	events I64;
+}
+Count() => init{ events = I64(0); }
+
+Unit counted(this Count, event I64) mut {
+	this.events = @operators$add(this.events, event);
+	return Unit();
+}
+
+/// Runs ten counters, publishing 55 events in all; the funnel checks the
+/// sum and the order once the last arrives, and the scope waits for it.
+Unit counting(threads I64) {
+	@program$runtime!setThreads(threads) ? ignored {
+		resolve Unit();
+	}
+	@controlflow$branch(true, {
+		pool Pool<Counter, Tally, Sent> = @primitives$WorkerPool(Counter, Tally(I64(11), I64(55)), Unit(this Tally, event Sent) mut {
+			this!tally(event);
+			return Unit();
+		});
+		i I64 = I64(0);
+		@controlflow$repeat(I64(10), {
+			i = @operators$add(i, I64(1));
+			pool!start(Counter(i, i), Bool(this Counter, shared Tally, publish Unit[Sent]) mut {
+				this.n = @operators$add(this.n, I64(1));
+				publish(Sent(this.id, this.n));
+				return Bool(@operators$lessThan(this.n, this.limit));
+			});
+		});
+		// The state can be read while the workers run: never more than the
+		// whole.
+		now Tally = pool:state();
+		check(@operators$not(@operators$lessThan(I64(220), now.sum)));
+	});
+	drained();
+	@program$runtime!setThreadsAuto();
+	return Unit();
+}
+
+Unit main() {
+	counting(I64(4));
+	// With one thread, the scope that ends the pool runs its work.
+	counting(I64(1));
+
+	// Owners moved in, each holding the console and a list: each checks
+	// its list in its last step.
+	@controlflow$branch(true, {
+		speakers Pool<Speaker, Unit, Unit> = @primitives$WorkerPool(Speaker);
+		@controlflow$repeat(I64(3), {
+			speakers!start(Speaker(@program$console, I64(50)), Bool(this Speaker) mut {
+				this.seen!push(@operators$multiply(this.seen:size(), I64(2)));
+				done @primitives$Bool = @operators$equal(this.seen:size(), this.limit);
+				@controlflow$branch(done, {
+					this!say(@operators$equal(this.seen[I64(50)], I64(98)));
+				});
+				return Bool(@operators$not(done));
+			});
+		});
+	});
+	drained();
+
+	// Timers: one every millisecond, one always ready.
+	@controlflow$branch(true, {
+		timed Pool<Speaker, Unit, Unit> = @primitives$WorkerPool(Speaker);
+		every @primitives$List<Source> = @primitives$List(Source);
+		every!push(Source.every(I64(1000000)));
+		always @primitives$List<Source> = @primitives$List(Source);
+		always!push(Source.every(@operators$negate(I64(1))));
+		ticking Bool[this Speaker] mut = Bool(this Speaker) mut {
+			this.seen!push(this.seen:size());
+			done @primitives$Bool = @operators$equal(this.seen:size(), this.limit);
+			@controlflow$branch(done, { this!say(true); });
+			return Bool(@operators$not(done));
+		}
+		timed!start(Speaker(@program$console, I64(5)), every, ticking);
+		timed!start(Speaker(@program$console, I64(5)), always, ticking);
+	});
+	drained();
+
+	// A watcher with no source wakes when the funnel changes the state;
+	// a sender publishes three events from calls its step spawns.
+	@controlflow$branch(true, {
+		watched Pool<Watcher, Count, I64> = @primitives$WorkerPool(Watcher, Count(), Unit(this Count, event I64) mut {
+			this!counted(event);
+			return Unit();
+		});
+		none @primitives$List<Source> = @primitives$List(Source);
+		watched!start(Watcher(@program$console), none, Bool(this Watcher, shared Count, publish Unit[I64]) mut {
+			this.calls = @operators$add(this.calls, I64(1));
+			done @primitives$Bool = @operators$equal(shared.events, I64(3));
+			@controlflow$branch(done, { this!say(true); });
+			return Bool(@operators$not(done));
+		});
+		watched!start(Watcher(@program$console), Bool(this Watcher, shared Count, publish Unit[I64]) mut {
+			this.calls = @operators$add(this.calls, I64(1));
+			spawn sendOne(publish);
+			return Bool(@operators$lessThan(this.calls, I64(3)));
+		});
+	});
+	drained();
+
+	// The elements and the state, read while the workers run: each element
+	// whole, and never past its limit.
+	@controlflow$branch(true, {
+		counters Pool<Counter, Unit, Unit> = @primitives$WorkerPool(Counter);
+		@controlflow$repeat(I64(4), {
+			counters!start(Counter(I64(0), I64(100000)), Bool(this Counter) mut {
+				this.n = @operators$add(this.n, I64(1));
+				return Bool(@operators$lessThan(this.n, this.limit));
+			});
+		});
+		seen @primitives$List<Counter> = counters:elements();
+		ok @primitives$Bool = @operators$not(@operators$lessThan(I64(4), seen:size()));
+		k I64 = I64(0);
+		@controlflow$repeat(seen:size(), {
+			k = @operators$add(k, I64(1));
+			ok = @operators$conjoin(ok, @operators$not(@operators$lessThan(I64(100000), seen[k].n)));
+		});
+		check(ok);
+	});
+	check(true);
+	return Unit();
+}
+
+Unit sendOne(publish Unit[I64]) {
+	publish(I64(1));
+	return Unit();
+}

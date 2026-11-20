@@ -67,6 +67,9 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
     when String.starts_with ~prefix:"@math$" spelling ->
       Lower_intrinsics.math walk st ctx span spelling args e.T.Expr.ty
+  | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; args; handler = None }
+    when Lower_workers.runs spelling ->
+      Lower_workers.call walk st ctx span spelling args e.T.Expr.ty
   | T.Expr.Call { callee = { owner = S.Intrinsic spelling; _ }; _ }
     when Lower_intrinsics.runs spelling ->
       Lower_intrinsics.call walk st ctx span e

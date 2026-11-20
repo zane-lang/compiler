@@ -68,12 +68,27 @@ let is_array_ref = function
   | Tty.Intrinsic { namespace = "primitives"; name = "ArrayRef"; _ } -> true
   | _ -> false
 
-(* A reference type: a `#` type, a `ListRef` or an `ArrayRef`, whose
-   instances are owned (memory.md §2.1). A roaming owner has the reference
-   type it owns. *)
+(* `@primitives$WorkerPool<T, S, E>` (concurrency.md §6.1): a handle, its
+   runtime object's address and a stamp, which the scope that holds it
+   ends as it ends a foreign handle, through the runtime's free thunk
+   (runtime/workers.c). *)
+let is_pool = function
+  | Tty.Intrinsic { namespace = "primitives"; name = "WorkerPool"; _ } -> true
+  | _ -> false
+
+let pool_args = function
+  | Tty.Intrinsic { namespace = "primitives"; name = "WorkerPool"; args = [ Tty.Type t; Tty.Type s; Tty.Type e ] } ->
+      Some (t, s, e)
+  | _ -> None
+
+let pool_free = "zane_workers_free"
+
+(* A reference type: a `#` type, a `ListRef`, an `ArrayRef` or a worker
+   pool, whose instances are owned (memory.md §2.1). A roaming owner has
+   the reference type it owns. *)
 let reference st t =
   let t = match t with Tty.Roaming t -> t | t -> t in
-  is_list_ref t || is_array_ref t || match definition st t with Some (_, true) -> true | _ -> false
+  is_list_ref t || is_array_ref t || is_pool t || match definition st t with Some (_, true) -> true | _ -> false
 
 (* The types a type holds inline: its members and payloads, the type a
    distinct type wraps, and an array's elements. A reference holds an
@@ -216,7 +231,10 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | "U8" -> Nodes.Ty.I8
       | "F64" -> Nodes.Ty.F64
       | "F32" -> Nodes.Ty.F32
+      (* A timer's interval in nanoseconds (concurrency.md §6.3). *)
+      | "EventSource" -> Nodes.Ty.I64
       | _ -> unhandled span t)
+  | _ when is_pool t -> Nodes.Ty.Struct [ Nodes.Ty.Ptr; Nodes.Ty.I64 ]
   | Tty.Reference _ -> Nodes.Ty.Ptr
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (
@@ -387,6 +405,7 @@ let rec positions ?(path = Tty.Growth.start) st span (t : Tty.t) base tags : Lay
       let elements = layout st span e in
       [ at (Layout.List { stride = stride st span e; elements }) list_handle ]
   | _ when is_text t -> [ at Layout.Text handle ]
+  | _ when is_pool t -> [ at (Layout.Foreign { free = pool_free; set = None }) 16 ]
   | _ when pooled st t -> [ at (Layout.List { stride = 1; elements = pool_bytes st }) list_handle ]
   | Tty.Intrinsic _, _ when Option.is_some (array_of t) -> (
       let e, n = Option.get (array_of t) in

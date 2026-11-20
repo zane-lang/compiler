@@ -143,6 +143,14 @@ static void five_step(char *frame) {
 	f->result = p->seq < 5;
 }
 
+/* A pool's handle, as lowering makes it: the address and a stamp. */
+static void make_pool(char *handle, int64_t stateful, char *state, int64_t size, void (*funnel)(char *), int64_t event) {
+	void *p = zane_workers_new(stateful, state, size, NULL, NULL, funnel, event, NULL);
+	int64_t stamp = zane_handle_made(p);
+	memcpy(handle, &p, sizeof p);
+	memcpy(handle + sizeof p, &stamp, sizeof stamp);
+}
+
 static void end_pool(char *handle) {
 	void *object;
 	memcpy(&object, handle, sizeof object);
@@ -153,10 +161,10 @@ static void end_pool(char *handle) {
 static void stateless(void) {
 	char handle[16];
 	total = overlapping = 0;
-	zane_workers_new(handle, NULL, 0, NULL, NULL, NULL, 0, NULL);
+	make_pool(handle, 0, NULL, 0, NULL, 0);
 	for (int i = 0; i < COUNTERS; i++) {
 		counter c = { 0, 0 };
-		zane_workers_start(handle, (char *)&c, sizeof c, NULL, count_step, NULL, NULL, NULL, NULL);
+		zane_workers_start(handle, (char *)&c, sizeof c, NULL, count_step, NULL, NULL, NULL, 0, NULL);
 	}
 	end_pool(handle);
 	check(total == (int64_t)COUNTERS * TO && overlapping == 0);
@@ -167,15 +175,14 @@ static void stateful(void) {
 	tally start = { 0, 0 };
 	memset(last_seen, 0, sizeof last_seen);
 	out_of_order = 0;
-	zane_workers_new(handle, (char *)&start, sizeof start, NULL, NULL, add_event, 2 * sizeof(int64_t), NULL);
+	make_pool(handle, 1, (char *)&start, sizeof start, add_event, 2 * sizeof(int64_t));
 	for (int64_t i = 0; i < PUBLISHERS; i++) {
 		publisher p = { i, 0 };
-		zane_workers_start(handle, (char *)&p, sizeof p, NULL, publish_step, NULL, NULL, NULL, NULL);
+		zane_workers_start(handle, (char *)&p, sizeof p, NULL, publish_step, NULL, NULL, NULL, 0, NULL);
 	}
 	/* `start` returns at once, and the state can be read while the workers
 	   run. */
-	tally now;
-	zane_workers_state(handle, (char *)&now);
+	tally now = *(tally *)zane_workers_state(handle);
 	int partial = now.sum >= 0 && now.sum <= (int64_t)PUBLISHERS * EVENTS * (EVENTS + 1) / 2;
 	end_pool(handle);
 	check(partial);
@@ -188,14 +195,14 @@ static void stateful(void) {
 static void read_state(void) {
 	char handle[16];
 	tally start = { 7, 0 };
-	zane_workers_new(handle, (char *)&start, sizeof start, NULL, NULL, add_event, 2 * sizeof(int64_t), NULL);
+	make_pool(handle, 1, (char *)&start, sizeof start, add_event, 2 * sizeof(int64_t));
 	publisher p = { 0, 0 };
 	memset(last_seen, 0, sizeof last_seen);
-	zane_workers_start(handle, (char *)&p, sizeof p, NULL, five_step, NULL, NULL, NULL, NULL);
+	zane_workers_start(handle, (char *)&p, sizeof p, NULL, five_step, NULL, NULL, NULL, 0, NULL);
 	tally after;
 	/* Wait for the funnel without ending the pool. */
 	for (int64_t until = test_now() + 2000000000; test_now() < until;) {
-		zane_workers_state(handle, (char *)&after);
+		after = *(tally *)zane_workers_state(handle);
 		if (after.applied == 5) break;
 		sched_yield();
 	}
@@ -206,16 +213,16 @@ static void read_state(void) {
 static void owning_elements(void) {
 	zane_mark *scope = zane_scope_enter(0);
 	char handle[16];
-	zane_workers_new(handle, NULL, 0, NULL, NULL, NULL, 0, NULL);
+	make_pool(handle, 0, NULL, 0, NULL, 0);
 	for (int i = 0; i < 8; i++) {
 		zane_text *s = test_slot(scope, sizeof *s, 8, NULL);
 		zane_text_join(s, &one_x, &one_x);
 		/* The element moves in: the slot names nothing after. */
-		zane_workers_start(handle, (char *)s, sizeof *s, &text_type, grow_step, NULL, NULL, NULL, NULL);
+		zane_workers_start(handle, (char *)s, sizeof *s, &text_type, grow_step, NULL, NULL, NULL, 0, NULL);
 		memset(s, 0, sizeof *s);
 	}
 	zane_list *copies = test_slot(scope, sizeof *copies, 8, &texts_type);
-	zane_workers_elements(handle, copies, sizeof(zane_text), &text_type);
+	zane_workers_elements(copies, handle, sizeof(zane_text), &text_type);
 	int whole = ZL_COUNT(copies) <= 8;
 	for (int64_t i = 0; i < ZL_COUNT(copies); i++) {
 		zane_text *t = (zane_text *)ZL_ITEMS(copies) + i;
@@ -228,17 +235,17 @@ static void owning_elements(void) {
 
 static void timers(void) {
 	char handle[16];
-	zane_workers_new(handle, NULL, 0, NULL, NULL, NULL, 0, NULL);
+	make_pool(handle, 0, NULL, 0, NULL, 0);
 	int64_t before = test_now();
 	zane_list every;
 	zane_list_new(&every);
 	*(int64_t *)zane_list_push(&every, 8) = 5000000;
 	ticker t = { 0, 0, 0 };
-	zane_workers_start(handle, (char *)&t, sizeof t, NULL, tick_step, NULL, NULL, NULL, &every);
+	zane_workers_start(handle, (char *)&t, sizeof t, NULL, tick_step, NULL, NULL, NULL, 1, &every);
 	zane_list always;
 	zane_list_new(&always);
 	*(int64_t *)zane_list_push(&always, 8) = 0;
-	zane_workers_start(handle, (char *)&t, sizeof t, NULL, tick_step, NULL, NULL, NULL, &always);
+	zane_workers_start(handle, (char *)&t, sizeof t, NULL, tick_step, NULL, NULL, NULL, 1, &always);
 	end_pool(handle);
 	int64_t took = test_now() - before;
 	/* Ten calls 5 ms apart, the first at once: 45 ms at least. */
@@ -248,14 +255,14 @@ static void timers(void) {
 static void state_wakes(void) {
 	char handle[16];
 	tally start = { 0, 0 };
-	zane_workers_new(handle, (char *)&start, sizeof start, NULL, NULL, add_event, 2 * sizeof(int64_t), NULL);
+	make_pool(handle, 1, (char *)&start, sizeof start, add_event, 2 * sizeof(int64_t));
 	memset(last_seen, 0, sizeof last_seen);
 	zane_list none;
 	zane_list_new(&none);
 	watcher w = { 0 };
-	zane_workers_start(handle, (char *)&w, sizeof w, NULL, watch_step, NULL, NULL, NULL, &none);
+	zane_workers_start(handle, (char *)&w, sizeof w, NULL, watch_step, NULL, NULL, NULL, 1, &none);
 	publisher p = { 0, 0 };
-	zane_workers_start(handle, (char *)&p, sizeof p, NULL, five_step, NULL, NULL, NULL, NULL);
+	zane_workers_start(handle, (char *)&p, sizeof p, NULL, five_step, NULL, NULL, NULL, 0, NULL);
 	/* The pool ends only if the watcher is woken by the funnel's writes:
 	   it waits on no timer. */
 	end_pool(handle);
