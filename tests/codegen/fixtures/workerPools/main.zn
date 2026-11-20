@@ -6,7 +6,7 @@
 /// before it ends. A worker's checks are made where they can be known: in
 /// the funnel once every event has arrived, or in an element's last step.
 /// The program's console is a capability, so an element may print through
-/// it. Each check prints `yes` when it holds and `no` when it does not, and
+/// it, and an element may read a package constant through an `&`. Each check prints `yes` when it holds and `no` when it does not, and
 /// the order of the lines is the same however the workers interleave.
 package workerPools;
 
@@ -171,6 +171,49 @@ Unit counting(threads I64) {
 	return Unit();
 }
 
+/// A package constant, which elements of many pools may read at once.
+type Squares = #struct {
+	values @primitives$List<I64>;
+}
+Squares(count I64) => init{ values = squaresTo(count); }
+
+@primitives$List<I64> squaresTo(count I64) {
+	out @primitives$List<I64> = @primitives$List(I64);
+	i I64 = I64(0);
+	@controlflow$repeat(count, {
+		i = @operators$add(i, I64(1));
+		out!push(@operators$multiply(i, i));
+	});
+	return out;
+}
+
+squares Squares = Squares(I64(100));
+
+/// An element that sums the constant's values, one per step.
+type Summer = #struct {
+	table &Squares;
+	out &Console;
+	at I64;
+	sum I64;
+}
+Summer(table &Squares, out &Console) => init{ table; out; at = I64(0); sum = I64(0); }
+
+/// Starts a summer on `table`: its callers pass a package constant.
+Unit summing(this Pool<Summer, Unit, Unit>, table &Squares) mut {
+	this!start(Summer(table, @program$console), Bool(this Summer) mut {
+		this.at = @operators$add(this.at, I64(1));
+		this.sum = @operators$add(this.sum, this.table.values[this.at]);
+		done @primitives$Bool = @operators$equal(this.at, this.table.values:size());
+		@controlflow$branch(done, {
+			ok @primitives$Bool = @operators$equal(this.sum, I64(338350));
+			@controlflow$branch(ok, { this.out!print(String.escaped("yes\n")); });
+			@controlflow$branch(@operators$not(ok), { this.out!print(String.escaped("no\n")); });
+		});
+		return Bool(@operators$not(done));
+	});
+	return Unit();
+}
+
 Unit main() {
 	counting(I64(4));
 	// With one thread, the scope that ends the pool runs its work.
@@ -252,6 +295,15 @@ Unit main() {
 		});
 		check(ok);
 	});
+
+	// Elements holding an `&` to a package constant, started directly
+	// and through a verb.
+	@controlflow$branch(true, {
+		summers Pool<Summer, Unit, Unit> = @primitives$WorkerPool(Summer);
+		summers!summing(squares);
+		summers!summing(squares);
+	});
+	drained();
 	check(true);
 	return Unit();
 }

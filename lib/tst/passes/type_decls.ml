@@ -167,7 +167,7 @@ let rec check_function_types env span (t : Ty.t) =
    themselves, which were checked where they were written. The walk returns
    the slot that rejects the type, as the path that reaches the slot, and
    the rejected type. *)
-type slot = Value_slot | Under_reference | Under_take | List_element | Bare_result | Pool_value | Pool_element
+type slot = Value_slot | Under_reference | Under_take | List_element | Bare_result | Pool_value
 
 type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 
@@ -284,10 +284,11 @@ let is_capability env (t : Ty.t) =
   | Ty.Intrinsic { namespace = "runtime"; name = "Console" | "Runtime"; _ } -> true
   | _ -> false
 
-(* The first `&` a worker pool's element reaches, through the fields and
-   elements it owns at any depth, that names no capability (concurrency.md
-   §6.4); the element itself when it is an `&`. A function value captures
-   nothing, so it reaches nothing. *)
+(* The first `&` a value of [t] reaches, through the fields and elements it
+   owns at any depth, that names no capability; [t] itself when it is an
+   `&`. A function value captures nothing, so it reaches nothing. A worker
+   pool's element may hold such an `&` only to a package constant
+   (concurrency.md §6.4, Pool_elements). *)
 let rec stray_reference env ?(seen = []) (t : Ty.t) =
   match t with
   | Ty.Reference target -> if is_capability env target then None else Some t
@@ -319,21 +320,18 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       | Some ({ definition = Some (Distinct u); _ } as info) ->
           wrong_kind env ~seen (Ty.instantiate info.params args u)
       | _ -> None)
-  (* A worker pool's state and events are values, and its element a value
-     or an owner whose every `&` names a capability (concurrency.md §6.1,
-     §6.4). *)
+  (* A worker pool's state and events are values (concurrency.md §6.1).
+     What its element's `&`s name is a property of each element, not of its
+     type (Pool_elements). *)
   | Ty.Intrinsic { namespace = "primitives"; name = "WorkerPool"; args = [ Ty.Type el; Ty.Type st; Ty.Type ev ] } -> (
       let part what x = Printf.sprintf "the %s of %s" what (quote (Ty.to_string t)) |> fun p -> (p, x) in
       let not_value (p, x) = if holds_reference env x then Some { path = [ p ]; bad = x; slot = Pool_value } else None in
       match List.find_map not_value [ part "state" st; part "events" ev ] with
       | Some found -> Some found
-      | None -> (
-          match stray_reference env el with
-          | Some bad -> Some { path = [ elements () ]; bad; slot = Pool_element }
-          | None ->
-              List.find_map
-                (fun (p, x) -> through p (wrong_kind env ~seen (Ty.strip_mode x)))
-                [ (elements (), el); part "state" st; part "events" ev ]))
+      | None ->
+          List.find_map
+            (fun (p, x) -> through p (wrong_kind env ~seen (Ty.strip_mode x)))
+            [ (elements (), el); part "state" st; part "events" ev ])
   | Ty.Intrinsic
       { namespace = "primitives"; name = "ListRef"; args = Ty.Type (Ty.Reference x as e) :: _ }
     when not (is_value env x) ->
@@ -390,12 +388,6 @@ let describe_wrong_kind { path; bad; slot } =
         "%s is %s, and it fills %s; a worker pool's state and events are values, since its workers \
          read the state by snapshot and an event waits in the funnel's queue (concurrency.md §6.1)"
         (quote (Ty.to_string bad)) what (String.concat ", then " path)
-  | Pool_element ->
-      Printf.sprintf
-        "%s names no capability, and it is reached from %s; a worker pool's element may hold an `&` \
-         only to a capability, since nothing else it could name is safe from the writes of the \
-         program while its workers run (concurrency.md §6.4)"
-        (quote (Ty.to_string bad)) (String.concat ", then " path)
   | Value_slot ->
       Printf.sprintf
         "%s is %s, and it reaches %s, a value type's slot; a value type holds only values, \

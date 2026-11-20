@@ -410,25 +410,6 @@ Reconciling means the spec stating whether missed ticks merge or queue.
 
 ---
 
-## 15. A pool's element may not hold an `&` to a package constant
-
-**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
-§6.4: an element is a value type, or a reference type every `&` of which
-"names a constant: a package constant or a capability".
-
-**Compiler** — the rule is checked from the element's type. An `&` whose
-target type is a capability, a foreign handle with no free function or the
-program's console or runtime, is accepted. Any other `&` is rejected, since
-its type does not show whether it names a package constant or an object the
-program can write. `lib/tst/passes/type_decls.ml` (`stray_reference`) is
-the decision.
-
-Reconciling means an analysis that follows each `&` the element holds to
-the place it was taken from, or the spec narrowing the rule to
-capabilities.
-
----
-
 ## Closed
 
 Kept briefly so a reader who remembers them can see they were closed on

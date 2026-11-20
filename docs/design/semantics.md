@@ -188,11 +188,10 @@ checks the generic verbs nothing instantiates, which ask for none.
    §2.3); a type argument of the wrong kind, reported where it is written
    ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6),
    including a `^` or a `ListRef` element filled with an `&` type, a worker
-   pool's state or events filled with a reference type, and its element with
-   one that reaches an `&` to anything but a capability through the fields it
-   owns ([`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
-   §6.1, §6.4; a capability is a handle with no free function, or the
-   program's console or runtime), and through
+   pool's state or events filled with a reference type
+   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+   §6.1; what an element's `&`s name is checked per element, under **Pool
+   elements** in D1), and through
    a generic alias as through the type it names; a type that holds itself at
    a growing argument
    ([`generics.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/generics.md)
@@ -375,6 +374,27 @@ bound again in a block inside its own. A reference whose place it cannot
 follow may name any owner of its type, so a write through it clashes with a
 lent owner that could be, or contain, or be inside, what it writes; so does a
 write to a known place when the lent owner came through such a reference.
+
+**Pool elements** (`lib/tst/analyses/pool_elements.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md) §6.4).
+An `&` that a worker pool's element holds, at any depth through the fields
+and elements it owns, names a package constant or a capability. An `&` whose
+target type is a capability, a handle with no free function or the
+program's console or runtime, passes wherever it was taken. Every other `&`
+must have been taken of a package constant, or of a place reached through a
+reference that itself passes. Each local carries a provenance covering every
+`&` its value holds: constant, constant provided the arguments of some of the
+enclosing verb's parameters are, or not constant, with the `&` that made it
+so. A local's provenance is the meet of every value bound or assigned to it
+in its body, so a body is walked until none changes. A call's result holds
+only references its arguments hold and references to package constants, so
+it meets its arguments'; a `!` call meets its other arguments into its
+subject's local, and so does a call passed an `&` taken of a local's place.
+`start` requires its element to be constant; a requirement on parameters
+becomes the verb's summary, which each call checks against its arguments or
+passes on, computed to a fixed point as for scopes. A lambda's parameters and
+a handler's binder have no arguments to check and are not constant, except
+the `this` of a lambda written as a pool's step, which is an element of a
+pool and so already passes.
 
 **D4. Diagnostics accumulate.** The parser stops at the first error, which suits
 a parser. A type checker that stops at the first error fails the author once per
