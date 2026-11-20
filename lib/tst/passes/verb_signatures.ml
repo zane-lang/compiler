@@ -5,8 +5,8 @@
    A verb has no `< >` header. It introduces each type or number parameter at
    the parameter's first *marked* occurrence -- `x T Type`, `Array<T Type, n
    @concepts$Int>`, or an explicit `T Type` or `n @concepts$Int` value
-   parameter -- and every other occurrence of the name, before or after,
-   refers to it (generics.md §3.2).
+   parameter -- and every other occurrence of the identifier, before or after,
+   refers to that parameter (generics.md §3.2).
    So the introductions are found first, over the whole signature, and only
    then is any type in it resolved. *)
 
@@ -20,9 +20,10 @@ module S = Signature
 
 type introductions = {
   mutable found : (string * Ty.param) list;
-  (* The explicit ones, by the value parameter that introduces them. *)
+  (* The explicit introductions, by the value parameter that introduces
+     each. *)
   mutable explicit : (string * Ty.param) list;
-  (* Every name the verb writes where a number goes, as in the `n` of
+  (* Every identifier the verb writes where a number goes, as in the `n` of
      `Array<T, n>`, in its signature or its body. *)
   numbers : string list;
 }
@@ -39,7 +40,7 @@ let introduce env intro span name kind =
       intro.found <- intro.found @ [ (name, p) ];
       p
 
-(* The names a type writes where a number goes. *)
+(* The identifiers a type writes where a number goes. *)
 let rec number_refs (te : N.Type_expr.t) =
   match te.N.Type_expr.node with
   | N.Type_expr.Reference inner | N.Type_expr.Roaming inner -> number_refs inner
@@ -118,9 +119,10 @@ and scan_param_type env intro (pt : N.Param_type.t) =
       ignore (introduce env intro pt.N.Param_type.span name.N.Name.text Ty.Type_kind)
 
 (* A `T Type` value parameter always introduces a type parameter. An
-   `@concepts$Int` one is a compile-time integer either way, since that is
-   a leaf concept type (syntax.md §2.8); it introduces a number parameter
-   when a type in the verb writes its name where a number goes, as
+   `@concepts$Int` value parameter is a compile-time integer either way,
+   since `@concepts$Int` is a leaf concept type (syntax.md §2.8); it
+   introduces a number parameter when a type in the verb writes its
+   identifier where a number goes, as
    `Array<T, n>(T Type, n @concepts$Int)` does, and is otherwise an
    ordinary parameter that accepts an integer literal
    (docs/design/semantics.md §9). *)
@@ -176,9 +178,9 @@ let type_key (t : Ty.t) =
   | Ty.Intrinsic { namespace; name; _ } -> Some (Intrinsic_type (namespace, name))
   | _ -> None
 
-(* The type a constructor builds, as its overload set is keyed: the defining
-   package and the name, and not the arguments, which mention each
-   declaration's own parameter names. *)
+(* The type a constructor builds, in the form that keys its overload set: the
+   defining package and the type name, without the arguments, which mention
+   each declaration's own parameter identifiers. *)
 let type_head (t : Ty.t) =
   match t with
   | Ty.Named (tid, _) -> tid.Ty.package ^ "$" ^ tid.Ty.name
@@ -190,9 +192,9 @@ let type_name (t : Ty.t) =
   | Ty.Named (tid, _) -> tid.Ty.name
   | t -> Ty.to_string t
 
-(* The home of a type, for the rules that ask for one: the package that
-   declared it, or the namespace that supplies it (functions.md §6.1). A
-   parameter has none, since it stands for types from anywhere. *)
+(* The home of a type, for the rules that need one: the package that
+   declared the type, or the namespace that supplies it (functions.md §6.1).
+   A type parameter has no home, since it stands for types from anywhere. *)
 let rec home (t : Ty.t) : S.home option =
   match t with
   | Ty.Named (tid, _) -> Some (S.Package tid.Ty.package)
@@ -201,7 +203,7 @@ let rec home (t : Ty.t) : S.home option =
   | Ty.Reference t | Ty.Roaming t -> home t
   | _ -> None
 
-(* The names a verb writes where a number goes, in its signature or in any
+(* The identifiers a verb writes where a number goes, in its signature or in any
    type its body writes: a local `a Array<Int, n>` makes the body's types
    depend on `n` as surely as the signature's would. *)
 let verb_number_refs (v : N.Verb_decl.t) =
@@ -233,20 +235,21 @@ let verb_number_refs (v : N.Verb_decl.t) =
 
 (* A verb's `@concepts$Int` parameter is a number parameter when the verb
    writes it where a number goes. A type is one such place, and
-   [verb_number_refs] finds those. The other is an argument to another verb's
-   number parameter -- `outer(n @concepts$Int) => measured(values, n)`
-   with `measured`'s `n` a number parameter -- and whether that callee's
-   parameter is one depends in turn on the callee's own body. So the answer
-   is a fixed point over every verb of the build: start from what the types
-   say, promote a parameter whenever a call hands it to a number parameter,
-   and repeat until nothing changes. It only grows, and there are finitely
-   many parameters, so it ends, cycles of calls included.
+   [verb_number_refs] finds those. The other place is an argument to another
+   verb's number parameter -- `outer(n @concepts$Int) => measured(values, n)`
+   with `measured`'s `n` a number parameter -- and whether the callee's
+   parameter is a number parameter depends in turn on the callee's own body.
+   So the result is a fixed point over every verb of the build: start from
+   the number parameters the types show, promote a parameter whenever a call
+   hands it to a number parameter, and repeat until nothing changes. The set
+   only grows, and there are finitely many parameters, so the iteration ends,
+   cycles of calls included.
 
    A call is matched here the way pass 5 will look it up, by name and arity,
    before any overload is resolved: a parameter is promoted when some
    candidate takes it as a number. Resolution then picks one candidate, and
-   one the promotion did not anticipate only costs a generic parameter where
-   an ordinary one would have done. *)
+   if that candidate is not one the promotion anticipated, the only cost is a
+   generic parameter where an ordinary one would have done. *)
 
 
 let numbers_of (tables : verbs) (d : decl) v =
@@ -261,8 +264,8 @@ let numbers_of (tables : verbs) (d : decl) v =
   own @ Option.value ~default:[] (Hashtbl.find_opt tables.promoted d.id)
 
 (* A verb's parameters in the order a call passes them -- a method's and a
-   subscript's subject first -- each as the name of an `@concepts$Int`
-   parameter, or [None]. *)
+   subscript's subject first -- each as the identifier of an `@concepts$Int`
+   parameter, or [None] for any other parameter. *)
 let positions (v : N.Verb_decl.t) =
   let of_param (p : N.Param.t) =
     match p.N.Param.type_.N.Param_type.node with
@@ -315,7 +318,8 @@ let index env verbs =
     (List.rev verbs);
   { methods; constructors }
 
-(* The verbs a call could reach, by name, and the arguments it passes them. *)
+(* The verbs a call could reach, by name, and the arguments the call passes
+   them. *)
 let call_targets env index (d : decl) (c : N.Verb_call.t) =
   let functions ds = List.filter_map (fun (x : decl) -> match x.kind with Verb v when is_function x -> Some (x, v) | _ -> None) ds in
   match c.N.Verb_call.node with
@@ -353,8 +357,8 @@ let takes_number_at tables (d, v) arity i =
   && match List.nth_opt ps i with Some (Some name) -> List.mem name (numbers_of tables d v) | _ -> false
 
 let promote env tables =
-  (* Names are looked up here ahead of pass 5, which looks them up again and
-     reports whatever is wrong with them; this pass reports nothing. *)
+  (* Identifiers are looked up here ahead of pass 5, which looks them up
+     again and reports any problem with them; this pass reports nothing. *)
   let saved = !(env.diagnostics) in
   let verbs = all_verbs env () in
   let index = index env verbs in
@@ -368,8 +372,8 @@ let promote env tables =
     | Some n
       when List.mem n ordinary
            && List.exists (fun t -> takes_number_at tables t (List.length args) i) targets ->
-        (* [ordinary] is this round's; an earlier call in the
-           same body may already have promoted [n]. *)
+        (* [ordinary] holds this round's ordinary parameters; an earlier
+           call in the same body may already have promoted [n]. *)
         let before = Option.value ~default:[] (Hashtbl.find_opt tables.promoted d.id) in
         if not (List.mem n before) then begin
           Hashtbl.replace tables.promoted d.id (before @ [ n ]);
@@ -419,7 +423,8 @@ let build env tables (d : decl) (v : N.Verb_decl.t) : S.t option =
       make ~abort ~kind:S.Function ~name:name.N.Name.text (List.map (param env sc intro) params) r
   | N.Verb_decl.Meth { name; this_type; this_introduces; params; ret_type; is_mut; _ } ->
       (* `this S Type` introduces `S` as the subject's whole type
-         (generics.md §3.7): a bare name, before every other parameter. *)
+         (generics.md §3.7): a bare identifier, introduced before every other
+         parameter. *)
       (if this_introduces then
          match this_type.N.Type_expr.node with
          | N.Type_expr.Path { name = { N.Name_type.node = N.Name_type.Ident n; _ }; generics = [] } ->
@@ -510,7 +515,8 @@ let build env tables (d : decl) (v : N.Verb_decl.t) : S.t option =
       let sc = signature_scope d intro in
       let this_ = { S.name = "this"; ty = Type_decls.resolve env sc this_type; binds = None; has_default = false } in
       (* A subscript's result is "inferred from the projected place"
-         (functions.md §2.9), which is pass 5's to type; [Check] fills it. *)
+         (functions.md §2.9), which pass 5 types; [Check] fills the result
+         in. *)
       make ~kind:S.Subscript ~name:"[]" (this_ :: List.map (param env sc intro) params) Ty.Error
 
 (* ---------------------------------------------------------------------- *)
@@ -573,8 +579,8 @@ let group_by key items =
     items;
   List.rev_map (fun k -> List.rev (Hashtbl.find_all table k)) !order
 
-(* operators.md §2.2: an operator lives in the home package of one of its
-   operands, whether it is declared in `core` or anywhere else. *)
+(* operators.md §2.2: an operator must be declared in the home package of one
+   of its operands' types, whether that package is `core` or any other. *)
 let check_operator_home env (d : decl) (s : S.t) =
   let homes = List.filter_map (fun (p : S.param) -> home p.ty) s.params in
   if not (List.mem (S.Package d.package) homes) then
@@ -647,7 +653,8 @@ let check_constructor_target env (d : decl) (s : S.t) =
 (* memory.md §2.9: the subject is always a borrow, so no marker is written
    on it, and a reference-typed result is written `^T` or `&T`. A
    constructor's result is the value it builds, which is fresh, and a
-   subscript's is the place it projects, so neither is a return. *)
+   subscript's result is the place it projects, so neither result is a
+   return. *)
 let check_modes env (d : decl) (s : S.t) =
   (match (s.kind, s.params) with
   | (S.Method | S.Subscript), { S.ty = (Ty.Reference _ | Ty.Roaming _) as t; _ } :: _ ->
@@ -687,7 +694,7 @@ let check_enum_entries env (d : decl) (tid : Ty.type_id) members entries =
       (Printf.sprintf "an enum map covers every member, and this one has no entry for %s"
          (String.concat ", " (List.map quote missing)))
 
-(* One package gives an enum at most one map of a name. *)
+(* One package gives an enum at most one map with a given name. *)
 let add_enum_map env (tables : verbs) (d : decl) (tid : Ty.type_id) (property : N.Name.t) ty =
   let key = (tid, property.N.Name.text) in
   let existing = Option.value ~default:[] (Hashtbl.find_opt tables.enum_maps key) in
@@ -732,7 +739,8 @@ let constant env (tables : verbs) (d : decl) =
       Hashtbl.replace tables.constant_types d.id ty
   | _ -> ()
 
-(* Files a built signature under its kind, where a call looks for it. *)
+(* Files a built signature in the table for its kind of verb, where a call
+   looks for it. *)
 let register (tables : verbs) v (s : S.t) =
   match s.kind with
   | S.Method -> Hashtbl.add tables.methods s.name s

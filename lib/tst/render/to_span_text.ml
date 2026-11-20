@@ -1,17 +1,17 @@
 (* Every node of the typed tree, with the source text its span covers.
 
-   [Sst.To_span_text] over the TST. As there, each line carries the node's
-   variant, so the expectation shows what resolution decided and not just
-   that spans survived it:
+   This is [Sst.To_span_text] over the TST. As in [Sst.To_span_text], each line
+   carries the node's variant, so the expectation shows what resolution
+   decided and not just that spans survived it:
 
      expr Coerce Point       | 3
        expr Integer_lit      | 3
 
-   Two lines that say the checker inserted an implicit constructor around a
-   literal (D9), and that the inserted node points at the argument it
+   These two lines show that the checker inserted an implicit constructor
+   around a literal (D9), and that the inserted node points at the argument it
    converted. A node the checker built that pointed nowhere would print
-   `<INVALID SPAN>`, and one that pointed at the wrong thing would print the
-   wrong text.
+   `<INVALID SPAN>`, and a node that pointed at the wrong syntax would print
+   the wrong text.
 
    One thing is new. A tree of the SST comes from one file; the TST comes
    from every file of the build. So each line reads its text out of the file
@@ -24,8 +24,8 @@
 open Nodes
 
 (* Where a line goes: the printer [render] made, the text of each file by
-   its path, and how deep the line is. Every function below takes one and
-   hands a [deeper] one to the parts of its node. *)
+   its path, and how deep the line is. Every function below takes a cursor
+   and hands a [deeper] one to the parts of its node. *)
 type cursor = { printer : Source.Span_text.t; sources : string -> string option; depth : int }
 
 let deeper d = { d with depth = d.depth + 1 }
@@ -228,8 +228,8 @@ let instance spans d (i : Instance.t) =
 (* [source] finds a file's text by the path its spans carry, which is the
    path the build read it from. *)
 let render ~source (p : Program.t) =
-  (* Every line looks its file up, and [source] may scan the whole build to
-     find one, so each file is found once. *)
+  (* Every line looks up its file, and [source] may scan the whole build to
+     find a file, so each file is looked up only once. *)
   let found = Hashtbl.create 16 in
   let sources path =
     match Hashtbl.find_opt found path with

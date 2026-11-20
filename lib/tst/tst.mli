@@ -11,22 +11,22 @@ module Nodes = Nodes
 (** A decimal literal's single, which lowering embeds as checked here. *)
 module Decimal = Decimal
 
-(** What each expression and statement of the tree is made of, for every
-    pass over it. *)
+(** The parts of each expression and statement of the tree, for every pass
+    over it. *)
 module Traverse = Traverse
 
-(** Which verbs can exit, which lowering asks of a verb's body. *)
+(** Which verbs can exit, which lowering asks about a verb's body. *)
 module Exits = Exits
 
-(** The state of the place an expression denotes, which lowering asks of
+(** The state of the place an expression denotes, which lowering asks for
     an overwritten place holding a foreign handle (docs/design/ffi.md
     F12). *)
 module States = States
 
-(** The intrinsic namespaces' verbs, which lowering looks a method up in. *)
+(** The intrinsic namespaces' verbs, in which lowering looks up methods. *)
 module Intrinsics = Intrinsics
 
-(** The passes, run in order, and what a check gives back. *)
+(** The passes, run in order, and the result a check returns. *)
 module Semantics = Semantics
 
 (** Every pass over the assembled packages: the program, and every problem

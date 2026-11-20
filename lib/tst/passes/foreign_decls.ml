@@ -97,7 +97,8 @@ let foreign_verbs env =
         (List.rev (package env pkg_name).decls))
     (Names.package_order env.names)
 
-(* The verb's subject's handle, when it is a method on one. *)
+(* The handle type of the verb's subject, when the verb is a method on a
+   handle. *)
 let subject_handle env (v : verb) =
   match (v.signature.S.kind, v.signature.S.params) with
   | S.Method, this_ :: _ -> handle_of env this_.S.ty
@@ -112,8 +113,9 @@ let on_capability env v =
 
 (* Each handle type's kind (§4.1, §4.2): a capability when it has no free
    function; otherwise outside state when the foreign verbs that make it
-   are methods on a foreign capability, and program state when none are. A
-   type some of whose makers are and some are not is both, and refused. *)
+   are methods on a foreign capability, and program state when none of them
+   are. A type made both by methods on a foreign capability and by other
+   foreign verbs would be both kinds, and is refused. *)
 let kinds env (tables : verbs) verbs =
   Types.fold_type_infos
     (fun _ (info : type_info) () ->
@@ -146,15 +148,15 @@ let kinds env (tables : verbs) verbs =
 (* A handle's C type and C functions                                      *)
 (* ---------------------------------------------------------------------- *)
 
-(* `cType` names a struct an interface header declares, and `free` and
-   `set` C functions of the interface headers that take non-`const`
-   pointers to it and return nothing (§4.1). *)
+(* `cType` names a struct that an interface header declares, and `free` and
+   `set` name C functions of the interface headers that take non-`const`
+   pointers to that struct and return nothing (§4.1). *)
 let check_handle env (info : type_info) (h : Nodes.Handle.t) =
   let iface = interface env info.decl.package in
   let at = info.decl.span in
   match record_of iface h.Nodes.Handle.c_type with
   | None ->
-      (* A `cType` that is no C name is reported where it is written. *)
+      (* A `cType` that is not a C identifier is reported where it is written. *)
       if Type_decls.is_c_identifier h.Nodes.Handle.c_type then
         error env at
           (Printf.sprintf
@@ -193,7 +195,7 @@ let check_handle env (info : type_info) (h : Nodes.Handle.t) =
 
 type scalar = I32 | I64 | F32 | F64
 
-(* What a Zane type crosses into C as (§3.3). *)
+(* The C form a Zane type takes when it is passed to C (§3.3). *)
 type crossing =
   | Scalar of scalar
   | Bool
@@ -218,12 +220,13 @@ let scalar_name = function I32 -> "@primitives$I32" | I64 -> "@primitives$I64" |
    them, or such structs in turn: a C-compatible value type (§3.3), with its
    fields' types.
 
-   A struct that holds itself, which [path] finds, has no size and so is
-   none. Only one whose arguments grow at each step, as `N<T>` holding an
-   `N<Wrap<T>>`, never repeats; it has no size either, and the walk gives
-   up on it after [budget] types. [checked] holds each type the walk has
-   already answered for, so a type a struct holds many times, as each
-   field of one holding two of the type before it, counts once. *)
+   A struct that holds itself, which [path] finds, has no size and so is not
+   C-compatible. Only a struct whose arguments grow at each step, as `N<T>`
+   holding an `N<Wrap<T>>`, never repeats; it has no size either, and the
+   walk gives up on it after [budget] types. [checked] holds the result for
+   each type the walk has already examined, so a type that a struct holds
+   many times, as when each field holds two of the previous field's type,
+   counts once. *)
 let rec value_struct env ?(path = []) ?(budget = ref 100_000) ?(checked = Hashtbl.create 16) (t : Ty.t) =
   match t with
   | Ty.Named _ when Hashtbl.mem checked t -> Hashtbl.find checked t
@@ -272,9 +275,10 @@ let crossing env (t : Ty.t) =
       | _, _, _, _, Some (tid, h) -> Some (Handle (tid, h))
       | _ -> None)
 
-(* Whether [c] is one of a scalar's full-width C types (§3.3): those of its
-   own size, which alone lay out as it does. A standard typedef is matched
-   by its name, so `int64_t` is one where it is a `long`. *)
+(* Whether [c] is one of a scalar's full-width C types (§3.3): the C types of
+   the scalar's own size, which are the only C types laid out as the scalar
+   is. A standard typedef is matched by its name, so `int64_t` is a
+   full-width type even on a target where it is a `long`. *)
 let full_width scalar (c : C.ctype) =
   let named standard_names names standard name = (match standard with Some s -> List.mem s standard_names | None -> false) || List.mem name names in
   match (scalar, c) with
@@ -287,8 +291,9 @@ let full_width scalar (c : C.ctype) =
   | F32, C.Float { size = 32; ieee = true; name = "float" } | F64, C.Float { size = 64; ieee = true; name = "double" } -> true
   | _ -> false
 
-(* A C type narrower than 32 bits that `@primitives$I32` crosses as: its
-   low bits when passed, widened by the C type's sign when returned. *)
+(* A C type narrower than 32 bits that `@primitives$I32` may be passed as:
+   its low bits are passed, and a returned value is widened by the C type's
+   sign. *)
 let narrow_i32 (c : C.ctype) =
   match c with
   | C.Int { size; width; name; standard; _ } when size <= 32 && width = size ->
@@ -297,9 +302,9 @@ let narrow_i32 (c : C.ctype) =
   | _ -> false
 
 (* The layout of a C-compatible value type as lowering lays it out: each
-   field at the next offset its alignment allows, the whole rounded up to
-   its largest alignment ([value_struct] has already found every field
-   crosses). Sizes in bytes. *)
+   field at the next offset its alignment allows, and the whole struct
+   rounded up to its largest alignment ([value_struct] has already found
+   that every field can be passed to C). Sizes are in bytes. *)
 let scalar_layout = function I32 | F32 -> (4, 4) | I64 | F64 -> (8, 8)
 
 let rec layout env (t : Ty.t) =
@@ -325,13 +330,14 @@ and field_offsets env fields =
   in
   (List.rev offsets, round next align, align)
 
-(* Whether a C-compatible value type's fields lay out as [record]'s do:
-   the same number, in order, each of a full-width C type of the Zane
-   field's scalar, an array of one, or a struct corresponding in turn, at
-   the same offset, and the two the same size and alignment: C passes a
-   struct aligned more strictly than its fields, as `_Alignas` makes one,
-   differently, and its slot would be under-aligned. A struct with a
-   bit-field corresponds to none (docs/design/ffi.md F6). *)
+(* Whether a C-compatible value type's fields lay out as [record]'s do: the
+   same number of fields, in order, each at the same offset, and each of a
+   full-width C type of the Zane field's scalar, an array of such a type, or
+   a struct that corresponds in turn; and the two structs have the same size
+   and alignment. C passes a struct aligned more strictly than its fields,
+   as `_Alignas` makes one, differently, and its slot would be
+   under-aligned. A struct with a bit-field corresponds to no Zane type
+   (docs/design/ffi.md F6). *)
 let rec struct_matches env iface fields record =
   match List.assoc_opt record iface.C.records with
   | Some { C.union = false; layout = Some l; _ } ->
@@ -356,12 +362,13 @@ and field_matches env iface t (c : C.ctype) =
 (* Checking one foreign verb                                              *)
 (* ---------------------------------------------------------------------- *)
 
-(* Where a type stands in a foreign verb, which decides what crosses there
-   and how C may use a handle (§3.5, §4.4). *)
+(* Where a type stands in a foreign verb, which determines what may be passed
+   there and how C may use a handle (§3.5, §4.4). *)
 type position = Subject | Param | Result
 
-(* A C type with no Zane type at all (§3.3): one whose size differs
-   between targets, a variadic, and every other the table leaves out. *)
+(* A C type with no Zane type at all (§3.3): a type whose size differs
+   between targets, a variadic, and every other type the table leaves
+   out. *)
 let unsupported_hint (c : C.ctype) =
   match c with
   | C.Int { name = "long" | "unsigned long" | "wchar_t"; standard = None; _ } | C.Float { ieee = false; _ } ->
@@ -376,7 +383,7 @@ let handle_pointer env (v : verb) kind position =
   let mut = v.signature.S.is_mut in
   match (kind, position) with
   | Nodes.Decl.Capability, Subject -> Ok (not mut)
-  (* Returning one is refused on its own ([check_maker]). *)
+  (* Returning a capability is refused separately ([check_maker]). *)
   | Nodes.Decl.Capability, Result -> Ok false
   | Nodes.Decl.Capability, Param ->
       Error "a foreign capability stands in a foreign verb only as the subject of a method (ffi.md §4.4)"
@@ -390,9 +397,9 @@ let handle_pointer env (v : verb) kind position =
   | Nodes.Decl.Data, Param -> Ok true
 
 (* Whether [iface]'s struct [name] is a view as `<zane_ffi.h>` declares it
-   (§3.4): a `const` pointer to what [element] accepts, then a `size_t`,
-   and nothing else. A header may declare its own of the tag, and the tag
-   alone says nothing of its layout. *)
+   (§3.4): a `const` pointer to a type [element] accepts, then a `size_t`,
+   and nothing else. A header may declare its own struct with the same tag,
+   and the tag alone does not determine the struct's layout. *)
 let is_view iface name element =
   match List.assoc_opt name iface.C.records with
   | Some { C.union = false; layout = Some { C.size; fields = [ p; n ]; _ }; _ } -> (
@@ -403,11 +410,11 @@ let is_view iface name element =
       | _ -> false)
   | _ -> false
 
-(* What a string's view points to: bytes, `uint8_t`. *)
+(* The type a string's view points to: bytes, `uint8_t`. *)
 let bytes = function C.Int { signed = false; size = 8; width = 8; _ } -> true | _ -> false
 
 (* Whether the Zane type [t] at [position] corresponds to the C type [c],
-   as [Error] with why when it does not. *)
+   or [Error] with the reason when it does not. *)
 let rec corresponds env iface (v : verb) position (t : Ty.t) (c : C.ctype) =
   let differ what = Error (Printf.sprintf "C declares %s here, and %s%s" (quote (C.to_string c)) what (unsupported_hint c)) in
   let not_view tag fields =
@@ -517,7 +524,7 @@ and function_corresponds env iface v (f : Ty.verb) c =
     | C.Pointer { pointee = C.Function { params; result = r; variadic = false }; _ }
       when List.length params = List.length f.Ty.params -> (
         (* C calls the function with these types, so a narrow C integer
-           type would hand the Zane function bits C never set. *)
+           type would pass the Zane function bits that C never set. *)
         let check position t p =
           match crossing env t with
           | Some (Scalar s) when not (full_width s p) ->
@@ -549,9 +556,9 @@ let ret_span (v : verb) =
   match v.ret.N.Ret_type.node with N.Ret_type.Safe t | N.Ret_type.Abort { ok = t; _ } -> t.N.Type_expr.span
 
 (* §3.1, §3.5: a foreign verb takes no type or number parameter, no
-   concept-typed parameter and no block; a `^` result is the only one a
-   reference type is given as, and only a handle result declares an abort
-   type, `@primitives$Unit`. *)
+   concept-typed parameter and no block; a reference type may be a result
+   only as a `^` result, and only a handle result declares an abort type,
+   `@primitives$Unit`. *)
 let check_form env (v : verb) =
   let s = v.signature in
   let at = v.decl.span in
@@ -578,8 +585,9 @@ let check_form env (v : verb) =
       error env (ret_span v)
         "only a foreign verb that returns a handle declares an abort type: a C function signals failure through its result, and the package's Zane code turns that into an abort (ffi.md §3.5)"
 
-(* §4.2, §5.3: no foreign verb returns a foreign capability, and one that
-   returns an outside handle is a `mut` method on a foreign capability. *)
+(* §4.2, §5.3: no foreign verb returns a foreign capability, and a foreign
+   verb that returns an outside handle is a `mut` method on a foreign
+   capability. *)
 let check_maker env (v : verb) =
   match handle_of env v.signature.S.ret with
   | Some (_, h) when is_capability h ->
@@ -644,12 +652,13 @@ let check_against_c env (v : verb) =
         error env at (Printf.sprintf "%s is declared as %s, not as a function" (quote symbol) (quote (C.to_string ty)));
         None
 
-(* What the verb reads and writes outside the program (§5.2). *)
+(* The state outside the program that the verb reads and writes (§5.2). *)
 let access env v =
   if not (on_capability env v) then F.Pure else if v.signature.S.is_mut then F.Writes else F.Reads
 
 (* A handle is made only by a foreign verb that returns it, and a capability
-   only by a foreign variable (§4.1, §4.2), so no constructor builds one. *)
+   only by a foreign variable (§4.1, §4.2), so no constructor builds a
+   handle. *)
 let check_constructors env =
   Names.fold_decls
     (fun _ (d : decl) () ->
@@ -683,10 +692,11 @@ let run env (tables : verbs) =
 (* Foreign variables                                                      *)
 (* ---------------------------------------------------------------------- *)
 
-(* A foreign variable's value (§5.1): declared only in the root package,
-   of a foreign capability's type, naming a global the package that
-   declares the type defines with external linkage and declares in an
-   interface header with the type's C type, not thread-local. *)
+(* A foreign variable's value (§5.1). The variable is declared only in the
+   root package and has a foreign capability's type. It names a global that
+   is not thread-local, which the package declaring the type defines with
+   external linkage and declares in an interface header with the type's C
+   type. *)
 let global env ~package ~span ~declared (symbol : N.Name.t) : Nodes.Expr.t =
   let name = symbol.N.Name.text in
   let fail message =

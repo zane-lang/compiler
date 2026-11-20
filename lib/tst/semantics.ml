@@ -7,12 +7,12 @@ type result = {
   diagnostics : Diagnostic.t list;
 }
 
-(* Every pass, over tables of this check's own. Each pass fills its group's
-   tables and hands on a view of them, and the next pass runs on that view:
-   a pass runs only once the passes before it have. *)
-(* [interfaces] gives what each package's C code declares and defines, by
-   package identity (docs/design/ffi.md F6); a package it leaves out has
-   no C. *)
+(* Every pass, over this check's own tables. Each pass fills its group's
+   tables and hands on a view of them, and the next pass runs on that view,
+   so a pass runs only after the passes before it. *)
+(* [interfaces] gives the declarations and definitions of each package's C
+   code, by package identity (docs/design/ffi.md F6); a package missing from
+   [interfaces] has no C. *)
 let check ?(interfaces = []) (packages : Assembly.package list) =
   let env = Env.start () in
   List.iter (fun (id, i) -> Hashtbl.replace env.Env.interfaces id i) interfaces;
@@ -20,8 +20,8 @@ let check ?(interfaces = []) (packages : Assembly.package list) =
   let env = { env with types = Type_decls.run env (Env.types ()) } in
   let env = { env with verbs = Verb_signatures.run env (Env.verbs ()) } in
   let program = Program.run env (Env.instances ()) in
-  (* The analyses over the finished tree (D1). Which blocks run more than
-     once is computed here, once, for the two that ask. *)
+  (* The analyses over the finished tree (D1). The blocks that run more than
+     once are computed here, once, for the two analyses that need them. *)
   let multi = Repeats.compute env program in
   Read_only.run env ~multi program;
   References.run env program;
@@ -42,6 +42,6 @@ let check ?(interfaces = []) (packages : Assembly.package list) =
   in
   { program; diagnostics }
 
-(* The text a build read from [path]: what a span is read back out of. *)
+(* The text a build read from [path], which a span is read back out of. *)
 let source packages path = Source.Files.find (Assembly.sources packages) path
 
