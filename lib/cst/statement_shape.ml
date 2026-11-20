@@ -1,13 +1,14 @@
-(* Where a statement ends, and whether it was spelled to match.
+(* Where a statement ends, and whether its terminator was spelled to match.
 
-   Two questions about the tail of a statement's tree -- does it close with a
-   brace, and does it end with a trailing argument that something then
-   continued past -- and the constructors that record the answers on the
-   statement node.
+   This module answers two questions about the tail of a statement's tree --
+   does it close with a brace, and does it end with a trailing argument that
+   something then continued past -- and holds the constructors that record the
+   answers on the statement node.
 
-   Distinct from [Statement_check], which walks the finished CST and reports
-   the defects recorded here: this module decides the shape while the tree is
-   still being built, that one reads the marks off the tree that survived. *)
+   It is distinct from [Statement_check], which walks the finished CST and
+   reports the defects recorded here: this module decides the shape while the
+   tree is still being built, and [Statement_check] reads the marks off the
+   tree that survived. *)
 
 (* The span type lives below the stages, in [Source], because a source
    location is not CST-specific: SST and everything after it point at the same
@@ -17,15 +18,15 @@ module Span = Source.Span
 (* Does this statement's last token close a brace?
 
    A statement ends with `;`, unless it ends with a `}` -- then that brace ends
-   it and a `;` after it would mark nothing. Which of the two a statement takes
-   is therefore a property of its final token, which is a property of the
-   shape at the tail of its tree: every form below either closes with a brace
-   itself or hands the question to whatever it ends with.
+   it and a `;` after it would terminate nothing. Whether a statement ends with
+   `;` or `}` therefore depends on its final token, which depends on the shape
+   at the tail of its tree: every form below either closes with a brace itself
+   or passes the question on to the construct it ends with.
 
    The grammar decides this too -- a statement without a `;` must end in one of
-   the `_braced` forms in [Parser] -- so the one place the answer is still read
-   off the tree is a statement that was closed with a `;`: if it also ends in a
-   brace, that `;` marks nothing. *)
+   the `_braced` forms in [Parser] -- so the only statement whose answer is
+   still read off the tree is a statement closed with a `;`: if it also ends in
+   a brace, that `;` terminates nothing. *)
 let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   match value.Nodes.Expr.node with
   | Nodes.Expr.Init _ | Nodes.Expr.MapLit _ -> true
@@ -38,7 +39,7 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.DotAccess { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
-  (* Closed by `)`, `]`, `>`, or the name itself. *)
+  (* Closed by `)`, `]`, `>`, or the identifier itself. *)
   | Nodes.Expr.IntLit _ | Nodes.Expr.DecimalLit _ | Nodes.Expr.StrLit _
   | Nodes.Expr.BoolLit _ | Nodes.Expr.CollectionLit _ | Nodes.Expr.NameExpr _
   | Nodes.Expr.TypeMember _ | Nodes.Expr.TypeValue _ | Nodes.Expr.DotAccess _
@@ -53,7 +54,8 @@ and verb_call_ends_in_brace (call : Nodes.Verb_call.t) =
   | Nodes.Verb_call.Op { abort_handle = Some handle; _ }
   | Nodes.Verb_call.Flip { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
-  (* A trailing argument's `}` is the call's last token; without one the `)` is. *)
+  (* A trailing argument's `}` is the call's last token; without a trailing
+   argument the `)` is. *)
   | Nodes.Verb_call.Func { trailing; _ } | Nodes.Verb_call.Meth { trailing; _ } ->
       trailing
   (* A field constructor call closes on the `}` of its own field body, which is
@@ -76,10 +78,10 @@ and body_ends_in_brace (value : Nodes.Body.t) =
   | Nodes.Body.Shorthand value -> expr_ends_in_brace value
   | Nodes.Body.Foreign _ -> false
 
-(* A mould's delimiter is decided by its contents: named typed members take
-   `{ }`, a flat list of names takes `[ ]`. Only the first closes a statement,
-   so the shape has to be read rather than assumed from the value being
-   moulded at all. *)
+(* A mould's contents determine its delimiter: named typed members take
+   `{ }`, and a flat list of names takes `[ ]`. Only `{ }` closes a statement,
+   so the shape has to be read from the mould rather than assumed from the
+   fact that a value is moulded. *)
 let moulded_ends_in_brace (moulded : Nodes.Moulded.t) =
   match moulded.Nodes.Moulded.mould.Nodes.Mould.node with
   | Nodes.Mould.Struct _ | Nodes.Mould.Variant _ | Nodes.Mould.Handle _ -> true
@@ -108,9 +110,10 @@ let decl_ends_in_brace (value : Nodes.Decl.t) =
   | Nodes.Decl.Alias
       { value = { Nodes.Type_or_moulded.node = Nodes.Type_or_moulded.Moulded moulded; _ }; _ } ->
       moulded_ends_in_brace moulded
-  (* Cast from a bare type expression, which closes on a name, `]`, `>` or `)`. *)
+  (* Cast from a bare type expression, which closes on an identifier, `]`, `>`
+   or `)`. *)
   | Nodes.Decl.Type _ | Nodes.Decl.Alias _ -> false
-  (* Its entries are a `{ }` body. *)
+  (* The map's entries are a `{ }` body. *)
   | Nodes.Decl.EnumMap _ -> true
   | Nodes.Decl.Verb verb -> verb_decl_ends_in_brace verb
 
@@ -133,9 +136,10 @@ let rec ends_in_trailing_call (value : Nodes.Expr.t) =
 
 (* Is a trailing argument's `}` written anywhere an operand continues past it?
 
-   Only the left of a binary form can do that: the right is the tail, and
-   whether the tail may end that way is the enclosing statement's question,
-   answered where that statement is built. But the binary form itself can sit
+   Only the left operand of a binary form can do that: the right operand is
+   the tail, and whether the tail may end that way is a question for the
+   enclosing statement, answered where that statement is built. But the binary
+   form itself can sit
    anywhere, so the whole of a statement's own expression is searched -- under
    a lambda's `=> expr` body, inside a match arm, in an argument, under a
    handler, and inside parentheses.
@@ -144,7 +148,7 @@ let rec ends_in_trailing_call (value : Nodes.Expr.t) =
    + Int(1)` is legal because the `)` closes the call before the operator sees
    it, which [ends_in_trailing_call] reports by not seeing through a
    [Parenthized]. `(run() { } + Int(1))` puts the operator *inside*, and is the
-   same mistake wearing brackets.
+   same mistake inside parentheses.
 
    What is not searched is a nested statement -- a `{ }` body or block
    argument. Those carry their own marks, put there when they were built. *)
@@ -272,19 +276,19 @@ let decl_continues_past_trailing (value : Nodes.Decl.t) =
   | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ ->
       false
 
-(* How a construct the grammar closed disagrees with the rules about where it
-   ends, if it does: a trailing argument continued past its `}`, or a `;` after
-   a construct that already ended in a brace. A package-scope declaration is
-   held to the same rules as a statement (lexical.md §6.3), so [Parser] asks
-   this for both. *)
+(* The defect, if any, in how a construct that the grammar closed ends: a
+   trailing argument continued past its `}`, or a `;` after a construct that
+   already ended in a brace. A package-scope declaration follows the same rules
+   as a statement (lexical.md §6.3), so [Parser] calls this function for
+   both. *)
 let defect ~ends_in_brace ~ends_at ~continued =
   if continued then
     Some (Nodes.Statement_defect.Continued_trailing_argument, ends_at)
   else if ends_in_brace then Some (Nodes.Statement_defect.Stray_semicolon, ends_at)
   else None
 
-(* Build a statement the grammar closed with a `;`, recording how it disagrees
-   with the rules about where a statement ends, if it does.
+(* Build a statement that the grammar closed with a `;`, recording its defect,
+   if any, in how it ends.
 
    The grammar decides whether a statement needs its `;` -- a missing one is a
    parse error -- but it still admits one after a statement that ends in a `}`,

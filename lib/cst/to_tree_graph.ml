@@ -23,8 +23,8 @@ open Tree_graph
 (* that wanted a different label or no label at all.   *)
 (* =================================================== *)
 
-(* A name renders as its text: the span it now carries is for a diagnostic to
-   point at, not for a reader of the tree, so the rendering is unchanged. *)
+(* An identifier renders as its text: the span it carries is for a diagnostic
+   to point at, not for a reader of the tree, so the span is not rendered. *)
 let text (n: Nodes.Name.t) = n.Nodes.Name.text
 
 let name_type_to_node (x: Nodes.Name_type.t) = match x.Nodes.Name_type.node with

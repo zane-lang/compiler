@@ -1,12 +1,12 @@
 (* Whether every statement agrees with the rules about where it ends.
 
    The rule is that a `;` ends a statement, unless the statement ends in a `}`
-   -- then that brace ends it and a `;` would mark nothing (lexical.md §6.3).
-   The grammar carries the first half: every statement is closed by one of the
-   two, so a missing `;` never reaches here. What it still admits is a `;`
-   after a closing brace, and a trailing argument's `}` with something written
-   after it; each of those has a single parse, so [Parser] records it on the
-   statement and this walk reports it.
+   -- then that brace ends it and a `;` would terminate nothing (lexical.md
+   §6.3). The grammar enforces the first half: every statement is closed by a
+   `;` or a `}`, so a missing `;` never reaches here. The grammar still admits
+   a `;` after a closing brace, and a trailing argument's `}` with something
+   written after it; each of those has a single parse, so [Parser] records it
+   on the statement and this walk reports it.
 
    It records rather than raises because the parser is GLR: an action runs on
    every branch that is live at the time, including ones that lose a token
@@ -29,9 +29,9 @@ let message (defect : Nodes.Statement_defect.t) =
       "a trailing argument ends the statement, so nothing may continue it; \
        parenthesize the call to go on using its value"
 
-(* The first defective statement in written order, if any. Reporting one is
-   enough: each of these is a local property, so a second is not explained by
-   the first and will be found on the next run. *)
+(* The first defective statement in written order, if any. Reporting one
+   defect is enough: each defect is local, so the first defect does not
+   explain a second one, and the next run finds the second. *)
 let rec first_in_statements (statements : Nodes.Statement.t list) =
   match statements with
   | [] -> None
@@ -43,8 +43,9 @@ let rec first_in_statements (statements : Nodes.Statement.t list) =
           | Some found -> Some found
           | None -> first_in_statements rest))
 
-(* A statement's own mark is checked by the caller; this looks inside it, since
-   a block argument or a verb body holds statements of its own. *)
+(* The caller checks a statement's own mark; this function looks inside the
+   statement, since a block argument or a verb body holds statements of its
+   own. *)
 and in_stat (stat : Nodes.Stat.t) =
   match stat.Nodes.Stat.node with
   | Nodes.Stat.VerbCall call | Nodes.Stat.Spawn call -> in_verb_call call
@@ -188,9 +189,10 @@ and in_constructor_params (params : Nodes.Constructor_params.t) =
 
 (* [Ok ()] when every statement and package-scope declaration ends the way its
    shape calls for. Otherwise a diagnostic at the position recorded on the
-   first offender, as an empty span: a statement is wrong where it ends, not
-   across its text. A declaration's own mark and the ones inside it are kept
-   apart, so the first is whichever comes earlier in the text. *)
+   first defective statement, as an empty span: a statement is wrong where it
+   ends, not across its text. A declaration's own mark and the marks inside it
+   are kept apart, so the first defect is whichever comes earlier in the
+   text. *)
 let check (package : Nodes.Package.t) =
   let inside =
     List.fold_left

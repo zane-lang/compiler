@@ -242,8 +242,8 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
   let span = x.C.Verb_call.span in
   match x.C.Verb_call.node with
   (* §2.9: [trailing] is dropped. The two spellings are the same call; the
-     flag recorded that they do not end the same way, which is a question
-     [Cst.Statement_check] has already answered. *)
+     flag recorded that they do not end the same way, and
+     [Cst.Statement_check] has already checked how each statement ends. *)
   | C.Verb_call.Func { callee; args; abort_handle; trailing = _ } ->
       verb_call span
         (S.Verb_call.Call
@@ -255,9 +255,9 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
            })
   (* §2.11: the subject becomes the first argument, which is what
      functions.md §2.6 desugars it to and what §2.1 means by a method being a
-     verb whose first parameter is `this`. The marker stays on the call: it
-     decides how the name resolves, and `:` against `!` is a check a later
-     pass makes against the declaration. *)
+     verb whose first parameter is `this`. The marker stays on the call: the
+     marker determines how the verb's identifier resolves, and a later pass
+     checks `:` against `!` using the declaration. *)
   | C.Verb_call.Meth { callee; this; args; abort_handle; is_mut; trailing = _ }
     ->
       let subject = expression this in
@@ -378,8 +378,9 @@ and match_expr (x : C.Match_expr.t) : S.Match_expr.t =
    separately whatever the tree does.
 
    Every expanded pattern takes the written pattern's whole span, `x [a, b]`,
-   because that is the syntax it came from; the one case it selects keeps its
-   own span, which is what a "case not covered" diagnostic points at. *)
+   because that is the syntax it came from; the single case that an expanded
+   pattern selects keeps its own span, which a "case not covered" diagnostic
+   points at. *)
 and match_arm (x : C.Match_arm.t) : S.Match_arm.t list =
   let body = block x.C.Match_arm.body in
   let span = x.C.Match_arm.span in
@@ -426,10 +427,10 @@ and block (x : C.Body.t) : S.Block.t =
      [verb_decl] reads before it asks for a block. *)
   | C.Body.Foreign _ -> Diagnostic.bug ~span "a foreign body where a block is needed"
 
-(* §2.10: the [Statement.t] wrapper is dropped. It paired a statement with how
-   its terminator disagreed with the rules, and [Cst.parse] refuses a package
-   carrying any such disagreement, so every one is [None] here. The `;` goes
-   with it: a [Stat.t]'s span covers the statement, not the mark that ended
+(* §2.10: the [Statement.t] wrapper is dropped. It paired a statement with any
+   defect in how the statement ends, and [Cst.parse] refuses a package with any
+   such defect, so every defect is [None] here. The `;` is dropped with the
+   wrapper: a [Stat.t]'s span covers the statement, not the `;` that ended
    it. *)
 and statement (x : C.Statement.t) : S.Stat.t =
   let inner = x.C.Statement.stat in

@@ -19,8 +19,8 @@ let attach_abort_handle abort_handle span value =
   let attach (call : Nodes.Verb_call.t) =
     match call.Nodes.Verb_call.node with
     (* A trailing argument ends its statement, so nothing may continue the call
-       past that `}` -- a handler included. The same call written with the
-       argument inside the parentheses takes one. *)
+       past that `}` -- not even an abort handler. The same call written with
+       the argument inside the parentheses may take a handler. *)
     | Nodes.Verb_call.Func { trailing = true; _ }
     | Nodes.Verb_call.Meth { trailing = true; _ }
     | Nodes.Verb_call.Constructor { trailing = true; _ } ->
@@ -115,11 +115,11 @@ let constructor_expr loc name args =
           (Nodes.Verb_call.Constructor
              { name; args; abort_handle = None; trailing = false })))
 
-(* An `as` alias renames one member, and casing is what marks an identifier as
-   a type or a value, so a rename across the two classes would change what the
-   name means rather than what it is spelled. The grammar admits either
-   spelling on each side because both are ordinary names; only the pair is
-   wrong. *)
+(* An `as` alias renames one member, and an identifier's case marks it as a
+   type or a value, so a rename across the two classes would change whether
+   the identifier is a type or a value, not only its spelling. The grammar
+   admits either case on each side because both are ordinary identifiers; only
+   a pair of different cases is wrong. *)
 let import_alias (member : Nodes.Import_member.t)
     (alias : Nodes.Import_member.t) =
   if member.Nodes.Import_member.is_type <> alias.Nodes.Import_member.is_type

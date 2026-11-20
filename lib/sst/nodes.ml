@@ -1,30 +1,31 @@
 (* The SST's job is to represent what the source means, once every shorthand
    has been written out.
 
-   Where the CST answers "what was written", this tree answers "what was
-   written, said one way". The rewrites that get from one to the other are
+   The CST holds what was written; this tree holds what was written, spelled
+   in a single way. The rewrites that get from one to the other are
    inventoried in docs/design/desugaring.md; each one is a surface form collapsing
    into the longhand the spec already defines it as. Nothing here needs a type
    or a resolved name, which is the line docs/design/desugaring.md draws: a rewrite
    that would need either is refused and left for a later stage.
 
    Read against lib/cst/nodes.ml, this file is mostly the same tree with
-   alternatives removed. Every place the two differ carries a comment saying
-   which desugaring took the difference away, so the pair can be diffed and
-   the diff explained. *)
+   alternatives removed. At every place where the two trees differ, a comment
+   names the desugaring that removed the difference, so the pair can be diffed
+   and the diff explained. *)
 
 (* The leaves that no desugaring touches, taken from the CST rather than
    copied.
 
-   Each of these is "a name, or a spelling of one, as written", which is what
-   both trees want; a copy would add a conversion function that is the identity
-   in all but the module path, and those are exactly the conversions that hide
-   the real ones. The ones that do not appear here are absent because they
+   Each of these leaves is an identifier, or a spelling of one, as written, and
+   both trees need exactly that; a copy would add a conversion function that is
+   the identity in all but the module path, and those are exactly the
+   conversions that hide the real ones. The leaves that do not appear here are
+   absent because they
    reach [Type_expr] or [Expr], both of which change -- so the whole recursive
    core below is redefined even where an individual node's shape is unchanged.
 
-   The coupling this creates is the right one: if [Name_type] ever grows a
-   case, a name written that way is a name the SST has to represent too. *)
+   The coupling this creates is the right one: if [Name_type] ever gains a
+   case, the SST has to represent a type name written in that case too. *)
 module Span = Source.Span
 module Name = Cst.Nodes.Name
 module Name_type = Cst.Nodes.Name_type
@@ -84,9 +85,10 @@ end
    A tree that recorded only [is_mut] would have made the two
    indistinguishable, so [Function] and [Method] stay apart.
 
-   [is_mut] is the `:`/`!` distinction, which is a check rather than a
-   meaning -- calling a `mut` method with `:` is illegal and the reverse too
-   (§2.5) -- so it travels with the call for the pass that checks it. *)
+   [is_mut] is the `:`/`!` distinction, which a pass checks but which does not
+   change what the call does -- calling a `mut` method with `:` is illegal,
+   and so is the reverse (§2.5) -- so [is_mut] travels with the call to the
+   pass that checks it. *)
 module Call_form = struct
   type t =
     | Function
@@ -119,10 +121,11 @@ module rec Expr : sig
       }
     | Subscript of { target : t; args : t list }
     (* No [Parenthized]. Parentheses "group an inner expression explicitly"
-       (syntax.md §4.7) and the grouping is the tree, so the node had nothing
-       left to say. The inner expression keeps its own span, which covers what
-       is inside the parentheses rather than the parentheses too -- the one
-       thing this rewrite loses, and nothing downstream wants it. *)
+       (syntax.md §4.7), and the tree's structure already holds the
+       grouping, so the node held no other information. The inner expression
+       keeps its own span, which covers the text inside the parentheses but
+       not the parentheses -- the only information this rewrite loses, and
+       nothing downstream needs it. *)
     | Init of Field_arg.t list
     | MapLit of (t * t) list
     | Spawn of Verb_call.t
@@ -130,10 +133,10 @@ module rec Expr : sig
     | VerbCall of Verb_call.t
     | FuncLambda of Func_lambda.t
     | MethLambda of Meth_lambda.t
-    (* A foreign variable's value (ffi.md §5.1), the C global [symbol]
-       names: a foreign variable `name T foreign "sym"` is the declaration
-       `name T = ...` with this as its value, and this is all it is ever the
-       value of. Its type is the declaration's. *)
+    (* A foreign variable's value (ffi.md §5.1): the C global that [symbol]
+       names. A foreign variable `name T foreign "sym"` is the declaration
+       `name T = ...` with this node as its value, and this node is never
+       the value of anything else. Its type is the declaration's type. *)
     | Foreign_global of Name.t
 end = Expr
 
@@ -143,8 +146,8 @@ end = Expr
    value" (error-handling.md §3.3), so [Lower] writes that block out and the
    `Shorthand` arm has nothing left to hold.
 
-   [binder] stays optional because `??` writes none, and nothing in the
-   expanded body reads one. Synthesizing a name to fill the slot would have
+   [binder] stays optional because `??` writes no binder, and nothing in the
+   expanded body reads one. Synthesizing an identifier to fill the slot would have
    meant inventing an identifier no source could collide with, to bind a value
    no expanded body mentions. *)
 and Abort_handle : sig
@@ -157,8 +160,9 @@ end = Abort_handle
 
 (* [value] is no longer optional. A bare `x` in an `init{ }` or at a
    field-constructor call site is shorthand for `x = x` (types.md §3.6 and
-   §3.5), and [Lower] writes the right-hand side out. The name it synthesizes
-   takes the field name's span, which is the whole of what was written. *)
+   §3.5), and [Lower] writes the right-hand side out. The identifier [Lower]
+   synthesizes takes the field name's span, which is the whole of what was
+   written. *)
 and Field_arg : sig
   type t = {
     name : Name.t;
@@ -204,8 +208,8 @@ and Verb_call : sig
        it. See [Call_form].
 
        No [trailing]. The two spellings "are the same call" (syntax.md §4.8);
-       the flag existed because they do not *end* the same way, which is what
-       [Cst.Statement_check] needed to decide whether a `;` belonged. That
+       the flag existed because they do not *end* the same way, and
+       [Cst.Statement_check] needed it to decide whether a `;` belonged. That
        check has already run and passed before this tree is built. *)
     | Call of {
         callee : Expr.t;
@@ -221,7 +225,7 @@ and Verb_call : sig
     (* [left] and [right] are the operands in the order they were written,
        which is the order they are evaluated in (operators.md §2.3).
        [swapped] is set when the operator receives them the other way round: `a > b`
-       is `b < a` (§2.3), so it is a [Less] with [left] `a`, [right] `b` and
+       is `b < a` (§2.3), so `a > b` is a [Less] with [left] `a`, [right] `b` and
        [swapped] set -- `a` is evaluated first and passed second. *)
     | Op of {
         op : Operator.t;
@@ -364,11 +368,11 @@ end = Constructor_params
    A `[ ]` group is "shorthand for one arm per listed case" (adt.md §5.1), and
    [Lower] writes those arms out. The reason the spec gives for the expansion
    is that each expanded arm binds the binder "at *its own* case's payload", so
-   a group cannot be checked once however it is stored -- which is why this is
-   an expansion rather than a set kept on the arm.
+   a group cannot be checked only once, however it is stored -- which is why
+   the group is expanded rather than kept on the arm as a set.
 
-   The case's own [Name.t] keeps its own span, which is the single case name a
-   "case not covered" diagnostic wants to point at. The pattern's span is the
+   The case's [Name.t] keeps its own span, which covers the single case name
+   that a "case not covered" diagnostic points at. The pattern's span is the
    whole `x [a, b]` it came from, since that is the syntax that produced it. *)
 and Match_pattern : sig
   type t = {
@@ -416,15 +420,14 @@ end = Stat
    This is what the CST's [Body.t] becomes. `=> expr` "means exactly
    `{ return expr }` and adds no other behavior" (functions.md §3.4), so the
    `Shorthand` arm is written out and only the statement list is left. The
-   record survives the arm because a body has a span worth keeping: "not every
-   path returns" wants to point at the body, and a bare list cannot say where
-   it was.
+   record outlives the arm because a body has a span worth keeping: "not every
+   path returns" points at the body, and a bare list carries no span.
 
-   The CST's [Statement.t] wrapper is gone too. It paired a statement with how
-   its terminator disagreed with the rules, and [Cst.parse] refuses a package
-   with any such disagreement -- so every one of them is [None] by the time
-   this tree can exist. What goes with it is the `;`: a [Stat.t]'s span covers
-   the statement, not the mark that ended it. *)
+   The CST's [Statement.t] wrapper is gone too. It paired a statement with any
+   defect in how the statement ends, and [Cst.parse] refuses a package with
+   any such defect -- so every defect is [None] by the time this tree can
+   exist. The `;` goes with the wrapper: a [Stat.t]'s span covers the
+   statement, not the `;` that ended it. *)
 and Block : sig
   type t = {
     stats : Stat.t list;
@@ -538,10 +541,11 @@ end = Verb_decl
    the base type, "never `Vector2.diagonal` or a per-case type". [Lower] writes
    the shorthand out into [Var], so [VarShorthand] is gone.
 
-   What the rewrite does not settle is what `Expr.intLit(...)` *is* -- a
-   variant case form or a named constructor call -- because that depends on
-   what `Expr` turns out to be. It does not have to: both yield the base type,
-   which is all the rewrite claims. *)
+   The rewrite does not settle whether `Expr.intLit(...)` is a variant case
+   form or a named constructor call, because that depends on how `Expr` is
+   declared, which is not syntax. The rewrite does not need to
+   settle it: both forms yield the base type, which is all the rewrite
+   claims. *)
 and Decl : sig
   type t = {
     node : node;

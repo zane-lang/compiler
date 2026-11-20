@@ -5,13 +5,14 @@
    text. Aliased rather than spelled out at each mention. *)
 module Span = Source.Span
 
-(* Every node carries where it was written.
+(* Every node carries the span where it was written.
 
-   Two shapes, chosen by what the node already is. A node whose [t] is a
-   variant becomes a record [{ node; span }] whose [node] is that variant; a
-   node whose [t] is already a record gains a [span] field. Either way [t] is
-   the spanned thing, so a reference to [Expr.t] cannot accidentally be the
-   unspanned one -- the alternative, a generic [`a spanned`] wrapper applied at
+   A node takes one of two shapes, depending on whether its [t] is a variant
+   or a record. A node whose [t] is a variant becomes a record
+   [{ node; span }] whose [node] is that variant; a node whose [t] is already
+   a record gains a [span] field. Either way [t] is the spanned type, so a
+   reference to [Expr.t] cannot accidentally be the unspanned type -- the
+   alternative, a generic [`a spanned`] wrapper applied at
    each reference site, makes that a decision to get wrong once per mention.
    This is the shape OCaml's own Parsetree uses, for the same reason.
 
@@ -19,7 +20,7 @@ module Span = Source.Span
    about a statement rather than something written in the source, and it is
    already paired with the position it points at. It stays bare. *)
 
-(* A name as it was written, and where.
+(* An identifier as it was written, and its span.
 
    Every identifier in the tree is one of these rather than a bare [string],
    because a name is the thing a diagnostic most often has to point at and it
@@ -91,7 +92,8 @@ end
    written, and it already travels with the position it points at. *)
 module Statement_defect = struct
   type t =
-    (* Ends in `}`, which closes it, and carries a `;` that marks nothing. *)
+    (* The statement ends in `}`, which closes it, and still carries a `;`
+       that terminates nothing. *)
     | Stray_semicolon
     (* A trailing argument's `}` closes the call and the statement together, so
        nothing may continue it -- `run() { } + Int(1)` writes an operand after
@@ -147,12 +149,12 @@ module Import_member = struct
   }
 end
 
-(* What an import writes after `import` is what the file writes at the use
-   site, so the form is the declaration rather than a detail of it. An alias
-   belongs only to the two forms that name a single thing to rename: a list has
-   no single name, and the whole-package `pkg$` form qualifies nothing. Those
-   two combinations are therefore unrepresentable here rather than rejected
-   later. *)
+(* The form written after `import` determines how the file writes the imported
+   names at each use site, so the form is the declaration itself rather than a
+   detail of it. An alias belongs only to the two forms that import a single
+   name to rename: a list holds several names, and the whole-package `pkg$`
+   form qualifies nothing. An alias on either of those two forms is therefore
+   unrepresentable here rather than rejected later. *)
 module Import = struct
   type t = {
     node : node;
@@ -293,14 +295,15 @@ and Constructor_args : sig
     | Fields of Field_arg.t list
 end = Constructor_args
 
-(* needs grouping because then we can unify the abort handling
+(* Function, method, constructor, operator and flip calls are grouped into one
+   verb-call node, so that their abort handling can be unified.
 
    [trailing] records whether the call's last argument was written after the
    `)` rather than inside it. The two spellings mean the same call, so nothing
-   downstream of the parser reads it, but they do not end the same way: a
-   trailing argument's `}` closes the statement, which decides whether a `;`
-   follows and forbids an abort handler after it. That is surface information,
-   and a CST that could not tell the two apart could not apply either rule. *)
+   downstream of the parser reads [trailing], but they do not end the same way:
+   a trailing argument's `}` closes the statement, so no `;` follows it and no
+   abort handler may come after it. That is surface information, and a CST
+   that could not tell the two spellings apart could not apply either rule. *)
 and Verb_call : sig
   type t = {
     node : node;
@@ -483,7 +486,7 @@ and Stat : sig
     | Resolve of Expr.t
 end = Stat
 
-(* A statement together with what its terminator turned out to be.
+(* A statement together with any defect in how it ends.
 
    The grammar closes every statement with a `;` or its own `}`, so what can
    still be wrong is a `;` after that brace, or a trailing argument's `}` with
@@ -498,8 +501,8 @@ end = Stat
 and Statement : sig
   type t = {
     stat : Stat.t;
-    (* [None] when the statement is well formed. Otherwise how it is not, and
-       where to point. *)
+    (* [None] when the statement is well formed. Otherwise the defect, and the
+       position its report points at. *)
     defect : (Statement_defect.t * Lexing.position) option;
     span : Span.t;
   }
