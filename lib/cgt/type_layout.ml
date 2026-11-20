@@ -81,7 +81,7 @@ let pool_args = function
       Some (t, s, e)
   | _ -> None
 
-let pool_free = "zane_workers_free"
+let pool_free = Runtime.workers_free
 
 (* A reference type: a `#` type, a `ListRef`, an `ArrayRef` or a worker
    pool, whose instances are owned (memory.md §2.1). A roaming owner has

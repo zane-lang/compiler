@@ -213,6 +213,10 @@ let name = function
   | Workers_state -> "zane_workers_state"
   | Workers_elements -> "zane_workers_elements"
 
+(* A worker pool's free thunk (runtime/workers.c), which a pool's handle is
+   ended through as a foreign handle is through its glue's. *)
+let workers_free = "zane_workers_free"
+
 (* A value as the C ABI passes it: [I32] a `uint32_t`, [I64] an `int64_t`,
    and [Ptr] any pointer, a function's included. *)
 type ty = Void | I32 | I64 | F32 | F64 | Ptr
