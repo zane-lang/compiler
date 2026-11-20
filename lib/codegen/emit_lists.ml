@@ -62,8 +62,13 @@ let innermost fr p =
     | _ -> v
   in
   let p = base p in
-  (match Llvm.classify_value p with Llvm.ValueKind.Instruction Llvm.Opcode.Alloca -> true | _ -> false)
-  || match fr.open_ with frame :: _ -> p == frame | [] -> false
+  let innermost_frame = match fr.open_ with frame :: _ -> Some frame | [] -> None in
+  match (Llvm.classify_value p, Held_spills.find p) with
+  (* A held local's alloca (Held_spills) is its scope's, which may be one
+     around the innermost. *)
+  | _, Some h -> ( match innermost_frame with Some frame -> h.Held_spills.arena == frame | None -> false)
+  | Llvm.ValueKind.Instruction Llvm.Opcode.Alloca, None -> true
+  | _ -> ( match innermost_frame with Some frame -> p == frame | None -> false)
 
 (* An empty list's first block of [first] bytes, made here when its handle
    holds no block (its room is 0, as runtime/list.c reads it: the push's

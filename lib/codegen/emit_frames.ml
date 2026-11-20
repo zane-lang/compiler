@@ -255,6 +255,22 @@ let drain env fr b depth =
 let frame_slot env fr b scope id =
   byte_at env b (Hashtbl.find fr.arenas scope) (Hashtbl.find fr.offsets id)
 
+(* The place of held local [id] of LLVM type [t]: its slot in its scope's
+   frame, or, under the experiment (Held_spills), an alloca that keeps the
+   slot for the calls it is given to. A scope whose frame is itself an
+   alloca (a light scope) keeps its slots there. *)
+let held_slot env fr b scope id ~bytes t =
+  let slot = frame_slot env fr b scope id in
+  let arena = Hashtbl.find fr.arenas scope in
+  let light = match Llvm.classify_value arena with Llvm.ValueKind.Instruction Llvm.Opcode.Alloca -> true | _ -> false in
+  if Held_spills.on && env.version && bytes <= Held_spills.cap && not light then begin
+    let top = Llvm.builder_at env.ctx (Llvm.instr_begin (Llvm.entry_block fr.fn)) in
+    let a = Llvm.build_alloca t "" top in
+    Held_spills.record a { Held_spills.slot; ty = t; arena };
+    a
+  end
+  else slot
+
 (* With checked drains, a slot whose value may own blocks is listed as its
    value arrives, so the drain can return them (runtime/slot.c). One whose
    value may hold a foreign handle is listed whether or not drains are

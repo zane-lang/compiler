@@ -795,7 +795,7 @@ and stat env fr b (s : Stat.t) =
       fr.spawning <- spawning
   | Stat.Hold { id; scope; value = { Expr.node = Expr.Call _ | Expr.Call_value _; ty } as value; layout = l }
     when returning env ty = Address ->
-      let slot = frame_slot env fr b scope id in
+      let slot = held_slot env fr b scope id ~bytes:(fst (size_align ty)) (lltype env ty) in
       ignore (call ~into:slot env fr b value);
       hold env fr b slot l;
       Hashtbl.replace fr.locals id (slot, lltype env ty)
@@ -808,7 +808,7 @@ and stat env fr b (s : Stat.t) =
              what follows, and it knows the value there, a new list's empty
              header included. A large value is written first, so its load
              and its store stay next to each other for Big_moves. *)
-          let slot = frame_slot env fr b scope id in
+          let slot = held_slot env fr b scope id ~bytes:(fst (size_align value.Expr.ty)) (Llvm.type_of v) in
           if fst (size_align value.Expr.ty) >= large then begin
             ignore (Llvm.build_store v slot b);
             hold env fr b slot l
@@ -819,7 +819,7 @@ and stat env fr b (s : Stat.t) =
           end;
           Hashtbl.replace fr.locals id (slot, Llvm.type_of v))
   | Stat.Reserve { id; scope; ty = t; layout = l } ->
-      let slot = frame_slot env fr b scope id in
+      let slot = held_slot env fr b scope id ~bytes:(fst (size_align t)) (lltype env t) in
       hold env fr b slot l;
       zero env b slot (fst (size_align t));
       Hashtbl.replace fr.locals id (slot, lltype env t)
@@ -1185,6 +1185,7 @@ let func env (f : Func.t) =
          Some (Pool_cache.start env.ctx b ~alloca:(alloca env fr) ids handle)
      | [] -> None);
   stats env fr b f.Func.body;
+  Held_spills.run env.ctx fn;
   Pool_cache.current := None;
   if not (has_terminator b) then
     ignore
