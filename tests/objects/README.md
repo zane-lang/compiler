@@ -69,6 +69,13 @@ program linked from several objects wrote.
   and three pieces, whose signatures `abi_test.py` reads for each target and
   with `--pack-aggregates`. A library exports them, so each keeps its
   function even where an unoptimized build inlines it into its callers.
+- `poollibrary` is a library whose `pool` makes a worker pool, a few calls
+  down itself so that the code in its object makes the pool rather than a
+  copy a program inlined. `pooluser`, built apart from it, starts workers on
+  that pool whose steps publish the library's event type, which owns a
+  list. Each object has its own walk table for that type, and
+  `pools_test.py` checks that the program prints the events' sum, in plain
+  and optimized builds.
 - `layout` is a project laid out in `lib/` and `bin/`: `math`, which `gui`
   and its subpackage `gui.opengl` share, `_shaders`, private to the project,
   and the program `viewer`. Every library package is built into one object,

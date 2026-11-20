@@ -1,0 +1,56 @@
+/// A library that makes a worker pool whose events own a block, so their
+/// walk table is this object's own: a program built apart from it starts
+/// the pool's workers and publishes to its funnel.
+package poollibrary;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+/// An event, which owns a list.
+type Tick = struct {
+	values @primitives$List<Int>;
+}
+Tick(n Int) => init{ values = repeated(n); }
+
+@primitives$List<Int> repeated(n Int) {
+	out @primitives$List<Int> = @primitives$List(Int);
+	value Int = n;
+	@controlflow$repeat(n, { out!push(value); });
+	return out;
+}
+
+/// A worker's element: how many events it publishes.
+type Task = struct {
+	n Int;
+}
+Task(n Int) => init{ n; }
+
+/// The state: the sum of every value of every event, and how many events.
+type Total = struct {
+	sum Int;
+	events Int;
+}
+Total() => init{ sum = Int(0); events = Int(0); }
+
+Unit counted(this Total, tick Tick) mut {
+	i Int = Int(0);
+	@controlflow$repeat(tick.values:size(), {
+		i = @operators$add(i, Int(1));
+		this.sum = @operators$add(this.sum, tick.values[i]);
+	});
+	this.events = @operators$add(this.events, Int(1));
+	return Unit();
+}
+
+/// A pool whose funnel adds up the events, made `depth` calls down. A call
+/// to itself is never inlined whole, so the pool is made by the code in
+/// this library's object, not by a copy a program inlined.
+^@primitives$WorkerPool<Task, Total, Tick> pool(depth Int) {
+	@controlflow$branch(@operators$lessThan(Int(0), depth), {
+		return pool(@operators$add(depth, @operators$negate(Int(1))));
+	});
+	return @primitives$WorkerPool(Task, Total(), Unit(this Total, tick Tick) mut {
+		this!counted(tick);
+		return Unit();
+	});
+}
