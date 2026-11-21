@@ -16,9 +16,15 @@ open Value
 open C_memory
 
 (* What a run spends and what it hands back to the Zane side: [spend]
-   charges the fold's budget (F19), and [declared] runs a function the
-   module only declares, when the other evaluator owns that function. *)
-type hooks = { spend : int -> unit; declared : string -> value list -> value option }
+   charges the fold's budget (F19), [declared] runs a function the module
+   only declares, when the other evaluator owns that function, and
+   [bounded] is whether calls nested deeper than [max_depth] end the run,
+   which they do not in a `comptime` call's (docs/design/comptime.md K5). *)
+type hooks = {
+  spend : int -> unit;
+  declared : string -> value list -> value option;
+  bounded : bool;
+}
 
 (* One fold's C: the module, each global's address once it is made, and
    the depth of calls. Every fold starts from C's state as a run of the
@@ -396,7 +402,7 @@ and call_value t f args =
 and run t (f : C_ir.func) args =
   if f.C_ir.variadic then stop "a call of a variadic C function";
   t.depth <- t.depth + 1;
-  if t.depth > max_depth then stop "calls nested too deep";
+  if t.depth > max_depth && t.hooks.bounded then stop "calls nested too deep";
   let count = Array.fold_left (fun n b -> n + Array.length b) f.C_ir.params f.C_ir.blocks in
   let regs = Array.make count Poison in
   List.iteri (fun i v -> if i < f.C_ir.params then regs.(i) <- v) args;

@@ -516,6 +516,23 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
       in
       add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
+  (* A default is lowered where a call leaves its entry out (Lower_data), so
+     its lambdas and `comptime` calls are named after its constructor's
+     instance and its slot. *)
+  List.iter
+    (fun (d : T.Defaults.t) ->
+      match Hashtbl.find_opt st.verbs (key d.T.Defaults.decl d.T.Defaults.args) with
+      | Some v ->
+          let owner = Symbol.verb ~stamp:st.stamp v.signature v.instance in
+          List.iter
+            (fun (slot, (e : T.Expr.t)) ->
+              let stat = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
+              name_lambdas st
+                (Printf.sprintf "%s$default%d" owner slot)
+                { T.Block.stats = [ stat ]; span = e.T.Expr.span })
+            d.T.Defaults.values
+      | None -> ())
+    p.T.Program.defaults;
   if not library then st.written_back <- Some (written_back st calls)
   else (
     match program_write_backs with

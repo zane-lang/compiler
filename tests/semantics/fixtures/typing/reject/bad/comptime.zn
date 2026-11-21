@@ -33,6 +33,8 @@ Int markedEach(n Int, body @concepts$Block) {
 
 Int markedCount(runtime &@runtime$Runtime) => runtime:arguments():size();
 
+Int markedApply(f Int[Int]) => f(Int(0));
+
 Int?Int markedRefused(n Int) {
 	abort n;
 }
@@ -61,6 +63,11 @@ Unit markedForms() {
 	e Int = comptime markedCount(@program$runtime);
 	// A constant is had at compile time: so is a call on it.
 	f Int = comptime markedTally:markedPeek();
+	// A lambda given to a call that is not marked may run while the
+	// arguments are computed, so it may not read either.
+	g Int = comptime markedSame(markedApply(Int(n Int) { return markedCount(@program$runtime); }));
+	// A lambda given to the marked call runs inside it: accepted.
+	h Int = comptime markedApply(Int(n Int) { return markedCount(@program$runtime); });
 	return Unit();
 }
 

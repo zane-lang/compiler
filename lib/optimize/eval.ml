@@ -978,6 +978,7 @@ and c_run run =
              {
                C_eval.spend = spend run;
                declared = (fun name args -> C_cross.adapter run.prog.c (Lazy.force c) name args (call run));
+               bounded = Option.is_none run.explicit;
              })
       in
       let c = Lazy.force c in

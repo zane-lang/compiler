@@ -33,7 +33,7 @@ marked call as an ordinary call and `Comptime_check`
 | The marked call is a function call, a `:` method call, a constructor call, or a call through a function value; never a `!` call, and never a call to a verb that declares a `@concepts$Block` parameter | §5.6, syntax.md §4.10 |
 | Its result type is a value type (`Type_decls.is_value`), so no reference, capability or handle crosses into the program | §5.6 |
 | It names no local of the verb it is in, a foreign variable aside (K2) | §5.6, narrowed: divergence §15 |
-| No call in its arguments, other than another marked call, is given a value that reaches a capability, since such a call could read capability-backed state outside a marked call | §5.6, conservatively |
+| No call in its arguments, other than another marked call, is given a value that reaches a capability, through fields or elements at any depth, since such a call could read capability-backed state outside a marked call; a lambda in the arguments is held to the same rule unless it is given to the marked call itself, in which it runs | §5.6, conservatively |
 | Nothing in it, handlers included, leaves the verb it is in: no `abort`, and no `return` but a match arm's | §5.6: "the whole expression is one constant" |
 
 A marked call is an expression (`Tst.Nodes.Expr.Comptime`). Written as a
@@ -50,7 +50,9 @@ evaluates a marked call in every build, and an unoptimized build has no
 fold that knows what a local holds at a given point, so it accepts only what
 can be evaluated without one: literals, package constants, foreign
 variables, the program's console and runtime, and calls, marked or not, on
-those. A foreign variable declared in the body is the one local accepted:
+those. A local bound inside the marked expression is its own: a lambda's
+parameter, a handler's binder, a match arm's binder, and a local a block in
+it declares. A foreign variable declared in the body is the one local accepted:
 its value is its C global, fixed where it is declared, since a foreign
 capability has no setter.
 
@@ -64,7 +66,9 @@ expression, a TST lambda whose body returns it, handler included, and
 lowers the marked expression as a call of that lambda. Lowering lifts the
 lambda as it lifts any (L14): a function of its own, named among the
 lambdas of the verb it is written in (`Program.name_lambdas`), so each
-instance of a generic verb lifts its own. Because the marked expression
+instance of a generic verb lifts its own. A marked call in a field's
+default is named after its constructor's instance and the field's slot
+(`…$defaultN$lambdaM`), and lowered where a call leaves the field out. Because the marked expression
 names no local (K2), the lifted body needs nothing from the verb. A foreign
 variable it names is declared again at the top of the lambda's body, with
 the same C global. The lambda is never given a C entry, since C never calls
@@ -94,8 +98,9 @@ so a marked call can run C whose body is in the build (F16).
 
 **K5. A marked call's run takes no budget.** A run marked explicit
 (`Eval.explicit`) runs to completion: it takes nothing from the step
-budget of one fold or the total of all folds, no call depth ends it, no
-cap bounds what it outputs or the size of the value it gives, and stage 5,
+budget of one fold or the total of all folds, no call depth ends it, in
+Zane or in C (`C_eval.hooks.bounded`), no cap bounds what it outputs or
+the size of the value it gives, and stage 5,
 which runs afterwards with budgets of its own, starts with them full.
 A marked call that does not terminate is a build that does not terminate,
 as §5.6 says. The one limit left is the compiler's own stack: calls nested
@@ -146,14 +151,17 @@ them all. A value that holds an address is refused too, which a value type
   made by marked calls, one reading another, a marked call in another's
   arguments, a method call on a constant, calls through function values,
   both handler forms, the build's arguments, and a loop of several times
-  the steps one implicit fold may take. Its `.cgt` golden is the
+  the steps one implicit fold may take, a handled `match` in the
+  arguments, a field's default, and a lambda that reads given to the
+  marked call. Its `.cgt` golden is the
   unoptimized tree, which shows every value built in and no lifted function
   left, and its `.out` golden holds every build of it to one output.
 - `tests/codegen/fixtures/reject/comptimeRefused` holds three calls that
   cannot be evaluated, each reported: a print, an index out of range, and a
   handler that prints.
-- `tests/ffi/fixtures/comptimeC` runs a pure C function and a read through a
-  foreign capability at compile time in an unoptimized build.
+- `tests/ffi/fixtures/comptimeC` runs a pure C function, C whose calls nest
+  deeper than an implicit fold's limit, and a read through a foreign
+  capability at compile time in an unoptimized build.
 - `tests/semantics/fixtures/typing/reject/bad/comptime.zn` holds each rule of
   K1.
 

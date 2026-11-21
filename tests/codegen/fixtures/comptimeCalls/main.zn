@@ -3,10 +3,11 @@
 /// built into the program as constants. A result of each kind of value, a
 /// package constant made by one and one read by another, a marked call
 /// inside another's arguments, a method call, a call through a function
-/// value, handlers, the build's arguments (the `flags` file gives them), and
-/// a loop that runs far past the budget an implicit fold has, which a
-/// marked call does not take from. Each check prints `yes` when it holds and
-/// `no` when it does not.
+/// value, handlers, a handled `match` in the arguments, a field's default,
+/// the build's arguments (the `flags` file gives them), and a loop that runs
+/// far past the budget an implicit fold has, which a marked call does not
+/// take from. Each check prints `yes` when it holds and `no` when it does
+/// not.
 package comptimeCalls;
 
 alias Int = @primitives$I64;
@@ -139,6 +140,15 @@ derived Int = comptime fib(@operators$add(base, @operators$negate(Int(600))));
 origin Vec(Int(3), Int(4));
 summed Int = comptime origin:sum();
 
+/// A default made by a marked call, which a call that leaves its entry out
+/// takes.
+type Weapon = struct {
+	rate Int;
+	damage Int;
+}
+
+Weapon{ rate Int(1); damage Int = comptime fib(Int(10)); } => init{ rate; damage; }
+
 Unit main() {
 	// A scalar of each kind.
 	check(@operators$equal(base, Int(610)));
@@ -178,11 +188,26 @@ Unit main() {
 	check(@operators$equal(r, Int(90)));
 	ok Int = comptime divide(Int(9), Int(3)) ?? Int(0);
 	check(@operators$equal(ok, Int(3)));
+	m Int = comptime double(match (biggest(Int(20))) {
+		d dot => divide(d.y, d.x);
+		c circle => Int(0);
+		n none => Int(0);
+	} ? e {
+		resolve e;
+	});
+	check(@operators$equal(m, Int(4)));
+
+	// A default made by a marked call.
+	w Weapon{ rate = Int(3); }
+	check(@operators$equal(w.damage, Int(55)));
+	check(@operators$equal(w.rate, Int(3)));
 
 	// The arguments the build was started with, not the program's.
 	check(@operators$equal(comptime joined(@program$runtime), String("alpha,beta gamma")));
 	check(@operators$equal(comptime count(@program$runtime), Int(2)));
 	check(@operators$equal(@program$runtime:arguments():size(), Int(0)));
+	// A lambda given to the marked call reads inside it.
+	check(@operators$equal(comptime twice(Int(x Int) { return @operators$add(x, count(@program$runtime)); }, Int(1)), Int(5)));
 
 	// Several times the steps one implicit fold may take (5,000,000).
 	check(@operators$equal(comptime counted(Int(3000000)), Int(4500001500000)));

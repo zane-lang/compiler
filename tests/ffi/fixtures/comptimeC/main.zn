@@ -1,6 +1,7 @@
 /// Calls marked `comptime` that reach C (docs/design/comptime.md), run at
 /// compile time in every build, unoptimized included, each result a
-/// constant in the tree: a pure C function, and a read through a foreign
+/// constant in the tree: a pure C function, one whose calls nest deeper
+/// than an implicit fold's limit, and a read through a foreign
 /// capability, which stands for its C global where the build runs, from its
 /// first value. The program changes the global before it reads it again,
 /// which the constant does not see.
@@ -13,6 +14,7 @@ alias String = @primitives$String;
 type Counter = #handle{ cType = "counter_t"; }
 
 I64 checksum(text String) foreign "marked_checksum";
+I64 depth(n I64) foreign "marked_depth";
 I64 read(this Counter) foreign "counter_read";
 Unit bump(this Counter) mut foreign "counter_bump";
 
@@ -25,6 +27,7 @@ Unit show(n I64) {
 Unit main() {
 	counter Counter foreign "zane_counter";
 	show(comptime checksum(String("zane")));
+	show(comptime depth(I64(3000)));
 	counter!bump();
 	show(comptime counter:read());
 	show(counter:read());

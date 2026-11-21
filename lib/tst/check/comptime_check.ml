@@ -32,10 +32,10 @@ let bound_inside (e : T.Expr.t) =
     | T.Expr.Construct_fields { handler = Some h; _ }
     | T.Expr.Op { handler = Some h; _ }
     | T.Expr.Flip { handler = Some h; _ }
-    | T.Expr.Match { handler = Some h; _ }
     | T.Expr.Case_read { handler = h; _ } ->
         Option.iter add h.T.Handler.binder
-    | T.Expr.Match { arms; _ } ->
+    | T.Expr.Match { arms; handler; _ } ->
+        Option.iter (fun (h : T.Handler.t) -> Option.iter add h.T.Handler.binder) handler;
         let pattern (p : T.Pattern.t) = Option.iter add p.T.Pattern.binder in
         List.iter (fun (a : T.Arm.t) -> List.iter pattern a.T.Arm.patterns) arms
     | _ -> ());
@@ -90,7 +90,7 @@ let closed env (e : T.Expr.t) =
     e
 
 (* Whether a value of [t] reaches a capability: is one, or holds an `&` to
-   one through the fields it owns at any depth. *)
+   one through the fields or elements it owns at any depth. *)
 let reaches_capability env (t : Ty.t) =
   let seen = Hashtbl.create 8 in
   let rec walk (t : Ty.t) =
@@ -98,6 +98,7 @@ let reaches_capability env (t : Ty.t) =
     ||
     match t with
     | Ty.Reference t | Ty.Roaming t -> walk t
+    | Ty.Intrinsic { args; _ } -> List.exists (function Ty.Type t -> walk t | Ty.Number _ -> false) args
     | Ty.Named (tid, args) when not (Hashtbl.mem seen t) -> (
         Hashtbl.add seen t ();
         match Type_decls.type_info_of_id env tid with
@@ -114,7 +115,10 @@ let reaches_capability env (t : Ty.t) =
    one made while its arguments are computed is a compile-time error
    (effects.md §5.6). A read takes a capability, so no call in an argument
    may be given a value that reaches one. A capability given to the marked
-   call itself, or to another marked call, is read inside that call. *)
+   call itself, or to another marked call, is read inside that call. A
+   lambda given to the marked call runs inside it; a lambda anywhere else in
+   the arguments may run while they are computed, so its body is held to
+   the same rule. *)
 let no_reads env (e : T.Expr.t) =
   let given (x : T.Expr.t) =
     match x.T.Expr.node with
@@ -141,17 +145,16 @@ let no_reads env (e : T.Expr.t) =
                   call `comptime` too or pass the capability to the marked call itself"
                  (quote (Ty.to_string v.T.Expr.ty)))
         | None -> ());
-        (* A lambda's body runs where it is called, which is inside the
-           marked call when the call is what calls it. *)
         List.iter
           (function
             | Traverse.Same e -> argument e
-            | Traverse.Arm b | Traverse.Handler b | Traverse.Block b ->
-                List.iter (fun s -> List.iter argument (Traverse.stat_exprs s)) b.T.Block.stats
-            | Traverse.Lambda _ -> ())
+            | Traverse.Arm b | Traverse.Handler b | Traverse.Block b | Traverse.Lambda b ->
+                List.iter (fun s -> List.iter argument (Traverse.stat_exprs s)) b.T.Block.stats)
           (Traverse.parts x)
   in
-  List.iter argument (given e)
+  List.iter
+    (fun (v : T.Expr.t) -> match v.T.Expr.node with T.Expr.Lambda _ -> () | _ -> argument v)
+    (given e)
 
 (* The marked expression, handlers included, is one constant (effects.md
    §5.6), so nothing in it leaves the verb it is in: no `abort`, and no

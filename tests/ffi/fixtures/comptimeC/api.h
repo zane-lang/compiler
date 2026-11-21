@@ -9,3 +9,6 @@ typedef struct counter_t { int64_t count; } counter_t;
 extern counter_t zane_counter;
 int64_t counter_read(const counter_t *counter);
 void counter_bump(counter_t *counter);
+
+/* `n`, counted by `n` nested calls. */
+int64_t marked_depth(int64_t n);

@@ -30,6 +30,11 @@
     │   ├── entry: comptimeCalls$entry comptimeCalls$doubler
     │   ├── takes[0]: i64
     │   └── gives: i64
+    ├── callbacks[1] > callback:
+    │   ├── symbol: comptimeCalls$main()$lambda19
+    │   ├── entry: comptimeCalls$entry comptimeCalls$main()$lambda19
+    │   ├── takes[0]: i64
+    │   └── gives: i64
     ├── funcs[0] > func:
     │   ├── symbol: zane.start
     │   ├── params:
@@ -322,67 +327,67 @@
     │       │   ├── scope: %23
     │       │   ├── value > expand:
     │       │   │   ├── type: handle16
-    │       │   │   ├── label: @43
-    │       │   │   ├── result: #44
+    │       │   │   ├── label: @49
+    │       │   │   ├── result: #50
     │       │   │   ├── body[0] > assign:
-    │       │   │   │   ├── place: #44
+    │       │   │   │   ├── place: #50
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: handle16
     │       │   │   │       ├── fn: zane_list_new
     │       │   │   │       └── args:
     │       │   │   ├── body[1] > let:
-    │       │   │   │   ├── local: #45
+    │       │   │   │   ├── local: #51
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #44 : ptr
+    │       │   │   │       ├── args[0]: address of #50 : ptr
     │       │   │   │       └── args[1]: 8 : i64
     │       │   │   ├── body[2] > place:
-    │       │   │   │   ├── address: local #45 : ptr
+    │       │   │   │   ├── address: local #51 : ptr
     │       │   │   │   ├── value: 1 : i64
     │       │   │   │   └── layout: %primitives$I64
     │       │   │   ├── body[3] > let:
-    │       │   │   │   ├── local: #46
+    │       │   │   │   ├── local: #52
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #44 : ptr
+    │       │   │   │       ├── args[0]: address of #50 : ptr
     │       │   │   │       └── args[1]: 8 : i64
     │       │   │   ├── body[4] > place:
-    │       │   │   │   ├── address: local #46 : ptr
+    │       │   │   │   ├── address: local #52 : ptr
     │       │   │   │   ├── value: 4 : i64
     │       │   │   │   └── layout: %primitives$I64
     │       │   │   ├── body[5] > let:
-    │       │   │   │   ├── local: #47
+    │       │   │   │   ├── local: #53
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #44 : ptr
+    │       │   │   │       ├── args[0]: address of #50 : ptr
     │       │   │   │       └── args[1]: 8 : i64
     │       │   │   ├── body[6] > place:
-    │       │   │   │   ├── address: local #47 : ptr
+    │       │   │   │   ├── address: local #53 : ptr
     │       │   │   │   ├── value: 9 : i64
     │       │   │   │   └── layout: %primitives$I64
     │       │   │   ├── body[7] > let:
-    │       │   │   │   ├── local: #48
+    │       │   │   │   ├── local: #54
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #44 : ptr
+    │       │   │   │       ├── args[0]: address of #50 : ptr
     │       │   │   │       └── args[1]: 8 : i64
     │       │   │   ├── body[8] > place:
-    │       │   │   │   ├── address: local #48 : ptr
+    │       │   │   │   ├── address: local #54 : ptr
     │       │   │   │   ├── value: 16 : i64
     │       │   │   │   └── layout: %primitives$I64
     │       │   │   ├── body[9] > let:
-    │       │   │   │   ├── local: #49
+    │       │   │   │   ├── local: #55
     │       │   │   │   └── value > runtime:
     │       │   │   │       ├── type: ptr
     │       │   │   │       ├── fn: zane_list_push
-    │       │   │   │       ├── args[0]: address of #44 : ptr
+    │       │   │   │       ├── args[0]: address of #50 : ptr
     │       │   │   │       └── args[1]: 8 : i64
     │       │   │   └── body[10] > place:
-    │       │   │       ├── address: local #49 : ptr
+    │       │   │       ├── address: local #55 : ptr
     │       │   │       ├── value: 25 : i64
     │       │   │       └── layout: %primitives$I64
     │       │   └── layout: %primitives$List<%primitives$I64>
@@ -516,7 +521,59 @@
     │       │       ├── op: ==
     │       │       ├── left: local #33 : i64
     │       │       └── right: 3 : i64
-    │       ├── body[28] > eval > call:
+    │       ├── body[28] > let:
+    │       │   ├── local: #34
+    │       │   └── value: 4 : i64
+    │       ├── body[29] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: local #34 : i64
+    │       │       └── right: 4 : i64
+    │       ├── body[30] > let:
+    │       │   ├── local: #39
+    │       │   └── value > expand:
+    │       │       ├── type: {i64, i64}
+    │       │       ├── label: @37
+    │       │       ├── result: #38
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #35
+    │       │       │   └── value: 3 : i64
+    │       │       ├── body[1] > let:
+    │       │       │   ├── local: #36
+    │       │       │   └── value: 55 : i64
+    │       │       ├── body[2] > assign:
+    │       │       │   ├── place: #38
+    │       │       │   └── value > record:
+    │       │       │       ├── type: {i64, i64}
+    │       │       │       ├── members[0] > member 0: local #35 : i64
+    │       │       │       └── members[1] > member 1: local #36 : i64
+    │       │       └── body[3]: leave @37
+    │       ├── body[31] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 1
+    │       │       │   └── value: local #39 : {i64, i64}
+    │       │       └── right: 55 : i64
+    │       ├── body[32] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > member:
+    │       │       │   ├── type: i64
+    │       │       │   ├── index: 0
+    │       │       │   └── value: local #39 : {i64, i64}
+    │       │       └── right: 3 : i64
+    │       ├── body[33] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -527,30 +584,30 @@
     │       │       │   ├── fn: zane_text_equal
     │       │       │   ├── args[0] > expand:
     │       │       │   │   ├── type: handle
-    │       │       │   │   ├── label: @35
-    │       │       │   │   ├── result: #36
+    │       │       │   │   ├── label: @41
+    │       │       │   │   ├── result: #42
     │       │       │   │   ├── body[0] > hold:
-    │       │       │   │   │   ├── local: #34
+    │       │       │   │   │   ├── local: #40
     │       │       │   │   │   ├── scope: %23
     │       │       │   │   │   ├── value: "" : handle
     │       │       │   │   │   └── layout: %primitives$String
     │       │       │   │   └── body[1] > assign:
-    │       │       │   │       ├── place: #36
-    │       │       │   │       └── value: local #34 : handle
+    │       │       │   │       ├── place: #42
+    │       │       │   │       └── value: local #40 : handle
     │       │       │   └── args[1] > expand:
     │       │       │       ├── type: handle
-    │       │       │       ├── label: @38
-    │       │       │       ├── result: #39
+    │       │       │       ├── label: @44
+    │       │       │       ├── result: #45
     │       │       │       ├── body[0] > hold:
-    │       │       │       │   ├── local: #37
+    │       │       │       │   ├── local: #43
     │       │       │       │   ├── scope: %23
     │       │       │       │   ├── value: "alpha,beta gamma" : handle
     │       │       │       │   └── layout: %primitives$String
     │       │       │       └── body[1] > assign:
-    │       │       │           ├── place: #39
-    │       │       │           └── value: local #37 : handle
+    │       │       │           ├── place: #45
+    │       │       │           └── value: local #43 : handle
     │       │       └── right: 1 : i64
-    │       ├── body[29] > eval > call:
+    │       ├── body[34] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -558,7 +615,7 @@
     │       │       ├── op: ==
     │       │       ├── left: 0 : i64
     │       │       └── right: 2 : i64
-    │       ├── body[30] > eval > call:
+    │       ├── body[35] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -571,10 +628,10 @@
     │       │       │       ├── index: 1
     │       │       │       └── value > expand:
     │       │       │           ├── type: handle16
-    │       │       │           ├── label: @41
-    │       │       │           ├── result: #42
+    │       │       │           ├── label: @47
+    │       │       │           ├── result: #48
     │       │       │           ├── body[0] > hold:
-    │       │       │           │   ├── local: #40
+    │       │       │           │   ├── local: #46
     │       │       │           │   ├── scope: %23
     │       │       │           │   ├── value > runtime:
     │       │       │           │   │   ├── type: handle16
@@ -582,10 +639,18 @@
     │       │       │           │   │   └── args:
     │       │       │           │   └── layout: %primitives$List<%primitives$String>
     │       │       │           └── body[1] > assign:
-    │       │       │               ├── place: #42
-    │       │       │               └── value: local #40 : handle16
+    │       │       │               ├── place: #48
+    │       │       │               └── value: local #46 : handle16
     │       │       └── right: 0 : i64
-    │       ├── body[31] > eval > call:
+    │       ├── body[36] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left: 1 : i64
+    │       │       └── right: 5 : i64
+    │       ├── body[37] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -593,7 +658,7 @@
     │       │       ├── op: ==
     │       │       ├── left: 4500001500000 : i64
     │       │       └── right: 4500001500000 : i64
-    │       └── body[32] > return: unit : void
+    │       └── body[38] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: comptimeCalls$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -1002,6 +1067,46 @@
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
     ├── funcs[10] > func:
+    │   ├── symbol: comptimeCalls$main()$lambda19
+    │   ├── params[0]: local #1 : i64
+    │   ├── ret: i64
+    │   └── body[0] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left: local #1 : i64
+    │       └── right > expand:
+    │           ├── type: i64
+    │           ├── label: @3
+    │           ├── result: #4
+    │           ├── body[0] > let:
+    │           │   ├── local: #2
+    │           │   └── value: global zane.value.@program$runtime
+    │           └── body[1] > scope:
+    │               ├── id: %8
+    │               ├── body[0] > assign:
+    │               │   ├── place: #4
+    │               │   └── value > convert:
+    │               │       ├── type: i64
+    │               │       └── value > member:
+    │               │           ├── type: i32
+    │               │           ├── index: 1
+    │               │           └── value > expand:
+    │               │               ├── type: handle16
+    │               │               ├── label: @6
+    │               │               ├── result: #7
+    │               │               ├── body[0] > hold:
+    │               │               │   ├── local: #5
+    │               │               │   ├── scope: %8
+    │               │               │   ├── value > runtime:
+    │               │               │   │   ├── type: handle16
+    │               │               │   │   ├── fn: zane_arguments
+    │               │               │   │   └── args:
+    │               │               │   └── layout: %primitives$List<%primitives$String>
+    │               │               └── body[1] > assign:
+    │               │                   ├── place: #7
+    │               │                   └── value: local #5 : handle16
+    │               └── body[1]: leave @3
+    ├── funcs[11] > func:
     │   ├── symbol: comptimeCalls$counted(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1048,7 +1153,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: comptimeCalls$base
     │   ├── params:
     │   ├── ret: ptr
@@ -1071,7 +1176,7 @@
     │   │       ├── args[1]: global comptimeCalls$base.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global comptimeCalls$base.value
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: comptimeCalls$derived
     │   ├── params:
     │   ├── ret: ptr
@@ -1094,7 +1199,7 @@
     │   │       ├── args[1]: global comptimeCalls$derived.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global comptimeCalls$derived.value
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: comptimeCalls$origin
     │   ├── params:
     │   ├── ret: ptr
@@ -1133,7 +1238,7 @@
     │   │       ├── args[1]: global comptimeCalls$origin.value
     │   │       └── args[2]: layout comptimeCalls$Vec
     │   └── body[1] > return: global comptimeCalls$origin.value
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: comptimeCalls$summed
     │   ├── params:
     │   ├── ret: ptr
@@ -1156,8 +1261,48 @@
     │   │       ├── args[1]: global comptimeCalls$summed.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global comptimeCalls$summed.value
-    └── funcs[15] > func:
-        ├── symbol: comptimeCalls$doubler.adapter
+    ├── funcs[16] > func:
+    │   ├── symbol: comptimeCalls$doubler.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i64
+    │   │       ├── fn: comptimeCalls$doubler
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i64
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[17] > func:
+        ├── symbol: comptimeCalls$main()$lambda19.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr
         ├── params[1]: local #1 : ptr
@@ -1181,7 +1326,7 @@
         │   ├── address: local #1 : ptr
         │   └── value > call:
         │       ├── type: i64
-        │       ├── fn: comptimeCalls$doubler
+        │       ├── fn: comptimeCalls$main()$lambda19
         │       └── args[0] > deref:
         │           ├── type: i64
         │           └── ptr > deref:

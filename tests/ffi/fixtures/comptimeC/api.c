@@ -11,3 +11,5 @@ counter_t zane_counter = { 7 };
 int64_t counter_read(const counter_t *counter) { return counter->count; }
 
 void counter_bump(counter_t *counter) { counter->count++; }
+
+int64_t marked_depth(int64_t n) { return n == 0 ? 0 : 1 + marked_depth(n - 1); }
