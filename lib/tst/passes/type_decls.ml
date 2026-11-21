@@ -19,9 +19,13 @@ type scope = {
      rather than being a mistake. The introductions were found before any type
      was resolved, so each one is already in [params] by the time it is met. *)
   signature : bool;
+  (* In a verb's body, the generic parameters its signature declares, by
+     identifier: what a written parameter names however it is bound, for the
+     language server's index (Uses). *)
+  generics : (string * Ty.param) list;
 }
 
-let scope ?(params = []) ?(signature = false) file = { file; params; signature }
+let scope ?(params = []) ?(signature = false) ?(generics = []) file = { file; params; signature; generics }
 
 (* How a type name was written, for a message about the type. *)
 let name_type_text (n : N.Name_type.t) =
@@ -457,9 +461,9 @@ let resolve_head env scope (name : N.Name_type.t) : head =
           (Uses.Type_in { params = List.map fst scope.params; package = scope.file.package; path = scope.file.path });
       match List.assoc_opt text scope.params with
       | Some arg ->
-          (match arg with
-          | Ty.Type (Ty.Param p) | Ty.Number (Ty.Number_param p) -> Uses.param env.uses id.N.Name.span p
-          | _ -> ());
+          (match (List.assoc_opt text scope.generics, arg) with
+          | Some p, _ | None, (Ty.Type (Ty.Param p) | Ty.Number (Ty.Number_param p)) -> Uses.param env.uses id.N.Name.span p
+          | None, _ -> ());
           Bound arg
       | None -> (
           match lookup_types env scope.file text with

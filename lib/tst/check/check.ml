@@ -279,10 +279,14 @@ and name_value env ctx (n : N.Name_expr.t) =
       | None -> (
           match List.assoc_opt text ctx.params with
           | Some (Ty.Number value) ->
-              (match value with Ty.Number_param p -> Uses.param env.uses id.N.Name.span p | Ty.Known _ -> ());
+              (match (List.assoc_opt text ctx.generics, value) with
+              | Some p, _ | None, Ty.Number_param p -> Uses.param env.uses id.N.Name.span p
+              | None, Ty.Known _ -> ());
               mk (T.Expr.Var (T.Name_ref.Number_param { name = text; value })) (Ty.Concept Ty.Integer_lit) span
           | Some (Ty.Type t) ->
-              (match t with Ty.Param p -> Uses.param env.uses id.N.Name.span p | _ -> ());
+              (match (List.assoc_opt text ctx.generics, t) with
+              | Some p, _ | None, Ty.Param p -> Uses.param env.uses id.N.Name.span p
+              | None, _ -> ());
               mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span
           | None -> (
               match lookup_values env ctx.file text with
@@ -2002,6 +2006,7 @@ and verb_context env (d : decl) (s : S.t) subst =
       package = d.package;
       is_root = pkg.is_root;
       params;
+      generics = List.map (fun (p : Ty.param) -> (p.Ty.name, p)) s.S.generics;
       scopes = [ scope ];
       ret_target = To_verb { ret = Ty.subst subst s.ret; abort = Option.map (Ty.subst subst) s.abort };
       resolve_target = No_resolve;

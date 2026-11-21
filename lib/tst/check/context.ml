@@ -35,6 +35,8 @@ type ctx = {
   (* Generic parameters in scope and the types or numbers they stand for; in
      an instance, the arguments it was instantiated at. *)
   params : (string * Ty.arg) list;
+  (* The generic parameters the signature declares, by identifier. *)
+  generics : (string * Ty.param) list;
   mutable scopes : (string, binding) Hashtbl.t list;
   ret_target : ret_target;
   resolve_target : resolve_target;
@@ -44,7 +46,7 @@ type ctx = {
 }
 
 
-let type_scope ctx = Type_decls.scope ~params:ctx.params ctx.file
+let type_scope ctx = Type_decls.scope ~params:ctx.params ~generics:ctx.generics ctx.file
 
 let find_local ctx name = List.find_map (fun tbl -> Hashtbl.find_opt tbl name) ctx.scopes
 

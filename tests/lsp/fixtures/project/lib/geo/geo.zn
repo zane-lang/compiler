@@ -30,4 +30,11 @@ Float dist(a Point, b Point) {
 Float norm(this Point) => dist(this, Point(Float(0.0), Float(0.0)));
 
 /// Nothing calls this yet.
-T same(value T Type) => value;
+T same(value T Type) {
+	copy T = value;
+	return copy;
+}
+
+/// Two overloads: one per argument count.
+Float scaled(p Point) => p.x;
+Float scaled(p Point, by Float) => @operators$multiply(p.x, by);

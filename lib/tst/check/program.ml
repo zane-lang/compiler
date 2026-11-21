@@ -80,6 +80,7 @@ let package_context env (d : decl) =
     package = d.package;
     is_root = (package env d.package).is_root;
     params = [];
+    generics = [];
     scopes = [ Hashtbl.create 1 ];
     ret_target = No_return;
     resolve_target = No_resolve;
