@@ -26,6 +26,9 @@ module States = States
 (** The intrinsic namespaces' verbs, in which lowering looks up methods. *)
 module Intrinsics = Intrinsics
 
+(** A description of each intrinsic, which the language server shows. *)
+module Intrinsic_docs = Intrinsic_docs
+
 (** The passes, run in order, and the result a check returns. *)
 module Semantics = Semantics
 

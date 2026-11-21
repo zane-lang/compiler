@@ -16,7 +16,9 @@
 ; copy, the file of C module hashes beside an object and its rows, and the glue's
 ; thunks in the order of their labels. It also checks that the arrays codegen
 ; reads from LLVM survive a collection when empty, and that no compiler source
-; reads them through the bindings' own, which corrupt the heap then.
+; reads them through the bindings' own, which corrupt the heap then. It
+; checks that every intrinsic has a description for the language server, and
+; that a hover hides the parameters the checker supplies.
 ;
 ; Overloads, State, Type_layout, Emit, Build and stage 5's modules are not re-exported by their libraries'
 ; entry modules, so they are reached by the names dune gives them.

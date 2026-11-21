@@ -449,8 +449,6 @@ type head =
   | Bound of Ty.arg
   | Unknown
 
-let concept_names = [ "Int"; "Float"; "String"; "Array"; "Map"; "Block" ]
-
 let resolve_head env scope (name : N.Name_type.t) : head =
   let span = name.N.Name_type.span in
   match name.N.Name_type.node with
@@ -497,7 +495,10 @@ let resolve_head env scope (name : N.Name_type.t) : head =
               Unknown))
   | N.Name_type.Intrinsic { package = ns; ident } -> (
       let ns = ns.N.Name.text and text = ident.N.Name.text in
-      if ns = "concepts" && List.mem text concept_names then begin
+      if Uses.is_placeholder env.uses text then
+        Uses.probe env.uses ident.N.Name.span
+          (Uses.Type_in { params = List.map fst scope.params; package = scope.file.package; path = scope.file.path });
+      if ns = "concepts" && List.mem text Intrinsics.concept_names then begin
         Uses.add env.uses span (Uses.Intrinsic ("@" ^ ns ^ "$" ^ text));
         Concept_type text
       end

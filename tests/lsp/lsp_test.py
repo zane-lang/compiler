@@ -192,6 +192,27 @@ class HoverTest(ServerTest):
     def test_a_type_name_shows_its_definition(self):
         self.assertIn("type Point = struct{ x @primitives$F64; y @primitives$F64 }", self.hover("Point = Point(Float(3.0)"))
 
+    def test_an_intrinsic_type_shows_its_constructors_and_description(self):
+        value = self.hover("@primitives$F64;", offset=13)
+        self.assertIn("type @primitives$F64", value)
+        self.assertIn("@primitives$F64(value @concepts$Float)", value)
+        self.assertIn("A 64-bit IEEE 754 float", value)
+
+    def test_an_intrinsic_call_shows_its_overloads_and_description(self):
+        text = self.text.replace("return Unit();", "z Float = @math$fma(d, d, d);\n\treturn Unit();")
+        self.client.change(self.main, text, version=5)
+        value = self.hover("@math$fma", offset=7, text=text)
+        self.assertIn("@primitives$F64 @math$fma(left @primitives$F64, right @primitives$F64, addend @primitives$F64)", value)
+        self.assertIn("rounded once", value)
+
+    def test_an_intrinsic_method_and_value(self):
+        text = self.text.replace("return Unit();", "@program$console!print(label);\n\treturn Unit();")
+        self.client.change(self.main, text, version=5)
+        value = self.hover("print(label", text=text)
+        self.assertIn("print(this @runtime$Console, text @primitives$String) mut", value)
+        self.assertIn("Writes `text` to the console", value)
+        self.assertIn("The running program's console", self.hover("@program$console", offset=10, text=text))
+
     def test_an_enum_member_and_an_enum_map(self):
         self.assertIn("Color.red", self.hover("red;"))
         self.assertIn("warm", self.hover("warm;"))
@@ -434,6 +455,56 @@ class CompletionTest(ServerTest):
     def test_an_enum_value_offers_its_maps(self):
         found = self.complete(self.main, self.text.replace("c.warm", "c.|"))
         self.assertEqual(found, {"warm"})
+
+    def items(self, path, text):
+        line, character = position_of(text, "|")
+        self.client.change(path, text.replace("|", ""), version=5)
+        return {i["label"]: i for i in self.client.at("textDocument/completion", path, line, character)["items"]}
+
+    def test_the_intrinsic_namespaces_after_an_at(self):
+        found = self.items(self.main, self.text.replace("return Unit();", "@|\n\treturn Unit();"))
+        self.assertEqual(set(found), {"primitives", "concepts", "operators", "math", "controlflow", "runtime", "program"})
+        self.assertEqual(found["math"]["insertText"], "math$")
+        self.assertIn("math functions", found["math"]["documentation"]["value"])
+
+    def test_only_the_root_package_is_offered_the_program_namespace(self):
+        text = self.client.open(self.geo)
+        found = self.complete(self.geo, text.replace("return copy;", "@|\n\treturn copy;"))
+        self.assertIn("runtime", found)
+        self.assertNotIn("program", found)
+        found = self.complete(self.geo, text.replace("return copy;", "x = @program$|\n\treturn copy;"))
+        self.assertEqual(found, set())
+
+    def test_the_names_of_a_namespace_with_their_signatures_and_descriptions(self):
+        found = self.items(self.main, self.text.replace("return Unit();", "x = @math$sq|\n\treturn Unit();"))
+        self.assertEqual(set(found), {"sqrt"})
+        self.assertIn("@math$sqrt(value @primitives$F32)", found["sqrt"]["detail"])
+        self.assertIn("The square root", found["sqrt"]["documentation"]["value"])
+        found = self.complete(self.main, self.text.replace("return Unit();", "@program$c|\n\treturn Unit();"))
+        self.assertEqual(found, {"console"})
+
+    def test_a_type_position_offers_only_types(self):
+        found = self.complete(self.main, self.text.replace("c Color", "c @primitives$I|"))
+        self.assertEqual(found, {"I32", "I64"})
+        found = self.complete(self.main, self.text.replace("c Color", "c @concepts$|"))
+        self.assertTrue({"Int", "Block"} <= found)
+
+    def test_the_methods_of_a_namespace_after_a_colon(self):
+        found = self.complete(self.main, self.text.replace("return Unit();", "k = label:@primitives$byte|\n\treturn Unit();"))
+        # `byteSet` is a method of a list, so a string does not offer it.
+        self.assertEqual(found, {"byteAt", "byteCount"})
+        found = self.complete(self.main, self.text.replace("return Unit();", "x = @primitives$byte|\n\treturn Unit();"))
+        self.assertEqual(found, set())
+
+    def test_the_named_constructors_of_an_intrinsic_type(self):
+        found = self.items(self.main, self.text.replace("return Unit();", "q = @primitives$ArrayRef.|\n\treturn Unit();"))
+        self.assertEqual(set(found), {"fill", "refs", "roaming"})
+        # The checker supplies `fill`'s last parameter, so no call writes it.
+        self.assertNotIn("index", found["fill"]["detail"])
+
+    def test_the_methods_of_an_intrinsic_type(self):
+        found = self.complete(self.main, self.text.replace("return Unit();", "k = label:by|\n\treturn Unit();"))
+        self.assertEqual(found, {"byteAt", "byteCount"})
 
 
 class Utf8Test(ServerTest):

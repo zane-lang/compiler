@@ -140,6 +140,44 @@ let string_constructors () =
         (List.exists (Ty.equal scalar) params))
     [ ("I32", prim "I32"); ("I64", prim "I64"); ("F32", prim "F32"); ("F64", prim "F64") ]
 
+(* Every name a program writes in an intrinsic namespace, and every
+   spelling a call to an intrinsic resolves to, has a description for the
+   language server, and the table describes nothing else. *)
+let intrinsic_descriptions () =
+  let spellings =
+    List.map (fun ns -> "@" ^ ns ^ "$") TIntrinsics.namespaces
+    @ List.map TIntrinsics.spelling_of TIntrinsics.entries
+    @ List.filter_map
+        (fun (s : S.t) -> match s.S.owner with S.Intrinsic spelling -> Some spelling | S.Declared _ -> None)
+        TIntrinsics.all_verbs
+  in
+  List.iter
+    (fun spelling -> check (spelling ^ " has a description") (Tst.Intrinsic_docs.find spelling <> None))
+    spellings;
+  List.iter
+    (fun (spelling, _) -> check (spelling ^ " is an intrinsic") (List.mem spelling spellings))
+    Tst.Intrinsic_docs.all;
+  (* A hover shows the parameters a call writes, not those the checker
+     supplies. *)
+  let texts spelling = List.map TIntrinsics.signature_text (TIntrinsics.signatures spelling) in
+  let has_param name text =
+    let needle = name ^ " " in
+    let rec at i = i + String.length needle <= String.length text && (String.sub text i (String.length needle) = needle || at (i + 1)) in
+    at 0
+  in
+  List.iter
+    (fun (spelling, hidden) ->
+      check (spelling ^ " is listed") (texts spelling <> []);
+      List.iter (fun t -> check (spelling ^ " hides " ^ hidden) (not (has_param hidden t))) (texts spelling))
+    [
+      ("@controlflow$work", "test");
+      ("@controlflow$register", "test");
+      ("@primitives$start", "publish");
+      ("@primitives$startAlone", "test");
+      ("@primitives$ArrayRef.fill", "index");
+    ];
+  check "fill shows make" (List.for_all (has_param "make") (texts "@primitives$ArrayRef.fill"))
+
 (* ---------------------------------------------------------------------- *)
 (* Type layout                                                            *)
 (* ---------------------------------------------------------------------- *)
@@ -1371,6 +1409,7 @@ let () =
   signatures ();
   overloads ();
   string_constructors ();
+  intrinsic_descriptions ();
   type_layout ();
   Member_order.run ();
   alignment ();

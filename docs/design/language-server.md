@@ -17,13 +17,13 @@ The server offers:
 | Request | What the server answers |
 |---|---|
 | Diagnostics | Every problem semantics reports, published as the user types |
-| Hover | A name's declaration: a verb's signature, a type's definition, a local's type, with the `///` documentation before the declaration |
+| Hover | A name's declaration: a verb's signature, a type's definition, a local's type, with the `///` documentation before the declaration; for an intrinsic, its signatures and its description (D17) |
 | Go to definition | Where the name's target is declared, for the overload a call chose |
 | Go to type definition | The declaration of a value's type |
 | Find references | Every use of the target, across the files and builds of the project |
 | Rename | An edit of each use's identifier |
 | Document symbols | The declarations of a file, with a type's fields and cases under it |
-| Completion | The fields, cases, enum maps and methods after `.` and `:`, and the names in scope elsewhere |
+| Completion | The fields, cases, enum maps and methods after `.` and `:`, the intrinsic namespaces after `@` and their names after `@namespace$`, and the names in scope elsewhere |
 | Semantic tokens | The kind of each identifier, which Tree-sitter cannot tell from syntax alone |
 
 The code lives in `lib/language_server/`; semantics records what the server
@@ -161,6 +161,26 @@ has no file, and goes to the editor as a message.
 **D16. The Neovim client is `zane-nvim`.** The plugin configures
 `vim.lsp.config("zane")` to run `zane lsp` in the nearest directory above the
 file that holds `zane.coda`, and enables it once `zane` is on `PATH`.
+
+**D17. Intrinsics are answered from a table, as declarations are from
+source.** An intrinsic has no source, so no `///` comment precedes it.
+`Intrinsics` lists the names a program writes in each namespace, with their
+signatures, and `Intrinsic_docs` holds a description of each, keyed by its
+spelling, as `@math$sqrt`. A hover on an intrinsic shows its signatures, each
+with its parameters' names, and that description. A signature shows only the
+parameters a call writes: the checker supplies the last parameters of a
+worker, of `start` and of `@primitives$ArrayRef.fill`, and no program writes
+them. A completion item carries the same signature and description.
+
+Completion reads an intrinsic's place from the text before the cursor: `@`
+offers the namespaces, `@namespace$` the namespace's names, and
+`@namespace$Type.` the type's named constructors. A name after `:` or `!`
+before the `@` is a method's, and the server offers the methods whose subject
+takes the value before it. Where the check finds a type at the cursor, the
+server offers only types. Only a file of the root package is offered
+`@program$`, since only the root package reaches it (spec `effects.md` §6.6).
+A unit test checks that each intrinsic has a description, and that the table
+describes nothing else.
 
 ---
 

@@ -655,3 +655,119 @@ let find_functions namespace name =
   List.filter_map (fun (key, s) -> if key = (namespace, name) then Some s else None) functions
 
 let namespaces = [ "primitives"; "concepts"; "operators"; "math"; "controlflow"; "runtime"; "program" ]
+
+(* The concepts `@concepts$` names as types (types.md §2.7). *)
+let concept_names = [ "Int"; "Float"; "String"; "Array"; "Map"; "Block" ]
+
+(* ---------------------------------------------------------------------- *)
+(* The catalogue the language server reads                                *)
+(* ---------------------------------------------------------------------- *)
+
+(* Every intrinsic verb, the hidden ones included. *)
+let all_verbs =
+  List.map snd constructors @ List.map snd methods @ List.map snd functions @ subscripts @ [ publish_function ]
+
+(* How many of [s]'s last parameters the checker supplies, which no call
+   writes: `start`'s, `fill`'s `index` and a worker's `test`. *)
+let supplied_count (s : S.t) =
+  match (pool_start_hidden s, s.S.owner) with
+  | Some n, _ -> n
+  | None, S.Intrinsic spelling when is_fill s || is_worker spelling -> 1
+  | None, _ -> 0
+
+(* [s]'s parameters as a call writes them. *)
+let written_params (s : S.t) =
+  let n = List.length s.S.params - supplied_count s in
+  List.filteri (fun i _ -> i < n) s.S.params
+
+(* [s] as its declaration would be written, with each parameter's name and
+   only the parameters a call writes. *)
+let signature_text (s : S.t) =
+  let param (p : S.param) =
+    match p.S.binds with
+    | Some b -> p.S.name ^ (match b.Ty.kind with Ty.Type_kind -> " Type" | Ty.Number_kind -> " @concepts$Int")
+    | None -> p.S.name ^ " " ^ Ty.to_string p.S.ty
+  in
+  let list ps = String.concat ", " (List.map param ps) in
+  let ps = written_params s in
+  match (s.S.kind, ps) with
+  | S.Constructor _, _ -> s.S.name ^ "(" ^ list ps ^ ")"
+  | S.Subscript, this_ :: rest -> "(" ^ param this_ ^ ")[" ^ list rest ^ "] => " ^ Ty.to_string s.S.ret
+  | _ -> Ty.ret_to_string s.S.ret s.S.abort ^ " " ^ s.S.name ^ "(" ^ list ps ^ ")" ^ if s.S.is_mut then " mut" else ""
+
+(* Every verb whose calls resolve to [spelling], as a use's target names
+   it. *)
+let signatures spelling = List.filter (fun (s : S.t) -> s.S.owner = S.Intrinsic spelling) all_verbs
+
+(* What a program writes after `@namespace$`, and how. *)
+type entry_kind =
+  | Type_entry  (** a type, which also names the type's constructors *)
+  | Value_entry
+  | Function_entry
+  | Method_entry  (** called on a subject, as `subject:@namespace$name()` *)
+
+type entry = { namespace : string; name : string; kind : entry_kind; signatures : S.t list }
+
+let spelling_of (e : entry) = "@" ^ e.namespace ^ "$" ^ e.name
+
+(* Every name a program can write in an intrinsic namespace. A name that
+   several overloads share is one entry. The verbs no program names, the
+   flip of a literal and a publish function's call, are not entries. *)
+let entries =
+  let home (s : S.t) = match s.S.home with S.Namespace ns -> ns | S.Package p -> p in
+  let named kind (verbs : S.t list) name_of =
+    let order = ref [] and table = Hashtbl.create 64 in
+    List.iter
+      (fun (s : S.t) ->
+        let key = (home s, name_of s) in
+        if not (Hashtbl.mem table key) then order := key :: !order;
+        Hashtbl.add table key s)
+      verbs;
+    List.rev_map
+      (fun ((namespace, name) as key) -> { namespace; name; kind; signatures = List.rev (Hashtbl.find_all table key) })
+      !order
+  in
+  let after_dollar (s : S.t) =
+    match String.index_opt s.S.name '$' with
+    | Some i -> String.sub s.S.name (i + 1) (String.length s.S.name - i - 1)
+    | None -> s.S.name
+  in
+  let unnamed_constructors =
+    List.filter_map
+      (fun (_, (s : S.t)) -> match s.S.kind with S.Constructor { member = None; _ } -> Some s | _ -> None)
+      constructors
+  in
+  let type_entry namespace name =
+    {
+      namespace;
+      name;
+      kind = Type_entry;
+      signatures =
+        List.filter (fun (s : S.t) -> s.S.name = "@" ^ namespace ^ "$" ^ name) unnamed_constructors;
+    }
+  in
+  List.map (fun (t : type_info) -> type_entry t.namespace t.name) types
+  @ List.map (fun name -> { namespace = "concepts"; name; kind = Type_entry; signatures = [] }) concept_names
+  @ List.map (fun (namespace, name, _) -> { namespace; name; kind = Value_entry; signatures = [] }) values
+  @ named Function_entry
+      (List.filter (fun (s : S.t) -> s.S.kind <> S.Method) (List.map snd functions))
+      after_dollar
+  @ named Method_entry
+      (List.filter (fun (s : S.t) -> s.S.kind = S.Method) (List.map snd functions) @ List.map snd methods)
+      (fun s -> if s.S.name.[0] = '@' then after_dollar s else s.S.name)
+
+let find_entries namespace = List.filter (fun e -> e.namespace = namespace) entries
+
+(* The named constructors of `@namespace$name`, as `@primitives$ArrayRef.fill`,
+   by member. *)
+let named_constructors namespace name =
+  let order = ref [] and table = Hashtbl.create 8 in
+  List.iter
+    (fun ((ns, n), (s : S.t)) ->
+      match s.S.kind with
+      | S.Constructor { member = Some m; _ } when ns = namespace && n = name ->
+          if not (Hashtbl.mem table m) then order := m :: !order;
+          Hashtbl.add table m s
+      | _ -> ())
+    constructors;
+  List.rev_map (fun m -> (m, List.rev (Hashtbl.find_all table m))) !order

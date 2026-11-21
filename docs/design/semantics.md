@@ -28,7 +28,8 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | `passes/verb_signatures.ml` | Pass 4 |
 | `check/` | Pass 5: the recursive walk (`check.ml`), and beside it its scopes (`context.ml`), instantiation (`instances.ml`), overload resolution (`overloads.ml`), the arguments the checker supplies to a call (`supplied.ml`), `termination.ml`, `coverage.ml`, and `program.ml`, which runs the walk over every body |
 | `model/ty.ml`, `model/signature.ml` | Types (§4), and what a call site needs to know about a verb |
-| `model/intrinsics.ml` | The intrinsic namespaces (D3) |
+| `model/intrinsics.ml` | The intrinsic namespaces (D3), and the catalogue of the names a program writes in them, which the language server offers |
+| `model/intrinsic_docs.ml` | A description of each intrinsic, which the language server shows (`language-server.md` D17) |
 | `model/traverse.ml` | What each expression and statement is made of, which every analysis walks the tree by |
 | `analyses/` | The analyses over the finished tree (D1) |
 | `model/uses.ml` | Each name a check resolved and its target, recorded when the language server asks (`language-server.md` D5) |

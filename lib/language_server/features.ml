@@ -148,6 +148,41 @@ let names_another_target t (project : P.project) key =
     project.P.builds;
   Hashtbl.fold (fun _ ks found -> found || (List.mem key ks && List.exists (fun k -> k <> key) ks)) keys false
 
+let code s = "```zane\n" ^ s ^ "\n```"
+
+(* ---------------------------------------------------------------------- *)
+(* Intrinsics                                                             *)
+(* ---------------------------------------------------------------------- *)
+
+module I = Tst.Intrinsics
+
+(* An intrinsic's spelling, `@math$sqrt`, as its namespace and the name
+   after `$`. *)
+let split_spelling spelling =
+  match String.index_opt spelling '$' with
+  | Some i when String.length spelling > 1 && spelling.[0] = '@' ->
+      (String.sub spelling 1 (i - 1), String.sub spelling (i + 1) (String.length spelling - i - 1))
+  | _ -> ("", spelling)
+
+let is_intrinsic_type ns name =
+  Option.is_some (I.find_type ns name) || (ns = "concepts" && List.mem name I.concept_names)
+
+(* The declaration lines a hover shows for [spelling]: a value's type, or a
+   type and its constructors, or each overload a call to it may choose. *)
+let intrinsic_lines spelling =
+  let ns, name = split_spelling spelling in
+  match I.find_value ns name with
+  | Some ty -> [ spelling ^ " " ^ Ty.to_string ty ]
+  | None ->
+      let head = if is_intrinsic_type ns name then [ "type " ^ spelling ] else [] in
+      head @ List.sort_uniq compare (List.map I.signature_text (I.signatures spelling))
+
+let intrinsic_hover spelling =
+  let ns, _ = split_spelling spelling in
+  let lines = match intrinsic_lines spelling with [] -> [ spelling ] | ls -> ls in
+  let doc = match Tst.Intrinsic_docs.find spelling with Some d -> "\n\n" ^ d | None -> "" in
+  code (String.concat "\n" lines) ^ doc ^ "\n\nAn intrinsic of `@" ^ ns ^ "$`."
+
 (* ---------------------------------------------------------------------- *)
 (* Hover                                                                  *)
 (* ---------------------------------------------------------------------- *)
@@ -170,8 +205,6 @@ let documentation (a : P.analysis) (entry : Index.entry) =
           else acc
       in
       if line <= 0 || line > Array.length lines then "" else String.concat "\n" (above (line - 1) [])
-
-let code s = "```zane\n" ^ s ^ "\n```"
 
 let local_description (l : Tst.Nodes.Local.t) = Printf.sprintf "%s %s" l.Tst.Nodes.Local.name (Ty.to_string l.ty)
 
@@ -200,17 +233,7 @@ let describe (a : P.analysis) (index : Index.t) (target : Uses.target) =
           ^ "\n\nA generic parameter.")
         (Hashtbl.find_opt index.Index.params id)
   | Uses.Package p -> Some (code ("package " ^ p))
-  | Uses.Intrinsic spelling -> (
-      let ns, name =
-        match String.index_opt spelling '$' with
-        | Some i when String.length spelling > 1 -> (String.sub spelling 1 (i - 1), String.sub spelling (i + 1) (String.length spelling - i - 1))
-        | _ -> ("", spelling)
-      in
-      let functions = Tst.Intrinsics.find_functions ns name in
-      match (Tst.Intrinsics.find_value ns name, functions) with
-      | Some ty, _ -> Some (code (spelling ^ " " ^ Ty.to_string ty))
-      | None, (_ :: _ as fs) -> Some (code (String.concat "\n" (List.map Tst.Signature.to_string fs)))
-      | None, [] -> Some (code spelling))
+  | Uses.Intrinsic spelling -> Some (intrinsic_hover spelling)
 
 (* ---------------------------------------------------------------------- *)
 (* Semantic tokens                                                        *)
@@ -249,9 +272,14 @@ let classify (index : Index.t) (u : Uses.use) =
         | _ -> (Some "variable", false, false))
     | Uses.Param _ -> (Some "typeParameter", false, false)
     | Uses.Label _ -> (Some "parameter", false, false)
-    | Uses.Intrinsic spelling ->
-        let name = match String.index_opt spelling '$' with Some i -> String.sub spelling (i + 1) (String.length spelling - i - 1) | None -> spelling in
-        if name <> "" && Cst.is_upper_identifier name then (Some "type", false, true) else (Some "function", false, true)
+    | Uses.Intrinsic spelling -> (
+        let ns, name = split_spelling spelling in
+        if Option.is_some (I.find_value ns name) then (Some "variable", true, true)
+        else if is_intrinsic_type ns name then (Some "type", false, true)
+        else
+          match I.signatures spelling with
+          | { Tst.Signature.kind = Tst.Signature.Method | Tst.Signature.Subscript; _ } :: _ -> (Some "method", false, true)
+          | _ -> (Some "function", false, true))
   in
   Option.map
     (fun k ->
@@ -412,10 +440,106 @@ let item_kind = function
   | `Operator -> 24
   | `Type_parameter -> 25
 
-let item ?detail label kind =
+let item ?detail ?documentation ?insert label kind =
   `Assoc
     ([ ("label", `String label); ("kind", `Int (item_kind kind)) ]
-    @ match detail with Some d -> [ ("detail", `String d) ] | None -> [])
+    @ (match detail with Some d -> [ ("detail", `String d) ] | None -> [])
+    @ (match documentation with
+      | Some d -> [ ("documentation", `Assoc [ ("kind", `String "markdown"); ("value", `String d) ]) ]
+      | None -> [])
+    @ match insert with Some t -> [ ("insertText", `String t) ] | None -> [])
+
+(* Where the cursor's name stands after an intrinsic's namespace. *)
+type intrinsic_site =
+  | Namespace_name  (** after `@` *)
+  | Namespace_member of { namespace : string; method_ : bool }  (** after `@namespace$` *)
+  | Named_constructor of { namespace : string; type_ : string }  (** after `@namespace$Type.` *)
+
+(* The intrinsic site of a name that starts at [start] in [text], read from
+   the characters before it. A method's name follows `:` or `!` before the
+   `@`. *)
+let intrinsic_site text start =
+  let rec back i = if i > 0 && is_identifier_byte text.[i - 1] then back (i - 1) else i in
+  let char_at i = if i >= 0 && i < String.length text then Some text.[i] else None in
+  (* The namespace whose `$` sits at [dollar], and where its `@` is. *)
+  let namespace_before dollar =
+    let ns_start = back dollar in
+    if ns_start < dollar && char_at (ns_start - 1) = Some '@' then Some (String.sub text ns_start (dollar - ns_start), ns_start - 1)
+    else None
+  in
+  match char_at (start - 1) with
+  | Some '@' -> Some Namespace_name
+  | Some '$' -> (
+      match namespace_before (start - 1) with
+      | Some (namespace, at) ->
+          let method_ = match char_at (at - 1) with Some (':' | '!') -> true | _ -> false in
+          Some (Namespace_member { namespace; method_ })
+      | None -> None)
+  | Some '.' -> (
+      let dot = start - 1 in
+      let type_start = back dot in
+      if type_start < dot && char_at (type_start - 1) = Some '$' then
+        match namespace_before (type_start - 1) with
+        | Some (namespace, _) -> Some (Named_constructor { namespace; type_ = String.sub text type_start (dot - type_start) })
+        | None -> None
+      else None)
+  | _ -> None
+
+(* A completion item's detail: the first of the declaration lines, and how
+   many more there are. *)
+let intrinsic_detail lines =
+  match lines with
+  | [] -> None
+  | [ l ] -> Some l
+  | l :: rest -> Some (Printf.sprintf "%s (+%d more)" l (List.length rest))
+
+(* [subject] is the type of the value before `:` or `!`, when the check
+   reached the cursor and found it. *)
+let intrinsic_items site ~types_only ~subject ~root =
+  let doc spelling = Tst.Intrinsic_docs.find spelling in
+  match site with
+  | Namespace_name ->
+      List.filter_map
+        (fun ns ->
+          if ns = "program" && not root then None
+          else Some (item ?documentation:(doc ("@" ^ ns ^ "$")) ~insert:(ns ^ "$") ns `Module))
+        I.namespaces
+  | Namespace_member { namespace; _ } when namespace = "program" && not root -> []
+  | Namespace_member { namespace; method_ } ->
+      List.filter_map
+        (fun (e : I.entry) ->
+          let wanted =
+            match e.I.kind with
+            | I.Method_entry -> (
+                method_
+                && match subject with Some t -> List.exists (fun s -> Index.subject_fits s t) e.I.signatures | None -> true)
+            | I.Type_entry -> not method_
+            | I.Value_entry | I.Function_entry -> not (method_ || types_only)
+          in
+          if not wanted then None
+          else
+            let spelling = I.spelling_of e in
+            let kind =
+              match e.I.kind with
+              | I.Type_entry -> `Struct
+              | I.Value_entry -> `Constant
+              | I.Function_entry -> `Function
+              | I.Method_entry -> `Method
+            in
+            let lines =
+              match e.I.kind with
+              | I.Type_entry | I.Value_entry -> intrinsic_lines spelling
+              | I.Function_entry | I.Method_entry -> List.sort_uniq compare (List.map I.signature_text e.I.signatures)
+            in
+            Some (item ?detail:(intrinsic_detail lines) ?documentation:(doc spelling) e.I.name kind))
+        (I.find_entries namespace)
+  | Named_constructor { namespace; type_ } ->
+      List.map
+        (fun (member, sigs) ->
+          let spelling = "@" ^ namespace ^ "$" ^ type_ ^ "." ^ member in
+          let detail = match sigs with s :: _ -> Some (I.signature_text s) | [] -> None in
+          item ?detail ?documentation:(doc spelling) member `Constructor)
+        (I.named_constructors namespace type_)
 
 let kind_of_entry = function
   | Index.Struct | Index.Handle | Index.Distinct | Index.Alias -> `Struct
@@ -497,21 +621,32 @@ let completion encoding t (d : P.document) (line, character) =
       | Index.Map_member -> `Property
       | Index.Method_member -> `Method)
   in
+  let root =
+    match (if Option.is_some index then index else fallback) with
+    | Some (index : Index.t) -> index.Index.is_root ~path:d.P.path
+    | None -> true
+  in
+  let intrinsics site =
+    let types_only = match probe with Some (_, Uses.Type_in _) -> true | _ -> false in
+    let subject = match probe with Some (_, Uses.Member_of { ty; _ }) -> Some ty | _ -> None in
+    intrinsic_items site ~types_only ~subject ~root
+  in
   let items =
-    match (probe, trigger) with
-    | Some (index, Uses.Member_of { ty; package; path }), _ ->
+    match (intrinsic_site text start, probe, trigger) with
+    | Some site, _, _ -> intrinsics site
+    | None, Some (index, Uses.Member_of { ty; package; path }), _ ->
         let methods = trigger = Some ':' || trigger = Some '!' in
         index.Index.members_of ty ~package ~path
         |> List.filter (fun (_, k, _) -> if methods then k = Index.Method_member else k <> Index.Method_member)
         |> List.map member_item
-    | Some (index, Uses.Type_member_of ty), _ -> List.map member_item (index.Index.type_members_of ty)
-    | Some (index, Uses.Name_in { locals; _ }), _ ->
+    | None, Some (index, Uses.Type_member_of ty), _ -> List.map member_item (index.Index.type_members_of ty)
+    | None, Some (index, Uses.Name_in { locals; _ }), _ ->
         List.map (fun (l : Tst.Nodes.Local.t) -> item ~detail:(Ty.to_string l.Tst.Nodes.Local.ty) l.Tst.Nodes.Local.name `Variable) locals
         @ names index ~types:false @ keywords
-    | Some (index, Uses.Type_in { params; _ }), _ ->
+    | None, Some (index, Uses.Type_in { params; _ }), _ ->
         List.map (fun p -> item p `Type_parameter) params @ names index ~types:true
-    | None, Some ('.' | ':' | '!') -> []
-    | None, _ -> (match fallback with Some index -> names index ~types:upper | None -> []) @ keywords
+    | None, None, Some ('.' | ':' | '!') -> []
+    | None, None, _ -> (match fallback with Some index -> names index ~types:upper | None -> []) @ keywords
   in
   let items =
     List.filter
