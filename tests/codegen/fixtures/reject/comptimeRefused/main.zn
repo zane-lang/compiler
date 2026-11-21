@@ -1,0 +1,37 @@
+/// Calls marked `comptime` that the compiler cannot evaluate, each a
+/// compile-time error naming the call (spec effects.md §5.6): one that
+/// prints, one that reads an element past a list's end, and one whose
+/// handler, evaluated with it, prints. Each is reported, in the order lowering reached them.
+package comptimeRefused;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+Int loud(n Int) {
+	@program$console!print(String("loud\n"));
+	return n;
+}
+
+Int last() {
+	values List<Int> = @primitives$List(Int);
+	values!push(Int(1));
+	return values[Int(2)];
+}
+
+Int?Int failing() {
+	abort Int(1);
+}
+
+Int noisy() => failing() ? e {
+	@program$console!print(String("failed\n"));
+	resolve e;
+}
+
+Unit main() {
+	a Int = comptime loud(Int(1));
+	b Int = comptime last();
+	c Int = comptime noisy();
+	return Unit();
+}

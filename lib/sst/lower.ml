@@ -177,6 +177,7 @@ and expression (x : C.Expr.t) : S.Expr.t =
             S.Expr.MapLit
               (List.map (fun (k, v) -> (expression k, expression v)) entries)
         | C.Expr.Spawn call -> S.Expr.Spawn (verb_call_of call)
+        | C.Expr.Comptime call -> S.Expr.Comptime (verb_call_of call)
         | C.Expr.Match m -> S.Expr.Match (match_expr m)
         | C.Expr.VerbCall call -> S.Expr.VerbCall (verb_call_of call)
         | C.Expr.FuncLambda l -> S.Expr.FuncLambda (func_lambda l)
@@ -444,6 +445,7 @@ and statement (x : C.Statement.t) : S.Stat.t =
     match inner.C.Stat.node with
     | C.Stat.VerbCall call -> S.Stat.VerbCall (verb_call_of call)
     | C.Stat.Spawn call -> S.Stat.Spawn (verb_call_of call)
+    | C.Stat.Comptime call -> S.Stat.Comptime (verb_call_of call)
     | C.Stat.Decl d -> S.Stat.Decl (declaration d)
     | C.Stat.Assign { target; value } ->
         S.Stat.Assign { target = expression target; value = expression value }

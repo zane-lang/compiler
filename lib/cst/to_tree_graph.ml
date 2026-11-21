@@ -216,6 +216,8 @@ and expr_to_node (x: Nodes.Expr.t) = match x.Nodes.Expr.node with
       group "map_lit" (map_seq map_entry_to_node entries)
   | Spawn call ->
       group "spawn" (verb_call_to_node call)
+  | Comptime call ->
+      group "comptime" (verb_call_to_node call)
   | Match match_ ->
       group "match" (match_expr_to_node match_)
   | FuncLambda x ->
@@ -271,6 +273,7 @@ and statement_to_node (x: Nodes.Statement.t) = stat_to_node x.stat
 and stat_to_node (x: Nodes.Stat.t) = match x.Nodes.Stat.node with
   | VerbCall x -> verb_call_to_node x
   | Spawn x    -> group "spawn_stat" (verb_call_to_node x)
+  | Comptime x -> group "comptime_stat" (verb_call_to_node x)
   | Decl x     -> decl_to_node x
   | Assign { target; value } ->
       group "assign_stat" (fields [

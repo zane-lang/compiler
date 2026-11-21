@@ -1,0 +1,12 @@
+File "fixtures/reject/comptimeRefused/main.zn", line 33, characters 13-34:
+33 |     a Int = comptime loud(Int(1));
+   |             ^^^^^^^^^^^^^^^^^^^^^
+Error: a `comptime` call writes no capability-backed state, and this one does: it prints to the console
+File "fixtures/reject/comptimeRefused/main.zn", line 34, characters 13-28:
+34 |     b Int = comptime last();
+   |             ^^^^^^^^^^^^^^^
+Error: this `comptime` call cannot be evaluated at compile time: it reaches an index out of range
+File "fixtures/reject/comptimeRefused/main.zn", line 35, characters 13-29:
+35 |     c Int = comptime noisy();
+   |             ^^^^^^^^^^^^^^^^
+Error: a `comptime` call writes no capability-backed state, and this one does: it prints to the console

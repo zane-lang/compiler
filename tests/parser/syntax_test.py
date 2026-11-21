@@ -112,6 +112,34 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit work(this Node) { this.next = &this; }")
         self.assert_rejects("Unit work(n Node) { m &Node = &n; }")
 
+    def test_comptime_marks_a_call(self) -> None:
+        # syntax.md §4.10: each form, the handled ones included, as a value
+        # and as a statement.
+        self.assert_parses(
+            '''
+            notes String = comptime readNotes(files, "notes.txt");
+
+            Unit work() {
+                a Int = comptime fib(Int(20));
+                b Int = comptime table:size();
+                c Int = comptime parse(text) ? e {
+                    resolve Int(0);
+                }
+                d Int = comptime parse(text) ?? Int(0);
+                e Point(comptime origin(), Int(1));
+                f Point = comptime Point{ x = Int(1); y = Int(2); }
+                comptime check(Int(1));
+                comptime list!sort();
+                return Unit();
+            }
+            '''
+        )
+        # `comptime` takes a whole call, never a call closed by a trailing
+        # block, nor any other expression.
+        self.assert_rejects("Unit work() { a Int = comptime each(Int(2)) { }; }")
+        self.assert_rejects("Unit work() { a Int = comptime x; }")
+        self.assert_rejects("Unit work() { b Int = comptime (f()); }")
+
     def test_generic_parameter_introduction_and_collection_literals(self) -> None:
         self.assert_parses(
             '''

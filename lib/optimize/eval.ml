@@ -16,6 +16,19 @@ open Value
 (* What a run did that the running program must still do, in order (O4). *)
 type output = Print of string | Set_threads of int64 | Set_threads_auto
 
+(* A run of a call marked `comptime` (docs/design/comptime.md): it is not
+   optional, so no budget, depth or output cap ends it, and it may read
+   capability-backed state, through capabilities that stand for the build
+   machine's own. [arguments] is what the runtime's `arguments` gives: the
+   arguments the build was started with. [reads] counts the reads the run
+   has made, and the package constants it has made, so that a call that
+   made one is not remembered as a call that reads nothing. *)
+type explicit = { arguments : string list; mutable reads : int }
+
+(* A write of capability-backed state inside a `comptime` call, which no
+   such call may make (spec effects.md §5.6): what the write was. *)
+exception Writes of string
+
 (* A package constant's two variables (docs/design/lowering.md L16), and its
    value once it is known to fold. *)
 type constant = { maker : string; state : string; value : string; mutable known : const option }
@@ -134,6 +147,30 @@ let budget = 5_000_000
 let total = 50_000_000
 let max_depth = 2_000
 
+(* What the evaluator knows of [p] before any run: its functions, layouts
+   and variables, no constant known yet, nothing remembered, the whole
+   [total] left, and its C, [c] (F16). *)
+let program_of ?(c = []) (p : Program.t) =
+  let table f xs =
+    let t = Hashtbl.create 64 in
+    List.iter
+      (fun x ->
+        let k, v = f x in
+        Hashtbl.replace t k v)
+      xs;
+    t
+  in
+  {
+    funcs = functions p.Program.funcs;
+    layouts = table Fun.id p.Program.layouts;
+    globals = table (fun (g : Global.t) -> (g.Global.symbol, g)) p.Program.globals;
+    constants = Hashtbl.create 16;
+    memo = Key.create 64;
+    left = total;
+    c = C_cross.program (if c = [] then None else Some (C_ir.make c)) p.Program.foreign p.Program.callbacks;
+    holding = Hashtbl.create 16;
+  }
+
 (* The locals of one call. The function being folded has [outer]: the value
    the fold knows a local of it holds, read the first time it is needed. *)
 module Locals = struct
@@ -197,6 +234,8 @@ type run = {
   (* Each held slot whose value may hold a foreign handle, by the frame
      and scope whose drain ends it (docs/design/ffi.md F12). *)
   mutable held : (Locals.t * int * cell * Layout.t) list;
+  (* Set when the run evaluates a call marked `comptime`. *)
+  explicit : explicit option;
 }
 
 type frame = { locals : Locals.t; outer : (int -> (const * Ty.t) option) option }
@@ -204,8 +243,9 @@ type frame = { locals : Locals.t; outer : (int -> (const * Ty.t) option) option 
 exception Left of int
 exception Returned of v
 
-let start ?making prog =
+let start ?making ?explicit prog =
   {
+    explicit;
     prog;
     steps = budget;
     depth = 0;
@@ -246,10 +286,14 @@ let holds run layout =
       Hashtbl.replace run.prog.holding layout b;
       b
 
+(* A `comptime` run takes no steps from either budget: it runs to
+   completion, however long that takes. *)
 let spend run n =
-  run.steps <- run.steps - n;
-  run.prog.left <- run.prog.left - n;
-  if run.steps <= 0 || run.prog.left <= 0 then stop "the step budget ran out"
+  if Option.is_none run.explicit then begin
+    run.steps <- run.steps - n;
+    run.prog.left <- run.prog.left - n;
+    if run.steps <= 0 || run.prog.left <= 0 then stop "the step budget ran out"
+  end
 
 let tick run = spend run 1
 
@@ -264,18 +308,58 @@ let bytes run n = if n >= 64 then spend run (n / 64)
    materialize to stops (O6). A call's outputs are part of its run's, so a
    call whose outputs pass the cap stops before it can be remembered. *)
 let charge_outputs run ~count ~text =
+  if count > 0 && Option.is_some run.explicit then
+    raise (Writes "a call it makes prints or sets the runtime's threads");
   bytes run (text + count);
   run.output_count <- run.output_count + count;
   run.output_bytes <- run.output_bytes + text;
   if run.output_bytes + run.output_count > max_size then stop "output too large to fold"
 
 let output run o =
+  (match (run.explicit, o) with
+  | None, _ -> ()
+  | Some _, Print _ -> raise (Writes "it prints to the console")
+  | Some _, (Set_threads _ | Set_threads_auto) -> raise (Writes "it sets the runtime's threads"));
   let text = match o with Print s -> String.length s | Set_threads _ | Set_threads_auto -> 0 in
   charge_outputs run ~count:1 ~text;
   run.outputs <- o :: run.outputs
 let sized run (t : Ty.t) =
   let n = size_steps t in
   if n > 0 then spend run n
+
+(* Whether [g] is a foreign variable's C global (Cgt.Lower, F9): a variable
+   another object defines, under its package's C prefix. *)
+let foreign_global run g =
+  match Hashtbl.find_opt run.prog.globals g with
+  | Some { Global.linkage = Linkage.Imported; _ } ->
+      let rec has i = i + 4 <= String.length g && (String.sub g i 4 = "$%c$" || has (i + 1)) in
+      has 0
+  | _ -> false
+
+(* How many reads a `comptime` run has made. *)
+let reads run = match run.explicit with Some x -> x.reads | None -> 0
+
+(* The build's arguments as the runtime's `arguments` gives the program
+   its own (spec effects.md §6.6): a new list of strings, each laid out as
+   the program lays out a string, which is read through the layout of the
+   one type whose only position is a string's. *)
+let build_arguments run =
+  match run.explicit with
+  | None -> stop "an input, which only the running program has"
+  | Some x ->
+      x.reads <- x.reads + 1;
+      let layout =
+        if Hashtbl.mem run.prog.layouts "%primitives$String" then Some "%primitives$String"
+        else
+          Hashtbl.fold
+            (fun l ps found ->
+              match (found, ps) with
+              | None, [ { Layout.kind = Layout.Text; offset = 0; tags = []; _ } ] -> Some l
+              | _ -> found)
+            run.prog.layouts None
+      in
+      let items = Array.of_list (List.map (fun a -> cell ?layout Ty.Handle (VText a)) x.arguments) in
+      VList { items; count = Array.length items; stride = fst (Ty.size_align Ty.Handle) }
 
 (* ---------------------------------------------------------------------- *)
 (* Places                                                                 *)
@@ -314,6 +398,9 @@ let global run g =
             match (k.known, run.making) with
             | Some _, _ -> VInt (-1L)
             | None, Some m when m = k.state -> VInt 0L
+            (* A `comptime` run makes a constant it reads, as the program
+               does the first time it reads one. *)
+            | None, _ when Option.is_some run.explicit -> VInt 0L
             | None, _ -> VNull)
         | Some { known = Some c; _ } -> import c
         | Some { known = None; _ } -> VNull
@@ -537,6 +624,30 @@ let math (fn : Cgt.Math.fn) (t : Ty.t) args =
   | Cgt.Math.Max, [ VFloat a; VFloat b ] -> VFloat (float t (greatest a b))
   | _ -> stop ("`@math$" ^ Cgt.Math.name fn ^ "`, which only the running program computes")
 
+(* An approximate math function, which only a `comptime` run computes: by
+   the build machine's C math library, through OCaml's, in double
+   precision, and rounded once to a single for an [F32], as a `comptime`
+   call runs on the build machine (docs/design/comptime.md). *)
+let approximate (fn : Cgt.Math.fn) (t : Ty.t) args =
+  let f =
+    match (fn, args) with
+    | Cgt.Math.Cbrt, [ VFloat a ] -> Float.cbrt a
+    | Cgt.Math.Sin, [ VFloat a ] -> Float.sin a
+    | Cgt.Math.Cos, [ VFloat a ] -> Float.cos a
+    | Cgt.Math.Tan, [ VFloat a ] -> Float.tan a
+    | Cgt.Math.Asin, [ VFloat a ] -> Float.asin a
+    | Cgt.Math.Acos, [ VFloat a ] -> Float.acos a
+    | Cgt.Math.Atan, [ VFloat a ] -> Float.atan a
+    | Cgt.Math.Atan2, [ VFloat a; VFloat b ] -> Float.atan2 a b
+    | Cgt.Math.Exp, [ VFloat a ] -> Float.exp a
+    | Cgt.Math.Log, [ VFloat a ] -> Float.log a
+    | Cgt.Math.Pow, [ VFloat a; VFloat b ] -> Float.pow a b
+    | Cgt.Math.Hypot, [ VFloat a; VFloat b ] -> Float.hypot a b
+    | Cgt.Math.Fma, [ VFloat a; VFloat b; VFloat c ] -> Float.fma a b c
+    | _ -> stop ("`@math$" ^ Cgt.Math.name fn ^ "` on operands it has no meaning for")
+  in
+  VFloat (float t f)
+
 (* A scalar converted from [from] to [into], as emit.ml's [convert]. *)
 let convert (from : Ty.t) (into : Ty.t) v =
   match (from, into, v) with
@@ -622,6 +733,7 @@ let rec expr run fr (e : Expr.t) : v =
       let args = List.map (expr run fr) args in
       match Intrinsics.math fn e.Expr.ty with
       | Intrinsics.Computed | Intrinsics.Output -> math fn e.Expr.ty args
+      | Intrinsics.Input when Option.is_some run.explicit -> approximate fn e.Expr.ty args
       | Intrinsics.Input -> stop "an approximate math function, which only the running program has")
   | Expr.Flip value -> flip value.Expr.ty (expr run fr value)
   | Expr.Convert value -> convert value.Expr.ty e.Expr.ty (expr run fr value)
@@ -669,6 +781,12 @@ let rec expr run fr (e : Expr.t) : v =
       owner (cell ~layout value.Expr.ty v)
   | Expr.Layout l -> VLayout l
   | Expr.Function f -> VFunc f
+  | Expr.Global g when Option.is_some run.explicit && foreign_global run g ->
+      (* Inside a `comptime` call a foreign capability stands for its
+         counterpart where the build runs: the C global of the build's own
+         C, from its first value, as a run's C memory starts
+         (docs/design/comptime.md). *)
+      VForeign (C_cross.C (C_eval.global (c_run run) g))
   | Expr.Global g -> at (global run g)
   | Expr.Escape { value; _ } -> expr run fr value
 
@@ -838,6 +956,11 @@ and handle_thunk run thunk args = ignore (foreign run thunk (List.map (fun a -> 
 and foreign run thunk args ret =
   match Hashtbl.find_opt run.prog.c.C_cross.thunks thunk with
   | None -> stop "a call into C with no thunk in the program"
+  | Some f when f.Foreign.capability && f.Foreign.writes && Option.is_some run.explicit ->
+      raise (Writes "it calls a `mut` method on a foreign capability, which writes outside state")
+  | Some f when f.Foreign.capability && Option.is_some run.explicit ->
+      Option.iter (fun x -> x.reads <- x.reads + 1) run.explicit;
+      C_cross.call run.prog.c (c_run run) f args ret
   | Some f when f.Foreign.capability ->
       stop "a call that reads or writes a capability, which only the running program makes"
   | Some f -> C_cross.call run.prog.c (c_run run) f args ret
@@ -855,6 +978,7 @@ and c_run run =
              {
                C_eval.spend = spend run;
                declared = (fun name args -> C_cross.adapter run.prog.c (Lazy.force c) name args (call run));
+               bounded = Option.is_none run.explicit;
              })
       in
       let c = Lazy.force c in
@@ -884,7 +1008,8 @@ and call run fn args =
           import m.result
       | None ->
           run.depth <- run.depth + 1;
-          if run.depth > max_depth then stop "calls nested too deep";
+          if run.depth > max_depth && Option.is_none run.explicit then stop "calls nested too deep";
+          let reads_before = reads run in
           (* As many locals as the last call of the function numbered. *)
           let fr = { locals = Locals.create ~size:e.frame (); outer = None } in
           List.iter2 (fun (id, ty) v -> bind fr id ty v) f.Func.params args;
@@ -893,6 +1018,10 @@ and call run fn args =
           run.depth <- run.depth - 1;
           e.frame <- Locals.size fr.locals;
           (match (key, export result) with
+          (* A call that read capability-backed state, or made a package
+             constant, gave what this build's reads gave: no other call
+             with the same arguments is sure to give it. *)
+          | Some _, _ when reads run <> reads_before -> ()
           | Some key, Some c ->
               Key.replace run.prog.memo key
                 {
@@ -906,6 +1035,15 @@ and call run fn args =
 
 and runtime run (fn : Cgt.Runtime.fn) args =
   match (Intrinsics.classify fn, fn, args) with
+  | _, Cgt.Runtime.Arguments, [] when Option.is_some run.explicit -> build_arguments run
+  | Intrinsics.Input, (Cgt.Runtime.Tick_start | Cgt.Runtime.Tick), _ when Option.is_some run.explicit ->
+      stop "a worker's timer, which only the running program keeps"
+  | ( Intrinsics.Input,
+      ( Cgt.Runtime.Workers_new | Cgt.Runtime.Workers_start | Cgt.Runtime.Workers_publish
+      | Cgt.Runtime.Workers_state | Cgt.Runtime.Workers_elements ),
+      _ )
+    when Option.is_some run.explicit ->
+      stop "a worker pool, which this compiler does not run at compile time"
   | Intrinsics.Input, _, _ -> stop "an input, which only the running program has"
   | _, Cgt.Runtime.Print, [ text ] ->
       output run (Print (text_of text));
@@ -1020,13 +1158,14 @@ and runtime run (fn : Cgt.Runtime.fn) args =
      the running program, not of the code: the read stays. A read inside a
      call is the whole call, which folds when the constant does. *)
   | _, (Cgt.Runtime.Constant_begin | Cgt.Runtime.Constant_end), _
-    when run.depth = 0 && run.making = None ->
+    when run.depth = 0 && run.making = None && Option.is_none run.explicit ->
       stop "where a package constant is made"
   | _, Cgt.Runtime.Constant_begin, [ state ] -> (
       let p = ptr_of state in
       match load p with
       | VInt -1L -> VInt 0L
       | VInt 0L ->
+          Option.iter (fun x -> x.reads <- x.reads + 1) run.explicit;
           store p Ty.I64 (VInt 1L);
           VInt 1L
       | VInt _ -> stop "a package constant read while it is made"

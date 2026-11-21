@@ -1043,6 +1043,140 @@
   (diff golden/calls.out calls.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/comptimeC))
+ (action
+  (with-stdout-to
+   comptimeC.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/comptimeC))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.cgt comptimeC.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/comptimeC))
+ (targets comptimeC.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build comptimeC.exe --package fixtures/comptimeC)))
+
+(rule
+ (deps (source_tree fixtures/comptimeC))
+ (targets comptimeC.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build comptimeC.optimized.exe --optimize --package fixtures/comptimeC)))
+
+(rule
+ (deps (source_tree fixtures/comptimeC))
+ (targets comptimeC.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build comptimeC.tiered.exe --tiered --package fixtures/comptimeC)))
+
+(rule
+ (deps (source_tree fixtures/comptimeC))
+ (targets comptimeC.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up comptimeC.tier1 --package fixtures/comptimeC)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    comptimeC.checked.out.actual
+    (run ./comptimeC.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.out comptimeC.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    comptimeC.unchecked.out.actual
+    (run ./comptimeC.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.out comptimeC.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    comptimeC.optimized.checked.out.actual
+    (run ./comptimeC.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.out comptimeC.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    comptimeC.optimized.unchecked.out.actual
+    (run ./comptimeC.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.out comptimeC.optimized.unchecked.out.actual)))
+
+(rule
+ (deps comptimeC.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./comptimeC.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    comptimeC.tiered.checked.out.actual
+    (run ./comptimeC.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.out comptimeC.tiered.checked.out.actual)))
+
+(rule
+ (deps comptimeC.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./comptimeC.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    comptimeC.tiered.unchecked.out.actual
+    (run ./comptimeC.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeC.out comptimeC.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/crowded))
  (targets crowded.exe)
  (action

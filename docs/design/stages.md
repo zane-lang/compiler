@@ -26,7 +26,9 @@ binary
 5. **optimization** — rewrites the CGT into a faster CGT. Each pass maps a CGT
    to a CGT, and an unoptimized build runs no passes. Its one pass evaluates
    at compile time what the program would compute the same way every run
-   ([`optimization.md`](optimization.md)).
+   ([`optimization.md`](optimization.md)). Before it, every build evaluates
+   the calls marked `comptime`, which are not optional, and writes their
+   values into the CGT ([`comptime.md`](comptime.md)).
 6. **codegen** — lowers the CGT to LLVM IR and produces the binary. How
    lowering and codegen are designed is in [`lowering.md`](lowering.md).
 

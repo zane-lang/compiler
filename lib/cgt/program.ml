@@ -189,9 +189,29 @@ let made st decl : Func.t =
    an enum map's. *)
 let name_lambdas st owner (b : T.Block.t) =
   let n = ref 0 in
+  (* The foreign variables declared so far, which a `comptime` call may
+     name (Lower_comptime). *)
+  let foreign = ref [] in
   let rec block (b : T.Block.t) =
-    List.iter (fun s -> List.iter expr (Tst.Traverse.stat_exprs s)) b.T.Block.stats
-  and expr e = List.iter part (Tst.Traverse.parts e)
+    List.iter
+      (fun (s : T.Stat.t) ->
+        (match s.T.Stat.node with
+        | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Foreign_global _; _ } } ->
+            foreign := (local.T.Local.id, s) :: !foreign
+        | _ -> ());
+        List.iter expr (Tst.Traverse.stat_exprs s))
+      b.T.Block.stats
+  and expr e =
+    (match e.T.Expr.node with
+    | T.Expr.Comptime inner when not (List.mem_assq inner st.marked) ->
+        let lambda, body = Lower_comptime.lambda ~foreign:!foreign inner in
+        incr n;
+        let symbol = Printf.sprintf "%s$lambda%d" owner !n in
+        st.lambdas <- (body, symbol) :: st.lambdas;
+        st.marked <- (inner, (lambda, e.T.Expr.span)) :: st.marked;
+        Hashtbl.replace st.comptime symbol e.T.Expr.span
+    | _ -> ());
+    List.iter part (Tst.Traverse.parts e)
   and part = function
     | Tst.Traverse.Same x -> expr x
     | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
@@ -496,6 +516,23 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
       in
       add i.T.Instance.decl i.T.Instance.args signature i.T.Instance.params i.T.Instance.body)
     p.T.Program.instances;
+  (* A default is lowered where a call leaves its entry out (Lower_data), so
+     its lambdas and `comptime` calls are named after its constructor's
+     instance and its slot. *)
+  List.iter
+    (fun (d : T.Defaults.t) ->
+      match Hashtbl.find_opt st.verbs (key d.T.Defaults.decl d.T.Defaults.args) with
+      | Some v ->
+          let owner = Symbol.verb ~stamp:st.stamp v.signature v.instance in
+          List.iter
+            (fun (slot, (e : T.Expr.t)) ->
+              let stat = { T.Stat.node = T.Stat.Expr e; span = e.T.Expr.span } in
+              name_lambdas st
+                (Printf.sprintf "%s$default%d" owner slot)
+                { T.Block.stats = [ stat ]; span = e.T.Expr.span })
+            d.T.Defaults.values
+      | None -> ())
+    p.T.Program.defaults;
   if not library then st.written_back <- Some (written_back st calls)
   else (
     match program_write_backs with
@@ -548,6 +585,11 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
         (Regions.run ~wants:st.wants
            {
              Program.funcs;
+             comptime =
+               List.filter_map
+                 (fun (f : Func.t) ->
+                   Option.map (fun span -> (f.Func.symbol, span)) (Hashtbl.find_opt st.comptime f.Func.symbol))
+                 funcs;
              entry;
              layouts;
              globals = List.rev st.globals @ context;

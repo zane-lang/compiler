@@ -1,0 +1,215 @@
+/// Calls marked `comptime` (spec effects.md §5.6, docs/design/comptime.md):
+/// evaluated at compile time in every build, unoptimized included, and
+/// built into the program as constants. A result of each kind of value, a
+/// package constant made by one and one read by another, a marked call
+/// inside another's arguments, a method call, a call through a function
+/// value, handlers, a handled `match` in the arguments, a field's default,
+/// the build's arguments (the `flags` file gives them), and a loop that runs
+/// far past the budget an implicit fold has, which a marked call does not
+/// take from. Each check prints `yes` when it holds and `no` when it does
+/// not.
+package comptimeCalls;
+
+alias Int = @primitives$I64;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+alias List<T Type> = @primitives$List<T>;
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+Unit to(this Int, end Int, body @concepts$Block) mut {
+	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), Int(1)), {
+		@controlflow$branch(true, body);
+		this = @operators$add(this, Int(1));
+	});
+	return Unit();
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+Int fib(n Int) {
+	if(@operators$lessThan(n, Int(2))) {
+		return n;
+	}
+	return @operators$add(fib(@operators$add(n, @operators$negate(Int(1)))), fib(@operators$add(n, @operators$negate(Int(2)))));
+}
+
+/// The sum of 1 to `n`, one step at a time.
+Int counted(n Int) {
+	total Int(0);
+	i Int(1);
+	i!to(n) {
+		total = @operators$add(total, i);
+	}
+	return total;
+}
+
+type Vec = struct {
+	x Int;
+	y Int;
+}
+
+Vec(x Int, y Int) => init{ x; y; }
+
+Int sum(this Vec) => @operators$add(this.x, this.y);
+
+type Shape = variant {
+	dot Vec;
+	circle Float;
+	none Unit;
+}
+
+Shape biggest(n Int) {
+	if(@operators$lessThan(n, Int(10))) {
+		return Shape.circle(Float(1.5));
+	}
+	return Shape.dot(Vec(n, @operators$multiply(n, Int(2))));
+}
+
+Int corners(s Shape) => match (s) {
+	d dot => @operators$add(d.x, d.y);
+	c circle => Int(0);
+	n none => @operators$negate(Int(1));
+}
+
+String repeated(word String, times Int) {
+	out String("");
+	i Int(1);
+	i!to(times) {
+		out = @operators$concat(out, word);
+	}
+	return out;
+}
+
+List<Int> squares(n Int) {
+	values List<Int> = @primitives$List(Int);
+	i Int(1);
+	i!to(n) {
+		values!push(@operators$multiply(i, i));
+	}
+	return values;
+}
+
+Int?Int divide(a Int, b Int) {
+	if(@operators$equal(b, Int(0))) {
+		abort a;
+	}
+	return @operators$divide(a, b);
+}
+
+/// The build's arguments, joined with `,`: the runtime's `arguments` reads
+/// the build machine inside a marked call.
+String joined(runtime &@runtime$Runtime) {
+	args List<String> = runtime:arguments();
+	out String("");
+	i Int(1);
+	i!to(args:size()) {
+		if(@operators$lessThan(Int(1), i)) {
+			out = @operators$concat(out, String(","));
+		}
+		out = @operators$concat(out, args[i]);
+	}
+	return out;
+}
+
+Int count(runtime &@runtime$Runtime) => runtime:arguments():size();
+
+Int twice(f Int[Int], x Int) => f(f(x));
+
+Int double(x Int) => @operators$multiply(x, Int(2));
+
+doubler Int(x Int) {
+	return @operators$multiply(x, Int(2));
+}
+
+/// Package constants: one made by a marked call, and one whose marked call
+/// reads another constant, which is made first.
+base Int = comptime fib(Int(15));
+derived Int = comptime fib(@operators$add(base, @operators$negate(Int(600))));
+origin Vec(Int(3), Int(4));
+summed Int = comptime origin:sum();
+
+/// A default made by a marked call, which a call that leaves its entry out
+/// takes.
+type Weapon = struct {
+	rate Int;
+	damage Int;
+}
+
+Weapon{ rate Int(1); damage Int = comptime fib(Int(10)); } => init{ rate; damage; }
+
+Unit main() {
+	// A scalar of each kind.
+	check(@operators$equal(base, Int(610)));
+	check(@operators$equal(derived, Int(55)));
+	f Float = comptime @operators$divide(Float(1.0), Float(4.0));
+	check(@operators$equal(f, Float(0.25)));
+	b Bool = comptime @operators$lessThan(fib(Int(10)), Int(100));
+	check(b);
+
+	// Values: a struct, a variant's case, a string and a list.
+	v Vec = comptime Vec(fib(Int(6)), fib(Int(7)));
+	check(@operators$equal(v.x, Int(8)));
+	check(@operators$equal(v.y, Int(13)));
+	check(@operators$equal(corners(comptime biggest(Int(20))), Int(60)));
+	check(@operators$equal(corners(comptime biggest(Int(2))), Int(0)));
+	s String = comptime repeated(String("ab"), Int(3));
+	check(@operators$equal(s, String("ababab")));
+	l List<Int> = comptime squares(Int(5));
+	check(@operators$equal(l:size(), Int(5)));
+	check(@operators$equal(l[Int(5)], Int(25)));
+	l!push(Int(36));
+	check(@operators$equal(l:size(), Int(6)));
+
+	// A method call on a constant, a marked call in another's arguments,
+	// and a call through a function value.
+	check(@operators$equal(summed, Int(7)));
+	check(@operators$equal(comptime double(comptime fib(Int(12))), Int(288)));
+	check(@operators$equal(comptime twice(doubler, Int(5)), Int(20)));
+	check(@operators$equal(comptime doubler(Int(21)), Int(42)));
+
+	// Handlers are evaluated with the call.
+	q Int = comptime divide(Int(7), Int(0)) ?? @operators$negate(Int(1));
+	check(@operators$equal(q, @operators$negate(Int(1))));
+	r Int = comptime divide(Int(9), Int(0)) ? e {
+		resolve @operators$multiply(e, Int(10));
+	}
+	check(@operators$equal(r, Int(90)));
+	ok Int = comptime divide(Int(9), Int(3)) ?? Int(0);
+	check(@operators$equal(ok, Int(3)));
+	m Int = comptime double(match (biggest(Int(20))) {
+		d dot => divide(d.y, d.x);
+		c circle => Int(0);
+		n none => Int(0);
+	} ? e {
+		resolve e;
+	});
+	check(@operators$equal(m, Int(4)));
+
+	// A default made by a marked call.
+	w Weapon{ rate = Int(3); }
+	check(@operators$equal(w.damage, Int(55)));
+	check(@operators$equal(w.rate, Int(3)));
+
+	// The arguments the build was started with, not the program's.
+	check(@operators$equal(comptime joined(@program$runtime), String("alpha,beta gamma")));
+	check(@operators$equal(comptime count(@program$runtime), Int(2)));
+	check(@operators$equal(@program$runtime:arguments():size(), Int(0)));
+	// A lambda given to the marked call reads inside it.
+	check(@operators$equal(comptime twice(Int(x Int) { return @operators$add(x, count(@program$runtime)); }, Int(1)), Int(5)));
+
+	// Several times the steps one implicit fold may take (5,000,000).
+	check(@operators$equal(comptime counted(Int(3000000)), Int(4500001500000)));
+	return Unit();
+}

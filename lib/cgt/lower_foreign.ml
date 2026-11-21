@@ -176,6 +176,7 @@ let body st ctx env span (v : verb) (f : T.Foreign.t) : Stat.t list =
       params = List.map fst args;
       result;
       capability = f.T.Foreign.access <> T.Foreign.Pure;
+      writes = f.T.Foreign.access = T.Foreign.Writes;
     }
     :: st.thunks;
   match result with

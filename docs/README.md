@@ -34,6 +34,10 @@ One document per stage, in the order the compiler runs them.
 - [`design/optimization.md`](design/optimization.md): stage 5, what an
   optimized build evaluates at compile time and how, and its decisions
   (O1…).
+- [`design/comptime.md`](design/comptime.md): calls marked `comptime`,
+  which every build evaluates between lowering and stage 5, to completion
+  and outside stage 5's budgets: what is checked, how a marked call is
+  lifted, and what its evaluation may read (K1…).
 - [`design/tiers.md`](design/tiers.md): tiered builds, as `zane run` and
   `zane test` make them: a program starts unoptimized and moves to optimized
   code while it runs (T1…).

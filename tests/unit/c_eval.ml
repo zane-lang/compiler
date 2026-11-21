@@ -316,6 +316,7 @@ let evaluate_on m name args =
           left := !left - n;
           if !left <= 0 then Value.stop "the step budget ran out");
       declared = (fun _ _ -> None);
+      bounded = true;
     }
   in
   match
@@ -478,7 +479,7 @@ let views base =
           (* A `zane_bytes` C writes back whose length, read unsigned, no
              allocation spans. *)
           check "a string C returns longer than any allocation stops"
-            (let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None) } in
+            (let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None); bounded = true } in
              let c = C_eval.create (C_ir.make [ m ]) hooks in
              let slot = C_memory.alloc C_memory.Stack ~size:16 ~align:8 in
              let bytes = C_memory.alloc C_memory.Heap ~size:1 ~align:1 in
@@ -502,7 +503,7 @@ let shared_static base =
   | Some first, Some second ->
       with_module first (fun m1 ->
           with_module second (fun m2 ->
-              let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None) } in
+              let hooks = { C_eval.spend = (fun _ -> ()); declared = (fun _ _ -> None); bounded = true } in
               check "a static name two modules define stops a call of it"
                 (let c = C_eval.create (C_ir.make [ m1; m2 ]) hooks in
                  match C_eval.call c "call_2" [ C_memory.Int (64, 0L); C_memory.Int (64, 0L) ] with

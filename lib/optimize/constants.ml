@@ -43,13 +43,18 @@ let maker (f : Func.t) =
       Some { Eval.maker = f.Func.symbol; state; value; known = None }
   | _ -> None
 
-let find (prog : Eval.program) (funcs : Func.t list) =
+(* Every constant of [funcs], by its two variables, none of them known. *)
+let register (prog : Eval.program) (funcs : Func.t list) =
   let all = List.filter_map maker funcs in
   List.iter
     (fun (k : Eval.constant) ->
       Hashtbl.replace prog.Eval.constants k.Eval.state k;
       Hashtbl.replace prog.Eval.constants k.Eval.value k)
     all;
+  all
+
+let find (prog : Eval.program) (funcs : Func.t list) =
+  let all = register prog funcs in
   let made (k : Eval.constant) =
     let run = Eval.start ~making:k.Eval.state prog in
     match

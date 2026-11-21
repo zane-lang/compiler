@@ -210,6 +210,42 @@ File "fixtures/typing/reject/bad/calls.zn", line 47, characters 5-20:
 47 |     resolve Int(1);
    |     ^^^^^^^^^^^^^^^
 Error: `resolve` finishes a handler, and this is in none: a block yields nothing, so it is not one
+File "fixtures/typing/reject/bad/comptime.zn", line 46, characters 32-33:
+46 |     return comptime markedSame(n);
+   |                                ^
+Error: a `comptime` call is evaluated at compile time, and `n` is a local of the verb it is in; give the call only literals, package constants, capabilities and calls on those
+File "fixtures/typing/reject/bad/comptime.zn", line 52, characters 5-35:
+52 |     comptime counter!markedBump();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: a `comptime` call writes no subject, so a `!` call is never marked; mark a `:` call or a function call
+File "fixtures/typing/reject/bad/comptime.zn", line 55, characters 33-39:
+55 |     a Int = comptime markedSame(single);
+   |                                 ^^^^^^
+Error: a `comptime` call is evaluated at compile time, and `single` is a local of the verb it is in; give the call only literals, package constants, capabilities and calls on those
+File "fixtures/typing/reject/bad/comptime.zn", line 57, characters 13-45:
+57 |     b Int = comptime markedEach(Int(2), { });
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `markedEach` takes a block, and a call to a verb that takes a block cannot be marked `comptime`
+File "fixtures/typing/reject/bad/comptime.zn", line 59, characters 21-42:
+59 |     c ^MarkedSlot = comptime markedSlot();
+   |                     ^^^^^^^^^^^^^^^^^^^^^
+Error: a `comptime` call's result is built into the program, so it must be a value type, and `bad$MarkedSlot` is not
+File "fixtures/typing/reject/bad/comptime.zn", line 61, characters 45-61:
+61 |     d Int = comptime markedSame(markedCount(@program$runtime));
+   |                                             ^^^^^^^^^^^^^^^^
+Error: a `comptime` call's arguments pass `@runtime$Runtime`, which reaches a capability, to a call that is not marked; capability-backed state is read only inside a marked call, so mark this call `comptime` too or pass the capability to the marked call itself
+File "fixtures/typing/reject/bad/comptime.zn", line 68, characters 77-93:
+68 |     g Int = comptime markedSame(markedApply(Int(n Int) { return markedCount(@program$runtime); }));
+   |                                                                             ^^^^^^^^^^^^^^^^
+Error: a `comptime` call's arguments pass `@runtime$Runtime`, which reaches a capability, to a call that is not marked; capability-backed state is read only inside a marked call, so mark this call `comptime` too or pass the capability to the marked call itself
+File "fixtures/typing/reject/bad/comptime.zn", line 77, characters 9-18:
+77 |         return e;
+   |         ^^^^^^^^^
+Error: a `comptime` call is evaluated whole at compile time, so nothing in it may return from the verb it is in; finish its handler with `resolve`
+File "fixtures/typing/reject/bad/comptime.zn", line 80, characters 9-17:
+80 |         abort e;
+   |         ^^^^^^^^
+Error: a `comptime` call is evaluated whole at compile time, so nothing in it may abort the verb it is in; finish its handler with `resolve`
 File "fixtures/typing/reject/bad/conventions.zn", line 15, characters 7-63:
 15 |     c Courier(Int(p Parcel) => Int(1), Parcel(String("hint")));
    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

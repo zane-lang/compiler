@@ -363,6 +363,7 @@ let handle_thunks st (t : Tty.t) ((h : T.Handle.t), kind) =
               params;
               result = Foreign.Unit;
               capability = kind = T.Decl.Outside;
+              writes = kind = T.Decl.Outside;
             }
             :: st.thunks;
         name

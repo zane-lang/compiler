@@ -132,6 +132,7 @@ let rec expr env ?(flow = false) ctx (e : N.Expr.t) : T.Expr.t =
   | N.Expr.Subscript { target; args } -> subscript env ctx span target args
   | N.Expr.Init fields -> init env ctx span fields
   | N.Expr.Spawn call -> spawn env ctx call
+  | N.Expr.Comptime call -> comptime env ctx span call
   | N.Expr.Match m -> match_ env ~flow ctx m
   | N.Expr.VerbCall call -> fst (verb_call env ~flow ctx call)
   | N.Expr.FuncLambda l ->
@@ -1399,6 +1400,37 @@ and spawn env ctx (call : N.Verb_call.t) =
   | _ -> error env span "`spawn` starts a function or method call, and this is neither");
   mk (T.Expr.Spawn e) e.T.Expr.ty span
 
+(* effects.md §5.6, syntax.md §4.10. What the call may write, read and
+   compute is decided when it is evaluated (docs/design/comptime.md); what
+   is known from the tree is checked here: the call's form, its result's
+   type, and that everything it is given can be had at compile time. *)
+and comptime env ctx span (call : N.Verb_call.t) =
+  let e, s = verb_call env ~flow:false ctx call in
+  let checked =
+    match (call.N.Verb_call.node, e.T.Expr.node, s) with
+    | _, T.Expr.Invalid, _ -> false
+    | N.Verb_call.Call { form = N.Call_form.Method { is_mut = true }; _ }, _, _ ->
+        error env span
+          "a `comptime` call writes no subject, so a `!` call is never marked; mark a `:` call or a function call";
+        false
+    | _, (T.Expr.Call _ | T.Expr.Construct _ | T.Expr.Construct_fields _), Some s when S.has_block_param s ->
+        error env span
+          (Printf.sprintf "%s takes a block, and a call to a verb that takes a block cannot be marked `comptime`"
+             (quote s.name));
+        false
+    | _, (T.Expr.Call _ | T.Expr.Call_value _ | T.Expr.Construct _ | T.Expr.Construct_fields _), _ -> true
+    | _ ->
+        error env span "`comptime` marks a function or method call, and this is neither";
+        false
+  in
+  if checked then begin
+    Comptime_check.result env span e.T.Expr.ty;
+    Comptime_check.closed env e;
+    Comptime_check.no_reads env e;
+    Comptime_check.stays env e
+  end;
+  mk (T.Expr.Comptime e) e.T.Expr.ty span
+
 (* ---------------------------------------------------------------------- *)
 (* Match                                                                  *)
 (* ---------------------------------------------------------------------- *)
@@ -1605,6 +1637,7 @@ and stat env ctx (s : N.Stat.t) : T.Stat.t =
     match s.N.Stat.node with
     | N.Stat.VerbCall call -> T.Stat.Expr (fst (verb_call env ~flow:false ctx call))
     | N.Stat.Spawn call -> T.Stat.Spawn (spawn env ctx call)
+    | N.Stat.Comptime call -> T.Stat.Expr (comptime env ctx span call)
     | N.Stat.Decl d -> local_declaration env ctx d
     | N.Stat.Assign { target; value } -> assign env ctx span target value
     | N.Stat.Abort value -> (
@@ -1682,6 +1715,7 @@ and local_declaration env ctx (d : N.Decl.t) =
       let declared = Type_decls.resolve env (type_scope ctx) type_ in
       let v = Foreign_decls.global env ~package:ctx.package ~span ~declared symbol in
       let local = declare env ctx Symbol name declared in
+      Hashtbl.replace env.foreign_locals local.T.Local.id ();
       T.Stat.Let { local; value = v }
   | N.Decl.Var { name; type_; value } ->
       let v = expr env ctx value in

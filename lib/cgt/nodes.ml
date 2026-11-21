@@ -719,7 +719,10 @@ end
    result are passed, as [Foreign_call] lays them out, and whether a call of
    it reads or writes capability-backed state, as a method on a foreign
    capability and an outside handle's free or set thunk do: stage 5 never
-   folds such a call (F17). *)
+   folds such a call (F17). [writes] is whether it writes that state, as a
+   `mut` method on a capability and an outside handle's thunks do: a call
+   marked `comptime` may make a call that only reads it
+   (docs/design/comptime.md). *)
 module Foreign = struct
   type crossing =
     (* A scalar of the Zane type, which C converts to its own. *)
@@ -749,6 +752,7 @@ module Foreign = struct
     params : crossing list;
     result : crossing;
     capability : bool;
+    writes : bool;
   }
 end
 
@@ -876,10 +880,15 @@ end
    no entry. [layouts] is each layout the program names, [globals] each of
    its variables, and [foreign] each thunk of the glue it calls.
    [exclusive] is whether the program runs on one thread: it is not a
-   library, and no package of the build spawns. *)
+   library, and no package of the build spawns. [comptime] is each function
+   a call marked `comptime` was lifted into (Lower_comptime), with the
+   call's span: each call of one is a call through its address with no
+   arguments, which Optimize.Comptime replaces by the value it gives before
+   codegen, which never sees one. *)
 module Program = struct
   type t = {
     funcs : Func.t list;
+    comptime : (string * Source.Span.t) list;
     entry : string option;
     layouts : (Layout.t * Layout.position list) list;
     globals : Global.t list;

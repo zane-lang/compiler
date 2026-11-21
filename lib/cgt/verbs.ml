@@ -94,7 +94,7 @@ exception Kept
 (* The nodes a body adds where it is written out, counted by [go] with the
    two counters it is given, one for an expression and one for a block:
    each node once, and each verb it writes out with its own size. A spawn
-   or a lambda is not written out, and neither is any body over [limit].
+   a lambda or a `comptime` call is not written out, and neither is any body over [limit].
    [None] when the body is not written out. *)
 let rec tally st limit go =
   let total = ref 0 in
@@ -108,7 +108,7 @@ let rec tally st limit go =
   in
   let rec count (e : T.Expr.t) =
     incr total;
-    (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ -> raise Kept | _ -> ());
+    (match e.T.Expr.node with T.Expr.Spawn _ | T.Expr.Lambda _ | T.Expr.Comptime _ -> raise Kept | _ -> ());
     (match callee e with
     | Some (c, always) -> (
         left_out e c;

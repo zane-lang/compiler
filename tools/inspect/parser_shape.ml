@@ -72,6 +72,7 @@ and expr_shape (expr : Cst.Nodes.Expr.t) =
       { body = { Cst.Nodes.Body.node = Cst.Nodes.Body.Longhand _; _ }; _ } ->
       "lambda(block)"
   | Cst.Nodes.Expr.Spawn call -> "spawn(" ^ verb_call_shape call ^ ")"
+  | Cst.Nodes.Expr.Comptime call -> "comptime(" ^ verb_call_shape call ^ ")"
   | Cst.Nodes.Expr.Match { scrutinees; _ } ->
       parts "match" (List.map expr_shape scrutinees)
   (* A map literal renders its entries in order, so a shape shows whether a

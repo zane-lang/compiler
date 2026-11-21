@@ -23,7 +23,7 @@ let rec block v acc (b : Block.t) = List.fold_left (stat v) acc b.Block.stats
 
 and stat v acc (s : Stat.t) =
   match s.Stat.node with
-  | Stat.VerbCall c | Stat.Spawn c -> verb_call v acc c
+  | Stat.VerbCall c | Stat.Spawn c | Stat.Comptime c -> verb_call v acc c
   | Stat.Decl d -> decl v acc d
   | Stat.Assign { target; value } -> expr v (expr v acc target) value
   | Stat.Abort e | Stat.Ret e | Stat.Resolve e -> expr v acc e
@@ -47,7 +47,7 @@ and expr v acc (e : Expr.t) =
   | Expr.Subscript { target; args } -> List.fold_left (expr v) (expr v acc target) args
   | Expr.Init fields -> List.fold_left (field_arg v) acc fields
   | Expr.MapLit entries -> List.fold_left (fun acc (k, x) -> expr v (expr v acc k) x) acc entries
-  | Expr.Spawn c | Expr.VerbCall c -> verb_call v acc c
+  | Expr.Spawn c | Expr.Comptime c | Expr.VerbCall c -> verb_call v acc c
   | Expr.Match m ->
       let acc = List.fold_left (expr v) acc m.Match_expr.scrutinees in
       let acc =

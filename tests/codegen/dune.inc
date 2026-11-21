@@ -1293,6 +1293,140 @@
   (diff golden/byteSets.out byteSets.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/comptimeCalls))
+ (action
+  (with-stdout-to
+   comptimeCalls.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/comptimeCalls))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.cgt comptimeCalls.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/comptimeCalls))
+ (targets comptimeCalls.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build comptimeCalls.exe "--build-argument" "alpha" "--build-argument" "beta gamma" --package fixtures/comptimeCalls)))
+
+(rule
+ (deps (source_tree fixtures/comptimeCalls))
+ (targets comptimeCalls.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build comptimeCalls.optimized.exe --optimize "--build-argument" "alpha" "--build-argument" "beta gamma" --package fixtures/comptimeCalls)))
+
+(rule
+ (deps (source_tree fixtures/comptimeCalls))
+ (targets comptimeCalls.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build comptimeCalls.tiered.exe --tiered "--build-argument" "alpha" "--build-argument" "beta gamma" --package fixtures/comptimeCalls)))
+
+(rule
+ (deps (source_tree fixtures/comptimeCalls))
+ (targets comptimeCalls.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up comptimeCalls.tier1 "--build-argument" "alpha" "--build-argument" "beta gamma" --package fixtures/comptimeCalls)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    comptimeCalls.checked.out.actual
+    (run ./comptimeCalls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.out comptimeCalls.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    comptimeCalls.unchecked.out.actual
+    (run ./comptimeCalls.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.out comptimeCalls.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    comptimeCalls.optimized.checked.out.actual
+    (run ./comptimeCalls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.out comptimeCalls.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    comptimeCalls.optimized.unchecked.out.actual
+    (run ./comptimeCalls.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.out comptimeCalls.optimized.unchecked.out.actual)))
+
+(rule
+ (deps comptimeCalls.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./comptimeCalls.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    comptimeCalls.tiered.checked.out.actual
+    (run ./comptimeCalls.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.out comptimeCalls.tiered.checked.out.actual)))
+
+(rule
+ (deps comptimeCalls.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./comptimeCalls.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    comptimeCalls.tiered.unchecked.out.actual
+    (run ./comptimeCalls.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/comptimeCalls.out comptimeCalls.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/constantCycle))
  (targets constantCycle.exe)
  (action
@@ -11245,6 +11379,20 @@
  (alias runtest)
  (action
   (diff golden/reject.byteSetFlags.err reject.byteSetFlags.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/reject/comptimeRefused))
+ (action
+  (with-stderr-to
+   reject.comptimeRefused.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/reject/comptimeRefused)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.comptimeRefused.err reject.comptimeRefused.err.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/hugeArray))

@@ -80,6 +80,7 @@ let rec expr (e : Expr.t) : node =
       node "subscript" [ ("impl", Leaf (verb_ref impl)); ("target", expr target); ("args", map_seq expr args) ]
   | Expr.Init fs -> node "init" [ ("fields", map_seq field_value fs) ]
   | Expr.Spawn inner -> node "spawn" [ ("call", expr inner) ]
+  | Expr.Comptime inner -> node "comptime" [ ("call", expr inner) ]
   | Expr.Match m ->
       node "match"
         ([

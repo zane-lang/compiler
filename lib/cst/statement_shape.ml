@@ -33,7 +33,7 @@ let rec expr_ends_in_brace (value : Nodes.Expr.t) =
   | Nodes.Expr.Match { abort_handle = Some handle; _ } ->
       abort_handle_ends_in_brace handle
   | Nodes.Expr.Match _ -> true
-  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call ->
+  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call | Nodes.Expr.Comptime call ->
       verb_call_ends_in_brace call
   | Nodes.Expr.FuncLambda { body; _ } -> body_ends_in_brace body
   | Nodes.Expr.MethLambda { body; _ } -> body_ends_in_brace body
@@ -154,7 +154,7 @@ let rec ends_in_trailing_call (value : Nodes.Expr.t) =
    argument. Those carry their own marks, put there when they were built. *)
 let rec continues_past_trailing (value : Nodes.Expr.t) =
   match value.Nodes.Expr.node with
-  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call ->
+  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call | Nodes.Expr.Comptime call ->
       verb_call_continues_past_trailing call
   | Nodes.Expr.Match { scrutinees; arms; abort_handle; _ } ->
       List.exists continues_past_trailing scrutinees

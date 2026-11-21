@@ -86,6 +86,10 @@ type build = {
   (* The places that the program, for which a library's object is built,
      writes back into, as `--write-backs` wrote them. *)
   program_write_backs : string option;
+  (* What the runtime's `arguments` gives inside a call marked `comptime`:
+     the arguments the build was started with, which `zane` passes on with
+     `--build-argument`, in order (docs/design/comptime.md). *)
+  build_arguments : string list;
 }
 
 (* `--rewrite STAMP INPUT OUTPUT` is a step of fetching, not of a build: it
@@ -123,7 +127,7 @@ let print_usage () =
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...] [--c-hashes FILE ...]";
   prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--no-memoize]";
-  prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...]";
+  prerr_endline "             [--import PACKAGE:KEY=PACKAGE ...] [--build-argument ARGUMENT ...]";
   prerr_endline "             --package [[STAMP]PATH=]DIR [--package [[STAMP]PATH=]DIR ...]";
   prerr_endline "       zanec --rewrite STAMP INPUT OUTPUT";
   prerr_endline "       zanec --remap FROM TO INPUT OUTPUT";
@@ -292,6 +296,8 @@ let arguments () =
         packages view
           { build with regions = { build.regions with spawned = Some (region_size bytes) } }
           rest
+    | "--build-argument" :: argument :: rest ->
+        packages view { build with build_arguments = build.build_arguments @ [ argument ] } rest
     | "--import" :: import :: rest when is_value import -> (
         match import_request import with
         | Some i -> packages view { build with imports = i :: build.imports } rest
@@ -320,6 +326,7 @@ let arguments () =
       regions = { Driver.fixed = None; spawned = None };
       pack = false;
       memoize = true;
+      build_arguments = [];
       tiered = false;
       program_write_backs = None;
     }
@@ -335,7 +342,7 @@ let arguments () =
   | [ "--bundle-runtime"; dir; "--target"; target; "--optimize" ] when List.for_all is_value [ dir; target ] ->
       Bundle_runtime { dir; target; optimize = true }
   | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
-    | "--link" | "--c-hashes" | "--import" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
+    | "--link" | "--c-hashes" | "--import" | "--build-argument" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
     | "--compile-commands" | "--write-backs" | "--program-write-backs"
     | "--tiered" | "--tier-up"
     | "--decls" | "--tst" | "--cgt" | "--ll" )
@@ -377,8 +384,12 @@ let generate packages c_code build program =
     let hashes = if compare_glue then hashes else [] in
     Driver.c_modules ?target ~link:build.link ~hashes ~root packages c_code cgt
   in
-  let* made = if optimize then Result.map Option.some (c_of cgt) else Ok None in
-  let* cgt = Driver.optimize ?target ?c:made ~optimize cgt in
+  (* A call marked `comptime` runs in every build, and may call into C, so
+     a build with one makes the C before evaluating it. *)
+  let marked = cgt.Cgt.Nodes.Program.comptime <> [] in
+  let* made = if optimize || marked then Result.map Option.some (c_of cgt) else Ok None in
+  let* cgt = Driver.comptime ?target ?c:made ~arguments:build.build_arguments packages cgt in
+  let* cgt = Driver.optimize ?target ?c:(if optimize then made else None) ~optimize cgt in
   let c () = match made with Some c -> Ok c | None -> c_of cgt in
   match build.view with
   | Cgt ->
