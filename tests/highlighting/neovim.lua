@@ -79,7 +79,7 @@ local role_cases = {
   },
   {
     source = 'Int f(operators Int) => @operators$add(operators, 1);',
-    roles = { { '@operators', 'module', 1 }, { 'add', 'function.call' } },
+    roles = { { '@operators', 'module.builtin', 1 }, { 'add', 'function.builtin' } },
   },
   {
     source = 'Int f(x Int) => pkg$x(x);',
@@ -87,28 +87,40 @@ local role_cases = {
   },
   {
     source = 'Unit main() { @controlflow$repeat() {} obj:pkg$method() {} }',
-    roles = { { 'controlflow', 'module' }, { 'repeat', 'function.call' }, { 'pkg', 'module' }, { 'method', 'function.method.call' } },
+    roles = { { 'controlflow', 'module.builtin' }, { 'repeat', 'function.builtin' }, { 'pkg', 'module' }, { 'method', 'function.method.call' } },
+  },
+  {
+    source = 'Unit main() { console Console(@program$console); return @primitives$Unit(); }',
+    roles = { { 'program', 'module.builtin' }, { '$console', 'constant.builtin', 1 }, { 'primitives', 'module.builtin' }, { '$Unit', 'type.builtin', 1 } },
   },
   {
     source = 'type Vec = struct { x Int; } Vec(x Int) => init{x = x;}',
     roles = { { 'x Int;', 'variable.member' }, { 'x =', 'variable.member' } },
   },
 }
+-- A role may sit over the capture an earlier pattern gives every node of its
+-- kind: `variable` for an identifier, `type` for a type name, and
+-- `constant.builtin` for an intrinsic's name. Neovim draws the capture of the
+-- latest pattern, so the role must come last. It draws no capture whose name
+-- starts with `_`.
+local overridden = { ['type.builtin'] = 'type', ['function.builtin'] = 'constant.builtin' }
 for _, case in ipairs(role_cases) do
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { case.source })
   local tree = assert(vim.treesitter.get_parser(buf, 'zane'):parse()[1])
   assert(not tree:root():has_error(), case.source)
   for _, role in ipairs(case.roles) do
     local col = assert(case.source:find(role[1], 1, true)) - 1 + (role[3] or 0)
-    local found = false
+    local last
     for _, capture in ipairs(vim.treesitter.get_captures_at_pos(buf, 0, col)) do
-      if capture.capture == role[2] then
-        found = true
-      elseif capture.capture ~= 'variable' then
-        error(('unexpected %s for %s in %s'):format(capture.capture, role[1], case.source))
+      local name = capture.capture
+      if name:sub(1, 1) ~= '_' then
+        if name ~= role[2] and name ~= 'variable' and name ~= overridden[role[2]] then
+          error(('unexpected %s for %s in %s'):format(name, role[1], case.source))
+        end
+        last = name
       end
     end
-    assert(found, ('missing %s for %s'):format(role[2], role[1]))
+    assert(last == role[2], ('expected %s for %s, Neovim draws %s'):format(role[2], role[1], tostring(last)))
   end
 end
 

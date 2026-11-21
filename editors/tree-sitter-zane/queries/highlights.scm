@@ -62,8 +62,8 @@
 "resolve" @keyword
 (doc_comment) @comment.documentation
 (comment) @comment
-(name_expr (identifier) @module "$")
-(name_type (identifier) @module "$")
+((name_expr (identifier) @module "$") @_name (#not-match? @_name "^[@]"))
+((name_type (identifier) @module "$") @_name (#not-match? @_name "^[@]"))
 (header_decl "package" (identifier) @module)
 (import_decl (identifier) @module)
 (func_callee "." (identifier) @variable.member)
@@ -71,11 +71,17 @@
 (body_field . (identifier) @variable.member)
 (field_arg . (identifier) @variable.member)
 (constructor_field_arg . (identifier) @variable.member)
-[(unbraced_verb_call (func_callee (primary (name_expr (identifier) @function.call .)))) (block_call (func_callee (primary (name_expr (identifier) @function.call .))))]
-[(unbraced_verb_call (primary (name_expr (identifier) @function.method.call .))) (block_call (primary (name_expr (identifier) @function.method.call .)))]
+[(unbraced_verb_call (func_callee (primary ((name_expr (identifier) @function.call .) @_name (#not-match? @_name "^[@]"))))) (block_call (func_callee (primary ((name_expr (identifier) @function.call .) @_name (#not-match? @_name "^[@]")))))]
+[(unbraced_verb_call (primary ((name_expr (identifier) @function.method.call .) @_name (#not-match? @_name "^[@]")))) (block_call (primary ((name_expr (identifier) @function.method.call .) @_name (#not-match? @_name "^[@]"))))]
 [(unbraced_verb_call (func_callee "." (identifier) @function.method.call)) (block_call (func_callee "." (identifier) @function.method.call))]
 (block_decl (ret_type) . (identifier) @function . "(")
 (simple_decl (ret_type) . (identifier) @function . "(")
 (simple_decl_braced (ret_type) . (identifier) @function . "(")
 (param . (identifier) @variable.parameter)
 (constructor_field . (identifier) @variable.parameter)
+(name_expr "@" (identifier) @module.builtin "$")
+(name_type "@" (identifier) @module.builtin "$")
+(name_type "@" "$" (type_identifier) @type.builtin)
+(name_expr "@" "$" (identifier) @constant.builtin)
+[(unbraced_verb_call (func_callee (primary (name_expr "@" "$" (identifier) @function.builtin .)))) (block_call (func_callee (primary (name_expr "@" "$" (identifier) @function.builtin .))))]
+[(unbraced_verb_call (primary (name_expr "@" "$" (identifier) @function.builtin .))) (block_call (primary (name_expr "@" "$" (identifier) @function.builtin .)))]

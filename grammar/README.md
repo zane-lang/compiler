@@ -258,7 +258,12 @@ inlines them, and the backend suite checks that `@variable.parameter` captures
 exactly the parameters the compiler's CST records. Qualified names, imported
 members, struct fields and initializer fields also retain editor nodes so the
 queries can distinguish namespaces, callees and members. Highlighting includes
-lexical roles plus contextual namespace, function, member and parameter captures. The
+lexical roles plus contextual namespace, function, member and parameter captures.
+An intrinsic is the qualified name whose text starts with `@`, and its captures
+are builtin ones: `@module.builtin` for the namespace, `@type.builtin` for a type,
+`@function.builtin` for a callee and `@constant.builtin` for any other name. The
+language server sends no semantic token for an intrinsic, so these captures
+decide its color (`docs/design/language-server.md` D13). The
 shared query marks a parameter where it is declared. Neovim's query
 also marks each use, through `zane-bound?`, which looks for a parameter of that
 name in an enclosing verb or lambda. That needs no further name resolution
