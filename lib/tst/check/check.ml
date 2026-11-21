@@ -346,6 +346,7 @@ and name_value env ctx (n : N.Name_expr.t) =
 and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
   let m = member.N.Name.text in
   let t = Type_decls.apply env (type_scope ctx) span (Type_decls.resolve_head env (type_scope ctx) type_) type_ [] in
+  if Uses.is_placeholder env.uses m then Uses.probe env.uses member.N.Name.span (Uses.Type_member_of t);
   match (t, definition env t) with
   | Ty.Error, _ -> invalid span
   | _, Some (tid, Enum members) when List.mem m members ->
@@ -371,7 +372,7 @@ and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
 and member env ~flow ctx span target (field : N.Name.t) handle =
   let target = expr env ctx target in
   let f = field.N.Name.text in
-  if Uses.is_placeholder env.uses f then Uses.probe env.uses field.N.Name.span (Uses.Member_of target.T.Expr.ty);
+  if Uses.is_placeholder env.uses f then Uses.probe env.uses field.N.Name.span (Uses.Member_of { ty = target.T.Expr.ty; package = ctx.package; path = ctx.file.path });
   let no_handler () =
     match handle with
     | Some (h : N.Abort_handle.t) ->
@@ -919,7 +920,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   match callee.N.Expr.node with
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; span = at } -> (
       let text = id.N.Name.text in
-      if Uses.is_placeholder env.uses text then Uses.probe env.uses id.N.Name.span (Uses.Member_of subject.aty);
+      if Uses.is_placeholder env.uses text then Uses.probe env.uses id.N.Name.span (Uses.Member_of { ty = subject.aty; package = ctx.package; path = ctx.file.path });
       (* A lambda-variable with a subject is called the way a method is. *)
       let value =
         match find_local ctx text with
@@ -1150,8 +1151,22 @@ and field_constructor_call env ctx ?at span what cands (fs : N.Field_arg.t list)
     | None -> invalid span
     | Some o ->
         Option.iter (fun at -> record_callee env at o.sig_) at;
-        (match definition env (Ty.subst o.subst o.sig_.ret) with
-        | Some (tid, Struct _) ->
+        (* A label names the field of the constructor the call chose when
+           that constructor declares its fields, and the struct's field
+           otherwise. *)
+        let declared =
+          match o.sig_.S.owner with
+          | S.Declared id -> (
+              match (Names.decl env.names id).kind with
+              | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields _; _ }; _ }; _ } -> Some id
+              | _ -> None
+              | exception Not_found -> None)
+          | S.Intrinsic _ -> None
+        in
+        (match (declared, definition env (Ty.subst o.subst o.sig_.ret)) with
+        | Some id, _ ->
+            List.iter (fun (name, (f : N.Field_arg.t), _) -> Uses.add env.uses f.N.Field_arg.name.N.Name.span (Uses.Label (id, name))) entries
+        | None, Some (tid, Struct _) ->
             List.iter
               (fun (name, (f : N.Field_arg.t), _) -> Uses.add env.uses f.N.Field_arg.name.N.Name.span (Uses.Field (tid, name)))
               entries
@@ -1858,6 +1873,13 @@ and verb_context env (d : decl) (s : S.t) subst =
   let pkg = package env d.package in
   let spans = param_spans d in
   let span_of name = Option.value ~default:d.span (List.assoc_opt name spans) in
+  let name_spans = if env.uses.Uses.recording then param_name_spans d else [] in
+  (* A field constructor's own fields are what its callers' labels name
+     (field_constructor_call). *)
+  (match d.kind with
+  | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields _; _ }; _ }; _ } ->
+      List.iter (fun (name, span) -> Uses.add env.uses ~declaration:true span (Uses.Label (d.id, name))) name_spans
+  | _ -> ());
   let params = List.map (fun ((p : Ty.param), a) -> (p.name, a)) (binding_args s subst) in
   let scope = Hashtbl.create 8 in
   let locals =
@@ -1871,7 +1893,7 @@ and verb_context env (d : decl) (s : S.t) subst =
             Hashtbl.replace scope p.name { local; role };
             Option.iter
               (fun span -> Uses.local env.uses ~declaration:true ~parameter:true ~span local)
-              (List.assoc_opt p.name (param_name_spans d));
+              (List.assoc_opt p.name name_spans);
             Some local)
       s.params
   in

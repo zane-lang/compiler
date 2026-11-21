@@ -137,10 +137,13 @@ another spelling keeps that spelling. The server refuses to rename:
 
 - an intrinsic, and a declaration of a dependency outside the project;
 - a package, which its manifest names;
-- `this`, an operator, a subscript, a flip or a constructor, which have no
-  name of their own;
+- `this`, an operator, a subscript, a flip or a constructor without a
+  name, which have no identifier of their own (a named constructor, such as
+  `Point.zero`, renames like a function);
 - to a name of the other case, since an identifier's case marks a type or a
-  value (spec `lexical.md` §3).
+  value (spec `lexical.md` §3);
+- while a build's last check failed, or while a use in a file that does not
+  parse has no place in the current text, since the edits could miss a use.
 
 A new name that clashes with another declaration is the next check's to
 report.

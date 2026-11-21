@@ -11,7 +11,7 @@ module Semantics = Semantics
 module Uses = Uses
 module Index = Index
 
-let check ?interfaces ?uses packages = Semantics.check ?interfaces ?uses packages
+let check ?interfaces ?record ?placeholder packages = Semantics.check ?interfaces ?record ?placeholder packages
 let to_node = To_tree_graph.to_node
 
 let to_span_text packages program =

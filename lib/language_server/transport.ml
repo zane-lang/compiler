@@ -10,6 +10,9 @@ type message =
   | Request of { id : Yojson.Safe.t; method_ : string; params : Yojson.Safe.t }
   | Notification of { method_ : string; params : Yojson.Safe.t }
   | Response of { id : Yojson.Safe.t; result : Yojson.Safe.t }
+  (* A whole frame whose body is no JSON-RPC message, which the server
+     answers with a parse error. *)
+  | Unreadable
   (* The input ended, or a frame could not be read. *)
   | Closed
 
@@ -56,6 +59,7 @@ let start ic =
     Condition.signal q.arrived;
     Mutex.unlock q.lock
   in
+  let shut_down = ref false in
   let rec loop () =
     match read_frame ic with
     (* Input the server cannot read, such as a negative Content-Length,
@@ -63,7 +67,15 @@ let start ic =
     | exception _ -> push Closed
     | None -> push Closed
     | Some text ->
-        (match decode text with Some m -> push m | None -> ());
+        (match decode text with
+        | Some (Request { method_ = "shutdown"; _ } as m) ->
+            shut_down := true;
+            push m
+        (* `exit` ends the server here, so it ends even while the main
+           thread waits on a slow `zane builds`. *)
+        | Some (Notification { method_ = "exit"; _ }) -> exit (if !shut_down then 0 else 1)
+        | Some m -> push m
+        | None -> push Unreadable);
         loop ()
   in
   ignore (Thread.create loop ());

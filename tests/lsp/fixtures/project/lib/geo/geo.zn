@@ -38,3 +38,18 @@ T same(value T Type) {
 /// Two overloads: one per argument count.
 Float scaled(p Point) => p.x;
 Float scaled(p Point, by Float) => @operators$multiply(p.x, by);
+
+/// The point at the origin.
+Point.zero() => init{ x = Float(0.0); y = Float(0.0); }
+
+/// Two numbers, which a caller gives as one.
+type Pair = struct {
+	left Float;
+	right Float;
+	_spare Float;
+}
+
+Pair{ both Float; } => init{ left = both; right = both; _spare = both; }
+
+/// The first of two values of one type.
+T pick(first T Type, second T Type) => first;

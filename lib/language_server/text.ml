@@ -7,12 +7,17 @@
 
 type encoding = Utf8 | Utf16
 
-(* The byte offset at which each line starts. *)
+(* The byte offset at which each line starts. A line ends at LF, CRLF or a
+   bare CR, as the protocol counts lines. *)
 type lines = { text : string; starts : int array }
 
 let lines text =
   let starts = ref [ 0 ] in
-  String.iteri (fun i c -> if c = '\n' then starts := (i + 1) :: !starts) text;
+  let n = String.length text in
+  String.iteri
+    (fun i c ->
+      if c = '\n' || (c = '\r' && not (i + 1 < n && text.[i + 1] = '\n')) then starts := (i + 1) :: !starts)
+    text;
   { text; starts = Array.of_list (List.rev !starts) }
 
 (* The length in bytes of the UTF-8 sequence that starts with [c]. *)
@@ -30,8 +35,12 @@ let line_of t offset =
 
 (* The end of a line's text, before its line break. *)
 let line_end t line =
-  let next = if line + 1 < Array.length t.starts then t.starts.(line + 1) - 1 else String.length t.text in
-  if next > t.starts.(line) && next - 1 < String.length t.text && t.text.[next - 1] = '\r' then next - 1 else next
+  let start = t.starts.(line) in
+  if line + 1 >= Array.length t.starts then String.length t.text
+  else
+    let next = t.starts.(line + 1) in
+    let before_break = if t.text.[next - 1] = '\n' then next - 1 else next in
+    if before_break > start && t.text.[before_break - 1] = '\r' then before_break - 1 else before_break
 
 let position encoding t offset =
   let offset = max 0 (min offset (String.length t.text)) in
@@ -93,54 +102,56 @@ let move s (start, stop) =
   else if start >= s.old_suffix_start then Some (start + s.delta, stop + s.delta)
   else None
 
-(* Where an offset of [after] was in [before]. *)
+(* Where an offset of [after] was in [before]. Where text was deleted, the
+   offset at the deletion is the start of the text after it, which [move]
+   maps there too. *)
 let move_back s offset =
-  if offset <= s.prefix then Some offset
-  else if offset - s.delta >= s.old_suffix_start then Some (offset - s.delta)
+  if offset - s.delta >= s.old_suffix_start then Some (offset - s.delta)
+  else if offset <= s.prefix then Some offset
   else None
 
+(* The path a `file:` URI's path part spells: percent-escapes read, and a
+   Windows drive letter's `/c:/...` written as `c:\...`. *)
+let decode_path rest =
+  let b = Buffer.create (String.length rest) in
+  let hex c =
+    match c with
+    | '0' .. '9' -> Some (Char.code c - 48)
+    | 'a' .. 'f' -> Some (Char.code c - 87)
+    | 'A' .. 'F' -> Some (Char.code c - 55)
+    | _ -> None
+  in
+  let n = String.length rest in
+  let rec go i =
+    if i < n then
+      match (rest.[i], if i + 2 < n then (hex rest.[i + 1], hex rest.[i + 2]) else (None, None)) with
+      | '%', (Some a, Some c) ->
+          Buffer.add_char b (Char.chr ((a * 16) + c));
+          go (i + 3)
+      | c, _ ->
+          Buffer.add_char b c;
+          go (i + 1)
+  in
+  go 0;
+  let path = Buffer.contents b in
+  if Sys.win32 && String.length path >= 3 && path.[0] = '/' && path.[2] = ':' then
+    String.map (function '/' -> '\\' | c -> c) (String.sub path 1 (String.length path - 1))
+  else path
+
 (* A `file:` URI and the path it names. Percent-escapes are read and written
-   for every byte outside the unreserved set and `/`; a Windows drive letter
-   is written `/c:/...` in the URI. *)
+   for every byte outside the unreserved set and `/`. A URI that names
+   another machine, by a host other than `localhost`, names no path here. *)
 let path_of_uri uri =
   let prefix = "file://" in
   if not (String.starts_with ~prefix uri) then None
   else
     let rest = String.sub uri (String.length prefix) (String.length uri - String.length prefix) in
-    (* A host, which a file URI on this machine leaves empty. *)
-    let rest = match String.index_opt rest '/' with Some i -> String.sub rest i (String.length rest - i) | None -> rest in
-    let b = Buffer.create (String.length rest) in
-    let hex c =
-      match c with
-      | '0' .. '9' -> Some (Char.code c - 48)
-      | 'a' .. 'f' -> Some (Char.code c - 87)
-      | 'A' .. 'F' -> Some (Char.code c - 55)
-      | _ -> None
+    let host, path =
+      match String.index_opt rest '/' with
+      | Some i -> (String.sub rest 0 i, String.sub rest i (String.length rest - i))
+      | None -> (rest, "")
     in
-    let n = String.length rest in
-    let rec go i =
-      if i < n then
-        if rest.[i] = '%' && i + 2 < n then
-          match (hex rest.[i + 1], hex rest.[i + 2]) with
-          | Some a, Some c ->
-              Buffer.add_char b (Char.chr ((a * 16) + c));
-              go (i + 3)
-          | _ ->
-              Buffer.add_char b '%';
-              go (i + 1)
-        else begin
-          Buffer.add_char b rest.[i];
-          go (i + 1)
-        end
-    in
-    go 0;
-    let path = Buffer.contents b in
-    let path =
-      if Sys.win32 && String.length path >= 3 && path.[0] = '/' && path.[2] = ':' then
-        String.map (function '/' -> '\\' | c -> c) (String.sub path 1 (String.length path - 1))
-      else path
-    in
-    Some path
+    if host = "" || String.lowercase_ascii host = "localhost" then Some (decode_path path) else None
 
 let uri_of_path path =
   let path = if Sys.win32 then "/" ^ String.map (function '\\' -> '/' | c -> c) path else path in

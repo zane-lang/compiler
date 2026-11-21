@@ -192,8 +192,7 @@ let analyze ?(c = []) ?placeholder packages =
     if c = [] then []
     else List.map2 (fun (p : Assembly.package) (f : Foreign.package) -> (p.Assembly.id, f.Foreign.interface)) packages c
   in
-  let uses = Tst.Uses.create ?placeholder true in
-  let { Tst.Semantics.program; diagnostics; index } = Tst.check ~interfaces ~uses packages in
+  let { Tst.Semantics.program; diagnostics; index } = Tst.check ~interfaces ~record:true ?placeholder packages in
   { program; diagnostics; index }
 
 (* A program starts from its root's `main` (packages.md §6.2), so a root

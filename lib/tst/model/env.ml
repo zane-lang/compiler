@@ -112,8 +112,9 @@ let decl_name d =
       | N.Verb_decl.Subscript _ -> "[]")
 
 (* The span of the identifier a declaration declares, when it writes one:
-   an operator's token for an operator; none for a constructor, a flip or a
-   subscript, which declare no identifier of their own. *)
+   an operator's token for an operator, and the member's identifier for a
+   named constructor such as `Box.make`; none for an unnamed constructor, a
+   flip or a subscript, which declare no identifier of their own. *)
 let name_span d =
   match d.kind with
   | Type_decl { name; _ } | Constant { name; _ } -> Some name.N.Name.span
@@ -122,7 +123,8 @@ let name_span d =
       match v.N.Verb_decl.node with
       | N.Verb_decl.Func { name; _ } | N.Verb_decl.Meth { name; _ } -> Some name.N.Name.span
       | N.Verb_decl.Op { op; _ } -> Some op.N.Operator.span
-      | N.Verb_decl.Flip _ | N.Verb_decl.Constructor _ | N.Verb_decl.Subscript _ -> None)
+      | N.Verb_decl.Constructor { member = Some m; _ } -> Some m.N.Name.span
+      | N.Verb_decl.Flip _ | N.Verb_decl.Constructor { member = None; _ } | N.Verb_decl.Subscript _ -> None)
 
 let is_private name = String.length name > 0 && name.[0] = '_'
 

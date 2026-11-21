@@ -163,7 +163,13 @@ let import_file env (file : file) (decls : N.Decl.t list) =
            (quote member.N.Import_member.name)
            (quote spelling.N.Import_member.name))
     else if record pkg (One_member member.N.Import_member.name) at then begin
-      List.iter (fun (d : decl) -> Uses.add env.uses member.N.Import_member.span (Uses.Decl d.id)) found;
+      (* An alias such as `P` in `import geo$Point as P` names the member too;
+         a rename leaves it alone, since its text is not the old name. *)
+      let spans =
+        if spelling.N.Import_member.span = member.N.Import_member.span then [ member.N.Import_member.span ]
+        else [ member.N.Import_member.span; spelling.N.Import_member.span ]
+      in
+      List.iter (fun (d : decl) -> List.iter (fun at -> Uses.add env.uses at (Uses.Decl d.id)) spans) found;
       Hashtbl.add file.bare spelling.N.Import_member.name
         { from = pkg; member = member.N.Import_member.name; at }
     end
@@ -189,8 +195,10 @@ let import_file env (file : file) (decls : N.Decl.t list) =
                    (quote (name_of spelling))
                    (quote other) (where at))
           | None ->
-              if record id (Whole (name_of spelling)) span then
-                Hashtbl.replace file.qualifiers (name_of spelling) (id, span))
+              if record id (Whole (name_of spelling)) span then begin
+                Option.iter (fun (a : N.Name.t) -> Uses.add env.uses a.N.Name.span (Uses.Package id)) alias;
+                Hashtbl.replace file.qualifiers (name_of spelling) (id, span)
+              end)
   in
   (* `import p.*`: every public member of the package, bare. *)
   let bring_all (p : N.Name.t) span =

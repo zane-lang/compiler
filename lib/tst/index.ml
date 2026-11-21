@@ -48,9 +48,13 @@ type t = {
   parameters : (int, unit) Hashtbl.t;
   params : (int, Ty.param) Hashtbl.t;
   probes : (Span.t * Uses.probe) list;
-  (* The members a value of a type offers: fields, cases, enum maps and
-     methods, each with its kind and a description. *)
-  members_of : Ty.t -> package:string -> (string * member_kind * string) list;
+  (* The members a value of a type offers in a file of [package] at [path]:
+     fields, cases, enum maps and methods, each with its kind and a
+     description, under the rules the checker reads them by. *)
+  members_of : Ty.t -> package:string -> path:string -> (string * member_kind * string) list;
+  (* The members of a type itself: an enum's members and a variant's
+     cases. *)
+  type_members_of : Ty.t -> (string * member_kind * string) list;
   (* The names a file can write: the declarations of its own package and the
      members its imports bring bare, each with its kind and description,
      and the qualifiers it may write before `$`. *)
@@ -119,13 +123,20 @@ let type_entry (info : type_info) =
   | Some (Distinct t) -> (Distinct, Printf.sprintf "type %s = %s" header (Ty.to_string t))
   | None -> (Distinct, "type " ^ header)
 
+(* The identifier the index shows for [d]: the member of a named constructor
+   such as `Box.make`, and [decl_name] for every other declaration. *)
+let index_name (d : decl) =
+  match d.kind with
+  | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { member = Some m; _ }; _ } -> m.N.Name.text
+  | _ -> decl_name d
+
 let build env (uses : Uses.t) : t =
   let decls = Hashtbl.create 256 in
   let fields = Hashtbl.create 64 in
   Names.fold_decls
     (fun id (d : decl) () ->
       let add kind detail =
-        Hashtbl.replace decls id { name = decl_name d; kind; package = d.package; path = d.file.path; span = d.span; detail }
+        Hashtbl.replace decls id { name = index_name d; kind; package = d.package; path = d.file.path; span = d.span; detail }
       in
       match Types.type_info env.types id with
       | Some info ->
@@ -136,59 +147,92 @@ let build env (uses : Uses.t) : t =
           | _ -> ())
       | None -> Option.iter (fun (kind, detail) -> add kind detail) (describe env d))
     env.names ();
-  let members_of (t : Ty.t) ~package =
-    let own =
+  let files () = List.concat_map (fun name -> (package env name).files) (Names.package_order env.names) in
+  let members_of (t : Ty.t) ~package ~path =
+    let visible_field (tid : Ty.type_id) n = String.equal tid.Ty.package package || not (is_private n) in
+    let tid, own =
       match Context.definition env t with
-      | Some (tid, Struct fs) -> List.map (fun (n, ft) -> (n, Field_member, Ty.to_string ft)) fs |> fun l -> (tid, l)
+      | Some (tid, Struct fs) -> (tid, List.filter_map (fun (n, ft) -> if visible_field tid n then Some (n, Field_member, Ty.to_string ft) else None) fs)
       | Some (tid, Variant cs) -> (tid, List.map (fun (n, ct) -> (n, Case_member, Ty.to_string ct)) cs)
-      | Some (tid, Enum ms) -> (tid, List.map (fun m -> (m, Enum_member, tid.Ty.name)) ms)
       | Some (tid, _) -> (tid, [])
       | None -> ({ Ty.package = ""; name = "" }, [])
     in
-    let tid, own = own in
+    (* An enum map is found where Check.map_read finds it: in the enum's
+       home package, then in the current one. *)
     let maps =
       Names.fold_decls
         (fun _ (d : decl) acc ->
           match d.kind with
-          | Enum_map { property; _ } when Verbs.enum_maps env.verbs (tid, property.N.Name.text) <> None ->
-              let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
-              if List.exists (fun (n, _, _) -> n = property.N.Name.text) acc then acc
-              else (property.N.Name.text, Map_member, Ty.to_string ty) :: acc
+          | Enum_map { property; _ } when not (List.exists (fun (n, _, _) -> n = property.N.Name.text) acc) -> (
+              let all = Option.value ~default:[] (Verbs.enum_maps env.verbs (tid, property.N.Name.text)) in
+              let in_package p = List.filter (fun (m : enum_map) -> m.map_decl.package = p) all in
+              match in_package tid.Ty.package @ in_package package with
+              | m :: _ -> (property.N.Name.text, Map_member, Ty.to_string m.map_ty) :: acc
+              | [] -> acc)
           | _ -> acc)
         env.names []
     in
     let home = Verb_signatures.home t in
-    let subject_fits (s : S.t) =
-      match s.S.params with
-      | { S.ty; _ } :: _ -> (
-          match (Ty.strip_mode ty, Ty.strip_mode t) with
-          | Ty.Param _, _ -> true
-          | Ty.Named (a, _), Ty.Named (b, _) -> a = b
-          | Ty.Intrinsic { namespace = n1; name = m1; _ }, Ty.Intrinsic { namespace = n2; name = m2; _ } ->
-              n1 = n2 && m1 = m2
-          | a, b -> a = b)
-      | [] -> false
+    (* Whether a method's subject takes a value of [t]: the same type, with
+       the same arguments where the method fixes them. *)
+    let rec fits (p : Ty.t) (a : Ty.t) =
+      match (Ty.strip_mode p, Ty.strip_mode a) with
+      | Ty.Param _, _ | Ty.Error, _ | _, Ty.Error -> true
+      | Ty.Named (x, ps), Ty.Named (y, args) -> x = y && args_fit ps args
+      | Ty.Intrinsic { namespace = n1; name = m1; args = ps }, Ty.Intrinsic { namespace = n2; name = m2; args } ->
+          n1 = n2 && m1 = m2 && args_fit ps args
+      | p, a -> p = a
+    and args_fit ps args =
+      List.length ps = List.length args
+      && List.for_all2
+           (fun p a ->
+             match (p, a) with
+             | Ty.Type p, Ty.Type a -> fits p a
+             | Ty.Number (Ty.Number_param _), Ty.Number _ -> true
+             | p, a -> p = a)
+           ps args
+    in
+    let subject_fits (s : S.t) = match s.S.params with { S.ty; _ } :: _ -> fits ty t | [] -> false in
+    (* Check.method_call reaches a method of the subject's home package or
+       of the current one, and Context.accessible_sig hides another
+       package's private method. *)
+    let reachable (s : S.t) =
+      match s.S.home with
+      | S.Package p -> (Some s.S.home = home || p = package) && (p = package || not (is_private s.S.name))
+      | S.Namespace _ -> Some s.S.home = home
+    in
+    let add name (s : S.t) acc =
+      if List.exists (fun (n, _, d) -> n = name && d = S.to_string s) acc then acc else (name, Method_member, S.to_string s) :: acc
     in
     let methods =
-      Verbs.fold_methods
-        (fun name (s : S.t) acc ->
-          let reachable =
-            match s.S.home with
-            | S.Package p -> Some s.S.home = home || p = package
-            | S.Namespace _ -> Some s.S.home = home
-          in
-          if reachable && subject_fits s && not (List.exists (fun (n, _, d) -> n = name && d = S.to_string s) acc) then
-            (name, Method_member, S.to_string s) :: acc
-          else acc)
-        env.verbs []
+      Verbs.fold_methods (fun name (s : S.t) acc -> if reachable s && subject_fits s then add name s acc else acc) env.verbs []
     in
-    own @ List.rev maps @ List.sort compare methods
+    (* A method of any subject that the file imports, under the file's
+       spelling of it. *)
+    let imported =
+      match List.find_opt (fun (f : file) -> String.equal f.path path) (files ()) with
+      | None -> []
+      | Some file ->
+          Hashtbl.fold
+            (fun spelling (b : bare) acc ->
+              List.fold_left
+                (fun acc (d : decl) ->
+                  match Verbs.signature env.verbs d.id with
+                  | Some ({ S.kind = S.Method; params = { S.ty = Ty.Param _; _ } :: _; _ } as s) -> add spelling s acc
+                  | _ -> acc)
+                acc (package_values env b.from b.member))
+            file.bare []
+    in
+    own @ List.rev maps @ List.sort_uniq compare (methods @ imported)
+  in
+  let type_members_of (t : Ty.t) =
+    match Context.definition env t with
+    | Some (tid, Enum ms) -> List.map (fun m -> (m, Enum_member, tid.Ty.name)) ms
+    | Some (_, Variant cs) -> List.map (fun (n, ct) -> (n, Case_member, Ty.to_string ct)) cs
+    | _ -> []
   in
   let in_scope ~path =
-    let files =
-      List.concat_map (fun name -> (package env name).files) (Names.package_order env.names)
-    in
-    match List.find_opt (fun (f : file) -> String.equal f.path path) files with
+    match List.find_opt (fun (f : file) -> String.equal f.path path) (files ()) with
     | None -> ([], [])
     | Some file ->
         let entry (d : decl) =
@@ -214,6 +258,7 @@ let build env (uses : Uses.t) : t =
     params = uses.Uses.params;
     probes = uses.Uses.probes;
     members_of;
+    type_members_of;
     in_scope;
     packages = Names.package_order env.names;
   }

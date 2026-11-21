@@ -11,6 +11,8 @@ import re
 import shutil
 import tempfile
 import unittest
+import urllib.parse
+import urllib.request
 
 from tests.lsp.client import ROOT, ZANEC, Client, ResponseError, position_of, uri
 
@@ -59,7 +61,8 @@ class ServerTest(unittest.TestCase):
         return self.client.at(method, path, line, character, **extra)
 
     def span_text(self, location, text=None):
-        path = pathlib.Path(location["uri"][len("file://") :])
+        parsed = urllib.parse.urlparse(location["uri"])
+        path = pathlib.Path(urllib.request.url2pathname(parsed.path))
         text = text if text is not None else path.read_text()
         r = location["range"]
         lines = text.split("\n")
@@ -103,6 +106,32 @@ class DiagnosticsTest(ServerTest):
         self.assertFalse(self.client.diagnostics(extra))
         found = self.at("textDocument/definition", extra, text, "Point)")
         self.assertTrue(found[0]["uri"].endswith("geo.zn"))
+
+    def test_a_linked_file_keeps_its_unsaved_text(self):
+        # main.zn is a link to main.src; the package reads main.zn, so the
+        # editor's text for main.zn is what the build checks.
+        source = self.main.with_suffix(".src")
+        self.main.rename(source)
+        self.main.symlink_to(source.name)
+        self.client.open(self.main, self.text)
+        self.client.change(self.main, self.text.replace("dist(origin, far)", "dist(origin, far, far)"))
+        diagnostics = self.client.diagnostics(self.main)
+        self.assertEqual(len(diagnostics), 1)
+
+    def test_lines_may_end_in_a_bare_carriage_return(self):
+        self.client.change(self.main, self.text.replace("\n", "\r"))
+        self.assertFalse(self.client.diagnostics(self.main))
+        found = self.at("textDocument/definition", self.main, self.text, "dist(origin")
+        self.assertEqual(self.span_text(found[0]), "dist")
+
+    def test_a_file_on_another_machine_is_ignored(self):
+        remote = "file://elsewhere" + uri(self.main)[len("file://") :]
+        params = {"textDocument": {"uri": remote}, "position": {"line": 0, "character": 0}}
+        self.client.notify(
+            "textDocument/didOpen",
+            {"textDocument": {"uri": remote, "languageId": "zane", "version": 1, "text": self.text}},
+        )
+        self.assertIsNone(self.client.request("textDocument/hover", params))
 
 
 class TransportTest(unittest.TestCase):
@@ -195,6 +224,29 @@ class DefinitionTest(ServerTest):
         found = self.at("textDocument/typeDefinition", self.main, self.text, "far:norm")
         self.assertEqual(self.span_text(found[0]), "Point")
 
+    def test_a_named_constructor(self):
+        found = self.at("textDocument/definition", self.main, self.text, "zero()")
+        self.assertEqual(self.span_text(found[0]), "zero")
+
+    def test_a_label_of_a_constructor_with_its_own_fields(self):
+        geo = self.geo.read_text()
+        found = self.at("textDocument/definition", self.main, self.text, "both =")
+        self.assertEqual(found[0]["range"]["start"]["line"], position_of(geo, "Pair{ both")[0])
+        self.assertEqual(self.span_text(found[0]), "both")
+
+    def test_an_import_alias(self):
+        found = self.at("textDocument/definition", self.main, self.text, "Twin{")
+        self.assertEqual(self.span_text(found[0]), "Pair")
+
+    def test_a_package_alias(self):
+        extra = self.root / "bin" / "app" / "extra.zn"
+        text = extra.read_text()
+        found = self.at("textDocument/references", extra, text, "g$pick", context={"includeDeclaration": True})
+        lines = sorted(r["range"]["start"]["line"] for r in found if r["uri"] == uri(extra))
+        # The package key and its alias in the import, and the qualifier.
+        import_line = position_of(text, "as g")[0]
+        self.assertEqual(lines, [import_line, import_line, position_of(text, "g$pick")[0]])
+
 
 class ReferencesTest(ServerTest):
     def refs(self, path, text, needle, include=True):
@@ -220,6 +272,11 @@ class ReferencesTest(ServerTest):
     def test_a_local(self):
         found = self.refs(self.main, self.text, "origin, far")
         self.assertEqual(len(found), 2)
+
+    def test_a_type_parameter_marked_twice(self):
+        geo = self.geo.read_text()
+        # The return type, and the marker of each parameter.
+        self.assertEqual(len(self.refs(self.geo, geo, "T Type) => first")), 3)
 
 
 class RenameTest(ServerTest):
@@ -255,6 +312,23 @@ class RenameTest(ServerTest):
     def test_a_name_of_the_wrong_case_is_refused(self):
         with self.assertRaises(ResponseError):
             self.rename(self.main, self.text, "Point = Point(Float(3", "point")
+
+    def test_an_import_alias_keeps_its_spelling(self):
+        edit = self.rename(self.main, self.text, "Twin{", "Couple")
+        main = edit["changes"][uri(self.main)]
+        self.assertEqual(len(main), 1)
+        self.assertEqual(main[0]["range"]["start"]["line"], position_of(self.text, "Pair as")[0])
+
+    def test_a_named_constructor(self):
+        edit = self.rename(self.main, self.text, "zero()", "start")
+        self.assertEqual(len(edit["changes"][uri(self.main)]), 1)
+        self.assertEqual(len(edit["changes"][uri(self.geo)]), 1)
+
+    def test_a_label(self):
+        edit = self.rename(self.main, self.text, "both =", "each")
+        # The caller's label, and the field and its two reads in geo.zn.
+        self.assertEqual(len(edit["changes"][uri(self.main)]), 1)
+        self.assertEqual(len(edit["changes"][uri(self.geo)]), 4)
 
 
 class SymbolsAndTokensTest(ServerTest):
@@ -333,6 +407,19 @@ class CompletionTest(ServerTest):
     def test_types(self):
         found = self.complete(self.main, self.text.replace("c Color", "c Co|"))
         self.assertIn("Color", found)
+
+    def test_a_private_field_is_hidden_outside_its_package(self):
+        found = self.complete(self.main, self.text.replace("first Float = pair.left;", "first Float = pair.|"))
+        self.assertTrue({"left", "right"} <= found)
+        self.assertNotIn("_spare", found)
+
+    def test_the_members_of_an_enum_type(self):
+        found = self.complete(self.main, self.text.replace("Color.red", "Color.|"))
+        self.assertEqual(found, {"red", "green", "blue"})
+
+    def test_an_enum_value_offers_its_maps(self):
+        found = self.complete(self.main, self.text.replace("c.warm", "c.|"))
+        self.assertEqual(found, {"warm"})
 
 
 class Utf8Test(ServerTest):

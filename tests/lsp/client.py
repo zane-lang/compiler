@@ -17,7 +17,8 @@ ZANEC = ROOT / "_build" / "default" / "bin" / "zanec" / "zanec.exe"
 
 
 def uri(path):
-    return pathlib.Path(path).resolve().as_uri()
+    # Absolute, but with symbolic links kept, as an editor names a file.
+    return pathlib.Path(path).absolute().as_uri()
 
 
 class Client:

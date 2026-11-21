@@ -20,6 +20,9 @@ type target =
   | Field of Ty.type_id * string
   (* A member of an enum. *)
   | Member of Ty.type_id * string
+  (* A field of a field constructor that declares its own fields, by the
+     constructor's declaration id: what a label names in `Box{seed = 1}`. *)
+  | Label of int * string
   (* A local or parameter of a verb, by its id. *)
   | Local of int
   (* A type or number parameter, by its id. *)
@@ -36,8 +39,10 @@ type use = { span : Span.t; target : target; declaration : bool }
    placeholder name the language server wrote at the cursor. *)
 type probe =
   (* A member read of a value of this type: `value.placeholder` or
-     `value:placeholder(...)`. *)
-  | Member_of of Ty.t
+     `value:placeholder(...)`, in a file of [package]. *)
+  | Member_of of { ty : Ty.t; package : string; path : string }
+  (* A member of this type itself: `Type.placeholder`. *)
+  | Type_member_of of Ty.t
   (* A bare name: the locals in scope, innermost first. *)
   | Name_in of { locals : Nodes.Local.t list; package : string; path : string }
   (* A type name. *)

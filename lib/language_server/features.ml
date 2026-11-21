@@ -91,68 +91,96 @@ let key_of index (target : Uses.target) =
       | d :: _ -> Some (Declared_at (span_path d.Uses.span, fst (span_offsets d.Uses.span)))
       | [] -> None)
 
+(* The key of every target of [index], from one pass over its uses: the
+   first declaration [declarations] would find decides it. *)
+let key_table (index : Index.t) =
+  let declared = Hashtbl.create 256 in
+  List.iter
+    (fun (u : Uses.use) -> if u.Uses.declaration && not (Hashtbl.mem declared u.Uses.target) then Hashtbl.replace declared u.Uses.target u)
+    index.Index.uses;
+  fun (target : Uses.target) ->
+    match target with
+    | Uses.Package p -> Some (Package p)
+    | Uses.Intrinsic s -> Some (Intrinsic s)
+    | _ ->
+        Option.map
+          (fun (d : Uses.use) -> Declared_at (span_path d.Uses.span, fst (span_offsets d.Uses.span)))
+          (Hashtbl.find_opt declared target)
+
 (* Every use of the target [key] in every build of [project], each once. *)
 let uses_of_key t (project : P.project) key =
   let seen = Hashtbl.create 64 in
   List.concat_map
     (fun b ->
-      match P.ensure t b with
+      match Option.bind (P.ensure t b) (fun a -> Option.map (fun i -> (a, i)) (index_of a)) with
       | None -> []
-      | Some a -> (
-          match index_of a with
-          | None -> []
-          | Some index ->
-              let keys = Hashtbl.create 64 in
-              List.filter_map
-                (fun (u : Uses.use) ->
-                  let k =
-                    match Hashtbl.find_opt keys u.Uses.target with
-                    | Some k -> k
-                    | None ->
-                        let k = key_of index u.Uses.target in
-                        Hashtbl.replace keys u.Uses.target k;
-                        k
-                  in
-                  let id = (span_path u.Uses.span, span_offsets u.Uses.span) in
-                  if k = Some key && not (Hashtbl.mem seen id) then begin
-                    Hashtbl.replace seen id ();
-                    Some (a, u)
-                  end
-                  else None)
-                index.Index.uses))
+      | Some (a, index) ->
+          let key_of = key_table index in
+          List.filter_map
+            (fun (u : Uses.use) ->
+              let id = (span_path u.Uses.span, span_offsets u.Uses.span) in
+              if key_of u.Uses.target = Some key && not (Hashtbl.mem seen id) then begin
+                Hashtbl.replace seen id ();
+                Some (a, u)
+              end
+              else None)
+            index.Index.uses)
     project.P.builds
+
+(* Whether a span that names [key] also names another target in some build
+   of [project], as a call in a generic body does when its instances choose
+   different overloads. *)
+let names_another_target t (project : P.project) key =
+  let keys = Hashtbl.create 256 in
+  List.iter
+    (fun b ->
+      match Option.bind (P.ensure t b) index_of with
+      | None -> ()
+      | Some index ->
+          let key_of = key_table index in
+          List.iter
+            (fun (u : Uses.use) ->
+              let id = (span_path u.Uses.span, span_offsets u.Uses.span) in
+              match key_of u.Uses.target with
+              | Some k -> Hashtbl.replace keys id (k :: Option.value ~default:[] (Hashtbl.find_opt keys id))
+              | None -> ())
+            index.Index.uses)
+    project.P.builds;
+  Hashtbl.fold (fun _ ks found -> found || (List.mem key ks && List.exists (fun k -> k <> key) ks)) keys false
 
 (* ---------------------------------------------------------------------- *)
 (* Hover                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* The `///` lines right above the line a declaration starts on. *)
-let documentation t (entry : Index.entry) =
-  match P.text_of t entry.Index.path with
+(* The `///` lines right above the line a declaration starts on, read from
+   the text the analysis [a] read, whose lines the declaration's span counts:
+   the current text may have moved them. *)
+let documentation (a : P.analysis) (entry : Index.entry) =
+  match Hashtbl.find_opt a.P.texts entry.Index.path with
   | None -> ""
   | Some text ->
-      let lines = String.split_on_char '\n' text in
+      let lines = Array.of_list (String.split_on_char '\n' text) in
       let line = entry.Index.span.Span.start_.Lexing.pos_lnum - 1 in
       let rec above i acc =
         if i < 0 then acc
         else
-          let l = String.trim (List.nth lines i) in
+          let l = String.trim lines.(i) in
           if String.starts_with ~prefix:"///" l then
             above (i - 1) (String.trim (String.sub l 3 (String.length l - 3)) :: acc)
           else acc
       in
-      if line <= 0 || line > List.length lines then "" else String.concat "\n" (above (line - 1) [])
+      if line <= 0 || line > Array.length lines then "" else String.concat "\n" (above (line - 1) [])
 
 let code s = "```zane\n" ^ s ^ "\n```"
 
 let local_description (l : Tst.Nodes.Local.t) = Printf.sprintf "%s %s" l.Tst.Nodes.Local.name (Ty.to_string l.ty)
 
-let describe t (index : Index.t) (target : Uses.target) =
+let describe (a : P.analysis) (index : Index.t) (target : Uses.target) =
   match target with
   | Uses.Decl id -> (
       match Hashtbl.find_opt index.Index.decls id with
       | Some e ->
-          let doc = documentation t e in
+          let doc = documentation a e in
           Some (code e.Index.detail ^ (if doc = "" then "" else "\n\n" ^ doc) ^ "\n\nDeclared in `" ^ e.Index.package ^ "`.")
       | None -> None)
   | Uses.Field (tid, name) ->
@@ -160,6 +188,10 @@ let describe t (index : Index.t) (target : Uses.target) =
         (fun ty -> code (Printf.sprintf "%s %s" name (Ty.to_string ty)) ^ "\n\nIn `" ^ tid.Ty.package ^ "$" ^ tid.Ty.name ^ "`.")
         (Hashtbl.find_opt index.Index.fields (tid, name))
   | Uses.Member (tid, name) -> Some (code (tid.Ty.name ^ "." ^ name) ^ "\n\nA member of `" ^ tid.Ty.package ^ "$" ^ tid.Ty.name ^ "`.")
+  | Uses.Label (id, name) ->
+      Option.map
+        (fun (e : Index.entry) -> code name ^ "\n\nA field of the constructor `" ^ e.Index.detail ^ "`.")
+        (Hashtbl.find_opt index.Index.decls id)
   | Uses.Local id -> Option.map (fun l -> code (local_description l)) (Hashtbl.find_opt index.Index.locals id)
   | Uses.Param id ->
       Option.map
@@ -216,6 +248,7 @@ let classify (index : Index.t) (u : Uses.use) =
         | Some l when Hashtbl.mem index.Index.parameters l.Tst.Nodes.Local.id -> (Some "parameter", false, false)
         | _ -> (Some "variable", false, false))
     | Uses.Param _ -> (Some "typeParameter", false, false)
+    | Uses.Label _ -> (Some "parameter", false, false)
     | Uses.Intrinsic spelling ->
         let name = match String.index_opt spelling '$' with Some i -> String.sub spelling (i + 1) (String.length spelling - i - 1) | None -> spelling in
         if name <> "" && Cst.is_upper_identifier name then (Some "type", false, true) else (Some "function", false, true)
@@ -455,20 +488,23 @@ let completion encoding t (d : P.document) (line, character) =
   in
   let keywords = List.map (fun k -> item k `Keyword) Cst.keywords in
   let probe = Option.bind index (fun (index : Index.t) -> match index.Index.probes with (_, p) :: _ -> Some (index, p) | [] -> None) in
+  let member_item (name, k, detail) =
+    item ~detail name
+      (match k with
+      | Index.Field_member -> `Field
+      | Index.Case_member -> `Member
+      | Index.Enum_member -> `Member
+      | Index.Map_member -> `Property
+      | Index.Method_member -> `Method)
+  in
   let items =
     match (probe, trigger) with
-    | Some (index, Uses.Member_of ty), _ ->
+    | Some (index, Uses.Member_of { ty; package; path }), _ ->
         let methods = trigger = Some ':' || trigger = Some '!' in
-        index.Index.members_of ty ~package:(match Index.(index.packages) with p :: _ -> p | [] -> "")
+        index.Index.members_of ty ~package ~path
         |> List.filter (fun (_, k, _) -> if methods then k = Index.Method_member else k <> Index.Method_member)
-        |> List.map (fun (name, k, detail) ->
-               item ~detail name
-                 (match k with
-                 | Index.Field_member -> `Field
-                 | Index.Case_member -> `Member
-                 | Index.Enum_member -> `Member
-                 | Index.Map_member -> `Property
-                 | Index.Method_member -> `Method))
+        |> List.map member_item
+    | Some (index, Uses.Type_member_of ty), _ -> List.map member_item (index.Index.type_members_of ty)
     | Some (index, Uses.Name_in { locals; _ }), _ ->
         List.map (fun (l : Tst.Nodes.Local.t) -> item ~detail:(Ty.to_string l.Tst.Nodes.Local.ty) l.Tst.Nodes.Local.name `Variable) locals
         @ names index ~types:false @ keywords

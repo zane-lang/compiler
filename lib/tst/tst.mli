@@ -30,13 +30,18 @@ module Intrinsics = Intrinsics
 module Semantics = Semantics
 
 (** Every pass over the assembled packages: the program, and every problem
-    found, in source order. Given a recording [uses], the check records each
-    name it resolves there, and the result's [index] reads that record. *)
+    found, in source order. With [record], the check records each name it
+    resolves, and what it finds where a completion wrote [placeholder], in a
+    recorder of its own; the result's [index] reads that record. *)
 val check :
-  ?interfaces:(string * C_interface.t) list -> ?uses:Uses.t -> Assembly.package list -> Semantics.result
+  ?interfaces:(string * C_interface.t) list ->
+  ?record:bool ->
+  ?placeholder:string ->
+  Assembly.package list ->
+  Semantics.result
 
-(** The names a check resolved, which a check records when it is given a
-    recording [Uses.t] (docs/design/language-server.md). *)
+(** The names a check resolved, which a check records when it is given
+    [record] (docs/design/language-server.md). *)
 module Uses = Uses
 
 (** What the names of a build mean, built from a check that recorded its

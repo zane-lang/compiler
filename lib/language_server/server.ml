@@ -22,6 +22,10 @@ type state = {
      lasts, since a check runs after every edit (D15). *)
   shown : (string * string, string list) Hashtbl.t;
   mutable shutting_down : bool;
+  (* What the client offered in `initialize`: registering file watchers
+     while it runs, and edits tied to a document's version. *)
+  mutable can_watch : bool;
+  mutable versioned_edits : bool;
 }
 
 let field name (json : json) = match json with `Assoc fields -> List.assoc_opt name fields | _ -> None
@@ -193,7 +197,7 @@ let hover st params =
   match at st params with
   | None -> `Null
   | Some (_, a, index, u) -> (
-      match F.describe st.project index u.Uses.target with
+      match F.describe a index u.Uses.target with
       | None -> `Null
       | Some markdown ->
           `Assoc
@@ -285,11 +289,12 @@ let renamable (p : P.project) index (u : Uses.use) =
   | _ when not declared_in_project -> Error "this is declared outside the project, in a dependency"
   | Uses.Decl id -> (
       match Hashtbl.find_opt index.Index.decls id with
-      | Some { Index.kind = Index.Operator | Index.Subscript | Index.Flip | Index.Constructor; _ } ->
+      | Some { Index.kind = Index.Operator | Index.Subscript | Index.Flip; _ }
+      | Some { Index.kind = Index.Constructor; name = "constructor"; _ } ->
           Error "only a declaration with a name can be renamed"
       | Some e -> Ok e.Index.name
       | None -> Error "this cannot be renamed")
-  | Uses.Field (_, n) | Uses.Member (_, n) -> Ok n
+  | Uses.Field (_, n) | Uses.Member (_, n) | Uses.Label (_, n) -> Ok n
   | Uses.Local id -> (match Hashtbl.find_opt index.Index.locals id with Some l -> Ok l.Tst.Nodes.Local.name | None -> Error "this cannot be renamed")
   | Uses.Param id -> (match Hashtbl.find_opt index.Index.params id with Some q -> Ok q.Ty.name | None -> Error "this cannot be renamed")
 
@@ -304,28 +309,54 @@ let prepare_rename st id params =
           | Some (_, range) -> Transport.respond st.out id (`Assoc [ ("range", range); ("placeholder", `String name) ])
           | None -> Transport.respond st.out id `Null))
 
-(* The edits of a rename of [key] from [old_name] to [new_name], by file:
+(* An edit of every use of [key] from [old_name] to [new_name], by file:
    only the identifier as written, since an import's alias names the
-   declaration under another spelling. *)
+   declaration under another spelling. The rename is refused when its edits
+   could be incomplete: a build's last check failed, a use cannot be placed
+   in the current text because the file does not parse, or one call names
+   [key] in one instance of a generic body and another target in another. *)
 let rename_edits st p key ~old_name ~new_name =
-  let edits = Hashtbl.create 8 in
-  let add ((a : P.analysis), (d : Uses.use)) =
-    let path = F.span_path d.Uses.span in
-    match (P.text_of st.project path, F.view st.project a path) with
-    | Some current, Some v -> (
-        match Text.move v.F.shift (F.span_offsets d.Uses.span) with
-        | Some (s, e) when String.equal (String.sub current s (e - s)) old_name ->
-            let edit = `Assoc [ ("range", F.range_json st.encoding v.F.lines (s, e)); ("newText", `String new_name) ] in
-            Hashtbl.replace edits path ((s, edit) :: Option.value ~default:[] (Hashtbl.find_opt edits path))
-        | _ -> ())
-    | _ -> ()
-  in
-  List.iter add (F.uses_of_key st.project p key);
-  (* Last edit first: the protocol applies every edit to the original text,
-     but a client applying them one by one then still edits the right
-     places. *)
-  let in_order es = List.sort_uniq (fun (a, _) (b, _) -> compare b a) es |> List.map snd in
-  `Assoc (Hashtbl.fold (fun path es acc -> (Text.uri_of_path path, `List (in_order es)) :: acc) edits [])
+  let failed = List.filter (fun (b : P.build) -> b.P.failed) p.P.builds in
+  if failed <> [] then
+    Error (Printf.sprintf "the last check of %s failed; rename after it checks again" (List.hd failed).P.label)
+  else if F.names_another_target st.project p key then
+    Error "a call that names this declaration names another in some instance of a generic body"
+  else
+    let edits = Hashtbl.create 8 and lost = ref None in
+    let add ((a : P.analysis), (d : Uses.use)) =
+      let path = F.span_path d.Uses.span in
+      let s0, e0 = F.span_offsets d.Uses.span in
+      let analyzed = Option.map (fun text -> String.sub text s0 (e0 - s0)) (Hashtbl.find_opt a.P.texts path) in
+      match (analyzed, F.view st.project a path) with
+      | Some spelled, _ when not (String.equal spelled old_name) -> ()
+      | _, Some v -> (
+          match Text.move v.F.shift (s0, e0) with
+          | Some (s, e) ->
+              let edit = `Assoc [ ("range", F.range_json st.encoding v.F.lines (s, e)); ("newText", `String new_name) ] in
+              Hashtbl.replace edits path ((s, edit) :: Option.value ~default:[] (Hashtbl.find_opt edits path))
+          | None -> lost := Some path)
+      | _, None -> lost := Some path
+    in
+    List.iter add (F.uses_of_key st.project p key);
+    match !lost with
+    | Some path -> Error (Printf.sprintf "%s does not parse where `%s` is used; rename after fixing it" path old_name)
+    | None ->
+        (* Last edit first: the protocol applies every edit to the original
+           text, but a client applying them one by one then still edits the
+           right places. *)
+        let in_order es = List.sort_uniq (fun (a, _) (b, _) -> compare b a) es |> List.map snd in
+        let files = Hashtbl.fold (fun path es acc -> (path, `List (in_order es)) :: acc) edits [] in
+        (* A client that takes versions gets them, so it refuses edits of a
+           document that changed since. *)
+        if st.versioned_edits then
+          let version path =
+            match Hashtbl.find_opt st.project.P.documents path with Some d -> `Int d.P.version | None -> `Null
+          in
+          let edit (path, es) =
+            `Assoc [ ("textDocument", `Assoc [ ("uri", `String (Text.uri_of_path path)); ("version", version path) ]); ("edits", es) ]
+          in
+          Ok (`Assoc [ ("documentChanges", `List (List.map edit files)) ])
+        else Ok (`Assoc [ ("changes", `Assoc (List.map (fun (path, es) -> (Text.uri_of_path path, es)) files)) ])
 
 let rename st id params =
   match at st params with
@@ -348,7 +379,10 @@ let rename st id params =
           else
             match F.key_of index u.Uses.target with
             | None -> Transport.respond st.out id `Null
-            | Some key -> Transport.respond st.out id (`Assoc [ ("changes", rename_edits st p key ~old_name ~new_name) ])))
+            | Some key -> (
+                match rename_edits st p key ~old_name ~new_name with
+                | Ok edit -> Transport.respond st.out id edit
+                | Error message -> Transport.respond_error st.out id ~code:(-32602) message)))
 
 (* The document a request names: the editor's, or the file on disk when
    the editor has not opened it. *)
@@ -413,11 +447,17 @@ let initialize st params =
     | _ -> []
   in
   if List.mem "utf-8" encodings then st.encoding <- Text.Utf8;
+  let offered path =
+    let rec go json = function [] -> json = Some (`Bool true) | name :: rest -> go (Option.bind json (field name)) rest in
+    go (Some params) ("capabilities" :: path)
+  in
+  st.can_watch <- offered [ "workspace"; "didChangeWatchedFiles"; "dynamicRegistration" ];
+  st.versioned_edits <- offered [ "workspace"; "workspaceEdit"; "documentChanges" ];
   (match Option.bind (field "initializationOptions" params) (field "builds") with
   | Some builds ->
       let root =
         match Option.bind (string_field "rootUri" params) Text.path_of_uri with
-        | Some r -> P.canonical r
+        | Some r -> P.canonical_dir r
         | None -> Sys.getcwd ()
       in
       st.project.P.given <- Some { P.root; builds = P.builds_of_json builds; listed_by_zane = false; listing_error = None }
@@ -462,7 +502,7 @@ let changed_on_disk st path =
   else begin
     if is_c_file path then
       List.iter
-        (fun (p : P.project) -> List.iter (fun (b : P.build) -> if P.holds b path then b.P.c <- None) p.P.builds)
+        (fun (p : P.project) -> List.iter (fun (b : P.build) -> if P.holds b path then b.P.c <- P.Not_compiled) p.P.builds)
         (P.all_projects st.project);
     P.touch st.project path
   end
@@ -479,7 +519,7 @@ let apply_change st (d : P.document) (change : json) =
 
 let notification st method_ params =
   match method_ with
-  | "initialized" -> watch st
+  | "initialized" -> if st.can_watch then watch st
   | "textDocument/didOpen" -> (
       match Option.bind (field "textDocument" params) (fun d -> Option.map (fun u -> (d, u)) (string_field "uri" d)) with
       | Some (doc, uri) -> (
@@ -498,6 +538,7 @@ let notification st method_ params =
           match Hashtbl.find_opt st.project.P.documents path with
           | Some d ->
               (match field "contentChanges" params with Some (`List changes) -> List.iter (apply_change st d) changes | _ -> ());
+              Option.iter (fun v -> d.P.version <- v) (Option.bind (field "textDocument" params) (int_field "version"));
               P.reparse d;
               P.touch st.project path
           | None -> ())
@@ -508,7 +549,9 @@ let notification st method_ params =
       | Some path ->
           Hashtbl.remove st.project.P.documents path;
           P.touch st.project path;
-          if Hashtbl.mem st.published path && P.build_of st.project path = None then begin
+          (* A file no build checks any more, or an unsaved file the user
+             discarded, keeps no diagnostics. *)
+          if Hashtbl.mem st.published path && (P.build_of st.project path = None || not (Sys.file_exists path)) then begin
             publish st path [];
             Hashtbl.remove st.published path
           end
@@ -559,7 +602,7 @@ let run ?zane () =
   set_binary_mode_out stdout true;
   let st_ref = ref None in
   let project = P.create ~zane ~log:(fun m -> match !st_ref with Some st -> log st m | None -> prerr_endline m) in
-  let st = { project; out = stdout; encoding = Text.Utf16; published = Hashtbl.create 16; shown = Hashtbl.create 4; shutting_down = false } in
+  let st = { project; out = stdout; encoding = Text.Utf16; published = Hashtbl.create 16; shown = Hashtbl.create 4; shutting_down = false; can_watch = false; versioned_edits = false } in
   st_ref := Some st;
   let queue = Transport.start stdin in
   (* Messages are handled in the order they came. An edit only marks its
@@ -577,6 +620,9 @@ let run ?zane () =
             | Transport.Notification { method_; params } ->
                 guarded st (fun () -> notification st method_ params);
                 false
+            | Transport.Request { id; _ } when st.shutting_down ->
+                Transport.respond_error st.out id ~code:(-32600) "the server is shutting down";
+                false
             | Transport.Request { id; method_; params } ->
                 if method_ <> "initialize" && method_ <> "shutdown" then guarded st (fun () -> refresh st);
                 let answered = ref false in
@@ -586,10 +632,13 @@ let run ?zane () =
                 if not !answered then Transport.respond_error st.out id ~code:(-32603) "the compiler failed on this request";
                 false
             | Transport.Response _ -> false
+            | Transport.Unreadable ->
+                Transport.respond_error st.out `Null ~code:(-32700) "the message is not a JSON-RPC message";
+                false
             | Transport.Closed -> true)
         false messages
     in
-    guarded st (fun () -> refresh st);
+    if not st.shutting_down then guarded st (fun () -> refresh st);
     if not closed then loop ()
   in
   loop ()

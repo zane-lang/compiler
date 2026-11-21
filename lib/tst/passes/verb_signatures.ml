@@ -31,6 +31,9 @@ type introductions = {
 let introduce env intro ~at span name kind =
   match List.assoc_opt name intro.found with
   | Some p ->
+      (* A later marker such as the second `T Type` names the first one's
+         parameter. *)
+      Uses.param env.uses ~declaration:false at p;
       if p.Ty.kind <> kind then
         error env span
           (Printf.sprintf "%s is introduced as both a type and a number" (quote name));
