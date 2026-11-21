@@ -86,7 +86,26 @@ let declare env ctx role (name : N.Name.t) ty =
         | [] -> ()));
   let local = fresh_local env text ty span in
   bind ctx role local;
+  Uses.local env.uses ~declaration:true local;
   local
+
+(* Every local in scope, innermost first: what a completion of a bare name
+   offers. *)
+let locals_in_scope ctx =
+  let seen = Hashtbl.create 16 in
+  List.concat_map
+    (fun tbl ->
+      Hashtbl.fold (fun name b acc -> if Hashtbl.mem seen name then acc else (Hashtbl.add seen name (); b.local :: acc)) tbl [])
+    ctx.scopes
+
+(* The target of a call that resolved to [s]. The checker's own stand-ins,
+   spelled `<value>` and `<case>`, are no name a program wrote. *)
+let record_callee env at (s : S.t) =
+  match s.S.owner with
+  | S.Declared id -> Uses.add env.uses at (Uses.Decl id)
+  | S.Intrinsic spelling when String.length spelling > 0 && spelling.[0] <> '<' ->
+      Uses.add env.uses at (Uses.Intrinsic spelling)
+  | S.Intrinsic _ -> ()
 
 (* `^` marks how a place holds its owner, not what type the value has (memory.md
    §2.1), so no expression's type carries it: a `^T` local read, and a call

@@ -5,6 +5,9 @@ type result = {
   program : Nodes.Program.t;
   (* Every problem the passes found, in source order (D4). *)
   diagnostics : Diagnostic.t list;
+  (* The names the check resolved, when [uses] asked it to record them
+     (docs/design/language-server.md). *)
+  index : Index.t Lazy.t;
 }
 
 (* Every pass, over this check's own tables. Each pass fills its group's
@@ -13,8 +16,8 @@ type result = {
 (* [interfaces] gives the declarations and definitions of each package's C
    code, by package identity (docs/design/ffi.md F6); a package missing from
    [interfaces] has no C. *)
-let check ?(interfaces = []) (packages : Assembly.package list) =
-  let env = Env.start () in
+let check ?(interfaces = []) ?uses (packages : Assembly.package list) =
+  let env = Env.start ?uses () in
   List.iter (fun (id, i) -> Hashtbl.replace env.Env.interfaces id i) interfaces;
   let env = { env with names = Collect.run env (Env.names ()) packages } in
   let env = { env with types = Type_decls.run env (Env.types ()) } in
@@ -41,7 +44,7 @@ let check ?(interfaces = []) (packages : Assembly.package list) =
         | c -> c)
       !(env.Env.diagnostics)
   in
-  { program; diagnostics }
+  { program; diagnostics; index = lazy (Index.build env env.Env.uses) }
 
 (* The text a build read from [path], which a span is read back out of. *)
 let source packages path = Source.Files.find (Assembly.sources packages) path

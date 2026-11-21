@@ -1,0 +1,6 @@
+; The language server, which `zanec --lsp` runs: the compiler's own stages
+; answering an editor's questions over the Language Server Protocol. See
+; docs/design/language-server.md.
+(library
+ (name language_server)
+ (libraries cst diagnostic driver foreign source sst tst threads.posix unix yojson))

@@ -12,11 +12,14 @@ val render : failure -> string list
 
 (** The packages of the build. The first package is the root, unless
     [root] is false, as in a library build, which has no root (packages.md
-    §6.1). [stamps] gives packages their stamps by path: each entry must
+    §6.1). [buffers] is the text an editor holds for a file, by path,
+    read instead of the file (docs/design/language-server.md). [stamps]
+    gives packages their stamps by path: each entry must
     name exactly one package and give a value that is a stamp. [imports]
     gives each package's import keys (docs/design/separate-compilation.md
     C6, C10). *)
 val assemble :
+  ?buffers:(string * string) list ->
   ?root:bool ->
   ?imports:(string * string * string) list ->
   ?stamps:(string * string) list ->
@@ -36,6 +39,18 @@ val compile_commands : ?target:string -> Tst.Assembly.package list -> string -> 
 (** Semantics, which returns no tree when it finds a problem. *)
 val check : ?c:Foreign.package list -> Tst.Assembly.package list -> (Tst.Nodes.Program.t, failure) result
 
+(** Semantics as the language server runs it: the tree, whatever problems
+    it has, with every problem and the index of every name the check
+    resolved. [placeholder] is the identifier a completion wrote at the
+    cursor (docs/design/language-server.md). *)
+type analysis = {
+  program : Tst.Nodes.Program.t;
+  diagnostics : Diagnostic.t list;
+  index : Tst.Index.t Lazy.t;
+}
+
+val analyze : ?c:Foreign.package list -> ?placeholder:string -> Tst.Assembly.package list -> analysis
+
 (** Checks that the root declares a `main`. This is the only check for
     `main`; lowering assumes it. *)
 val require_main : Tst.Nodes.Program.t -> (unit, failure) result
@@ -47,7 +62,7 @@ val buildable : bool option -> (unit, failure) result
 (** The size in bytes of the range each context reserves for its frames:
     the main context's, from `--fixed-region`, and each spawned call's, from
     `--spawned-fixed-region`. [None] takes the default. *)
-type regions = { fixed : int option; spawned : int option }
+type regions = Build_flags.regions = { fixed : int option; spawned : int option }
 
 (** Stage 4, with the bodies of stamped dependencies' functions taken in
     for LLVM to inline. Without [root], lowering starts from every function
@@ -207,3 +222,7 @@ val rewrite_object :
   input:string ->
   output:string ->
   (unit, failure) result
+
+(** The flags of a package build, which `zanec` and the language server
+    read alike. *)
+module Build_flags = Build_flags

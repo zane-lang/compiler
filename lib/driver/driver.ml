@@ -61,11 +61,11 @@ let with_stamps stamps requests =
 (* The packages of the build, read from their directories. When [root] is
    true, the first package is the root; a library build has no root
    (packages.md §6.1). *)
-let assemble ?(root = true) ?(imports = []) ?(stamps = []) requests =
+let assemble ?buffers ?(root = true) ?(imports = []) ?(stamps = []) requests =
   match with_stamps stamps requests with
   | Error _ as e -> e
   | Ok requests -> (
-      match Assembly.assemble_requests ~root ~imports requests with
+      match Assembly.assemble_requests ?buffers ~root ~imports requests with
       | Ok packages -> Ok packages
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 
@@ -177,6 +177,25 @@ let check ?(c = []) packages =
   | { Tst.Semantics.diagnostics = []; program } -> Ok program
   | { Tst.Semantics.diagnostics; _ } -> fail ~sources:(Assembly.sources packages) diagnostics
 
+(* Semantics as the language server runs it (docs/design/language-server.md):
+   the tree, whatever problems it has, with every problem and every name
+   the check resolved. [placeholder] is the identifier a completion wrote at
+   the cursor. *)
+type analysis = {
+  program : Tst.Nodes.Program.t;
+  diagnostics : Diagnostic.t list;
+  index : Tst.Index.t Lazy.t;
+}
+
+let analyze ?(c = []) ?placeholder packages =
+  let interfaces =
+    if c = [] then []
+    else List.map2 (fun (p : Assembly.package) (f : Foreign.package) -> (p.Assembly.id, f.Foreign.interface)) packages c
+  in
+  let uses = Tst.Uses.create ?placeholder true in
+  let { Tst.Semantics.program; diagnostics; index } = Tst.check ~interfaces ~uses packages in
+  { program; diagnostics; index }
+
 (* A program starts from its root's `main` (packages.md §6.2), so a root
    without `main` is an error however far the build goes. This is the only check for
    `main`: lowering assumes it. *)
@@ -206,7 +225,7 @@ let require_main (program : Tst.Nodes.Program.t) =
    lowers from every function the build declares. *)
 (* The sizes of each context's range of frames, from `--fixed-region` and
    `--spawned-fixed-region`; [None] takes the default size. *)
-type regions = { fixed : int option; spawned : int option }
+type regions = Build_flags.regions = { fixed : int option; spawned : int option }
 
 let no_regions = { fixed = None; spawned = None }
 
@@ -648,3 +667,5 @@ let rewrite_object ~random ~stamps ~rewrite ~input ~output =
   match rewritten with
   | Ok () -> Ok ()
   | Error message -> fail [ Diagnostic.about_invocation message ]
+
+module Build_flags = Build_flags

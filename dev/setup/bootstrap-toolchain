@@ -2,8 +2,8 @@
 # Idempotently provision the OCaml packages the project builds with.
 #
 # The pixi environment, through `pixi run setup`,
-# supplies opam and the system OCaml compiler; dune, menhir, sedlex, uucp
-# and uuseg are opam packages, installed here into a switch in the
+# supplies opam and the system OCaml compiler; dune, menhir, sedlex, uucp,
+# uuseg and yojson are opam packages, installed here into a switch in the
 # repository's directory, so a fresh environment has none of them on PATH
 # until this script has run once. LLVM's OCaml bindings are built from
 # vendor/llvm-ocaml with the compiler (lib/llvm), so they are not among
@@ -23,6 +23,8 @@ SEDLEX_VERSION="3.8.1"
 # together.
 UUCP_VERSION="18.0.0"
 UUSEG_VERSION="18.0.0"
+# JSON, which the language server reads and writes (lib/language_server).
+YOJSON_VERSION="3.0.0"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export OPAMYES=1
@@ -34,6 +36,7 @@ packages=(
 	"sedlex.$SEDLEX_VERSION"
 	"uucp.$UUCP_VERSION"
 	"uuseg.$UUSEG_VERSION"
+	"yojson.$YOJSON_VERSION"
 )
 
 case "$(uname -s)" in

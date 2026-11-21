@@ -1,0 +1,8 @@
+package geo;
+
+type Circle = struct {
+	center Point;
+	radius Float;
+}
+
+Float reach(c Circle) => @operators$add(c.center:norm(), c.radius);

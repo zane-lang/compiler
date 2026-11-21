@@ -21,6 +21,7 @@ depends: [
   "sedlex"
   "uucp"
   "uuseg"
+  "yojson"
   "odoc" {with-doc}
 ]
 build: [

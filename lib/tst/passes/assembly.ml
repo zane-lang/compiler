@@ -83,15 +83,33 @@ let file_start path =
    Sorted because a golden file should not depend on the order the file
    system lists them in -- and file order is "semantically irrelevant"
    anyway, so no order is more correct than another. *)
-let source_files dir =
+(* [buffers] is the text an editor holds for a file, by path, which the
+   language server reads instead of the file (docs/design/language-server.md).
+   A buffer whose file was never saved is a file of its directory all the
+   same. *)
+let source_files ?(buffers = []) dir =
   (* An entry that cannot be examined, such as a dangling link, is kept as a
      file: reading it is what fails, and that failure is reported against its
      path like any other file's. *)
   let is_directory path = try Sys.is_directory path with Sys_error _ -> false in
-  Sys.readdir dir |> Array.to_list
-  |> List.filter (fun entry ->
-         Filename.check_suffix entry source_extension
-         && not (is_directory (Filename.concat dir entry)))
+  let on_disk =
+    Sys.readdir dir |> Array.to_list
+    |> List.filter (fun entry ->
+           Filename.check_suffix entry source_extension
+           && not (is_directory (Filename.concat dir entry)))
+  in
+  let unsaved =
+    List.filter_map
+      (fun (path, _) ->
+        let entry = Filename.basename path in
+        if Filename.check_suffix entry source_extension
+           && String.equal (Source.Files.in_directory dir entry) path
+           && not (List.mem entry on_disk)
+        then Some entry
+        else None)
+      buffers
+  in
+  on_disk @ unsaved
   |> List.sort String.compare
   |> List.map (Source.Files.in_directory dir)
 
@@ -175,8 +193,8 @@ let check_package_line ~name ~given ~path ~source (cst : Cst.Nodes.Package.t) =
       in
       placement @ mismatch @ repeated
 
-let load_file ~name ~given path =
-  match read_file path with
+let load_file ?(buffers = []) ~name ~given path =
+  match match List.assoc_opt path buffers with Some text -> text | None -> read_file path with
   | exception Sys_error message ->
       Error [ (Diagnostic.in_file path (reason ~path message), []) ]
   | source -> (
@@ -234,13 +252,13 @@ let name_of request =
 
 let id_of request = Option.value ~default:"" request.stamp ^ path_of request
 
-let load_package ~is_root request =
+let load_package ?buffers ~is_root request =
   let name = name_of request and id = id_of request and dir = request.directory in
   let given = Option.is_some request.manifest_name in
   if not (Sys.file_exists dir && Sys.is_directory dir) then
     Error [ in_directory dir "no such directory" ]
   else
-    match source_files dir with
+    match source_files ?buffers dir with
     | exception Sys_error message ->
         Error [ in_directory dir (reason ~path:dir message) ]
     | [] ->
@@ -252,7 +270,7 @@ let load_package ~is_root request =
     | paths ->
         (* Every file is loaded, whichever fail: one mistake per file is one
            report per file, not one report per run (docs/design/semantics.md D4). *)
-        List.map (load_file ~name ~given) paths
+        List.map (load_file ?buffers ~name ~given) paths
         |> all_or_problems
         |> Result.map (fun files -> { id; name; dir; is_root; files; imports = []; keyed = false })
 
@@ -311,7 +329,7 @@ let attach_imports packages imports =
    package's identity, the key and the imported package's identity. The
    first package is the root unless [root] is false, as in a library build,
    which has no root (packages.md §6.1). *)
-let assemble_requests ?(root = true) ?(imports = []) requests =
+let assemble_requests ?buffers ?(root = true) ?(imports = []) requests =
   let rec go earlier index = function
     | [] -> []
     | request :: rest ->
@@ -325,7 +343,7 @@ let assemble_requests ?(root = true) ?(imports = []) requests =
                     (Printf.sprintf "the package `%s` is already the directory `%s`" (id_of request)
                        first.directory);
                 ]
-          | None -> load_package ~is_root:(root && index = 0) request
+          | None -> load_package ?buffers ~is_root:(root && index = 0) request
         in
         (* Only a directory that got the identity claims it, so a third
            duplicate is reported against the first directory, not the

@@ -259,21 +259,36 @@ and call_only env span name =
        (quote name));
   invalid span
 
+(* The placeholder a completion wrote, met as a bare name: what is in scope
+   there. *)
+and probe_name env ctx (id : N.Name.t) =
+  if Uses.is_placeholder env.uses id.N.Name.text then
+    Uses.probe env.uses id.N.Name.span
+      (Uses.Name_in { locals = locals_in_scope ctx; package = ctx.package; path = ctx.file.path })
+
 and name_value env ctx (n : N.Name_expr.t) =
   let span = n.N.Name_expr.span in
   match n.N.Name_expr.node with
   | N.Name_expr.Ident id -> (
       let text = id.N.Name.text in
+      probe_name env ctx id;
       match find_local ctx text with
-      | Some b -> mk (T.Expr.Var (T.Name_ref.Local b.local)) b.local.T.Local.ty span
+      | Some b ->
+          Uses.local env.uses ~span:id.N.Name.span b.local;
+          mk (T.Expr.Var (T.Name_ref.Local b.local)) b.local.T.Local.ty span
       | None -> (
           match List.assoc_opt text ctx.params with
           | Some (Ty.Number value) ->
+              (match value with Ty.Number_param p -> Uses.param env.uses id.N.Name.span p | Ty.Known _ -> ());
               mk (T.Expr.Var (T.Name_ref.Number_param { name = text; value })) (Ty.Concept Ty.Integer_lit) span
-          | Some (Ty.Type t) -> mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span
+          | Some (Ty.Type t) ->
+              (match t with Ty.Param p -> Uses.param env.uses id.N.Name.span p | _ -> ());
+              mk (T.Expr.Type_arg t) (Ty.Concept Ty.Type_value) span
           | None -> (
               match lookup_values env ctx.file text with
-              | d :: _ when not (is_function d) -> constant_ref env d span
+              | d :: _ when not (is_function d) ->
+                  Uses.add env.uses id.N.Name.span (Uses.Decl d.id);
+                  constant_ref env d span
               | _ :: _ -> call_only env span text
               | [] ->
                   error env span
@@ -286,8 +301,11 @@ and name_value env ctx (n : N.Name_expr.t) =
           error env q.N.Name.span message;
           invalid span
       | Ok (pkg, found, reachable) -> (
+          Uses.add env.uses q.N.Name.span (Uses.Package pkg);
           match reachable with
-          | d :: _ when not (is_function d) -> constant_ref env d span
+          | d :: _ when not (is_function d) ->
+              Uses.add env.uses ident.N.Name.span (Uses.Decl d.id);
+              constant_ref env d span
           | _ :: _ -> call_only env span (pkg ^ "$" ^ ident.N.Name.text)
           | [] ->
               error env span
@@ -308,7 +326,9 @@ and name_value env ctx (n : N.Name_expr.t) =
       end
       else
         match Intrinsics.find_value ns text with
-        | Some ty -> mk (T.Expr.Var (T.Name_ref.Intrinsic spelling)) ty span
+        | Some ty ->
+            Uses.add env.uses span (Uses.Intrinsic spelling);
+            mk (T.Expr.Var (T.Name_ref.Intrinsic spelling)) ty span
         | None ->
             if Intrinsics.find_functions ns text <> [] then
               error env span
@@ -323,7 +343,9 @@ and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
   let t = Type_decls.apply env (type_scope ctx) span (Type_decls.resolve_head env (type_scope ctx) type_) type_ [] in
   match (t, definition env t) with
   | Ty.Error, _ -> invalid span
-  | _, Some (_, Enum members) when List.mem m members -> mk (T.Expr.Enum_member m) t span
+  | _, Some (tid, Enum members) when List.mem m members ->
+      Uses.add env.uses member.N.Name.span (Uses.Member (tid, m));
+      mk (T.Expr.Enum_member m) t span
   | _, Some (tid, Enum _) ->
       error env member.N.Name.span (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote m));
       invalid span
@@ -344,6 +366,7 @@ and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
 and member env ~flow ctx span target (field : N.Name.t) handle =
   let target = expr env ctx target in
   let f = field.N.Name.text in
+  if Uses.is_placeholder env.uses f then Uses.probe env.uses field.N.Name.span (Uses.Member_of target.T.Expr.ty);
   let no_handler () =
     match handle with
     | Some (h : N.Abort_handle.t) ->
@@ -364,20 +387,22 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
             | (n, t) :: rest -> if String.equal n f then Some (i, t) else slot (i + 1) rest
           in
           match slot 0 fields with
-          | None -> map_read env ctx span target tid f ~missing:(fun () ->
+          | None -> map_read env ctx span ~at:field.N.Name.span target tid f ~missing:(fun () ->
                 error env field.N.Name.span
                   (Printf.sprintf "%s has no field %s" (quote tid.Ty.name) (quote f)))
           | Some (i, t) ->
               private_field env ctx field.N.Name.span tid f;
+              Uses.add env.uses field.N.Name.span (Uses.Field (tid, f));
               mk (T.Expr.Field { target; field = f; slot = i }) t span)
       | Some (tid, Variant cases) -> (
           match List.assoc_opt f cases with
           | None ->
               no_handler ();
-              map_read env ctx span target tid f ~missing:(fun () ->
+              map_read env ctx span ~at:field.N.Name.span target tid f ~missing:(fun () ->
                   error env field.N.Name.span
                     (Printf.sprintf "%s has no case %s" (quote tid.Ty.name) (quote f)))
           | Some payload -> (
+              Uses.add env.uses field.N.Name.span (Uses.Field (tid, f));
               match handle with
               | None ->
                   error env span
@@ -391,7 +416,7 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
                   mk (T.Expr.Case_read { target; case = f; handler = h }) payload span))
       | Some (tid, Enum _) ->
           no_handler ();
-          map_read env ctx span target tid f ~missing:(fun () ->
+          map_read env ctx span ~at:field.N.Name.span target tid f ~missing:(fun () ->
               error env field.N.Name.span
                 (Printf.sprintf "no enum map %s is declared for %s" (quote f) (quote tid.Ty.name)))
       | _ ->
@@ -412,12 +437,14 @@ and private_field env ctx span (tid : Ty.type_id) f =
 
 (* An enum map is found where a method is: in the enum's home package, then
    in the current one. *)
-and map_read env ctx span target tid property ~missing =
+and map_read env ctx span ~at target tid property ~missing =
   let maps = Option.value ~default:[] (Verbs.enum_maps env.verbs (tid, property)) in
   let in_package p = List.filter (fun m -> m.map_decl.package = p) maps in
   let visible = in_package tid.Ty.package @ in_package ctx.package in
   match visible with
-  | m :: _ -> mk (T.Expr.Map_read { target; map = m.map_decl.id; property }) m.map_ty span
+  | m :: _ ->
+      Uses.add env.uses at (Uses.Decl m.map_decl.id);
+      mk (T.Expr.Map_read { target; map = m.map_decl.id; property }) m.map_ty span
   | [] ->
       missing ();
       invalid span
@@ -467,6 +494,7 @@ and init_field env ctx built tid declared seen (f : N.Field_arg.t) =
       None
   | Some (i, t) ->
       private_field env ctx f.N.Field_arg.name.N.Name.span tid name;
+      Uses.add env.uses f.N.Field_arg.name.N.Name.span (Uses.Field (tid, name));
       if Hashtbl.mem seen name then
         error env f.N.Field_arg.name.N.Name.span
           (Printf.sprintf "the field %s is already assigned" (quote name))
@@ -579,7 +607,8 @@ and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
 
 and any_error actuals = List.exists (fun a -> Ty.contains_error a.aty) actuals
 
-and finish_call env ~flow ctx ~span ~what (o : outcome) handle build =
+and finish_call env ~flow ctx ?at ~span ~what (o : outcome) handle build =
+  Option.iter (fun at -> record_callee env at o.sig_) at;
   request env ~args:o.converted o.sig_ o.subst span;
   let ok = Ty.subst o.subst o.sig_.ret in
   let abort = Option.map (Ty.subst o.subst) o.sig_.abort in
@@ -596,7 +625,7 @@ and skip_handler env ctx handle = ignore (handler_opt env ctx ~abort:Ty.Error ~o
 (* ---------------------------------------------------------------------- *)
 
 and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
-  let call_decls ~name cands =
+  let call_decls ~at ~name cands =
     let cands = List.filter_map (fun (d : decl) -> Verbs.signature env.verbs d.id) cands in
     if any_error actuals then begin
       skip_handler env ctx handle;
@@ -611,24 +640,29 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           skip_handler env ctx handle;
           (invalid span, None)
       | Some o ->
-          finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+          finish_call env ~flow ctx ~at ~span ~what:(quote name) o handle (fun callee args handler ->
               T.Expr.Call { callee; args; handler })
   in
   let value_call (fn : T.Expr.t) = call_value env ~flow ctx span fn actuals handle in
   match callee.N.Expr.node with
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; span = at } -> (
       let text = id.N.Name.text in
+      probe_name env ctx id;
       match find_local ctx text with
-      | Some b -> value_call (mk (T.Expr.Var (T.Name_ref.Local b.local)) b.local.T.Local.ty at)
+      | Some b ->
+          Uses.local env.uses ~span:id.N.Name.span b.local;
+          value_call (mk (T.Expr.Var (T.Name_ref.Local b.local)) b.local.T.Local.ty at)
       | None -> (
           match lookup_values env ctx.file text with
-          | d :: _ when not (is_function d) -> value_call (constant_ref env d at)
+          | d :: _ when not (is_function d) ->
+              Uses.add env.uses id.N.Name.span (Uses.Decl d.id);
+              value_call (constant_ref env d at)
           | [] ->
               let hint = missing_import_hint env ctx.file text ~members:(package_values env) in
               error env at (Printf.sprintf "no function named %s is in scope%s" (quote text) hint);
               skip_handler env ctx handle;
               (invalid span, None)
-          | fns -> call_decls ~name:text fns))
+          | fns -> call_decls ~at:id.N.Name.span ~name:text fns))
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package = q; ident }; span = at } -> (
       match qualified env ctx.file q.N.Name.text ident.N.Name.text ~members:(package_values env) with
       | Error message ->
@@ -636,16 +670,19 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           skip_handler env ctx handle;
           (invalid span, None)
       | Ok (pkg, found, reachable) -> (
+          Uses.add env.uses q.N.Name.span (Uses.Package pkg);
           let name = pkg ^ "$" ^ ident.N.Name.text in
           match reachable with
-          | d :: _ when not (is_function d) -> value_call (constant_ref env d at)
+          | d :: _ when not (is_function d) ->
+              Uses.add env.uses ident.N.Name.span (Uses.Decl d.id);
+              value_call (constant_ref env d at)
           | [] ->
               error env at
                 (if found <> [] then Printf.sprintf "%s is private to the package %s" (quote ident.N.Name.text) (quote pkg)
                  else Printf.sprintf "the package %s has no function %s" (quote pkg) (quote ident.N.Name.text));
               skip_handler env ctx handle;
               (invalid span, None)
-          | fns -> call_decls ~name fns))
+          | fns -> call_decls ~at:ident.N.Name.span ~name fns))
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; span = at } -> (
       let ns = ns.N.Name.text and text = ident.N.Name.text in
       match Intrinsics.find_functions ns text with
@@ -662,11 +699,11 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
                (quote ("@" ^ ns ^ "$" ^ text)) ("@" ^ ns ^ "$" ^ text));
           skip_handler env ctx handle;
           (invalid span, None)
-      | cands -> intrinsic_call env ~flow ctx span ("@" ^ ns ^ "$" ^ text) cands actuals handle)
+      | cands -> intrinsic_call env ~flow ctx ~at span ("@" ^ ns ^ "$" ^ text) cands actuals handle)
   | _ -> value_call (expr env ctx callee)
 
 (* A call to the intrinsic operation [name], resolved among its [cands]. *)
-and intrinsic_call env ~flow ctx span name cands actuals handle =
+and intrinsic_call env ~flow ctx ?at span name cands actuals handle =
   if any_error actuals then (
     skip_handler env ctx handle;
     (invalid span, None))
@@ -680,7 +717,7 @@ and intrinsic_call env ~flow ctx span name cands actuals handle =
         skip_handler env ctx handle;
         (invalid span, None)
     | Some o ->
-        finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+        finish_call env ~flow ctx ?at ~span ~what:(quote name) o handle (fun callee args handler ->
             T.Expr.Call { callee; args; handler })
 
 (* `@controlflow$work` and `@controlflow$register` (control-flow.md §4.1),
@@ -939,7 +976,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
       error env span
         (Printf.sprintf "%s is not a `mut` method, so it is called with `:`" (quote s.name))
   in
-  let resolve_in stages name =
+  let resolve_in ~at stages name =
     if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
     else
       (* A pool's `start` is resolved without the parameters the checker
@@ -997,12 +1034,13 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
             check_marker o.sig_;
             if o.sig_.is_mut && is_mut then write_subject env ctx subject;
             let o = pool_method env span o in
-            finish_call env ~flow ctx ~span ~what:(quote name) o handle (fun callee args handler ->
+            finish_call env ~flow ctx ~at ~span ~what:(quote name) o handle (fun callee args handler ->
                 T.Expr.Call { callee; args; handler })
   in
   match callee.N.Expr.node with
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Ident id; span = at } -> (
       let text = id.N.Name.text in
+      if Uses.is_placeholder env.uses text then Uses.probe env.uses id.N.Name.span (Uses.Member_of subject.aty);
       (* A lambda-variable with a subject is called the way a method is. *)
       let value =
         match find_local ctx text with
@@ -1010,7 +1048,8 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
         | None -> None
       in
       match value with
-      | Some ({ T.Expr.ty = Ty.Verb { Ty.this_ = Some _; is_mut = m; _ }; _ } as fn) ->
+      | Some ({ T.Expr.ty = Ty.Verb { Ty.this_ = Some _; is_mut = m; _ }; node = T.Expr.Var (T.Name_ref.Local l); _ } as fn) ->
+          Uses.local env.uses ~span:id.N.Name.span l;
           if m <> is_mut then
             error env span
               (if m then "this function value is `mut`, so it is called with `!`"
@@ -1025,14 +1064,16 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
             if Verb_signatures.home subject.aty = Some (S.Package ctx.package) then []
             else named_in (S.Package ctx.package) text
           in
-          resolve_in [ home_stage; current; any_subject env ctx text ] text)
+          resolve_in ~at:id.N.Name.span [ home_stage; current; any_subject env ctx text ] text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Qualified { package = q; ident }; _ } -> (
       match qualified_package env ctx.file q.N.Name.text with
       | Error message ->
           error env q.N.Name.span message;
           skip_handler env ctx handle;
           (invalid span, None)
-      | Ok pkg -> resolve_in [ named_in ~any:true (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
+      | Ok pkg ->
+          Uses.add env.uses q.N.Name.span (Uses.Package pkg);
+          resolve_in ~at:ident.N.Name.span [ named_in ~any:true (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; _ } -> (
       let spelling = "@" ^ ns.N.Name.text ^ "$" ^ ident.N.Name.text in
       match Intrinsics.find_functions ns.N.Name.text ident.N.Name.text with
@@ -1043,7 +1084,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
             error env span (Printf.sprintf "%s is a `mut` method, so it is called with `!`" (quote spelling));
           if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
           else worker_call env ~flow ctx span spelling cands actuals handle
-      | _ -> resolve_in [ named_in (S.Namespace ns.N.Name.text) ident.N.Name.text ] ident.N.Name.text)
+      | _ -> resolve_in ~at:ident.N.Name.span [ named_in (S.Namespace ns.N.Name.text) ident.N.Name.text ] ident.N.Name.text)
   | _ ->
       error env callee.N.Expr.span "a method is called by its name";
       skip_handler env ctx handle;
@@ -1110,6 +1151,7 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
   | `Type (built, open_) -> (
       match (definition env built, member) with
       | Some (tid, Variant cases), Some m when List.mem_assoc m cases ->
+          Option.iter (fun (n : N.Name.t) -> Uses.add env.uses n.N.Name.span (Uses.Field (tid, m))) name.N.Constructor_name.member;
           no_handler ();
           case_form env ctx span tid (List.assoc m cases) built open_ m args
       | Some (tid, Variant _), None ->
@@ -1137,13 +1179,14 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
             invalid span
           end
           else
+            let at = Option.map (fun (n : N.Name.t) -> n.N.Name.span) name.N.Constructor_name.member in
             match args.N.Constructor_args.node with
             | N.Constructor_args.Positional ps ->
-                positional_constructor_call env ctx span what cands ps
-            | N.Constructor_args.Fields fs -> field_constructor_call env ctx span what cands fs))
+                positional_constructor_call env ctx ?at span what cands ps
+            | N.Constructor_args.Fields fs -> field_constructor_call env ctx ?at span what cands fs))
 
 (* `Type(x, y)` against the positional constructors among [cands]. *)
-and positional_constructor_call env ctx span what cands ps =
+and positional_constructor_call env ctx ?at span what cands ps =
   let actuals = List.map (actual_of env ctx) ps in
   if any_error actuals then invalid span
   else
@@ -1174,6 +1217,7 @@ and positional_constructor_call env ctx span what cands ps =
             { o with sig_ = full; converted = o.converted @ [ Some (T.Arg.Value (fill_index env span index)) ] }
           else o
         in
+        Option.iter (fun at -> record_callee env at o.sig_) at;
         request env ~args:o.converted o.sig_ o.subst span;
         let ret = Ty.subst o.subst o.sig_.ret in
         mk
@@ -1188,7 +1232,7 @@ and positional_constructor_call env ctx span what cands ps =
 (* `Type{ a = x; b = y; }` against the field constructors: each entry fills
    the slot of the same name and is a coercion site; an entry left out must
    have a default (types.md §3.3). *)
-and field_constructor_call env ctx span what cands (fs : N.Field_arg.t list) =
+and field_constructor_call env ctx ?at span what cands (fs : N.Field_arg.t list) =
   let seen = Hashtbl.create 8 in
   let entries =
     List.map
@@ -1226,6 +1270,13 @@ and field_constructor_call env ctx span what cands (fs : N.Field_arg.t list) =
     match report_resolution env ~span ~what ~args (resolve env field_cands slots_for) field_cands with
     | None -> invalid span
     | Some o ->
+        Option.iter (fun at -> record_callee env at o.sig_) at;
+        (match definition env (Ty.subst o.subst o.sig_.ret) with
+        | Some (tid, Struct _) ->
+            List.iter
+              (fun (name, (f : N.Field_arg.t), _) -> Uses.add env.uses f.N.Field_arg.name.N.Name.span (Uses.Field (tid, name)))
+              entries
+        | _ -> ());
         request env ~args:o.converted o.sig_ o.subst span;
         let converted = List.combine o.sig_.params o.converted in
         let fields =
@@ -1332,7 +1383,7 @@ and operator env ~flow ctx span (op : N.Operator.t) left right ~swapped handle =
       | None ->
           skip_handler env ctx handle;
           (invalid span, None)
-      | Some o -> finish_call env ~flow ctx ~span ~what:(quote token) o handle op_node
+      | Some o -> finish_call env ~flow ctx ~at:op.N.Operator.span ~span ~what:(quote token) o handle op_node
 
 and flip env ~flow ctx span value handle =
   let value = expr env ctx value in
@@ -1474,12 +1525,16 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
                 match shape with
                 | `Variant (tid, cases) -> (
                     match List.assoc_opt case cases with
-                    | Some t -> Some t
+                    | Some t ->
+                        Uses.add env.uses p.N.Match_pattern.case.N.Name.span (Uses.Field (tid, case));
+                        Some t
                     | None ->
                         error env p.N.Match_pattern.case.N.Name.span
                           (Printf.sprintf "%s has no case %s" (quote tid.Ty.name) (quote case));
                         Some Ty.Error)
                 | `Enum (tid, members) ->
+                    if List.mem case members then
+                      Uses.add env.uses p.N.Match_pattern.case.N.Name.span (Uses.Member (tid, case));
                     if not (List.mem case members) then
                       error env p.N.Match_pattern.case.N.Name.span
                         (Printf.sprintf "%s has no member %s" (quote tid.Ty.name) (quote case));
@@ -1593,6 +1648,7 @@ and lambda env ctx span ~this_type ~params ~ret_type ~is_mut ~body =
         in
         let local = fresh_local env p.N.Param.name.N.Name.text t p.N.Param.span in
         Hashtbl.replace inner_scope local.T.Local.name { local; role = Parameter };
+        Uses.local env.uses ~declaration:true ~parameter:true ~span:p.N.Param.name.N.Name.span local;
         (t, local))
       params
   in
@@ -1874,6 +1930,27 @@ and subscript_body env (d : decl) (s : S.t) subst =
 
 (* Where each of a verb's parameters was written, by name: these are the
    spans the parameters' locals take, as for a lambda's parameters. *)
+(* The span of each parameter's identifier, which is what a rename edits:
+   [param_spans] gives each parameter's whole declaration. *)
+and param_name_spans (d : decl) =
+  let params ps = List.map (fun (p : N.Param.t) -> (p.N.Param.name.N.Name.text, p.N.Param.name.N.Name.span)) ps in
+  match d.kind with
+  | Verb v -> (
+      match v.N.Verb_decl.node with
+      | N.Verb_decl.Func { params = ps; _ }
+      | N.Verb_decl.Op { params = ps; _ }
+      | N.Verb_decl.Flip { params = ps; _ }
+      | N.Verb_decl.Meth { params = ps; _ }
+      | N.Verb_decl.Subscript { params = ps; _ } ->
+          params ps
+      | N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Positional ps; _ }; _ } ->
+          params ps
+      | N.Verb_decl.Constructor { params = { N.Constructor_params.node = N.Constructor_params.Fields fs; _ }; _ } ->
+          List.map
+            (fun (f : N.Constructor_field.t) -> (f.N.Constructor_field.name.N.Name.text, f.N.Constructor_field.name.N.Name.span))
+            fs)
+  | _ -> []
+
 and param_spans (d : decl) =
   let params ps = List.map (fun (p : N.Param.t) -> (p.N.Param.name.N.Name.text, p.N.Param.span)) ps in
   let this_ (t : N.Type_expr.t) = ("this", t.N.Type_expr.span) in
@@ -1913,6 +1990,9 @@ and verb_context env (d : decl) (s : S.t) subst =
             let local = fresh_local env p.name (Ty.subst subst p.ty) (span_of p.name) in
             let role = if p.name = "this" && S.is_method s then This else Parameter in
             Hashtbl.replace scope p.name { local; role };
+            Option.iter
+              (fun span -> Uses.local env.uses ~declaration:true ~parameter:true ~span local)
+              (List.assoc_opt p.name (param_name_spans d));
             Some local)
       s.params
   in
