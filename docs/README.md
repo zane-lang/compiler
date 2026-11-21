@@ -58,6 +58,10 @@ One document per stage, in the order the compiler runs them.
 - [`design/separate-compilation.md`](design/separate-compilation.md): one
   object per package, the `!` placeholder and its stamp, and linking a
   program against a dependency's prebuilt objects (C1…).
+- [`design/language-server.md`](design/language-server.md): `zanec --lsp`,
+  the language server an editor starts, which answers from stages 1 to 3:
+  how it finds a project's builds, checks unsaved text, and what semantics
+  records for it (D1…).
 - [`design/platforms.md`](design/platforms.md): the targets the compiler
   builds for, how well each is supported, and what building for them may
   need.

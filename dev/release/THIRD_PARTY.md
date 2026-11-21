@@ -10,8 +10,8 @@ the commit in `toolchain.coda`, available from
 https://github.com/zane-lang/compiler. The included `pixi.lock`, which pins
 its conda-forge toolchain, and the OCaml bootstrap pins describe how it was
 built. The LLVM,
-OCaml and Coda license notices, LGPL-2.1, and the GCC runtime exception are
-included here.
+OCaml, Coda and yojson license notices, LGPL-2.1, and the GCC runtime
+exception are included here.
 
 The archive also includes:
 
@@ -23,6 +23,8 @@ The archive also includes:
   `vendor/llvm-ocaml`
 - Coda's parser and OCaml binding (MIT), built into the compiler from the
   submodule at `vendor/coda`: https://github.com/zane-lang/coda
+- yojson (BSD-3-Clause), built into the compiler for the language server's
+  JSON: https://github.com/ocaml-community/yojson
 - OCaml's native runtime (LGPL-2.1 with the OCaml linking exception):
   https://github.com/ocaml/ocaml
 - The shared libraries the compiler loads that its system does not bring:

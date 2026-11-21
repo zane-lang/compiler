@@ -4,8 +4,9 @@
 ; directory:
 ;
 ; - model/     the tree and its building blocks: [Nodes], [Ty], [Signature],
-;              [Env] and [Intrinsics], and [Traverse], which lists the
-;              children of each node;
+;              [Env] and [Intrinsics], [Traverse], which lists the
+;              children of each node, and [Uses], which records what each
+;              name resolved to when the language server asks;
 ; - passes/    [Assembly] groups files into packages, then [Collect] (passes
 ;              1 and 2), [Type_decls] (3) and [Verb_signatures] (4);
 ; - check/     pass 5, [Check], and the parts of it that are not the
@@ -15,7 +16,9 @@
 ;              [Pool_elements] and [Borrows], over the tree pass 5 builds;
 ; - render/    [To_tree_graph] and [To_span_text].
 ;
-; [Semantics] runs them in order, and [Tst] is the entry module.
+; [Semantics] runs them in order, and [Tst] is the entry module. [Index]
+; turns what [Uses] recorded into the index the language server reads
+; (docs/design/language-server.md).
 (include_subdirs unqualified)
 
 (library

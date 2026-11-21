@@ -131,26 +131,31 @@ let builds_of_json (json : Yojson.Safe.t) =
 
 (* Runs `zane builds` in [root] and reads what it prints. Its progress and
    problems go to standard error, which the editor keeps as the server's
-   log. *)
+   log. Its standard input is empty: the server's own carries the editor's
+   messages, which `zane` must not read. *)
 let list_builds ~zane root =
   let out_read, out_write = Unix.pipe ~cloexec:true () in
+  let nothing = Unix.openfile (if Sys.win32 then "NUL" else "/dev/null") [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   let previous = Sys.getcwd () in
   match
     Fun.protect
       ~finally:(fun () -> Sys.chdir previous)
       (fun () ->
         Sys.chdir root;
-        Unix.create_process zane [| zane; "builds" |] Unix.stdin out_write Unix.stderr)
+        Unix.create_process zane [| zane; "builds" |] nothing out_write Unix.stderr)
   with
   | exception Unix.Unix_error (e, _, _) ->
+      Unix.close nothing;
       Unix.close out_read;
       Unix.close out_write;
       Error (Printf.sprintf "`%s builds` could not be started: %s" zane (Unix.error_message e))
   | exception Sys_error message ->
+      Unix.close nothing;
       Unix.close out_read;
       Unix.close out_write;
       Error message
   | pid -> (
+      Unix.close nothing;
       Unix.close out_write;
       let ic = Unix.in_channel_of_descr out_read in
       let output = In_channel.input_all ic in
