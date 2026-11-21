@@ -257,7 +257,7 @@ let constructors =
          with an implicit constructor from it, as a worker's step result
          reaches `@primitives$Bool` (generics.md §8.4). The last parameter,
          `index`, is the checker's: a lambda converting each position to an
-         `I` (Check.fill_index). *)
+         `I` (Supplied.fill_index). *)
       ctor ~generics:[ fill_element; fill_length; fill_index ] ~member:"fill" "ArrayRef"
         [
           param ~binds:fill_length "n" (Ty.Concept Ty.Integer_lit);
@@ -562,7 +562,7 @@ let pool_start_hidden (s : S.t) =
 
 (* What a publish function value calls (§6.5): the event goes to the
    funnel of the pool whose work is running. No program names it; the
-   checker writes the call (Check.pool_publish). *)
+   checker writes the call (Supplied.pool_publish). *)
 let publish_function =
   let e = Ty.fresh_param ~name:"E" ~kind:Ty.Type_kind in
   verb ~generics:[ e ] ~namespace:"primitives" ~kind:S.Function ~name:"@primitives$publish"
@@ -613,7 +613,7 @@ let math_functions =
    `@primitives$Bool` through the implicit constructor its package
    declares, as a condition reaches `branch`; a call cannot write a
    conversion of a function value's result, so the checker supplies it as
-   a last argument, `test`, a lambda that converts (Check.worker_test). *)
+   a last argument, `test`, a lambda that converts (Supplied.worker_test). *)
 let worker (name, leading) =
   let s = Ty.fresh_param ~name:"S" ~kind:Ty.Type_kind in
   let r = Ty.fresh_param ~name:"R" ~kind:Ty.Type_kind in

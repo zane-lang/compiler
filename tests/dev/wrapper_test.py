@@ -146,6 +146,14 @@ class WrapperTest(unittest.TestCase):
             "--package", f"hello={caller}/hello",
         ])
 
+    def test_the_language_servers_zane_is_a_path_only_with_a_slash(self):
+        caller, out = self.run_wrapper("--lsp", "--zane", "zane")
+        self.assertEqual(out, ["--lsp", "--zane", "zane"])
+        caller, out = self.run_wrapper("--lsp", "--zane", "build/zane")
+        self.assertEqual(out, ["--lsp", "--zane", f"{caller}/build/zane"])
+        caller, out = self.run_wrapper("--lsp", "--zane", "/usr/bin/zane")
+        self.assertEqual(out, ["--lsp", "--zane", "/usr/bin/zane"])
+
     def test_output_options_expand_their_file(self):
         for option in ("--object", "--tier-up", "--compile-commands"):
             caller, out = self.run_wrapper(option, "out/file", "--package", "p")

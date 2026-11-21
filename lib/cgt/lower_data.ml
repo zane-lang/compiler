@@ -25,7 +25,7 @@ let member w st ctx span holder t (e : T.Expr.t) =
    from 1, in order, and moved into place; then the whole array moves out of
    the slot, which is spent, into wherever the call's value goes. [index] is
    the checker's conversion of a position to the type `make` takes it as
-   (Check.fill_index). A [make] that is neither a variable nor a lambda
+   (Supplied.fill_index). A [make] that is neither a variable nor a lambda
    written in place is run once, before the first element. *)
 let fill w st ctx span (make : T.Expr.t) (index : T.Expr.t) (t : Tty.t) : Expr.t =
   match (array_of (Tty.strip_mode t), make.T.Expr.ty) with

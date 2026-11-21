@@ -30,7 +30,8 @@ module Intrinsics = Intrinsics
 module Semantics = Semantics
 
 (** Every pass over the assembled packages: the program, and every problem
-    found, in source order. *)
+    found, in source order. Given a recording [uses], the check records each
+    name it resolves there, and the result's [index] reads that record. *)
 val check :
   ?interfaces:(string * C_interface.t) list -> ?uses:Uses.t -> Assembly.package list -> Semantics.result
 

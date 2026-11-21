@@ -22,15 +22,17 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | Module | Holds |
 |---|---|
 | `passes/assembly.ml` | The packages, read from their directories (§2) |
-| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics: one `Env.t` per check, passed to every pass, its tables grouped by the pass that fills them (`names`, `types`, `verbs`, `instances`) and the `counters`, and the read-only views a pass hands on |
+| `model/env.ml` | The declaration tables, each file's import map, and the diagnostics: one `Env.t` per check, passed to every pass, its tables grouped by the pass that fills them (`names`, `types`, `verbs`, `instances`) and the `counters`, the read-only views a pass hands on, and `uses`, the record of resolved names |
 | `passes/collect.ml` | Passes 1 and 2 |
 | `passes/type_decls.ml` | Type-expression resolution, and pass 3 |
 | `passes/verb_signatures.ml` | Pass 4 |
-| `check/` | Pass 5, with overload resolution and instantiation |
+| `check/` | Pass 5: the recursive walk (`check.ml`), and beside it its scopes (`context.ml`), instantiation (`instances.ml`), overload resolution (`overloads.ml`), the arguments the checker supplies to a call (`supplied.ml`), `termination.ml`, `coverage.ml`, and `program.ml`, which runs the walk over every body |
 | `model/ty.ml`, `model/signature.ml` | Types (§4), and what a call site needs to know about a verb |
 | `model/intrinsics.ml` | The intrinsic namespaces (D3) |
 | `model/traverse.ml` | What each expression and statement is made of, which every analysis walks the tree by |
 | `analyses/` | The analyses over the finished tree (D1) |
+| `model/uses.ml` | Each name a check resolved and its target, recorded when the language server asks (`language-server.md` D5) |
+| `index.ml` | What the language server reads of a check: the recorded uses, and a description of each declaration |
 | `semantics.ml` | The passes, run in order |
 
 Rules are cited against spec commit
@@ -531,7 +533,7 @@ Where the typing rules need care:
 | Name | Looked up in local scopes, then the file's import map and own package (§2–§3 of `packages.md`). A lambda body sees no enclosing locals: "Lambdas do not capture" (`functions.md` §7.4). A block argument does (`control-flow.md` §2.2). |
 | Method call | Candidates from the subject type's home package, then the current package, then, when neither has one that applies, the methods for a subject of any type that the file writes bare: the current package's and those an import brings (`functions.md` §6.1, `generics.md` §3.7). A method for any type is in no type's home, so only that third stage and a qualified callee reach it; a qualified callee names its package. The subject is never coerced (`types.md` §4.6). `:` must call a non-`mut` method and `!` a `mut` one (§2.5). |
 | Worker | `subject!@controlflow$work(step)` and `subject!@controlflow$register(source, step)` are `mut` methods over a generic subject `S` in the intrinsic table, named with their namespace (`functions.md` §6.2). `Check.method_call` sends them to `Check.worker_call`, and the function form is rejected. Every check and analysis that follows a `!` call's write follows theirs: the subject is never coerced and must be writable. The step is `R[this S] mut`; the checker reads `R` off it and appends a last argument, `test`, a lambda `@primitives$Bool(result R)` returning `result` through the implicit constructor to `@primitives$Bool`, so the conversion a condition gets at `branch` is made of the step's result (`control-flow.md` §4.1). |
-| Worker pool | `@primitives$WorkerPool<T, S, E>` is a reference primitive and `@primitives$EventSource` a value primitive, a timer's interval as an `I64` (`concurrency.md` §6). The constructor's funnel is `F[this S, E] mut`, so `E` is read off its parameter, and `F` is any type, so that `core` passes a funnel returning its own `Unit`. `start` has four overloads, with state or without and with sources or without, each spelled apart (`@primitives$start`, `startOn`, `startAlone`, `startAloneOn`). A call resolves against the overload without its last parameters, and `Check.pool_method` then appends what the checker supplies: `test`, as for a worker, and for a pool with state `publish`, a lambda `P(event E) { return @primitives$publish(event); }` whose return converts the `@primitives$Unit` to the `P` the step's publish function returns, through the implicit constructor. No program names `@primitives$publish`. The stateless overloads take a pool of any `S` and `E`, which `core` narrows. `elements` is rejected on a pool of reference-typed elements, since a copy of an owner would be a second owner. |
+| Worker pool | `@primitives$WorkerPool<T, S, E>` is a reference primitive and `@primitives$EventSource` a value primitive, a timer's interval as an `I64` (`concurrency.md` §6). The constructor's funnel is `F[this S, E] mut`, so `E` is read off its parameter, and `F` is any type, so that `core` passes a funnel returning its own `Unit`. `start` has four overloads, with state or without and with sources or without, each spelled apart (`@primitives$start`, `startOn`, `startAlone`, `startAloneOn`). A call resolves against the overload without its last parameters, and `Supplied.pool_method` then appends what the checker supplies: `test`, as for a worker, and for a pool with state `publish`, a lambda `P(event E) { return @primitives$publish(event); }` whose return converts the `@primitives$Unit` to the `P` the step's publish function returns, through the implicit constructor. No program names `@primitives$publish`. The stateless overloads take a pool of any `S` and `E`, which `core` narrows. `elements` is rejected on a pool of reference-typed elements, since a copy of an owner would be a second owner. |
 | Operator | Candidates from the operand types' home packages only; imports add none (`operators.md` §2.2). An operand is passed as written, so resolution stops after the generic phase and a literal operand needs an overload declaring its concept type (§2.7). `~` on a numeric literal calls nothing: it is typed as the literal of the opposite sign, and on a literal parameter as an internal `@concepts$negate` call that lowering folds once the literal is known. A swapped `Op` is resolved as the primitive with operands in passed order (see D8). |
 | Abort handler | Required on every abortable call and on every member read of a variant, rejected on a total member read (D13); the handler's `resolve` values must have the handled operation's success type; every path ends in `resolve`, `return` or `abort` (`error-handling.md` §3.1–§3.2). |
 | `comptime` | The marked call is typed as an ordinary call and becomes `Expr.Comptime` around it; `Comptime_check` then holds its form, its result's type, what it names and what its arguments pass, and that nothing in it leaves the verb ([`comptime.md`](comptime.md) K1, `effects.md` §5.6). A statement that is a marked call is the expression with its value dropped. |
@@ -904,9 +906,9 @@ instance and the call that required it, from any analysis.
 off the lambda: `@primitives$I64` or a type with an implicit constructor
 from it (spec generics.md §8.4). The checker resolves the call without the
 intrinsic's last parameter, `index`, and supplies it as a lambda that
-returns its `@primitives$I64` parameter converted to `I` (`Check.fill_index`),
-as it supplies a worker's `test` (`Check.worker_test`); both are built by
-`Check.conversion_lambda`.
+returns its `@primitives$I64` parameter converted to `I` (`Supplied.fill_index`),
+as it supplies a worker's `test` (`Supplied.worker_test`); both are built by
+`Supplied.conversion_lambda`.
 
 **Introductions in a function type.** A function type's return or parameter
 slot may introduce a type parameter, `^T Type[Int]` (spec generics.md §3.2).

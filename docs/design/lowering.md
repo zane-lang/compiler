@@ -225,7 +225,7 @@ function, and the call becomes a CGT `while`. Its condition calls the step
 with the subject's place as its `this`, as `subject!step()` would, and reads
 the result through the `test` lambda the checker supplies, which converts it
 to `@primitives$Bool` by the implicit constructor that applies
-(`Check.worker_test`). The step runs on every pass, so the condition is
+(`Supplied.worker_test`). The step runs on every pass, so the condition is
 lowered as a loop body is, and a small function it calls is written out
 there (`Lower.worker_step`, State.loop); what a pass holds is in an arena
 of the pass's own, which drains before the next. Before the first step the
@@ -825,7 +825,7 @@ test passing.
     literal constructors, `.refs` and `.roaming` included, with `fill` a
     counted loop that makes each element as `make(index(position))`: `index`
     is the checker's conversion of a position to the type `make` takes it as
-    (`Check.fill_index`), and its body is written out in the loop rather than
+    (`Supplied.fill_index`), and its body is written out in the loop rather than
     called (`Lower_data.fill`). `@primitives$String` is a value type. The runtime
     is tested in C on its own: an overwrite keeps a boxed member's address,
     and arrival leaves blocks that outlive their destination where they are.
