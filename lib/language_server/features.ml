@@ -452,7 +452,8 @@ let item ?detail ?documentation ?insert label kind =
 (* Where the cursor's name stands after an intrinsic's namespace. *)
 type intrinsic_site =
   | Namespace_name  (** after `@` *)
-  | Namespace_member of { namespace : string; method_ : bool }  (** after `@namespace$` *)
+  | Namespace_member of { namespace : string; call : [ `Read | `Mut ] option }
+      (** after `@namespace$`; [call] is the `:` (a read) or `!` (a `mut` call) of a method name *)
   | Named_constructor of { namespace : string; type_ : string }  (** after `@namespace$Type.` *)
 
 (* The intrinsic site of a name that starts at [start] in [text], read from
@@ -472,8 +473,8 @@ let intrinsic_site text start =
   | Some '$' -> (
       match namespace_before (start - 1) with
       | Some (namespace, at) ->
-          let method_ = match char_at (at - 1) with Some (':' | '!') -> true | _ -> false in
-          Some (Namespace_member { namespace; method_ })
+          let call = match char_at (at - 1) with Some ':' -> Some `Read | Some '!' -> Some `Mut | _ -> None in
+          Some (Namespace_member { namespace; call })
       | None -> None)
   | Some '.' -> (
       let dot = start - 1 in
@@ -505,14 +506,20 @@ let intrinsic_items site ~types_only ~subject ~root =
           else Some (item ?documentation:(doc ("@" ^ ns ^ "$")) ~insert:(ns ^ "$") ns `Module))
         I.namespaces
   | Namespace_member { namespace; _ } when namespace = "program" && not root -> []
-  | Namespace_member { namespace; method_ } ->
+  | Namespace_member { namespace; call } ->
+      let method_ = Option.is_some call in
+      (* A method is called with `!` exactly when it is `mut`, and its subject
+         takes the value before the `!` or `:`. *)
+      let callable (s : Tst.Signature.t) =
+        s.Tst.Signature.is_mut = (call = Some `Mut)
+        && match subject with Some t -> Index.subject_fits s t | None -> true
+      in
       List.filter_map
         (fun (e : I.entry) ->
           let wanted =
             match e.I.kind with
             | I.Method_entry -> (
-                method_
-                && match subject with Some t -> List.exists (fun s -> Index.subject_fits s t) e.I.signatures | None -> true)
+                method_ && List.exists callable e.I.signatures)
             | I.Type_entry -> not method_
             | I.Value_entry | I.Function_entry -> not (method_ || types_only)
           in
@@ -581,14 +588,33 @@ let completion encoding t (d : P.document) (line, character) =
   let start = back cursor in
   let prefix = String.sub text start (cursor - start) in
   let trigger = if start > 0 then Some text.[start - 1] else None in
-  let upper = prefix <> "" && Cst.is_upper_identifier prefix in
-  let placeholder = if upper then placeholder_upper else placeholder_lower in
   let stop =
     let rec forward i = if i < String.length text && is_identifier_byte text.[i] then forward (i + 1) else i in
     forward cursor
   in
   let parses candidate = match Cst.parse d.P.path candidate with Ok _ -> true | Error _ -> false | exception _ -> false in
-  let found = List.find_opt parses (attempts text ~start ~stop ~placeholder) in
+  (* The placeholder takes the case of the name typed so far. With no name
+     typed after `@namespace$`, the server tries a lower-case placeholder
+     first, which parses in an expression, and then an upper-case one, the
+     only case the grammar takes there in a type. *)
+  let placeholders =
+    if prefix <> "" then [ (if Cst.is_upper_identifier prefix then placeholder_upper else placeholder_lower) ]
+    else
+      match intrinsic_site text start with
+      | Some (Namespace_member { call = None; _ }) -> [ placeholder_lower; placeholder_upper ]
+      | _ -> [ placeholder_lower ]
+  in
+  let placeholder, found =
+    let rec first = function
+      | [] -> (List.hd placeholders, None)
+      | p :: rest -> (
+          match List.find_opt parses (attempts text ~start ~stop ~placeholder:p) with
+          | Some c -> (p, Some c)
+          | None -> first rest)
+    in
+    first placeholders
+  in
+  let upper = String.equal placeholder placeholder_upper in
   let analysis =
     match (found, P.build_of t d.P.path) with
     | Some candidate, Some (_, b) -> (
@@ -624,7 +650,7 @@ let completion encoding t (d : P.document) (line, character) =
   let root =
     match (if Option.is_some index then index else fallback) with
     | Some (index : Index.t) -> index.Index.is_root ~path:d.P.path
-    | None -> true
+    | None -> false
   in
   let intrinsics site =
     let types_only = match probe with Some (_, Uses.Type_in _) -> true | _ -> false in

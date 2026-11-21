@@ -180,9 +180,11 @@ Completion reads an intrinsic's place from the text before the cursor: `@`
 offers the namespaces, `@namespace$` the namespace's names, and
 `@namespace$Type.` the type's named constructors. A name after `:` or `!`
 before the `@` is a method's, and the server offers the methods whose subject
-takes the value before it. Where the check finds a type at the cursor, the
+takes the value before it: after `!` the `mut` ones, after `:` the others, as
+the checker requires. Where the check finds a type at the cursor, the
 server offers only types. Only a file of the root package is offered
-`@program$`, since only the root package reaches it (spec `effects.md` §6.6).
+`@program$`, since only the root package reaches it (spec `effects.md` §6.6);
+a file that no build holds is not.
 A unit test checks that each intrinsic has a description, and that the table
 describes nothing else.
 

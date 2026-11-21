@@ -474,6 +474,13 @@ class CompletionTest(ServerTest):
         self.assertNotIn("program", found)
         found = self.complete(self.geo, text.replace("return copy;", "x = @program$|\n\treturn copy;"))
         self.assertEqual(found, set())
+        # A file no build holds may belong to any package, so it is not offered `@program$` either.
+        loose = self.dir / "loose.zn"
+        loose.write_text("package loose;\n")
+        self.client.open(loose)
+        found = self.complete(loose, "package loose;\n\n@|\n")
+        self.assertIn("runtime", found)
+        self.assertNotIn("program", found)
 
     def test_the_names_of_a_namespace_with_their_signatures_and_descriptions(self):
         found = self.items(self.main, self.text.replace("return Unit();", "x = @math$sq|\n\treturn Unit();"))
@@ -488,6 +495,14 @@ class CompletionTest(ServerTest):
         self.assertEqual(found, {"I32", "I64"})
         found = self.complete(self.main, self.text.replace("c Color", "c @concepts$|"))
         self.assertTrue({"Int", "Block"} <= found)
+        # With no name typed yet, a type position still offers only types.
+        found = self.complete(self.main, self.text.replace("c Color", "c @math$|"))
+        self.assertEqual(found, set())
+        found = self.complete(self.main, self.text.replace("c Color", "c @program$|"))
+        self.assertEqual(found, set())
+        # An expression with no name typed yet offers the functions.
+        found = self.complete(self.main, self.text.replace("return Unit();", "x = @math$|\n\treturn Unit();"))
+        self.assertIn("sqrt", found)
 
     def test_the_methods_of_a_namespace_after_a_colon(self):
         found = self.complete(self.main, self.text.replace("return Unit();", "k = label:@primitives$byte|\n\treturn Unit();"))
@@ -495,6 +510,9 @@ class CompletionTest(ServerTest):
         self.assertEqual(found, {"byteAt", "byteCount"})
         found = self.complete(self.main, self.text.replace("return Unit();", "@program$console!@runtime$pr|\n\treturn Unit();"))
         self.assertEqual(found, {"print"})
+        # `print` is `mut`, so it is called with `!`, never with `:`.
+        found = self.complete(self.main, self.text.replace("return Unit();", "@program$console:@runtime$pr|\n\treturn Unit();"))
+        self.assertEqual(found, set())
         found = self.complete(self.main, self.text.replace("return Unit();", "@program$console!@controlflow$|\n\treturn Unit();"))
         self.assertEqual(found, {"work", "register"})
         found = self.complete(self.main, self.text.replace("return Unit();", "x = @primitives$byte|\n\treturn Unit();"))
