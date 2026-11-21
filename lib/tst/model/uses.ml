@@ -38,14 +38,15 @@ type use = { span : Span.t; target : target; declaration : bool }
 (* What a completion asked about, recorded where a check met the
    placeholder name the language server wrote at the cursor. *)
 type probe =
-  (* A member read of a value of this type: `value.placeholder` or
-     `value:placeholder(...)`, in a file of [package]. *)
+  (* A member read of a value of this type: `value.placeholder`,
+     `value:placeholder(...)` or `value:@namespace$placeholder(...)`, in a
+     file of [package]. *)
   | Member_of of { ty : Ty.t; package : string; path : string }
   (* A member of this type itself: `Type.placeholder`. *)
   | Type_member_of of Ty.t
   (* A bare name: the locals in scope, innermost first. *)
   | Name_in of { locals : Nodes.Local.t list; package : string; path : string }
-  (* A type name. *)
+  (* A type name, bare or after an intrinsic namespace. *)
   | Type_in of { params : string list; package : string; path : string }
 
 type t = {

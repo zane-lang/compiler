@@ -664,7 +664,7 @@ let concept_names = [ "Int"; "Float"; "String"; "Array"; "Map"; "Block" ]
 (* ---------------------------------------------------------------------- *)
 
 (* Every intrinsic verb, the hidden ones included. *)
-let all_verbs =
+let every_verb =
   List.map snd constructors @ List.map snd methods @ List.map snd functions @ subscripts @ [ publish_function ]
 
 (* How many of [s]'s last parameters the checker supplies, which no call
@@ -697,7 +697,7 @@ let signature_text (s : S.t) =
 
 (* Every verb whose calls resolve to [spelling], as a use's target names
    it. *)
-let signatures spelling = List.filter (fun (s : S.t) -> s.S.owner = S.Intrinsic spelling) all_verbs
+let signatures spelling = List.filter (fun (s : S.t) -> s.S.owner = S.Intrinsic spelling) every_verb
 
 (* What a program writes after `@namespace$`, and how. *)
 type entry_kind =

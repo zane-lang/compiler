@@ -493,6 +493,10 @@ class CompletionTest(ServerTest):
         found = self.complete(self.main, self.text.replace("return Unit();", "k = label:@primitives$byte|\n\treturn Unit();"))
         # `byteSet` is a method of a list, so a string does not offer it.
         self.assertEqual(found, {"byteAt", "byteCount"})
+        found = self.complete(self.main, self.text.replace("return Unit();", "@program$console!@runtime$pr|\n\treturn Unit();"))
+        self.assertEqual(found, {"print"})
+        found = self.complete(self.main, self.text.replace("return Unit();", "@program$console!@controlflow$|\n\treturn Unit();"))
+        self.assertEqual(found, {"work", "register"})
         found = self.complete(self.main, self.text.replace("return Unit();", "x = @primitives$byte|\n\treturn Unit();"))
         self.assertEqual(found, set())
 

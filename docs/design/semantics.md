@@ -727,7 +727,10 @@ names concept types only for numeric and text literals (`syntax.md` §2.8).
 A package's implicit constructor from `@primitives$Bool` is what makes them
 its own boolean type at a coercion site.
 
-**The intrinsic table.** The spec names the scalar primitives, the
+**The intrinsic table.** Each intrinsic a program can name also needs a
+description in `intrinsic_docs.ml`, which the language server shows; the
+unit test `intrinsic_descriptions` (`tests/unit/unit.ml`) fails on an
+intrinsic without one. The spec names the scalar primitives, the
 `@operators$` functions over them and the conversions between them
 (`syntax.md` §2.7, `types.md` §2.7). Beyond those, `intrinsics.ml` holds what
 a `core` needs to be written at all: the constructors, none of them implicit,

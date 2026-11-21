@@ -23,7 +23,9 @@ module Exits = Exits
     F12). *)
 module States = States
 
-(** The intrinsic namespaces' verbs, in which lowering looks up methods. *)
+(** The intrinsic namespaces' verbs, in which lowering looks up methods, and
+    the catalogue of the names a program writes in them, which the language
+    server offers. *)
 module Intrinsics = Intrinsics
 
 (** A description of each intrinsic, which the language server shows. *)

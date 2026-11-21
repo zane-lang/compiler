@@ -149,7 +149,7 @@ let intrinsic_descriptions () =
     @ List.map TIntrinsics.spelling_of TIntrinsics.entries
     @ List.filter_map
         (fun (s : S.t) -> match s.S.owner with S.Intrinsic spelling -> Some spelling | S.Declared _ -> None)
-        TIntrinsics.all_verbs
+        TIntrinsics.every_verb
   in
   List.iter
     (fun spelling -> check (spelling ^ " has a description") (Tst.Intrinsic_docs.find spelling <> None))

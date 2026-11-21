@@ -225,8 +225,8 @@ let methods =
        and 0 otherwise." );
     ("@primitives$hashRange", "A hash of `count` elements from `start`, the same for equal ranges within one run of the program.");
     ( "@primitives$push",
-      "Adds `value` at the end of the list. A reference-typed value moves in; a value-typed one is copied in \
-       (generics.md §8.3, §8.5)." );
+      "Adds `value` at the end of the list, taken through a `^T` parameter: an owner moves in, and a value \
+       is copied in (generics.md §8.3, §8.5)." );
     ("@primitives$size", "The number of elements in the list.");
     ( "@primitives$remove",
       "Moves the element at `index` out of the list. The later elements shift down and keep their order \

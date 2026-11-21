@@ -79,8 +79,9 @@ field or case, an enum member, a local, a type parameter, a package or an
 intrinsic) and whether the use declares the target. Semantics already
 decides what each name means, and the record is taken where it decides, so
 the server never resolves a name a second way. A build records nothing, and
-pays nothing for the record. `Index` turns the record into what the server
-reads: a description of each declaration, the type of each field, and the
+pays nothing for the record. The same record holds what a check found where
+a completion wrote its placeholder (D8). `Index` turns the record into what
+the server reads: a description of each declaration, the type of each field, and the
 members and names a completion offers.
 
 **D6. A generic body that nothing instantiates is still answered.**
@@ -100,9 +101,12 @@ and a span inside it has no place in the current text and is dropped.
 **D8. Completion writes a placeholder at the cursor.** To learn what may
 stand at the cursor, the server writes a placeholder identifier there and
 checks the build. When the check reaches the placeholder it records what it
-found: after `.` or `:`, the type of the value before it; elsewhere, the
-locals in scope and the file's package. The server offers that type's
-members, or the locals with the file's declarations and imports. When the
+found: after `.`, `:` or `!`, the type of the value before it, which a
+method name after `subject:@namespace$` records too; in a type, the type
+parameters in scope; elsewhere, the locals in scope and the file's package.
+The server offers that type's members, the type parameters with the file's
+types, or the locals with the file's declarations and imports. D17 says how
+the intrinsic namespaces use what the check records. When the
 text with the placeholder does not parse, the server tries again with the
 placeholder closed into a statement, and offers nothing when no attempt
 parses.
