@@ -279,7 +279,7 @@ let classify (index : Index.t) (u : Uses.use) =
   in
   Option.map
     (fun k ->
-      let bits = (if u.Uses.declaration then 1 else 0) lor if readonly then 2 else 0 in
+      let bits = (if u.Uses.declaration then 1 else 0) lor (if readonly then 2 else 0) in
       (token_index k, bits))
     kind
 

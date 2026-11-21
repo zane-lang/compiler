@@ -399,7 +399,10 @@ class SymbolsAndTokensTest(ServerTest):
         checked = 0
         for number, written in enumerate(self.text.split("\n")):
             for m in re.finditer(r"@[a-z]+\$[A-Za-z_][A-Za-z0-9_]*", written):
-                inside = {(number, c) for c in range(m.start(), m.end())}
+                # The suite negotiates UTF-16, so positions count UTF-16 code units.
+                start = len(written[: m.start()].encode("utf-16-le")) // 2
+                end = len(written[: m.end()].encode("utf-16-le")) // 2
+                inside = {(number, c) for c in range(start, end)}
                 self.assertFalse(inside & starts, f"main.zn:{number + 1}: `{m.group()}` has a token")
                 checked += 1
         self.assertGreater(checked, 0)
