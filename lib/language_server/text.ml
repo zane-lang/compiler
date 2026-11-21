@@ -153,7 +153,31 @@ let path_of_uri uri =
     in
     if host = "" || String.lowercase_ascii host = "localhost" then Some (decode_path path) else None
 
+(* The directories the editor named under another spelling than their real
+   path, such as a directory reached through a symbolic link: each real path
+   and the editor's spelling of it, longest real path first. A URI the server
+   sends names a file under the editor's spelling, so the editor matches it to
+   the document it opened. *)
+let spellings : (string * string) list ref = ref []
+
+let spell ~real ~editor =
+  if real <> editor && not (List.mem_assoc real !spellings) then
+    spellings :=
+      List.sort (fun (a, _) (b, _) -> compare (String.length b) (String.length a)) ((real, editor) :: !spellings)
+
+let respelled path =
+  let under dir =
+    path = dir
+    || String.length path > String.length dir
+       && String.starts_with ~prefix:dir path
+       && (path.[String.length dir] = '/' || path.[String.length dir] = '\\')
+  in
+  match List.find_opt (fun (real, _) -> under real) !spellings with
+  | Some (real, editor) -> editor ^ String.sub path (String.length real) (String.length path - String.length real)
+  | None -> path
+
 let uri_of_path path =
+  let path = respelled path in
   let path = if Sys.win32 then "/" ^ String.map (function '\\' -> '/' | c -> c) path else path in
   let b = Buffer.create (String.length path + 8) in
   Buffer.add_string b "file://";

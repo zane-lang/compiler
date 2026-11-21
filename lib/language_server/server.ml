@@ -37,9 +37,16 @@ let log st message = Transport.notify st.out "window/logMessage" (`Assoc [ ("typ
 let show st ~error message =
   Transport.notify st.out "window/showMessage" (`Assoc [ ("type", `Int (if error then 1 else 2)); ("message", `String message) ])
 
+(* The real path of a file the editor names, remembering the editor's
+   spelling of its directory for the URIs the server sends back. *)
+let real_path path =
+  let dir = Filename.dirname path in
+  Text.spell ~real:(P.canonical_dir dir) ~editor:dir;
+  P.canonical path
+
 let document_path params =
   Option.bind (field "textDocument" params) (fun d -> Option.bind (string_field "uri" d) Text.path_of_uri)
-  |> Option.map P.canonical
+  |> Option.map real_path
 
 let position params =
   match field "position" params with
@@ -460,7 +467,10 @@ let initialize st params =
   | Some builds ->
       let root =
         match Option.bind (string_field "rootUri" params) Text.path_of_uri with
-        | Some r -> P.canonical_dir r
+        | Some r ->
+            let real = P.canonical_dir r in
+            Text.spell ~real ~editor:r;
+            real
         | None -> Sys.getcwd ()
       in
       st.project.P.given <- Some { P.root; builds = P.builds_of_json builds; listed_by_zane = false; listing_error = None }
@@ -528,7 +538,7 @@ let notification st method_ params =
       | Some (doc, uri) -> (
           match Text.path_of_uri uri with
           | Some path ->
-              let path = P.canonical path in
+              let path = real_path path in
               let text = Option.value ~default:"" (string_field "text" doc) in
               ignore (P.open_document st.project ~path ~text ~version:(Option.value ~default:0 (int_field "version" doc)));
               P.touch st.project path;

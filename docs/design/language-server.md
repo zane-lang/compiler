@@ -67,6 +67,11 @@ library file appears in the library build and in every program's build, and
 the library build comes first, so a library's problems show once. A file
 that no build holds, such as a file outside every project, gets its syntax
 errors and its document symbols, and nothing that needs semantics.
+The server compares directories by their real paths, without symbolic
+links, but each URI it sends names a file under the editor's spelling of its
+directory. So the editor matches a diagnostic or a location to its document
+even when it opened the project through a link, as macOS's `/var` links to
+`/private/var`.
 
 **D5. Semantics records each name it resolves.** When the server asks, a
 check records every use of a name: its span, its target (a declaration, a

@@ -472,5 +472,31 @@ class LooseFileTest(unittest.TestCase):
                 client.close()
 
 
+class SymlinkTest(unittest.TestCase):
+    """A project the editor opens through a symbolic link, as on macOS, where
+    the temporary directory `/var` links to `/private/var`."""
+
+    @unittest.skipUnless(ZANEC.exists(), "zanec is not built; run dune build")
+    def test_the_server_names_files_as_the_editor_named_them(self):
+        with tempfile.TemporaryDirectory() as d:
+            real = pathlib.Path(d) / "real"
+            shutil.copytree(FIXTURE, real)
+            root = pathlib.Path(d) / "link"
+            root.symlink_to(real, target_is_directory=True)
+            main = root / "bin" / "app" / "main.zn"
+            client = Client()
+            try:
+                client.initialize(root, builds(root))
+                text = client.open(main)
+                line, character = position_of(text, "Point =")
+                found = client.at("textDocument/definition", main, line, character)
+                self.assertTrue(found)
+                self.assertTrue(all(l["uri"].startswith(uri(root) + "/") for l in found), found)
+                client.change(main, text + "\nbroken\n")
+                self.assertTrue(client.diagnostics(main))
+            finally:
+                client.close()
+
+
 if __name__ == "__main__":
     unittest.main()
