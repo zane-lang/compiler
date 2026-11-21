@@ -17,6 +17,10 @@ type state = {
   (* The paths each build published diagnostics for, so a file whose last
      problem was fixed is cleared. *)
   published : (string, unit) Hashtbl.t;
+  (* The problems without a file each build last showed the user, by the
+     project's root and the build's label: each is shown once while it
+     lasts, since a check runs after every edit (D15). *)
+  shown : (string * string, string list) Hashtbl.t;
   mutable shutting_down : bool;
 }
 
@@ -61,6 +65,45 @@ let publish st path diagnostics =
 let reported (p : P.project) path =
   String.starts_with ~prefix:(p.P.root ^ Filename.dir_sep) path || p.P.listed_by_zane = false
 
+(* The diagnostics of [path] in its current text: its parse error alone
+   when it does not parse (D7), and otherwise the build's problems moved
+   onto the current text. *)
+let file_diagnostics st a by_path path current =
+  let lines = Text.lines current in
+  match Hashtbl.find_opt st.project.P.documents path with
+  | Some { P.parse_error = Some e; _ } ->
+      let range =
+        match e.Diagnostic.location with
+        | Diagnostic.Location.Span s -> Some (F.range_json st.encoding lines (F.span_offsets s))
+        | _ -> None
+      in
+      [ diagnostic_json st lines ?range e ]
+  | _ ->
+      let view = F.view st.project a path in
+      let placed ((d : Diagnostic.t), s) =
+        match (s, view) with
+        | None, _ -> Some (diagnostic_json st lines d)
+        | Some s, Some v ->
+            Option.map
+              (fun r -> diagnostic_json st lines ~range:(F.range_json st.encoding lines r) d)
+              (Text.move v.F.shift (F.span_offsets s))
+        | Some _, None -> None
+      in
+      List.filter_map placed (List.rev (Hashtbl.find_all by_path path))
+
+(* Publishes [path]'s diagnostics when [b] is the build that checks it, and
+   clears a file whose last problem was fixed. *)
+let publish_file st (p : P.project) (b : P.build) a by_path path =
+  let owner = match P.build_of st.project path with Some (_, owner) -> owner == b | None -> false in
+  match P.text_of st.project path with
+  | Some current when owner && reported p path ->
+      let diagnostics = file_diagnostics st a by_path path current in
+      if diagnostics <> [] || Hashtbl.mem st.published path then begin
+        publish st path diagnostics;
+        if diagnostics = [] then Hashtbl.remove st.published path else Hashtbl.replace st.published path ()
+      end
+  | _ -> ()
+
 (* Publishes the problems of every file whose build is [b]. A document that
    does not parse shows its parse error alone, since the build read its last
    text that parsed (D7). *)
@@ -75,50 +118,26 @@ let publish_build st (p : P.project) (b : P.build) =
           match d.Diagnostic.location with
           | Diagnostic.Location.Span s -> Hashtbl.add by_path (F.span_path s) (d, Some s)
           | Diagnostic.Location.File path -> Hashtbl.add by_path (P.canonical path) (d, None)
-          | Diagnostic.Location.Directory _ | Diagnostic.Location.Invocation -> elsewhere := d :: !elsewhere)
+          | Diagnostic.Location.Directory dir -> elsewhere := (dir ^ ": " ^ d.Diagnostic.message) :: !elsewhere
+          | Diagnostic.Location.Invocation ->
+              elsewhere := (b.P.label ^ ": " ^ d.Diagnostic.message) :: !elsewhere)
         a.P.problems;
-      List.iter (fun (d : Diagnostic.t) -> show st ~error:true d.Diagnostic.message) (List.rev !elsewhere);
+      let messages = List.rev !elsewhere in
+      let key = (p.P.root, b.P.label) in
+      let before = Option.value ~default:[] (Hashtbl.find_opt st.shown key) in
+      List.iter
+        (fun message ->
+          log st message;
+          if not (List.mem message before) then show st ~error:true message)
+        messages;
+      Hashtbl.replace st.shown key messages;
       let files =
         Hashtbl.fold (fun path _ acc -> path :: acc) a.P.texts []
         @ Hashtbl.fold (fun path _ acc -> path :: acc) by_path []
         @ Hashtbl.fold (fun path (d : P.document) acc -> if P.holds b d.P.path then path :: acc else acc) st.project.P.documents []
         |> List.sort_uniq String.compare
       in
-      List.iter
-        (fun path ->
-          let owner = match P.build_of st.project path with Some (_, owner) -> owner == b | None -> false in
-          if owner && reported p path then
-            match P.text_of st.project path with
-            | None -> ()
-            | Some current ->
-                let lines = Text.lines current in
-                let diagnostics =
-                  match Hashtbl.find_opt st.project.P.documents path with
-                  | Some { P.parse_error = Some e; _ } ->
-                      let range =
-                        match e.Diagnostic.location with
-                        | Diagnostic.Location.Span s -> Some (F.range_json st.encoding lines (F.span_offsets s))
-                        | _ -> None
-                      in
-                      [ diagnostic_json st lines ?range e ]
-                  | _ ->
-                      let view = F.view st.project a path in
-                      List.filter_map
-                        (fun ((d : Diagnostic.t), s) ->
-                          match (s, view) with
-                          | None, _ -> Some (diagnostic_json st lines d)
-                          | Some s, Some v -> (
-                              match Text.move v.F.shift (F.span_offsets s) with
-                              | Some r -> Some (diagnostic_json st lines ~range:(F.range_json st.encoding lines r) d)
-                              | None -> None)
-                          | Some _, None -> None)
-                        (List.rev (Hashtbl.find_all by_path path))
-                in
-                if diagnostics <> [] || Hashtbl.mem st.published path then begin
-                  publish st path diagnostics;
-                  if diagnostics = [] then Hashtbl.remove st.published path else Hashtbl.replace st.published path ()
-                end)
-        files
+      List.iter (fun path -> publish_file st p b a by_path path) files
 
 (* A file in no build: its parse error, if it has one. *)
 let publish_loose st (d : P.document) =
@@ -285,6 +304,29 @@ let prepare_rename st id params =
           | Some (_, range) -> Transport.respond st.out id (`Assoc [ ("range", range); ("placeholder", `String name) ])
           | None -> Transport.respond st.out id `Null))
 
+(* The edits of a rename of [key] from [old_name] to [new_name], by file:
+   only the identifier as written, since an import's alias names the
+   declaration under another spelling. *)
+let rename_edits st p key ~old_name ~new_name =
+  let edits = Hashtbl.create 8 in
+  let add ((a : P.analysis), (d : Uses.use)) =
+    let path = F.span_path d.Uses.span in
+    match (P.text_of st.project path, F.view st.project a path) with
+    | Some current, Some v -> (
+        match Text.move v.F.shift (F.span_offsets d.Uses.span) with
+        | Some (s, e) when String.equal (String.sub current s (e - s)) old_name ->
+            let edit = `Assoc [ ("range", F.range_json st.encoding v.F.lines (s, e)); ("newText", `String new_name) ] in
+            Hashtbl.replace edits path ((s, edit) :: Option.value ~default:[] (Hashtbl.find_opt edits path))
+        | _ -> ())
+    | _ -> ()
+  in
+  List.iter add (F.uses_of_key st.project p key);
+  (* Last edit first: the protocol applies every edit to the original text,
+     but a client applying them one by one then still edits the right
+     places. *)
+  let in_order es = List.sort_uniq (fun (a, _) (b, _) -> compare b a) es |> List.map snd in
+  `Assoc (Hashtbl.fold (fun path es acc -> (Text.uri_of_path path, `List (in_order es)) :: acc) edits [])
+
 let rename st id params =
   match at st params with
   | None -> Transport.respond st.out id `Null
@@ -306,30 +348,7 @@ let rename st id params =
           else
             match F.key_of index u.Uses.target with
             | None -> Transport.respond st.out id `Null
-            | Some key ->
-                let edits = Hashtbl.create 8 in
-                List.iter
-                  (fun ((a : P.analysis), (d : Uses.use)) ->
-                    let path = F.span_path d.Uses.span in
-                    match (P.text_of st.project path, F.view st.project a path) with
-                    | Some current, Some v -> (
-                        match Text.move v.F.shift (F.span_offsets d.Uses.span) with
-                        (* Only the identifier as written: an import's alias
-                           names the declaration under another spelling. *)
-                        | Some (s, e) when String.equal (String.sub current s (e - s)) old_name ->
-                            let edit = `Assoc [ ("range", F.range_json st.encoding v.F.lines (s, e)); ("newText", `String new_name) ] in
-                            Hashtbl.replace edits path ((s, edit) :: Option.value ~default:[] (Hashtbl.find_opt edits path))
-                        | _ -> ())
-                    | _ -> ())
-                  (F.uses_of_key st.project p key);
-                let changes =
-                  Hashtbl.fold
-                    (fun path es acc ->
-                      let es = List.sort_uniq (fun (a, _) (b, _) -> compare a b) es |> List.map snd in
-                      (Text.uri_of_path path, `List es) :: acc)
-                    edits []
-                in
-                Transport.respond st.out id (`Assoc [ ("changes", `Assoc changes) ])))
+            | Some key -> Transport.respond st.out id (`Assoc [ ("changes", rename_edits st p key ~old_name ~new_name) ])))
 
 (* The document a request names: the editor's, or the file on disk when
    the editor has not opened it. *)
@@ -538,7 +557,7 @@ let run ?zane () =
   set_binary_mode_out stdout true;
   let st_ref = ref None in
   let project = P.create ~zane ~log:(fun m -> match !st_ref with Some st -> log st m | None -> prerr_endline m) in
-  let st = { project; out = stdout; encoding = Text.Utf16; published = Hashtbl.create 16; shutting_down = false } in
+  let st = { project; out = stdout; encoding = Text.Utf16; published = Hashtbl.create 16; shown = Hashtbl.create 4; shutting_down = false } in
   st_ref := Some st;
   let queue = Transport.start stdin in
   (* Messages are handled in the order they came. An edit only marks its

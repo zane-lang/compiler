@@ -158,8 +158,7 @@ let list_builds ~zane root =
       Unix.close nothing;
       Unix.close out_write;
       let ic = Unix.in_channel_of_descr out_read in
-      let output = In_channel.input_all ic in
-      In_channel.close ic;
+      let output = Fun.protect ~finally:(fun () -> In_channel.close ic) (fun () -> In_channel.input_all ic) in
       match Unix.waitpid [] pid with
       | _, Unix.WEXITED 0 -> (
           match Yojson.Safe.from_string output with

@@ -105,6 +105,31 @@ class DiagnosticsTest(ServerTest):
         self.assertTrue(found[0]["uri"].endswith("geo.zn"))
 
 
+class ShownOnceTest(unittest.TestCase):
+    @unittest.skipUnless(ZANEC.exists(), "zanec is not built; run dune build")
+    def test_a_problem_without_a_file_is_shown_once_while_it_lasts(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d).resolve()
+            shutil.copytree(FIXTURE, root / "project")
+            lib = root / "project" / "lib" / "geo"
+            missing = root / "project" / "lib" / "missing"
+            client = Client()
+            try:
+                flags = ["--no-root", "--package", f"geo={lib}", "--package", f"missing={missing}"]
+                client.initialize(root / "project", [{"label": "the library packages", "flags": flags}])
+                geo = client.open(lib / "geo.zn")
+                for version in (2, 3):
+                    client.change(lib / "geo.zn", geo + "\n" * version, version=version)
+                    client.diagnostics(lib / "geo.zn")
+                shown = [n for n in client.notifications if n["method"] == "window/showMessage"]
+                logged = [n for n in client.notifications if n["method"] == "window/logMessage" and "missing" in n["params"]["message"]]
+                self.assertEqual(len(shown), 1, shown)
+                self.assertIn("missing", shown[0]["params"]["message"])
+                self.assertGreaterEqual(len(logged), 2)
+            finally:
+                client.close()
+
+
 class HoverTest(ServerTest):
     def hover(self, needle, occurrence=0, offset=0, path=None, text=None):
         result = self.at("textDocument/hover", path or self.main, text or self.text, needle, occurrence, offset)
@@ -195,6 +220,11 @@ class RenameTest(ServerTest):
         for edits in changes.values():
             for e in edits:
                 self.assertEqual(e["newText"], "distance")
+
+    def test_edits_come_last_first(self):
+        edit = self.rename(self.main, self.text, "far)", "target")
+        starts = [(e["range"]["start"]["line"], e["range"]["start"]["character"]) for e in edit["changes"][uri(self.main)]]
+        self.assertEqual(starts, sorted(starts, reverse=True))
 
     def test_a_local(self):
         edit = self.rename(self.main, self.text, "far)", "target")
