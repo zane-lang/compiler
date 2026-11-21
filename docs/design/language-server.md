@@ -17,13 +17,13 @@ The server offers:
 | Request | What the server answers |
 |---|---|
 | Diagnostics | Every problem semantics reports, published as the user types |
-| Hover | A name's declaration: a verb's signature, a type's definition, a local's type, with the `///` documentation before the declaration |
+| Hover | A name's declaration: a verb's signature, a type's definition, a local's type, with the `///` documentation before the declaration; for an intrinsic, its signatures and its description (D17) |
 | Go to definition | Where the name's target is declared, for the overload a call chose |
 | Go to type definition | The declaration of a value's type |
 | Find references | Every use of the target, across the files and builds of the project |
 | Rename | An edit of each use's identifier |
 | Document symbols | The declarations of a file, with a type's fields and cases under it |
-| Completion | The fields, cases, enum maps and methods after `.` and `:`, and the names in scope elsewhere |
+| Completion | The fields, cases, enum maps and methods after `.` and `:`, the intrinsic namespaces after `@` and their names after `@namespace$`, and the names in scope elsewhere |
 | Semantic tokens | The kind of each identifier, which Tree-sitter cannot tell from syntax alone |
 
 The code lives in `lib/language_server/`; semantics records what the server
@@ -79,8 +79,9 @@ field or case, an enum member, a local, a type parameter, a package or an
 intrinsic) and whether the use declares the target. Semantics already
 decides what each name means, and the record is taken where it decides, so
 the server never resolves a name a second way. A build records nothing, and
-pays nothing for the record. `Index` turns the record into what the server
-reads: a description of each declaration, the type of each field, and the
+pays nothing for the record. The same record holds what a check found where
+a completion wrote its placeholder (D8). `Index` turns the record into what
+the server reads: a description of each declaration, the type of each field, and the
 members and names a completion offers.
 
 **D6. A generic body that nothing instantiates is still answered.**
@@ -100,9 +101,12 @@ and a span inside it has no place in the current text and is dropped.
 **D8. Completion writes a placeholder at the cursor.** To learn what may
 stand at the cursor, the server writes a placeholder identifier there and
 checks the build. When the check reaches the placeholder it records what it
-found: after `.` or `:`, the type of the value before it; elsewhere, the
-locals in scope and the file's package. The server offers that type's
-members, or the locals with the file's declarations and imports. When the
+found: after `.`, `:` or `!`, the type of the value before it, which a
+method name after `subject:@namespace$` records too; in a type, the type
+parameters in scope; elsewhere, the locals in scope and the file's package.
+The server offers that type's members, the type parameters with the file's
+types, or the locals with the file's declarations and imports. D17 says how
+the intrinsic namespaces use what the check records. When the
 text with the placeholder does not parse, the server tries again with the
 placeholder closed into a statement, and offers nothing when no attempt
 parses.
@@ -161,6 +165,28 @@ has no file, and goes to the editor as a message.
 **D16. The Neovim client is `zane-nvim`.** The plugin configures
 `vim.lsp.config("zane")` to run `zane lsp` in the nearest directory above the
 file that holds `zane.coda`, and enables it once `zane` is on `PATH`.
+
+**D17. Intrinsics are answered from a table, as declarations are from
+source.** An intrinsic has no source, so no `///` comment precedes it.
+`Intrinsics` lists the names a program writes in each namespace, with their
+signatures, and `Intrinsic_docs` holds a description of each, keyed by its
+spelling, as `@math$sqrt`. A hover on an intrinsic shows its signatures, each
+with its parameters' names, and that description. A signature shows only the
+parameters a call writes: the checker supplies the last parameters of a
+worker, of `start` and of `@primitives$ArrayRef.fill`, and no program writes
+them. A completion item carries the same signature and description.
+
+Completion reads an intrinsic's place from the text before the cursor: `@`
+offers the namespaces, `@namespace$` the namespace's names, and
+`@namespace$Type.` the type's named constructors. A name after `:` or `!`
+before the `@` is a method's, and the server offers the methods whose subject
+takes the value before it: after `!` the `mut` ones, after `:` the others, as
+the checker requires. Where the check finds a type at the cursor, the
+server offers only types. Only a file of the root package is offered
+`@program$`, since only the root package reaches it (spec `effects.md` §6.6);
+a file that no build holds is not.
+A unit test checks that each intrinsic has a description, and that the table
+describes nothing else.
 
 ---
 

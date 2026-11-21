@@ -59,6 +59,9 @@ type t = {
      members its imports bring bare, each with its kind and description,
      and the qualifiers it may write before `$`. *)
   in_scope : path:string -> (string * kind * string) list * string list;
+  (* Whether the file at [path] belongs to the build's root package, the
+     one package that reaches `@program$` (effects.md §6.6). *)
+  is_root : path:string -> bool;
   (* The package identities of the build, the root first. *)
   packages : string list;
 }
@@ -130,6 +133,29 @@ let index_name (d : decl) =
   | Verb { N.Verb_decl.node = N.Verb_decl.Constructor { member = Some m; _ }; _ } -> m.N.Name.text
   | _ -> decl_name d
 
+(* Whether a method's subject takes a value of [a]: the same type, with
+   the same arguments where the method fixes them. *)
+let rec fits (p : Ty.t) (a : Ty.t) =
+  match (Ty.strip_mode p, Ty.strip_mode a) with
+  | Ty.Param _, _ | Ty.Error, _ | _, Ty.Error -> true
+  | Ty.Named (x, ps), Ty.Named (y, args) -> x = y && args_fit ps args
+  | Ty.Intrinsic { namespace = n1; name = m1; args = ps }, Ty.Intrinsic { namespace = n2; name = m2; args } ->
+      n1 = n2 && m1 = m2 && args_fit ps args
+  | p, a -> p = a
+
+and args_fit ps args =
+  List.length ps = List.length args
+  && List.for_all2
+       (fun p a ->
+         match (p, a) with
+         | Ty.Type p, Ty.Type a -> fits p a
+         | Ty.Number (Ty.Number_param _), Ty.Number _ -> true
+         | p, a -> p = a)
+       ps args
+
+(* Whether [s] is a method whose subject takes a value of [t]. *)
+let subject_fits (s : S.t) t = match s.S.params with { S.ty; _ } :: _ -> fits ty t | [] -> false
+
 let build env (uses : Uses.t) : t =
   let decls = Hashtbl.create 256 in
   let fields = Hashtbl.create 64 in
@@ -173,26 +199,7 @@ let build env (uses : Uses.t) : t =
         env.names []
     in
     let home = Verb_signatures.home t in
-    (* Whether a method's subject takes a value of [t]: the same type, with
-       the same arguments where the method fixes them. *)
-    let rec fits (p : Ty.t) (a : Ty.t) =
-      match (Ty.strip_mode p, Ty.strip_mode a) with
-      | Ty.Param _, _ | Ty.Error, _ | _, Ty.Error -> true
-      | Ty.Named (x, ps), Ty.Named (y, args) -> x = y && args_fit ps args
-      | Ty.Intrinsic { namespace = n1; name = m1; args = ps }, Ty.Intrinsic { namespace = n2; name = m2; args } ->
-          n1 = n2 && m1 = m2 && args_fit ps args
-      | p, a -> p = a
-    and args_fit ps args =
-      List.length ps = List.length args
-      && List.for_all2
-           (fun p a ->
-             match (p, a) with
-             | Ty.Type p, Ty.Type a -> fits p a
-             | Ty.Number (Ty.Number_param _), Ty.Number _ -> true
-             | p, a -> p = a)
-           ps args
-    in
-    let subject_fits (s : S.t) = match s.S.params with { S.ty; _ } :: _ -> fits ty t | [] -> false in
+    let subject_fits s = subject_fits s t in
     (* Check.method_call reaches a method of the subject's home package or
        of the current one, and Context.accessible_sig hides another
        package's private method. *)
@@ -263,5 +270,8 @@ let build env (uses : Uses.t) : t =
     members_of;
     type_members_of;
     in_scope;
+    is_root =
+      (fun ~path ->
+        List.exists (fun (f : file) -> String.equal f.path path && (package env f.package).is_root) (files ()));
     packages = Names.package_order env.names;
   }

@@ -4,7 +4,8 @@
 ; directory:
 ;
 ; - model/     the tree and its building blocks: [Nodes], [Ty], [Signature],
-;              [Env] and [Intrinsics], [Traverse], which lists the
+;              [Env] and [Intrinsics], [Intrinsic_docs], which describes
+;              each intrinsic for the language server, [Traverse], which lists the
 ;              children of each node, and [Uses], which records what each
 ;              name resolved to when the language server asks;
 ; - passes/    [Assembly] groups files into packages, then [Collect] (passes

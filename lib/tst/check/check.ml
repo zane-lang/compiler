@@ -955,6 +955,8 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
           Uses.add env.uses q.N.Name.span (Uses.Package pkg);
           resolve_in ~at:ident.N.Name.span [ named_in ~any:true (S.Package pkg) ident.N.Name.text ] ident.N.Name.text)
   | N.Expr.NameExpr { N.Name_expr.node = N.Name_expr.Intrinsic { package = ns; ident }; _ } -> (
+      if Uses.is_placeholder env.uses ident.N.Name.text then
+        Uses.probe env.uses ident.N.Name.span (Uses.Member_of { ty = subject.aty; package = ctx.package; path = ctx.file.path });
       let spelling = "@" ^ ns.N.Name.text ^ "$" ^ ident.N.Name.text in
       match Intrinsics.find_functions ns.N.Name.text ident.N.Name.text with
       | cands when Intrinsics.is_worker spelling ->

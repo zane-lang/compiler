@@ -436,7 +436,7 @@ let capabilities st =
       ("renameProvider", `Assoc [ ("prepareProvider", `Bool true) ]);
       ("documentSymbolProvider", `Bool true);
       ( "completionProvider",
-        `Assoc [ ("triggerCharacters", `List [ `String "."; `String ":"; `String "!"; `String "$" ]) ] );
+        `Assoc [ ("triggerCharacters", `List [ `String "."; `String ":"; `String "!"; `String "$"; `String "@" ]) ] );
       ( "semanticTokensProvider",
         `Assoc
           [

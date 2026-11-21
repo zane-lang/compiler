@@ -7,6 +7,7 @@ module Exits = Exits
 module States = States
 module Traverse = Traverse
 module Intrinsics = Intrinsics
+module Intrinsic_docs = Intrinsic_docs
 module Semantics = Semantics
 module Uses = Uses
 module Index = Index
