@@ -105,6 +105,20 @@ class DiagnosticsTest(ServerTest):
         self.assertTrue(found[0]["uri"].endswith("geo.zn"))
 
 
+class TransportTest(unittest.TestCase):
+    @unittest.skipUnless(ZANEC.exists(), "zanec is not built; run dune build")
+    def test_a_frame_the_server_cannot_read_ends_it_rather_than_hanging_it(self):
+        client = Client()
+        try:
+            client.process.stdin.write(b"Content-Length: -5\r\n\r\n")
+            client.process.stdin.flush()
+            client.process.wait(timeout=10)
+        finally:
+            client.process.kill()
+            for stream in (client.process.stdin, client.process.stdout, client.process.stderr):
+                stream.close()
+
+
 class ShownOnceTest(unittest.TestCase):
     @unittest.skipUnless(ZANEC.exists(), "zanec is not built; run dune build")
     def test_a_problem_without_a_file_is_shown_once_while_it_lasts(self):

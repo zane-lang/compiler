@@ -549,8 +549,10 @@ let guarded st f =
       show st ~error:true ("internal compiler error: " ^ message)
   | Stack_overflow -> show st ~error:true "internal compiler error: the stack overflowed"
   | Out_of_memory -> show st ~error:true "the compiler ran out of memory"
-  | (Sys_error _ | Unix.Unix_error _ | Not_found | Invalid_argument _ | Failure _) as e ->
-      log st (Printexc.to_string e ^ "\n" ^ Printexc.get_backtrace ())
+  | e ->
+      (* Any other failure ends this message's handling, not the server. *)
+      let backtrace = Printexc.get_backtrace () in
+      log st (Printexc.to_string e ^ if backtrace = "" then "" else "\n" ^ backtrace)
 
 let run ?zane () =
   set_binary_mode_in stdin true;

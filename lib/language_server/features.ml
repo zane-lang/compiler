@@ -245,12 +245,12 @@ let semantic_tokens encoding t (a : P.analysis) path =
       in
       (* Two uses can cover one name, as an import's member names every
          overload it brings; a token is sent once, and never overlapping. *)
-      let rec dedupe = function
-        | (l1, c1, n1, k, b) :: (l2, c2, _, _, _) :: rest when l1 = l2 && c2 < c1 + n1 -> dedupe ((l1, c1, n1, k, b) :: rest)
-        | x :: rest -> x :: dedupe rest
-        | [] -> []
+      let rec dedupe kept = function
+        | (l1, c1, n1, k, b) :: (l2, c2, _, _, _) :: rest when l1 = l2 && c2 < c1 + n1 -> dedupe kept ((l1, c1, n1, k, b) :: rest)
+        | x :: rest -> dedupe (x :: kept) rest
+        | [] -> List.rev kept
       in
-      let tokens = dedupe tokens in
+      let tokens = dedupe [] tokens in
       let _, _, data =
         List.fold_left
           (fun (pl, pc, acc) (l, c, n, k, b) ->

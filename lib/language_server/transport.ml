@@ -58,7 +58,9 @@ let start ic =
   in
   let rec loop () =
     match read_frame ic with
-    | exception (End_of_file | Sys_error _ | Failure _) -> push Closed
+    (* Input the server cannot read, such as a negative Content-Length,
+       ends it as the end of input does, rather than the thread alone. *)
+    | exception _ -> push Closed
     | None -> push Closed
     | Some text ->
         (match decode text with Some m -> push m | None -> ());

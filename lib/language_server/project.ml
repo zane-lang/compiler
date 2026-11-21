@@ -74,8 +74,6 @@ let canonical path =
       | dir -> Filename.concat dir (Filename.basename path)
       | exception Unix.Unix_error _ -> path)
 
-let same_dir a b = String.equal (canonical a) (canonical b)
-
 (* ---------------------------------------------------------------------- *)
 (* Documents                                                              *)
 (* ---------------------------------------------------------------------- *)
@@ -134,8 +132,13 @@ let builds_of_json (json : Yojson.Safe.t) =
    log. Its standard input is empty: the server's own carries the editor's
    messages, which `zane` must not read. *)
 let list_builds ~zane root =
-  let out_read, out_write = Unix.pipe ~cloexec:true () in
   let nothing = Unix.openfile (if Sys.win32 then "NUL" else "/dev/null") [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
+  let out_read, out_write =
+    try Unix.pipe ~cloexec:true ()
+    with e ->
+      Unix.close nothing;
+      raise e
+  in
   let previous = Sys.getcwd () in
   match
     Fun.protect
@@ -158,9 +161,12 @@ let list_builds ~zane root =
       Unix.close nothing;
       Unix.close out_write;
       let ic = Unix.in_channel_of_descr out_read in
-      let output = Fun.protect ~finally:(fun () -> In_channel.close ic) (fun () -> In_channel.input_all ic) in
-      match Unix.waitpid [] pid with
-      | _, Unix.WEXITED 0 -> (
+      let output =
+        Fun.protect ~finally:(fun () -> In_channel.close ic) (fun () -> try Ok (In_channel.input_all ic) with Sys_error m -> Error m)
+      in
+      match (Unix.waitpid [] pid, output) with
+      | _, Error message -> Error (Printf.sprintf "`zane builds` could not be read: %s" message)
+      | (_, Unix.WEXITED 0), Ok output -> (
           match Yojson.Safe.from_string output with
           | json -> Ok (builds_of_json json)
           | exception Yojson.Json_error message -> Error ("`zane builds` printed no list of builds: " ^ message))
@@ -206,7 +212,9 @@ let reload_project t (p : project) =
             t.log message;
             p.listing_error <- Some message)
 
-let holds (b : build) path = List.exists (same_dir (Filename.dirname path)) b.dirs
+let holds (b : build) path =
+  let dir = canonical (Filename.dirname path) in
+  List.exists (String.equal dir) b.dirs
 
 (* The project a file belongs to: the client's builds when one of them holds
    it, and otherwise the project of its nearest manifest. *)
