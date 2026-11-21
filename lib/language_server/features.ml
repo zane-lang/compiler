@@ -242,48 +242,44 @@ let describe (a : P.analysis) (index : Index.t) (target : Uses.target) =
 let token_types =
   [ "namespace"; "type"; "enum"; "struct"; "typeParameter"; "parameter"; "variable"; "property"; "enumMember"; "function"; "method"; "operator" ]
 
-let token_modifiers = [ "declaration"; "readonly"; "defaultLibrary" ]
+let token_modifiers = [ "declaration"; "readonly" ]
 
 let token_index name =
   let rec find i = function [] -> 0 | x :: rest -> if String.equal x name then i else find (i + 1) rest in
   find 0 token_types
 
+(* An intrinsic gets no token: its `@` makes it plain in the syntax, so the
+   Tree-sitter query colors it, and the color stays while the server's
+   analysis is out of date. *)
 let classify (index : Index.t) (u : Uses.use) =
-  let kind, readonly, library =
+  let kind, readonly =
     match u.Uses.target with
-    | Uses.Package _ -> (Some "namespace", false, false)
+    | Uses.Package _ -> (Some "namespace", false)
     | Uses.Decl id -> (
         match Hashtbl.find_opt index.Index.decls id with
         | Some e -> (
             match e.Index.kind with
-            | Index.Struct | Index.Variant | Index.Handle | Index.Distinct | Index.Alias -> (Some "type", false, false)
-            | Index.Enum -> (Some "enum", false, false)
-            | Index.Constant -> (Some "variable", true, false)
-            | Index.Function | Index.Constructor | Index.Flip -> (Some "function", false, false)
-            | Index.Method | Index.Subscript -> (Some "method", false, false)
-            | Index.Operator -> (Some "operator", false, false)
-            | Index.Enum_map -> (Some "property", true, false))
-        | None -> (None, false, false))
-    | Uses.Field _ -> (Some "property", false, false)
-    | Uses.Member _ -> (Some "enumMember", false, false)
+            | Index.Struct | Index.Variant | Index.Handle | Index.Distinct | Index.Alias -> (Some "type", false)
+            | Index.Enum -> (Some "enum", false)
+            | Index.Constant -> (Some "variable", true)
+            | Index.Function | Index.Constructor | Index.Flip -> (Some "function", false)
+            | Index.Method | Index.Subscript -> (Some "method", false)
+            | Index.Operator -> (Some "operator", false)
+            | Index.Enum_map -> (Some "property", true))
+        | None -> (None, false))
+    | Uses.Field _ -> (Some "property", false)
+    | Uses.Member _ -> (Some "enumMember", false)
     | Uses.Local id -> (
         match Hashtbl.find_opt index.Index.locals id with
-        | Some l when Hashtbl.mem index.Index.parameters l.Tst.Nodes.Local.id -> (Some "parameter", false, false)
-        | _ -> (Some "variable", false, false))
-    | Uses.Param _ -> (Some "typeParameter", false, false)
-    | Uses.Label _ -> (Some "parameter", false, false)
-    | Uses.Intrinsic spelling -> (
-        let ns, name = split_spelling spelling in
-        if Option.is_some (I.find_value ns name) then (Some "variable", true, true)
-        else if is_intrinsic_type ns name then (Some "type", false, true)
-        else
-          match I.signatures spelling with
-          | { Tst.Signature.kind = Tst.Signature.Method | Tst.Signature.Subscript; _ } :: _ -> (Some "method", false, true)
-          | _ -> (Some "function", false, true))
+        | Some l when Hashtbl.mem index.Index.parameters l.Tst.Nodes.Local.id -> (Some "parameter", false)
+        | _ -> (Some "variable", false))
+    | Uses.Param _ -> (Some "typeParameter", false)
+    | Uses.Label _ -> (Some "parameter", false)
+    | Uses.Intrinsic _ -> (None, false)
   in
   Option.map
     (fun k ->
-      let bits = (if u.Uses.declaration then 1 else 0) lor (if readonly then 2 else 0) lor if library then 4 else 0 in
+      let bits = (if u.Uses.declaration then 1 else 0) lor (if readonly then 2 else 0) in
       (token_index k, bits))
     kind
 

@@ -57,9 +57,18 @@ binders [
 # A declared verb name is the identifier right after the return type and right
 # before `(`: anchors skip anonymous tokens, so without the `(` an operator's or
 # a lambda's first parameter would be taken for the name.
+#
+# An intrinsic (`@primitives$Unit`, `@program$console`) is the qualified name
+# whose text starts with `@`. Anchors skip the anonymous `@` too, so the
+# patterns for ordinary namespaces and calls capture the whole name as
+# `@_name` and refuse one that starts with `@` with #not-match?. The pattern
+# spells `@` as `[@]` because Neovim reads it as a very-magic Vim regex, where a
+# bare `@` is an operator. Neovim draws no capture that starts with `_`. An intrinsic's name is a builtin constant
+# unless it is called or is a type; the call patterns follow it, and the later
+# pattern wins, as `@function.call` wins over `@variable`.
 highlights [
-  "(name_expr (identifier) @module \"$\")"
-  "(name_type (identifier) @module \"$\")"
+  "((name_expr (identifier) @module \"$\") @_name (#not-match? @_name \"^[@]\"))"
+  "((name_type (identifier) @module \"$\") @_name (#not-match? @_name \"^[@]\"))"
   "(header_decl \"package\" (identifier) @module)"
   "(import_decl (identifier) @module)"
   "(func_callee \".\" (identifier) @variable.member)"
@@ -67,14 +76,20 @@ highlights [
   "(body_field . (identifier) @variable.member)"
   "(field_arg . (identifier) @variable.member)"
   "(constructor_field_arg . (identifier) @variable.member)"
-  "[(unbraced_verb_call (func_callee (primary (name_expr (identifier) @function.call .)))) (block_call (func_callee (primary (name_expr (identifier) @function.call .))))]"
-  "[(unbraced_verb_call (primary (name_expr (identifier) @function.method.call .))) (block_call (primary (name_expr (identifier) @function.method.call .)))]"
+  "[(unbraced_verb_call (func_callee (primary ((name_expr (identifier) @function.call .) @_name (#not-match? @_name \"^[@]\"))))) (block_call (func_callee (primary ((name_expr (identifier) @function.call .) @_name (#not-match? @_name \"^[@]\")))))]"
+  "[(unbraced_verb_call (primary ((name_expr (identifier) @function.method.call .) @_name (#not-match? @_name \"^[@]\")))) (block_call (primary ((name_expr (identifier) @function.method.call .) @_name (#not-match? @_name \"^[@]\"))))]"
   "[(unbraced_verb_call (func_callee \".\" (identifier) @function.method.call)) (block_call (func_callee \".\" (identifier) @function.method.call))]"
   "(block_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl (ret_type) . (identifier) @function . \"(\")"
   "(simple_decl_braced (ret_type) . (identifier) @function . \"(\")"
   "(param . (identifier) @variable.parameter)"
   "(constructor_field . (identifier) @variable.parameter)"
+  "(name_expr \"@\" (identifier) @module.builtin \"$\")"
+  "(name_type \"@\" (identifier) @module.builtin \"$\")"
+  "(name_type \"@\" \"$\" (type_identifier) @type.builtin)"
+  "(name_expr \"@\" \"$\" (identifier) @constant.builtin)"
+  "[(unbraced_verb_call (func_callee (primary (name_expr \"@\" \"$\" (identifier) @function.builtin .)))) (block_call (func_callee (primary (name_expr \"@\" \"$\" (identifier) @function.builtin .))))]"
+  "[(unbraced_verb_call (primary (name_expr \"@\" \"$\" (identifier) @function.builtin .))) (block_call (primary (name_expr \"@\" \"$\" (identifier) @function.builtin .)))]"
 ]
 # Neovim-only captures, appended to the shared query in
 # editors/neovim/queries/highlights.scm, which nvim-treesitter installs. A

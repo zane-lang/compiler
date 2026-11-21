@@ -24,7 +24,7 @@ The server offers:
 | Rename | An edit of each use's identifier |
 | Document symbols | The declarations of a file, with a type's fields and cases under it |
 | Completion | The fields, cases, enum maps and methods after `.` and `:`, the intrinsic namespaces after `@` and their names after `@namespace$`, and the names in scope elsewhere |
-| Semantic tokens | The kind of each identifier, which Tree-sitter cannot tell from syntax alone |
+| Semantic tokens | The kind of each identifier, which Tree-sitter cannot tell from syntax alone; intrinsics get none (D13) |
 
 The code lives in `lib/language_server/`; semantics records what the server
 reads in `lib/tst/model/uses.ml` and `lib/tst/index.ml`.
@@ -137,8 +137,12 @@ packages changes on disk, never on an edit to a Zane file.
 keywords, literals, comments and punctuation from syntax alone. What syntax
 cannot show is what an identifier names: a type, a function, a method, a
 field, a parameter, a local, an enum member or a package. The server's tokens
-mark only those, with `readonly` on a constant and `defaultLibrary` on an
-intrinsic.
+mark only those, with `readonly` on a constant. An intrinsic gets no token:
+its leading `@` shows in the syntax, so the Tree-sitter query colors its
+namespace as a builtin module and its name as a builtin type, function or
+constant. A server token would cover the query's color only while the
+server's analysis matches the text, and an edit inside an intrinsic drops
+that token until the source checks again, which made the color flicker.
 
 **D14. Rename edits identifiers the project declares.** A rename edits each
 use whose text is the old name, so an import that names the target under

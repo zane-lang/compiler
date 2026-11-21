@@ -144,7 +144,7 @@ class BackendTests(unittest.TestCase):
         tree = self.parser.parse(source)
         self.assertFalse(tree.root_node.has_error, source)
         captures = QueryCursor(self.query).captures(tree.root_node)
-        for role in ('module', 'function.call', 'function.method.call', 'variable.member'):
+        for role in ('module', 'function.call', 'function.method.call', 'variable.member', 'module.builtin', 'type.builtin', 'function.builtin', 'constant.builtin'):
             nodes = sorted(captures.get(role, []), key=lambda n: n.start_byte)
             self.assertEqual([source[n.start_byte:n.end_byte] for n in nodes], expected.get(role, []), (source, role))
 
@@ -154,17 +154,24 @@ class BackendTests(unittest.TestCase):
             module=[b'core', b'lib', b'lib', b'other', b'lib', b'lib', b'lib', b'lib'])
         self.assert_roles(
             b'type Wrapper = struct { value @primitives$I64; } alias Ref = &pkg$Thing;',
-            module=[b'primitives', b'pkg'], **{'variable.member': [b'value']})
+            module=[b'pkg'], **{'variable.member': [b'value'], 'module.builtin': [b'primitives'], 'type.builtin': [b'I64']})
+        # An intrinsic callee is also a builtin constant; the call pattern
+        # comes later in the query, so Neovim draws the function.
         self.assert_roles(
             b'Int add(a Int, b Int) => @operators$add(a, b);',
-            module=[b'operators'], **{'function.call': [b'add']})
+            **{'module.builtin': [b'operators'], 'function.builtin': [b'add'], 'constant.builtin': [b'add']})
+
+    def test_intrinsic_values_and_types_are_builtins(self):
+        self.assert_roles(
+            b'Unit main() { console Console(@program$console); return @primitives$Unit(); }',
+            **{'module.builtin': [b'program', b'primitives'], 'constant.builtin': [b'console'], 'type.builtin': [b'Unit']})
 
     def test_function_and_method_calls_with_and_without_trailing_blocks(self):
         for tail in (b';', b' {}'):
             source = b'Unit main() { f()' + tail + b' pkg$run()' + tail + b' @controlflow$repeat()' + tail + b' }'
-            self.assert_roles(source, module=[b'pkg', b'controlflow'], **{'function.call': [b'f', b'run', b'repeat']})
+            self.assert_roles(source, module=[b'pkg'], **{'function.call': [b'f', b'run'], 'module.builtin': [b'controlflow'], 'function.builtin': [b'repeat'], 'constant.builtin': [b'repeat']})
             source = b'Unit main() { obj:pkg$method()' + tail + b' obj!@verbs$mutate()' + tail + b' obj.field()' + tail + b' }'
-            self.assert_roles(source, module=[b'pkg', b'verbs'], **{'function.method.call': [b'method', b'mutate', b'field'], 'variable.member': [b'field']})
+            self.assert_roles(source, module=[b'pkg'], **{'function.method.call': [b'method', b'field'], 'variable.member': [b'field'], 'module.builtin': [b'verbs'], 'function.builtin': [b'mutate'], 'constant.builtin': [b'mutate']})
 
     def test_namespace_markers_are_delimiters(self):
         source = b'alias Int = @primitives$I64;'

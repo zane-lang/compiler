@@ -386,6 +386,27 @@ class SymbolsAndTokensTest(ServerTest):
         self.assertEqual(found["origin"], "variable")
         self.assertEqual(found["warm"], "property")
 
+    def test_intrinsics_get_no_semantic_token(self):
+        # The Tree-sitter query colors an intrinsic such as `@primitives$Unit`,
+        # so no token may start inside one.
+        data = self.client.request("textDocument/semanticTokens/full", {"textDocument": {"uri": uri(self.main)}})["data"]
+        starts, line, character = set(), 0, 0
+        for i in range(0, len(data), 5):
+            dl, dc = data[i : i + 2]
+            line += dl
+            character = character + dc if dl == 0 else dc
+            starts.add((line, character))
+        checked = 0
+        for number, written in enumerate(self.text.split("\n")):
+            for m in re.finditer(r"@[a-z]+\$[A-Za-z_][A-Za-z0-9_]*", written):
+                # The suite negotiates UTF-16, so positions count UTF-16 code units.
+                start = len(written[: m.start()].encode("utf-16-le")) // 2
+                end = len(written[: m.end()].encode("utf-16-le")) // 2
+                inside = {(number, c) for c in range(start, end)}
+                self.assertFalse(inside & starts, f"main.zn:{number + 1}: `{m.group()}` has a token")
+                checked += 1
+        self.assertGreater(checked, 0)
+
 
     def test_every_identifier_of_the_fixture_is_recorded(self):
         # Semantic tokens come from the uses semantics recorded, so an
