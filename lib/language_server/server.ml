@@ -316,6 +316,9 @@ let prepare_rename st id params =
    in the current text because the file does not parse, or one call names
    [key] in one instance of a generic body and another target in another. *)
 let rename_edits st p key ~old_name ~new_name =
+  (* Every build is brought up to date first, so a build whose check fails
+     now is refused like one whose check failed before. *)
+  List.iter (fun b -> ignore (P.ensure st.project b)) p.P.builds;
   let failed = List.filter (fun (b : P.build) -> b.P.failed) p.P.builds in
   if failed <> [] then
     Error (Printf.sprintf "the last check of %s failed; rename after it checks again" (List.hd failed).P.label)

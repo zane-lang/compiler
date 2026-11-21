@@ -1,6 +1,6 @@
 package app;
 
-import geo$[Point, dist, Color, scaled];
+import geo$[Point, dist, Color, scaled, itself];
 import geo$Pair as Twin;
 
 alias Unit = @primitives$Unit;

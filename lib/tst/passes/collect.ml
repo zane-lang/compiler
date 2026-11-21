@@ -67,7 +67,7 @@ let file_under_names env (pkg : package) (decl : decl) =
       | None -> Hashtbl.replace pkg.values (name_of name) (existing @ [ decl ]))
   | Verb { N.Verb_decl.node = N.Verb_decl.Meth { name; this_introduces; _ }; _ } ->
       Hashtbl.replace pkg.method_names (name_of name) ();
-      if this_introduces then Hashtbl.replace pkg.any_methods (name_of name) ()
+      if this_introduces then Hashtbl.add pkg.any_methods (name_of name) decl
   | Verb _ | Enum_map _ -> ()
 
 let new_file ~package path =
@@ -169,7 +169,8 @@ let import_file env (file : file) (decls : N.Decl.t list) =
         if spelling.N.Import_member.span = member.N.Import_member.span then [ member.N.Import_member.span ]
         else [ member.N.Import_member.span; spelling.N.Import_member.span ]
       in
-      List.iter (fun (d : decl) -> List.iter (fun at -> Uses.add env.uses at (Uses.Decl d.id)) spans) found;
+      let methods = Hashtbl.find_all (package env pkg).any_methods member.N.Import_member.name in
+      List.iter (fun (d : decl) -> List.iter (fun at -> Uses.add env.uses at (Uses.Decl d.id)) spans) (found @ methods);
       Hashtbl.add file.bare spelling.N.Import_member.name
         { from = pkg; member = member.N.Import_member.name; at }
     end
@@ -211,7 +212,7 @@ let import_file env (file : file) (decls : N.Decl.t list) =
           (* A method is found through its subject's type, except a method
              whose subject is a type parameter, which is found by its name
              (functions.md §6.1). *)
-          @ Hashtbl.fold (fun n () acc -> n :: acc) target.any_methods []
+          @ Hashtbl.fold (fun n _ acc -> n :: acc) target.any_methods []
           |> List.filter (fun n -> not (is_private n))
           |> List.sort_uniq String.compare
         in

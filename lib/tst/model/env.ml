@@ -95,8 +95,9 @@ type package = {
   method_names : (string, unit) Hashtbl.t;
   (* The methods whose subject is a type parameter (generics.md §3.7). No
      subject type leads to such a method, so it is found by its name, as a
-     function is, and an import may bring it (packages.md §3.6). *)
-  any_methods : (string, unit) Hashtbl.t;
+     function is, and an import may bring it (packages.md §3.6). Each
+     declaration of the name is bound to it. *)
+  any_methods : (string, decl) Hashtbl.t;
 }
 
 let decl_name d =

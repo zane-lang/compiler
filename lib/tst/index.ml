@@ -208,19 +208,22 @@ let build env (uses : Uses.t) : t =
       Verbs.fold_methods (fun name (s : S.t) acc -> if reachable s && subject_fits s then add name s acc else acc) env.verbs []
     in
     (* A method of any subject that the file imports, under the file's
-       spelling of it. *)
+       spelling of it, as Check.any_subject finds it: among the methods of
+       the importing package, which another package sees only when public. *)
     let imported =
       match List.find_opt (fun (f : file) -> String.equal f.path path) (files ()) with
       | None -> []
       | Some file ->
+          let any_subject (b : bare) (s : S.t) =
+            s.S.home = S.Package b.from
+            && (b.from = package || not (is_private s.S.name))
+            && match s.S.params with { S.ty = Ty.Param _; _ } :: _ -> true | [] | _ :: _ -> false
+          in
           Hashtbl.fold
             (fun spelling (b : bare) acc ->
               List.fold_left
-                (fun acc (d : decl) ->
-                  match Verbs.signature env.verbs d.id with
-                  | Some ({ S.kind = S.Method; params = { S.ty = Ty.Param _; _ } :: _; _ } as s) -> add spelling s acc
-                  | _ -> acc)
-                acc (package_values env b.from b.member))
+                (fun acc s -> if any_subject b s then add spelling s acc else acc)
+                acc (Verbs.methods env.verbs b.member))
             file.bare []
     in
     own @ List.rev maps @ List.sort_uniq compare (methods @ imported)

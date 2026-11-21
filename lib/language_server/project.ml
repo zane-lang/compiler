@@ -303,7 +303,7 @@ let analyze ?override ?placeholder t (b : build) =
 
 let ensure t (b : build) =
   match (b.analysis, b.stale) with
-  | Some a, false -> Some a
+  | a, false -> a
   | _ ->
       let a =
         try Some (analyze t b) with

@@ -422,6 +422,15 @@ class CompletionTest(ServerTest):
         found = self.complete(self.main, self.text.replace("Color.red", "Color.|"))
         self.assertEqual(found, {"red", "green", "blue"})
 
+    def test_an_imported_method_of_any_subject(self):
+        found = self.complete(self.main, self.text.replace("far:norm()", "far:i|"))
+        self.assertIn("itself", found)
+        # extra.zn imports the package, but not the method.
+        extra = self.root / "bin" / "app" / "extra.zn"
+        text = self.client.open(extra)
+        found = self.complete(extra, text.replace("g$pick(a, b)", "a:i|"))
+        self.assertNotIn("itself", found)
+
     def test_an_enum_value_offers_its_maps(self):
         found = self.complete(self.main, self.text.replace("c.warm", "c.|"))
         self.assertEqual(found, {"warm"})

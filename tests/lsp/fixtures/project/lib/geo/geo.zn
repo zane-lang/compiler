@@ -58,3 +58,6 @@ T pick(first T Type, second T Type) => first;
 type Row<size @concepts$Int> = struct {
 	cells @primitives$Array<Float, size>;
 }
+
+/// The subject, unchanged.
+T itself(this T Type) => this;
