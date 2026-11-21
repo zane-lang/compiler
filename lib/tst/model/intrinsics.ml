@@ -693,7 +693,7 @@ let signature_text (s : S.t) =
   match (s.S.kind, ps) with
   | S.Constructor _, _ -> s.S.name ^ "(" ^ list ps ^ ")"
   | S.Subscript, this_ :: rest -> "(" ^ param this_ ^ ")[" ^ list rest ^ "] => " ^ Ty.to_string s.S.ret
-  | _ -> Ty.ret_to_string s.S.ret s.S.abort ^ " " ^ s.S.name ^ "(" ^ list ps ^ ")" ^ if s.S.is_mut then " mut" else ""
+  | _ -> Ty.ret_to_string s.S.ret s.S.abort ^ " " ^ s.S.name ^ "(" ^ list ps ^ ")" ^ (if s.S.is_mut then " mut" else "")
 
 (* Every verb whose calls resolve to [spelling], as a use's target names
    it. *)
