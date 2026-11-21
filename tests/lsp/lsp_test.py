@@ -278,6 +278,11 @@ class ReferencesTest(ServerTest):
         # The return type, and the marker of each parameter.
         self.assertEqual(len(self.refs(self.geo, geo, "T Type) => first")), 3)
 
+    def test_a_number_parameter_in_a_type_argument(self):
+        geo = self.geo.read_text()
+        # The parameter's declaration, and its use as the array's length.
+        self.assertEqual(len(self.refs(self.geo, geo, "size>;")), 2)
+
 
 class RenameTest(ServerTest):
     def rename(self, path, text, needle, new_name):

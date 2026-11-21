@@ -570,7 +570,11 @@ and generic_arg ?(element = false) env scope (a : N.Generic_arg.t) : Ty.arg =
   | N.Generic_arg.Number text -> Ty.Number (parse_number env span text)
   | N.Generic_arg.NumberRef n -> (
       match List.assoc_opt n.N.Name.text scope.params with
-      | Some (Ty.Number num) -> Ty.Number num
+      | Some (Ty.Number num) ->
+          (match (List.assoc_opt n.N.Name.text scope.generics, num) with
+          | Some p, _ | None, Ty.Number_param p -> Uses.param env.uses n.N.Name.span p
+          | None, _ -> ());
+          Ty.Number num
       | Some (Ty.Type _) ->
           error env span (Printf.sprintf "%s is a type parameter, not a number" (quote n.N.Name.text));
           Ty.Number (Ty.Known 0)

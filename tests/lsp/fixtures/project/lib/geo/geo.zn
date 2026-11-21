@@ -53,3 +53,8 @@ Pair{ both Float; } => init{ left = both; right = both; _spare = both; }
 
 /// The first of two values of one type.
 T pick(first T Type, second T Type) => first;
+
+/// A row of `size` numbers.
+type Row<size @concepts$Int> = struct {
+	cells @primitives$Array<Float, size>;
+}
