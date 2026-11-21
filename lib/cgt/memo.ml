@@ -67,7 +67,7 @@ let fits (f : Func.t) =
    miss that computes a result has made every constant the result depends
    on. *)
 let computes : Runtime.fn -> bool = function
-  | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Sleep | Runtime.Arguments
+  | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Tick_start | Runtime.Tick | Runtime.Arguments
   | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
   | Runtime.Main_aborted | Runtime.Workers_new | Runtime.Workers_start | Runtime.Workers_publish
   | Runtime.Workers_state | Runtime.Workers_elements ->

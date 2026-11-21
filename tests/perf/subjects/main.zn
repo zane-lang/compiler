@@ -25,7 +25,7 @@ Unit to(this Int, end Int, body @concepts$Block) mut {
 }
 
 Unit work(this S Type, step Bool[this S] mut) mut {
-	@controlflow$work(this, step);
+	this!@controlflow$work(step);
 	return Unit();
 }
 

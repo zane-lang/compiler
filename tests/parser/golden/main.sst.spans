@@ -1,4 +1,4 @@
-package | package main; /// Every im … s, step); return Unit(); }
+package | package main; /// Every im … rk(step); return Unit(); }
   decl Package | package main
     name main | main
   decl Import | import core$
@@ -3559,8 +3559,8 @@ package | package main; /// Every im … s, step); return Unit(); }
                 name_type | Unit
                   ident Unit | Unit
               constructor_args Positional | ()
-  decl Verb | Unit drive(this S Type, st … s, step); return Unit(); }
-    verb_decl Meth mut | Unit drive(this S Type, st … s, step); return Unit(); }
+  decl Verb | Unit drive(this S Type, st … rk(step); return Unit(); }
+    verb_decl Meth mut | Unit drive(this S Type, st … rk(step); return Unit(); }
       name drive | drive
       type_expr Path | S
         name_type | S
@@ -3582,9 +3582,9 @@ package | package main; /// Every im … s, step); return Unit(); }
         type_expr Path | Unit
           name_type | Unit
             ident Unit | Unit
-      block | { @controlflow$work(this, step); return Unit(); }
-        stat VerbCall | @controlflow$work(this, step);
-          verb_call Call function | @controlflow$work(this, step)
+      block | { this!@controlflow$work(step); return Unit(); }
+        stat VerbCall | this!@controlflow$work(step);
+          verb_call Call method! | this!@controlflow$work(step)
             expr NameExpr | @controlflow$work
               name_expr | @controlflow$work
                 package controlflow | controlflow

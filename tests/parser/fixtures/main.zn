@@ -587,6 +587,6 @@ Unit main() {
 /// A subject that introduces a type parameter: a method for a subject of any
 /// type (generics.md §3.7).
 Unit drive(this S Type, step Bool[this S] mut) mut {
-	@controlflow$work(this, step);
+	this!@controlflow$work(step);
 	return Unit();
 }

@@ -151,6 +151,13 @@ worker started with no source wakes when the funnel changes the state; and
 with one thread an ending pool runs its own work. Drains are checked
 throughout.
 
+`waits.c` checks that a waiting call holds back only its caller
+(concurrency.md §3.4). A `register`'s timer (`zane_tick`) waits until its
+deadline and merges missed ticks. With a pool of one thread, a call spawned
+while a spawned `register` waits still runs, on the stand-in thread that
+the pool starts for the waiting thread. It runs in a process of its own, so the pool has one
+thread from its start.
+
 `work.c` covers the copies, moves, overwrites and ends whose walks hand
 on more jobs than a work keeps in itself (`ZANE_LOCAL_JOBS` in
 `zane_internal.h`), so the work moves to a heap buffer: a list of twenty

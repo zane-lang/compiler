@@ -207,10 +207,14 @@ static void zane_join_task(zane_task *t) {
 	int waits = mine || zane_state(t) != ZANE_DONE;
 	if (waits) zane_wait_for(NULL, t);
 	if (mine) zane_run(t);
+	/* A pool thread that waits for a call running elsewhere has a
+	   stand-in meanwhile (§3.4). */
+	int began = !mine && zane_state(t) != ZANE_DONE ? zane_block_begin() : 0;
 	pthread_mutex_lock(&zane_pool);
 	while (zane_state(t) != ZANE_DONE) pthread_cond_wait(&zane_finished, &zane_pool);
 	zane_set_state(t, ZANE_JOINED);
 	pthread_mutex_unlock(&zane_pool);
+	zane_block_end(began);
 	if (waits) zane_waited();
 	/* The call's context is this thread's until it is back in the pool. The
 	   result comes home first: what it owns may be in the call's subject

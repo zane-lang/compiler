@@ -1250,18 +1250,30 @@ File "fixtures/typing/reject/bad/workers.zn", line 15, characters 5-15:
 15 |     s!settle();
    |     ^^^^^^^^^^
 Error: no method named `settle` is declared in `bad`, the home of `bad$Steps`, or in this package; `lib` declares one for a subject of any type, which a call reaches through the qualifier this file gives `lib`, or bare once an import spells it bare
-File "fixtures/typing/reject/bad/workers.zn", line 18, characters 5-56:
-18 |     @controlflow$work(s, Int(this Steps) mut => this.n);
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "fixtures/typing/reject/bad/workers.zn", line 18, characters 5-55:
+18 |     s!@controlflow$work(Int(this Steps) mut => this.n);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a worker's step returns `@primitives$I64`, and it must convert to `@primitives$Bool`, as a condition does, with no implicit constructor between them (control-flow.md §4.1)
-File "fixtures/typing/reject/bad/workers.zn", line 20, characters 23-28:
-20 |     @controlflow$work(fixed, Bool(this Steps) mut => false);
-   |                       ^^^^^
+File "fixtures/typing/reject/bad/workers.zn", line 20, characters 5-10:
+20 |     fixed!@controlflow$work(Bool(this Steps) mut => false);
+   |     ^^^^^
 Error: a `!` call writes its subject, and `fixed` is a parameter, which is read-only
-File "fixtures/typing/reject/bad/workers.zn", line 22, characters 5-75:
-22 |     @controlflow$work(s, Bool(this Steps) mut => false, Bool(b Bool) => b);
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: no `@controlflow$work` accepts (bad$Steps, @primitives$Bool[this bad$Steps] mut, @primitives$Bool[@primitives$Bool]); the candidate is `@primitives$Unit @controlflow$work(S, R[this S] mut) mut`
+File "fixtures/typing/reject/bad/workers.zn", line 22, characters 5-74:
+22 |     s!@controlflow$work(Bool(this Steps) mut => false, Bool(b Bool) => b);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@controlflow$work` accepts (bad$Steps, @primitives$Bool[this bad$Steps] mut, @primitives$Bool[@primitives$Bool]); the candidate is `@primitives$Unit @controlflow$work(this S, R[this S] mut) mut`
+File "fixtures/typing/reject/bad/workers.zn", line 24, characters 5-55:
+24 |     s:@controlflow$work(Bool(this Steps) mut => false);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `@controlflow$work` is a `mut` method, so it is called with `!`
+File "fixtures/typing/reject/bad/workers.zn", line 26, characters 5-22:
+26 |     @controlflow$work(s, Bool(this Steps) mut => false);
+   |     ^^^^^^^^^^^^^^^^^
+Error: `@controlflow$work` is a `mut` method of its subject, called as `subject!@controlflow$work(...)` (control-flow.md §4.1)
+File "fixtures/typing/reject/bad/workers.zn", line 28, characters 5-70:
+28 |     s!@controlflow$register(Int(1000), Bool(this Steps) mut => false);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: no `@controlflow$register` accepts (bad$Steps, @primitives$I64, @primitives$Bool[this bad$Steps] mut); the candidate is `@primitives$Unit @controlflow$register(this S, @primitives$EventSource, R[this S] mut) mut`
 File "fixtures/typing/reject/bad/writes.zn", line 15, characters 5-12:
 15 |     counter!tick();
    |     ^^^^^^^

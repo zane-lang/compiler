@@ -201,10 +201,8 @@ void zane_main(void) {
 	zane_set_threads_auto();
 	check(zane_wanted == zane_processors());
 
-	/* A worker's wait between steps (control-flow.md §4.1): at least what
-	   it is asked for. One below a nanosecond returns; that it does not
-	   wait is the `workers` codegen fixture's, whose negative interval
-	   would otherwise hold its run, not a clock's here. */
+	/* The sleep a `register`'s wait is made of (zane_tick): at least what
+	   it is asked for, and below a nanosecond it returns. */
 	zane_sleep(0);
 	zane_sleep(-5);
 	int64_t before = test_now();

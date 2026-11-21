@@ -1,4 +1,4 @@
-package | package main; /// Every im … s, step); return Unit(); }
+package | package main; /// Every im … rk(step); return Unit(); }
   decl | package main
     name main | main
   decl | import core$
@@ -3431,8 +3431,8 @@ package | package main; /// Every im … s, step); return Unit(); }
                   name_type | Unit
                     ident Unit | Unit
                 constructor_args | ()
-  decl | Unit drive(this S Type, st … s, step); return Unit(); }
-    verb_decl | Unit drive(this S Type, st … s, step); return Unit(); }
+  decl | Unit drive(this S Type, st … rk(step); return Unit(); }
+    verb_decl | Unit drive(this S Type, st … rk(step); return Unit(); }
       name drive | drive
       type_expr | S
         name_type | S
@@ -3454,18 +3454,17 @@ package | package main; /// Every im … s, step); return Unit(); }
         type_expr | Unit
           name_type | Unit
             ident Unit | Unit
-      body | { @controlflow$work(this, step); return Unit(); }
-        statement | @controlflow$work(this, step);
-          stat | @controlflow$work(this, step);
-            verb_call | @controlflow$work(this, step)
+      body | { this!@controlflow$work(step); return Unit(); }
+        statement | this!@controlflow$work(step);
+          stat | this!@controlflow$work(step);
+            verb_call | this!@controlflow$work(step)
               expr | @controlflow$work
                 name_expr | @controlflow$work
                   package controlflow | controlflow
                   ident work | work
-              call_arg | this
-                expr | this
-                  name_expr | this
-                    ident this | this
+              expr | this
+                name_expr | this
+                  ident this | this
               call_arg | step
                 expr | step
                   name_expr | step

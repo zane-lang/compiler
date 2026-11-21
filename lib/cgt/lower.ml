@@ -787,18 +787,29 @@ and stat st ctx (s : T.Stat.t) : Stat.t list =
           let pins, subject = worker_subject st ctx span subject in
           let held, step = worker_held st ctx span step in
           pins @ held @ [ Stat.While { cond = worker_step st ctx span subject step test; body = [] } ]
-      | "@controlflow$workEvery", [ T.Arg.Value subject; T.Arg.Value interval; T.Arg.Value step; T.Arg.Value test ] ->
-          (* The subject, the interval and the step, each once, before
-             the first step, in written order. *)
+      | "@controlflow$register", [ T.Arg.Value subject; T.Arg.Value source; T.Arg.Value step; T.Arg.Value test ] ->
+          (* The subject, the event source and the step, each once, before
+             the first step, in written order. An event source is a timer's
+             interval (Type_layout); the first deadline is taken just
+             before the first step, and each pass after a step that
+             returns true waits for the next (zane_tick). *)
           let pins, subject = worker_subject st ctx span subject in
-          let id = fresh st in
-          let interval = expr st ctx interval in
+          let every = fresh st in
+          let source = expr st ctx source in
           let held, step = worker_held st ctx span step in
-          let wait = { Expr.node = Expr.Runtime { fn = Runtime.Sleep; args = [ { Expr.node = Expr.Local id; ty = interval.Expr.ty } ] }; ty = Nodes.Ty.Void } in
+          let deadline = fresh st in
+          let i64 = Nodes.Ty.I64 in
+          let local id = { Expr.node = Expr.Local id; ty = i64 } in
+          let runtime fn args = { Expr.node = Expr.Runtime { fn; args }; ty = i64 } in
           pins
-          @ (Stat.Let { id; value = interval } :: held)
+          @ (Stat.Let { id = every; value = source } :: held)
           @ [
-              Stat.While { cond = worker_step st ctx span subject step test; body = [ Stat.Eval wait ] };
+              Stat.Let { id = deadline; value = runtime Runtime.Tick_start [ local every ] };
+              Stat.While
+                {
+                  cond = worker_step st ctx span subject step test;
+                  body = [ Stat.assign deadline (runtime Runtime.Tick [ local every; local deadline ]) ];
+                };
             ]
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" spelling))
   (* A fresh value that nothing keeps is held here, so the drain ends it. A

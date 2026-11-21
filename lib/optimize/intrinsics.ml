@@ -14,9 +14,10 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
-  (* What follows a wait runs when the running program reaches the wait,
-     a timing no replay could keep, so a fold stops there. *)
-  | Sleep -> Input
+  (* A timer's deadline reads the clock, and what follows a wait runs when
+     the running program reaches the wait, a timing no replay could keep,
+     so a fold stops at either. *)
+  | Tick_start | Tick -> Input
   (* A String from a byte list, which the evaluator does not model. *)
   | Text_bytes -> Input
   (* List range copies, sorts, comparisons, hashes and byte searches, which

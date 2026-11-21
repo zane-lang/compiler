@@ -34,7 +34,7 @@ let runs_often_by declared (r : T.Verb_ref.t) i =
      never a block (control-flow.md §4.1); if it were a block, it would run
      more than once. *)
   | S.Intrinsic "@controlflow$work" -> i = 1
-  | S.Intrinsic "@controlflow$workEvery" -> i = 2
+  | S.Intrinsic "@controlflow$register" -> i = 2
   (* So is a worker pool's (concurrency.md §6.2): it follows the pool and
      the element, and the sources when there are any. *)
   | S.Intrinsic ("@primitives$start" | "@primitives$startAlone") -> i = 2

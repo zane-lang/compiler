@@ -379,6 +379,11 @@ void zane_context_release(zane_context *c);
 /* workers.c: the pools' jobs, which the thread pool runs after spawned
    calls; and spawn.c's wake of a thread for them. */
 extern int64_t zane_jobs, zane_sleepers;
+/* spawn.c: a stand-in thread for a pool thread while it waits (§3.4). */
+int zane_block_begin(void);
+void zane_block_end(int began);
+/* spawn.c: the calling thread suspended, which zane_tick waits with. */
+void zane_sleep(int64_t nanoseconds);
 struct zane_workers;
 int zane_workers_run_one(struct zane_workers *only);
 int64_t zane_workers_next_deadline(void);

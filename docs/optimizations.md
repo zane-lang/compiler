@@ -57,7 +57,7 @@ body, with the block or literal spliced in. `branch` becomes an `if`,
 the literal directly. No closure or call is left for a block.
 
 A worker is no expansion, since it takes a function value: `work` and
-`workEvery` become a `while` loop whose condition calls the step. A step
+`register` become a `while` loop whose condition calls the step. A step
 written where the worker runs is a lifted lambda whose address LLVM sees,
 so an optimized build inlines it and makes one loop with no call through
 the function value (`tests/objects`, the `workers` perf program).

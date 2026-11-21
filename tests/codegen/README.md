@@ -358,8 +358,8 @@ makes of them.
   subject of any type: a step run until it returns false, with a limit
   read from the arguments so that no build folds it, one that returns false
   at once and runs once, one that returns `@primitives$Bool` itself, one
-  whose subject owns a block, `workEvery` waiting a millisecond between
-  steps and not at all for an interval below one, a subject's own `work`
+  whose subject owns a block, `register` waiting a millisecond for its timer
+  between steps and not at all for an interval below one, a subject's own `work`
   preferred to the one for every type, and a spawned worker, which its
   scope waits for before the subject is read, spawned through a method and
   as the intrinsic itself. A worker used as a value is its `Unit`.

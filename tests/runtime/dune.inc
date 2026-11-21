@@ -199,6 +199,24 @@
   (diff golden/texts.out texts.out.actual)))
 
 (rule
+ (deps waits.c walks.h scopes.h system.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/workers.c ../../runtime/snapshot.c ../../runtime/tier.c)
+ (targets waits.exe)
+ (action
+  (run %{exe:../gen/host_cc.exe} -std=c11 -Wall -Wextra -Werror -O2 -pthread -I ../../runtime -o waits.exe waits.c
+   ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/workers.c ../../runtime/snapshot.c ../../runtime/tier.c)))
+
+(rule
+ (action
+  (with-stdout-to
+   waits.out.actual
+   (run ./waits.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/waits.out waits.out.actual)))
+
+(rule
  (deps work.c walks.h scopes.h system.h ../../runtime/zane.h ../../runtime/zane_abi.h ../../runtime/zane_internal.h ../../runtime/main.c ../../runtime/arena.c ../../runtime/region.c ../../runtime/block.c ../../runtime/value.c ../../runtime/list.c ../../runtime/slot.c ../../runtime/handle.c ../../runtime/spawn.c ../../runtime/workers.c ../../runtime/snapshot.c ../../runtime/tier.c)
  (targets work.exe)
  (action

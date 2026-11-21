@@ -306,6 +306,6 @@ Unit drives() {
 		this.n = @operators$add(this.n, Int(1));
 		return @operators$lessThan(this.n, Int(3));
 	});
-	@controlflow$workEvery(s, Int(1000), Bool(this Steps) mut => false);
+	s!@controlflow$register(@primitives$EventSource.every(Int(1000)), Bool(this Steps) mut => false);
 	return Unit();
 }

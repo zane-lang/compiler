@@ -158,6 +158,39 @@ static int64_t zane_now(void) {
 #endif
 }
 
+/* The deadline `ticks` intervals after `from`. A deadline past the largest
+   time an int64_t holds becomes that largest time, which no clock reaches,
+   so a timer with an interval that large is never ready. */
+static int64_t zane_later(int64_t from, int64_t ticks, int64_t interval) {
+	int64_t span, at;
+	if (__builtin_mul_overflow(ticks, interval, &span) || __builtin_add_overflow(from, span, &at)) return INT64_MAX;
+	return at;
+}
+
+/* `@controlflow$register` on a timer (control-flow.md §4.1): its first
+   deadline, an interval after the call begins, and 0 for an interval below
+   1, which is always ready. */
+int64_t zane_tick_start(int64_t interval) { return interval < 1 ? 0 : zane_later(zane_now(), 1, interval); }
+
+/* The wait between two steps of a `register` on a timer: until `deadline`,
+   with a stand-in thread when this is a pool thread (zane_block_begin), so
+   the wait holds back only the `register`'s caller (concurrency.md §3.4). The
+   next deadline is the first after the wait, so missed ticks merge as a
+   pool's do (zane_consume). An interval below 1 waits not at all. */
+int64_t zane_tick(int64_t interval, int64_t deadline) {
+	if (interval < 1) return deadline;
+	int64_t now = zane_now();
+	if (deadline > now) {
+		int began = zane_block_begin();
+		while (deadline > now) {
+			zane_sleep(deadline - now);
+			now = zane_now();
+		}
+		zane_block_end(began);
+	}
+	return zane_later(deadline, (now - deadline) / interval + 1, interval);
+}
+
 /* The wall-clock time `nanoseconds` from now, for a timed wait on a
    condition, which waits on the wall clock. */
 void zane_wait_until(pthread_cond_t *cond, pthread_mutex_t *lock, int64_t deadline) {
@@ -380,8 +413,7 @@ static void zane_consume(zane_member *m, int64_t now) {
 			continue;
 		}
 		/* Missed ticks merge: the next deadline is the first after now. */
-		int64_t behind = (now - d) / every + 1;
-		m->deadlines[i] = d + behind * every;
+		m->deadlines[i] = zane_later(d, (now - d) / every + 1, every);
 	}
 }
 
@@ -609,7 +641,7 @@ void zane_workers_start(char *handle, char *element, int64_t size, const zane_ty
 			const int64_t *every = (const int64_t *)ZL_ITEMS(sources);
 			for (int64_t i = 0; i < n; i++) {
 				m->intervals[i] = every[i];
-				m->deadlines[i] = every[i] < 1 ? now : now + every[i];
+				m->deadlines[i] = every[i] < 1 ? now : zane_later(now, 1, every[i]);
 			}
 			m->timers = n;
 		}
