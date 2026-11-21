@@ -7,13 +7,19 @@ options, as an editor without `zane` gives them, so the tests need no `zane`.
 """
 
 import pathlib
+import re
 import shutil
 import tempfile
 import unittest
 
-from tests.lsp.client import ZANEC, Client, ResponseError, position_of, uri
+from tests.lsp.client import ROOT, ZANEC, Client, ResponseError, position_of, uri
 
 FIXTURE = pathlib.Path(__file__).resolve().parent / "fixtures" / "project"
+
+# The reserved words, as the generated lexer lists them.
+KEYWORDS = set(
+    re.findall(r'"([^"]+)"', re.search(r"let words = \[(.*?)\]", (ROOT / "lib" / "cst" / "lexer.ml").read_text()).group(1))
+)
 
 
 def builds(root):
@@ -235,6 +241,28 @@ class SymbolsAndTokensTest(ServerTest):
         self.assertEqual(found["norm"], "method")
         self.assertEqual(found["origin"], "variable")
         self.assertEqual(found["warm"], "property")
+
+
+    def test_every_identifier_of_the_fixture_is_recorded(self):
+        # Semantic tokens come from the uses semantics recorded, so an
+        # identifier with no token is a name the recorder missed.
+        for path in sorted(self.root.rglob("*.zn")):
+            text = self.client.open(path)
+            data = self.client.request("textDocument/semanticTokens/full", {"textDocument": {"uri": uri(path)}})["data"]
+            covered, line, character = set(), 0, 0
+            for i in range(0, len(data), 5):
+                dl, dc = data[i : i + 2]
+                line += dl
+                character = character + dc if dl == 0 else dc
+                covered.add((line, character))
+            for number, written in enumerate(text.split("\n")):
+                code = re.sub(r'"[^"]*"', lambda m: " " * len(m.group()), written.split("//")[0])
+                for m in re.finditer(r"[@$]?[A-Za-z_][A-Za-z0-9_]*", code):
+                    word = m.group()
+                    if word[0] in "@$" or word in KEYWORDS:
+                        continue
+                    character = len(written[: m.start()].encode("utf-16-le")) // 2
+                    self.assertIn((number, character), covered, f"{path.name}:{number + 1}: `{word}` has no token")
 
 
 class CompletionTest(ServerTest):
