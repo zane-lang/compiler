@@ -20,10 +20,14 @@ let declaration env (tables : names) pkg file (d : N.Decl.t) =
     let decl = { id = !(env.counters.next_decl); package = pkg.name; file; span = d.N.Decl.span; kind } in
     Hashtbl.replace tables.decls decl.id decl;
     pkg.decls <- decl :: pkg.decls;
+    Option.iter (fun span -> Uses.add env.uses ~declaration:true span (Uses.Decl decl.id)) (name_span decl);
     Some decl
   in
   match d.N.Decl.node with
-  | N.Decl.Package _ | N.Decl.Import _ -> None
+  | N.Decl.Package name ->
+      Uses.add env.uses ~declaration:true name.N.Name.span (Uses.Package pkg.name);
+      None
+  | N.Decl.Import _ -> None
   | N.Decl.Var { name; type_; value } -> make (Constant { name; type_; value })
   | N.Decl.Type { name; params; value } ->
       make (Type_decl { name; params; value; alias = false })
@@ -117,7 +121,9 @@ let import_file env (file : file) (decls : N.Decl.t list) =
    names no package. *)
   let imported (name : N.Name.t) =
     match resolve_key env file (name_of name) with
-    | Found id -> Some id
+    | Found id ->
+        Uses.add env.uses name.N.Name.span (Uses.Package id);
+        Some id
     | Own ->
         error env name.N.Name.span
           (Printf.sprintf
@@ -156,9 +162,11 @@ let import_file env (file : file) (decls : N.Decl.t list) =
             be spelled %s"
            (quote member.N.Import_member.name)
            (quote spelling.N.Import_member.name))
-    else if record pkg (One_member member.N.Import_member.name) at then
+    else if record pkg (One_member member.N.Import_member.name) at then begin
+      List.iter (fun (d : decl) -> Uses.add env.uses member.N.Import_member.span (Uses.Decl d.id)) found;
       Hashtbl.add file.bare spelling.N.Import_member.name
         { from = pkg; member = member.N.Import_member.name; at }
+    end
   in
   (* `import p` or `import p as q`: the package under one qualifier. *)
   let bring_package (p : N.Name.t) alias span =

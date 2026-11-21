@@ -1,0 +1,40 @@
+package geo;
+
+alias Float = @primitives$F64;
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+
+/// A point in the plane.
+type Point = struct {
+	x Float;
+	y Float;
+}
+
+Point(x Float, y Float) => init{ x; y; }
+
+type Color = enum [ red, green, blue ];
+
+Color.warm Bool {
+	red = true;
+	green = false;
+	blue = false;
+}
+
+/// The squared distance between two points.
+Float dist(a Point, b Point) {
+	dx Float = @operators$add(a.x, @operators$negate(b.x));
+	dy Float = @operators$add(a.y, @operators$negate(b.y));
+	return @operators$add(@operators$multiply(dx, dx), @operators$multiply(dy, dy));
+}
+
+Float norm(this Point) => dist(this, Point(Float(0.0), Float(0.0)));
+
+/// Nothing calls this yet.
+T same(value T Type) {
+	copy T = value;
+	return copy;
+}
+
+/// Two overloads: one per argument count.
+Float scaled(p Point) => p.x;
+Float scaled(p Point, by Float) => @operators$multiply(p.x, by);

@@ -9,9 +9,9 @@ source is
 the commit in `toolchain.coda`, available from
 https://github.com/zane-lang/compiler. The included `pixi.lock`, which pins
 its conda-forge toolchain, and the OCaml bootstrap pins describe how it was
-built. The LLVM,
-OCaml and Coda license notices, LGPL-2.1, and the GCC runtime exception are
-included here.
+built. The license
+notices of LLVM, OCaml, Coda and the OCaml libraries listed below,
+LGPL-2.1, and the GCC runtime exception are included here.
 
 The archive also includes:
 
@@ -23,6 +23,18 @@ The archive also includes:
   `vendor/llvm-ocaml`
 - Coda's parser and OCaml binding (MIT), built into the compiler from the
   submodule at `vendor/coda`: https://github.com/zane-lang/coda
+- OCaml libraries built into the compiler:
+  - sedlex (MIT), the lexer's runtime, and gen (BSD-2-Clause), which sedlex
+    uses: https://github.com/ocaml-community/sedlex and
+    https://github.com/c-cube/gen
+  - MenhirLib and MenhirGLR, Menhir's runtime libraries, which the parser
+    calls (LGPL-2.0 with Menhir's exception for linking into an executable):
+    https://gitlab.inria.fr/fpottier/menhir
+  - uucp and uuseg (ISC), the Unicode properties and grapheme segmentation
+    a diagnostic reads to place its marker under the right character:
+    https://erratique.ch/software/uucp and https://erratique.ch/software/uuseg
+  - yojson (BSD-3-Clause), the language server's JSON:
+    https://github.com/ocaml-community/yojson
 - OCaml's native runtime (LGPL-2.1 with the OCaml linking exception):
   https://github.com/ocaml/ocaml
 - The shared libraries the compiler loads that its system does not bring:

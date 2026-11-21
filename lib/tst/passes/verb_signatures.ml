@@ -28,7 +28,7 @@ type introductions = {
   numbers : string list;
 }
 
-let introduce env intro span name kind =
+let introduce env intro ~at span name kind =
   match List.assoc_opt name intro.found with
   | Some p ->
       if p.Ty.kind <> kind then
@@ -37,6 +37,7 @@ let introduce env intro span name kind =
       p
   | None ->
       let p = Env.fresh_param env ~name ~kind in
+      Uses.param env.uses ~declaration:true at p;
       intro.found <- intro.found @ [ (name, p) ];
       p
 
@@ -92,9 +93,9 @@ let rec scan_type env intro (te : N.Type_expr.t) =
               let name = p.N.Param.name.N.Name.text in
               match p.N.Param.type_.N.Param_type.node with
               | N.Param_type.Concept { N.Concept.node = N.Concept.Type; _ } ->
-                  ignore (introduce env intro g.N.Generic_arg.span name Ty.Type_kind)
+                  ignore (introduce env intro ~at:p.N.Param.name.N.Name.span g.N.Generic_arg.span name Ty.Type_kind)
               | N.Param_type.Concrete t when Type_decls.is_integer_concept_type t ->
-                  ignore (introduce env intro g.N.Generic_arg.span name Ty.Number_kind)
+                  ignore (introduce env intro ~at:p.N.Param.name.N.Name.span g.N.Generic_arg.span name Ty.Number_kind)
               | _ ->
                   error env g.N.Generic_arg.span
                     (Printf.sprintf
@@ -112,14 +113,14 @@ and scan_ret env intro (r : N.Ret_type.t) =
       scan_type env intro ok;
       scan_type env intro abort
   | N.Ret_type.Introduced { name; _ } ->
-      ignore (introduce env intro r.N.Ret_type.span name.N.Name.text Ty.Type_kind)
+      ignore (introduce env intro ~at:name.N.Name.span r.N.Ret_type.span name.N.Name.text Ty.Type_kind)
 
 and scan_param_type env intro (pt : N.Param_type.t) =
   match pt.N.Param_type.node with
   | N.Param_type.Concrete t -> scan_type env intro t
   | N.Param_type.Concept _ -> ()
   | N.Param_type.InferredType { name; _ } ->
-      ignore (introduce env intro pt.N.Param_type.span name.N.Name.text Ty.Type_kind)
+      ignore (introduce env intro ~at:name.N.Name.span pt.N.Param_type.span name.N.Name.text Ty.Type_kind)
 
 (* A `T Type` value parameter always introduces a type parameter. An
    `@concepts$Int` value parameter is a compile-time integer either way,
@@ -132,7 +133,7 @@ and scan_param_type env intro (pt : N.Param_type.t) =
 let scan_param env intro (p : N.Param.t) =
   let name = p.N.Param.name.N.Name.text in
   let explicit kind =
-    let param = introduce env intro p.N.Param.span name kind in
+    let param = introduce env intro ~at:p.N.Param.name.N.Name.span p.N.Param.span name kind in
     intro.explicit <- intro.explicit @ [ (name, param) ]
   in
   match p.N.Param.type_.N.Param_type.node with
@@ -431,7 +432,7 @@ let build env tables (d : decl) (v : N.Verb_decl.t) : S.t option =
       (if this_introduces then
          match this_type.N.Type_expr.node with
          | N.Type_expr.Path { name = { N.Name_type.node = N.Name_type.Ident n; _ }; generics = [] } ->
-             ignore (introduce env intro this_type.N.Type_expr.span n.N.Name.text Ty.Type_kind)
+             ignore (introduce env intro ~at:n.N.Name.span this_type.N.Type_expr.span n.N.Name.text Ty.Type_kind)
          | _ ->
              error env this_type.N.Type_expr.span
                "a subject that introduces a type parameter is written `this S Type`, with the \

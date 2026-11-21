@@ -89,6 +89,7 @@ test-compiler: _require-menhir _zanec
 	{{python}} -m unittest tests.tiers.tiers_test -v
 	{{python}} -m unittest tests.runtime.valgrind_test -v
 	{{python}} -m unittest tests.dev.wrapper_test -v
+	{{python}} -m unittest tests.lsp.lsp_test -v
 	tests/memory-probes/run --check
 	{{python}} tests/memory-probes/reclaim.py --check
 

@@ -1,0 +1,21 @@
+package app;
+
+import geo$[Point, dist, Color, scaled];
+
+alias Unit = @primitives$Unit;
+alias Float = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+
+Unit main() {
+	origin Point = Point(Float(0.0), Float(0.0));
+	far Point = Point(Float(3.0), Float(4.0));
+	d Float = dist(origin, far);
+	c Color = Color.red;
+	hot Bool = c.warm;
+	n Float = far:norm();
+	one Float = scaled(far);
+	two Float = scaled(far, Float(2.0));
+	label String = String("größe"); x Float = far.x;
+	return Unit();
+}

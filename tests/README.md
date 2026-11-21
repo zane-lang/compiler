@@ -29,6 +29,9 @@ The compiler itself.
 - `dev/wrapper_test.py` checks which arguments the `zanec` command of the pixi
   environment (`dev/bin/zanec`) expands as paths and which it passes as written.
   It runs on Linux and macOS, where that command exists.
+- `lsp/lsp_test.py` starts `zanec --lsp` and drives it over the Language
+  Server Protocol against the project in `lsp/fixtures/project/`
+  ([`docs/design/language-server.md`](../docs/design/language-server.md)).
 - `tiers/` runs tiered builds ([`docs/design/tiers.md`](../docs/design/tiers.md))
   as `zane run` does: a program moving to tier 1 while it runs, the libraries
   the runtime refuses, and the cache.

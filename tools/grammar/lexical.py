@@ -115,6 +115,14 @@ def lexer(spec: dict) -> str:
         "  | _ -> false",
         "  | exception (Lexing_error | MalFormed) -> false",
     ]
+    # The reserved words, which an editor offers when completing a name
+    # (docs/design/language-server.md).
+    words = [t["literal"] for t in spec["tokens"] if "literal" in t and t["literal"].isalpha()]
+    lines += [
+        "",
+        "(* Every literal token spelled as a word: the reserved words. *)",
+        "let words = [ " + "; ".join(quoted(w) for w in words) + " ]",
+    ]
     return "\n".join([*lines, ""])
 
 

@@ -31,6 +31,8 @@
   ; The diagnostic renderer splits a source line into grapheme clusters and
   ; measures each one's width (lib/diagnostic/render.ml).
   uucp
-  uuseg)
+  uuseg
+  ; The language server reads and writes JSON-RPC (lib/language_server).
+  yojson)
  (tags
   ("compiler" "zane" "parser" "menhir" "ocaml")))
