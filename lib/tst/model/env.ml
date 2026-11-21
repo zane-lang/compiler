@@ -95,8 +95,9 @@ type package = {
   method_names : (string, unit) Hashtbl.t;
   (* The methods whose subject is a type parameter (generics.md §3.7). No
      subject type leads to such a method, so it is found by its name, as a
-     function is, and an import may bring it (packages.md §3.6). *)
-  any_methods : (string, unit) Hashtbl.t;
+     function is, and an import may bring it (packages.md §3.6). Each
+     declaration of the name is bound to it. *)
+  any_methods : (string, decl) Hashtbl.t;
 }
 
 let decl_name d =
@@ -110,6 +111,21 @@ let decl_name d =
       | N.Verb_decl.Flip _ -> "~"
       | N.Verb_decl.Constructor _ -> "constructor"
       | N.Verb_decl.Subscript _ -> "[]")
+
+(* The span of the identifier a declaration declares, when it writes one:
+   an operator's token for an operator, and the member's identifier for a
+   named constructor such as `Box.make`; none for an unnamed constructor, a
+   flip or a subscript, which declare no identifier of their own. *)
+let name_span d =
+  match d.kind with
+  | Type_decl { name; _ } | Constant { name; _ } -> Some name.N.Name.span
+  | Enum_map { property; _ } -> Some property.N.Name.span
+  | Verb v -> (
+      match v.N.Verb_decl.node with
+      | N.Verb_decl.Func { name; _ } | N.Verb_decl.Meth { name; _ } -> Some name.N.Name.span
+      | N.Verb_decl.Op { op; _ } -> Some op.N.Operator.span
+      | N.Verb_decl.Constructor { member = Some m; _ } -> Some m.N.Name.span
+      | N.Verb_decl.Flip _ | N.Verb_decl.Constructor { member = None; _ } | N.Verb_decl.Subscript _ -> None)
 
 let is_private name = String.length name > 0 && name.[0] = '_'
 
@@ -327,6 +343,7 @@ module Verbs : sig
   val constant_type : t -> int -> Ty.t option
   val constructors : t -> type_key -> Signature.t list
   val methods : t -> string -> Signature.t list
+  val fold_methods : (string -> Signature.t -> 'a -> 'a) -> t -> 'a -> 'a
   val operators : t -> N.Operator.node -> Signature.t list
   val flips : t -> Signature.t list
   val subscripts : t -> Signature.t list
@@ -341,6 +358,7 @@ end = struct
   let constant_type t id = Hashtbl.find_opt t.constant_types id
   let constructors t key = Hashtbl.find_all t.constructors key
   let methods t name = Hashtbl.find_all t.methods name
+  let fold_methods f t acc = Hashtbl.fold f t.methods acc
   let operators t op = Hashtbl.find_all t.operators op
   let flips t = !(t.flips)
   let subscripts t = !(t.subscripts)
@@ -367,6 +385,9 @@ type ('names, 'types, 'verbs, 'instances) t = {
      value is a capability fixed where it is declared, which a call marked
      `comptime` may be given (Comptime_check). *)
   foreign_locals : (int, unit) Hashtbl.t;
+  (* The names this check resolved, when the caller asked for them
+     (docs/design/language-server.md). *)
+  uses : Uses.t;
   names : 'names;
   types : 'types;
   verbs : 'verbs;
@@ -377,8 +398,9 @@ type ('names, 'types, 'verbs, 'instances) t = {
 let intrinsic_params = !Ty.next_param
 
 (* A check before any pass has run. *)
-let start () =
+let start ?(uses = Uses.create false) () =
   {
+    uses;
     diagnostics = ref [];
     note = ref None;
     counters = { next_decl = ref 0; next_param = ref intrinsic_params; next_local = ref 0 };

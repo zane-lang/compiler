@@ -71,6 +71,10 @@ A released compiler is in `~/.zane/toolchains/<version>/bin/zanec`, where
 provides a `zanec` that takes the same arguments
 ([`docs/development.md`](docs/development.md#developer-tools)).
 
+`zanec --lsp` runs the language server an editor talks to; editors start it
+through `zane lsp`, which picks the project's compiler
+([`docs/design/language-server.md`](docs/design/language-server.md)).
+
 `zanec` with no arguments prints its usage. Released compilers can build
 for Linux, Windows and macOS from any of those systems. To install a release
 archive by hand, and for how releases are published, see
@@ -81,7 +85,7 @@ archive by hand, and for how releases are published, see
 | Path | What it holds |
 |---|---|
 | `bin/zanec/` | The compiler's entry point |
-| `lib/` | One library per stage (`cst`, `sst`, `tst`, `cgt`, `optimize`, `codegen`), the `driver` that runs them, and their shared parts: `source`, `diagnostic`, `foreign` (C code in packages), `cache` |
+| `lib/` | One library per stage (`cst`, `sst`, `tst`, `cgt`, `optimize`, `codegen`), the `driver` that runs them, the `language_server`, and their shared parts: `source`, `diagnostic`, `foreign` (C code in packages), `cache` |
 | `runtime/` | The C runtime every program links with |
 | `grammar/` | The grammar and lexer, from which the parser and editor grammars are generated ([`grammar/README.md`](grammar/README.md)) |
 | `tests/` | The test suites, one directory each ([`tests/README.md`](tests/README.md)) |

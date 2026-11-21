@@ -19,9 +19,13 @@ type scope = {
      rather than being a mistake. The introductions were found before any type
      was resolved, so each one is already in [params] by the time it is met. *)
   signature : bool;
+  (* In a verb's body, the generic parameters its signature declares, by
+     identifier: what a written parameter names however it is bound, for the
+     language server's index (Uses). *)
+  generics : (string * Ty.param) list;
 }
 
-let scope ?(params = []) ?(signature = false) file = { file; params; signature }
+let scope ?(params = []) ?(signature = false) ?(generics = []) file = { file; params; signature; generics }
 
 (* How a type name was written, for a message about the type. *)
 let name_type_text (n : N.Name_type.t) =
@@ -452,11 +456,20 @@ let resolve_head env scope (name : N.Name_type.t) : head =
   match name.N.Name_type.node with
   | N.Name_type.Ident id -> (
       let text = id.N.Name.text in
+      if Uses.is_placeholder env.uses text then
+        Uses.probe env.uses id.N.Name.span
+          (Uses.Type_in { params = List.map fst scope.params; package = scope.file.package; path = scope.file.path });
       match List.assoc_opt text scope.params with
-      | Some arg -> Bound arg
+      | Some arg ->
+          (match (List.assoc_opt text scope.generics, arg) with
+          | Some p, _ | None, (Ty.Type (Ty.Param p) | Ty.Number (Ty.Number_param p)) -> Uses.param env.uses id.N.Name.span p
+          | None, _ -> ());
+          Bound arg
       | None -> (
           match lookup_types env scope.file text with
-          | d :: _ -> Declared d
+          | d :: _ ->
+              Uses.add env.uses id.N.Name.span (Uses.Decl d.id);
+              Declared d
           | [] ->
               let hint = missing_import_hint env scope.file text ~members:(package_types env) in
               error env span (Printf.sprintf "no type named %s is in scope%s" (quote text) hint);
@@ -467,8 +480,11 @@ let resolve_head env scope (name : N.Name_type.t) : head =
           error env q.N.Name.span message;
           Unknown
       | Ok (pkg, found, reachable) -> (
+          Uses.add env.uses q.N.Name.span (Uses.Package pkg);
           match (found, reachable) with
-          | _, d :: _ -> Declared d
+          | _, d :: _ ->
+              Uses.add env.uses ident.N.Name.span (Uses.Decl d.id);
+              Declared d
           | _ :: _, [] ->
               error env span
                 (Printf.sprintf "%s is private to the package %s" (quote ident.N.Name.text)
@@ -481,10 +497,15 @@ let resolve_head env scope (name : N.Name_type.t) : head =
               Unknown))
   | N.Name_type.Intrinsic { package = ns; ident } -> (
       let ns = ns.N.Name.text and text = ident.N.Name.text in
-      if ns = "concepts" && List.mem text concept_names then Concept_type text
+      if ns = "concepts" && List.mem text concept_names then begin
+        Uses.add env.uses span (Uses.Intrinsic ("@" ^ ns ^ "$" ^ text));
+        Concept_type text
+      end
       else
         match Intrinsics.find_type ns text with
-        | Some t -> Intrinsic_type t
+        | Some t ->
+            Uses.add env.uses span (Uses.Intrinsic ("@" ^ ns ^ "$" ^ text));
+            Intrinsic_type t
         | None ->
             error env span (Printf.sprintf "no intrinsic type %s" (quote ("@" ^ ns ^ "$" ^ text)));
             Unknown)
@@ -549,7 +570,11 @@ and generic_arg ?(element = false) env scope (a : N.Generic_arg.t) : Ty.arg =
   | N.Generic_arg.Number text -> Ty.Number (parse_number env span text)
   | N.Generic_arg.NumberRef n -> (
       match List.assoc_opt n.N.Name.text scope.params with
-      | Some (Ty.Number num) -> Ty.Number num
+      | Some (Ty.Number num) ->
+          (match (List.assoc_opt n.N.Name.text scope.generics, num) with
+          | Some p, _ | None, Ty.Number_param p -> Uses.param env.uses n.N.Name.span p
+          | None, _ -> ());
+          Ty.Number num
       | Some (Ty.Type _) ->
           error env span (Printf.sprintf "%s is a type parameter, not a number" (quote n.N.Name.text));
           Ty.Number (Ty.Known 0)
@@ -810,7 +835,9 @@ let header_params env (params : N.Generic_param.t list) =
                      (quote (name_type_text n)));
               Ty.Number_kind
         in
-        Some (Env.fresh_param env ~name ~kind)
+        let p = Env.fresh_param env ~name ~kind in
+        Uses.param env.uses ~declaration:true g.N.Generic_param.name.N.Name.span p;
+        Some p
       end)
     params
 
@@ -946,6 +973,12 @@ let define env (info : type_info) =
             (Distinct t, None)
         | N.Type_or_moulded.Moulded { N.Moulded.mould; axis; _ } ->
             let reference = axis.N.Type_axis.node = N.Type_axis.Reference in
+            let declare make (n : N.Name.t) = Uses.add env.uses ~declaration:true n.N.Name.span (make info.tid n.N.Name.text) in
+            let declare_fields = List.iter (fun (f : N.Body_field.t) -> declare (fun t n -> Uses.Field (t, n)) f.N.Body_field.name) in
+            (match mould.N.Mould.node with
+            | N.Mould.Struct entries | N.Mould.Variant entries -> declare_fields entries
+            | N.Mould.Enum names -> List.iter (declare (fun t n -> Uses.Member (t, n))) names
+            | N.Mould.Handle _ -> ());
             let definition =
               match mould.N.Mould.node with
               | N.Mould.Struct fields -> Struct (members env "field" fields field)

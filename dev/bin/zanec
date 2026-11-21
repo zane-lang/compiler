@@ -10,8 +10,9 @@ CALLER="$PWD"
 # directory before changing to the root, whether or not it exists: a path that
 # does not exist has to reach the compiler as the caller wrote it, so the error
 # names the file they meant rather than one that happens to sit at the root.
-# Everything else (option names, targets, sizes, stamps, package names) passes
-# through unchanged. Which argument is which follows zanec's own parser
+# `--zane` names a program, which is a path only when it holds a `/`: a bare
+# name is looked up on PATH. Everything else (option names, targets, sizes,
+# stamps, package names) passes through unchanged. Which argument is which follows zanec's own parser
 # (bin/zanec/zanec.ml, `arguments`).
 
 # One path, made absolute against the caller's directory.
@@ -33,7 +34,7 @@ expand_value() {
 
 # `--package [[STAMP]PATH=]DIR`: only DIR is a path. What comes before the
 # first `=` names the package only when zanec would read it as a package id
-# (`package_id` in bin/zanec/zanec.ml): an optional stamp, then lower-case
+# (`package_id` in lib/driver/build_flags.ml): an optional stamp, then lower-case
 # identifiers joined by `.`, none of them a keyword. Otherwise the `=` is part
 # of a directory name and the whole argument is a path. The keywords are the
 # word spellings of the lexicon's literal tokens, read from the file the lexer
@@ -90,6 +91,12 @@ case "${1-}" in
 			if [[ -n "$next" && "$argument" != -* ]]; then
 				case "$next" in
 					path) arguments+=("$(expand "$argument")") ;;
+					program)
+						case "$argument" in
+							*/*) arguments+=("$(expand "$argument")") ;;
+							*) arguments+=("$argument") ;;
+						esac
+						;;
 					package) arguments+=("$(package "$argument")") ;;
 					*) arguments+=("$argument") ;;
 				esac
@@ -102,6 +109,8 @@ case "${1-}" in
 					next=path ;;
 				--package)
 					next=package ;;
+				--zane)
+					next=program ;;
 				--target | --stamp | --import | --fixed-region | --spawned-fixed-region | --build-argument)
 					next=value ;;
 				# `-` is standard input, and a leading `-` otherwise marks an option.

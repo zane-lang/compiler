@@ -32,7 +32,7 @@ def main():
         packages = fetch(f"https://api.github.com/repos/ocaml/opam-repository/contents/packages/{name}")
         return [p["name"].removeprefix(name + ".") for p in packages]
 
-    versions = {name: stable_latest(releases(name)) for name in ("dune", "menhir", "sedlex", "uuseg")}
+    versions = {name: stable_latest(releases(name)) for name in ("dune", "menhir", "sedlex", "uuseg", "yojson")}
     # uuseg requires the uucp of its own Unicode version, the same major.
     major = versions["uuseg"].split(".")[0]
     versions["uucp"] = stable_latest(v for v in releases("uucp") if v.split(".")[0] == major)

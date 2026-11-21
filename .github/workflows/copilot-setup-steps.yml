@@ -5,7 +5,7 @@ on:
 
 # The same toolchain CI builds with (.github/workflows/ci.yml): the pixi
 # environment (pixi.toml), with LLVM 21 for codegen's bindings, and the opam
-# switch with dune, menhir, sedlex, uucp and uuseg. Without the opam switch
+# switch with dune, menhir, sedlex, uucp, uuseg and yojson. Without the opam switch
 # the environment cannot build.
 jobs:
   copilot-setup-steps:

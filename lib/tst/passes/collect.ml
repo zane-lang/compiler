@@ -20,10 +20,14 @@ let declaration env (tables : names) pkg file (d : N.Decl.t) =
     let decl = { id = !(env.counters.next_decl); package = pkg.name; file; span = d.N.Decl.span; kind } in
     Hashtbl.replace tables.decls decl.id decl;
     pkg.decls <- decl :: pkg.decls;
+    Option.iter (fun span -> Uses.add env.uses ~declaration:true span (Uses.Decl decl.id)) (name_span decl);
     Some decl
   in
   match d.N.Decl.node with
-  | N.Decl.Package _ | N.Decl.Import _ -> None
+  | N.Decl.Package name ->
+      Uses.add env.uses ~declaration:true name.N.Name.span (Uses.Package pkg.name);
+      None
+  | N.Decl.Import _ -> None
   | N.Decl.Var { name; type_; value } -> make (Constant { name; type_; value })
   | N.Decl.Type { name; params; value } ->
       make (Type_decl { name; params; value; alias = false })
@@ -63,7 +67,7 @@ let file_under_names env (pkg : package) (decl : decl) =
       | None -> Hashtbl.replace pkg.values (name_of name) (existing @ [ decl ]))
   | Verb { N.Verb_decl.node = N.Verb_decl.Meth { name; this_introduces; _ }; _ } ->
       Hashtbl.replace pkg.method_names (name_of name) ();
-      if this_introduces then Hashtbl.replace pkg.any_methods (name_of name) ()
+      if this_introduces then Hashtbl.add pkg.any_methods (name_of name) decl
   | Verb _ | Enum_map _ -> ()
 
 let new_file ~package path =
@@ -117,7 +121,9 @@ let import_file env (file : file) (decls : N.Decl.t list) =
    names no package. *)
   let imported (name : N.Name.t) =
     match resolve_key env file (name_of name) with
-    | Found id -> Some id
+    | Found id ->
+        Uses.add env.uses name.N.Name.span (Uses.Package id);
+        Some id
     | Own ->
         error env name.N.Name.span
           (Printf.sprintf
@@ -156,9 +162,18 @@ let import_file env (file : file) (decls : N.Decl.t list) =
             be spelled %s"
            (quote member.N.Import_member.name)
            (quote spelling.N.Import_member.name))
-    else if record pkg (One_member member.N.Import_member.name) at then
+    else if record pkg (One_member member.N.Import_member.name) at then begin
+      (* An alias such as `P` in `import geo$Point as P` names the member too;
+         a rename leaves it alone, since its text is not the old name. *)
+      let spans =
+        if spelling.N.Import_member.span = member.N.Import_member.span then [ member.N.Import_member.span ]
+        else [ member.N.Import_member.span; spelling.N.Import_member.span ]
+      in
+      let methods = Hashtbl.find_all (package env pkg).any_methods member.N.Import_member.name in
+      List.iter (fun (d : decl) -> List.iter (fun at -> Uses.add env.uses at (Uses.Decl d.id)) spans) (found @ methods);
       Hashtbl.add file.bare spelling.N.Import_member.name
         { from = pkg; member = member.N.Import_member.name; at }
+    end
   in
   (* `import p` or `import p as q`: the package under one qualifier. *)
   let bring_package (p : N.Name.t) alias span =
@@ -181,8 +196,10 @@ let import_file env (file : file) (decls : N.Decl.t list) =
                    (quote (name_of spelling))
                    (quote other) (where at))
           | None ->
-              if record id (Whole (name_of spelling)) span then
-                Hashtbl.replace file.qualifiers (name_of spelling) (id, span))
+              if record id (Whole (name_of spelling)) span then begin
+                Option.iter (fun (a : N.Name.t) -> Uses.add env.uses a.N.Name.span (Uses.Package id)) alias;
+                Hashtbl.replace file.qualifiers (name_of spelling) (id, span)
+              end)
   in
   (* `import p.*`: every public member of the package, bare. *)
   let bring_all (p : N.Name.t) span =
@@ -195,7 +212,7 @@ let import_file env (file : file) (decls : N.Decl.t list) =
           (* A method is found through its subject's type, except a method
              whose subject is a type parameter, which is found by its name
              (functions.md §6.1). *)
-          @ Hashtbl.fold (fun n () acc -> n :: acc) target.any_methods []
+          @ Hashtbl.fold (fun n _ acc -> n :: acc) target.any_methods []
           |> List.filter (fun n -> not (is_private n))
           |> List.sort_uniq String.compare
         in

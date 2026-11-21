@@ -1,0 +1,5 @@
+package app;
+
+import geo as g;
+
+Float either(a Float, b Float) => g$pick(a, b);

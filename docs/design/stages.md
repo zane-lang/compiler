@@ -92,3 +92,9 @@ package a `--stamp` names, and whether the root needs a `main`. So does
 rewriting an object (`--rewrite`, `--remap`), which is fetching's step and not
 a build's. `zanec` and the inspection tools parse their arguments, call the
 driver, and print.
+
+The language server, `zanec --lsp`, runs only stages 1 to 3, through the
+driver's `analyze`, which keeps the typed tree, the diagnostics and the
+index of the names semantics resolved together. It reads open documents'
+unsaved text in place of their files
+([`language-server.md`](language-server.md)).

@@ -80,6 +80,7 @@ let package_context env (d : decl) =
     package = d.package;
     is_root = (package env d.package).is_root;
     params = [];
+    generics = [];
     scopes = [ Hashtbl.create 1 ];
     ret_target = No_return;
     resolve_target = No_resolve;
@@ -196,12 +197,15 @@ let declaration env (d : decl) : T.Decl.t option =
     | Enum_map { enum; property; entries; _ } ->
         let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
         let ctx = package_context env d in
+        let enum = Type_decls.resolve env (Type_decls.scope d.file) enum in
+        (match Context.definition env enum with
+        | Some (tid, Enum _) ->
+            List.iter (fun ((m : N.Name.t), _) -> Uses.add env.uses m.N.Name.span (Uses.Member (tid, m.N.Name.text))) entries
+        | _ -> ());
         let entries =
           List.map (fun ((m : N.Name.t), value) -> (m.N.Name.text, coerce_to env ctx (expr env ctx value) ty)) entries
         in
-        Some
-          (T.Decl.Enum_map
-             { enum = Type_decls.resolve env (Type_decls.scope d.file) enum; property = property.N.Name.text; ty; entries })
+        Some (T.Decl.Enum_map { enum; property = property.N.Name.text; ty; entries })
     | Verb _ -> (
         match Verbs.signature env.verbs d.id with
         | None -> None

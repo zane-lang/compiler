@@ -20,6 +20,13 @@ val to_span_text : source:string -> Nodes.Package.t -> string
     source. A keyword is not a lowercase identifier. *)
 val is_lower_identifier : string -> bool
 
+(** Whether the whole of a string is one uppercase identifier, as the lexer
+    reads one. *)
+val is_upper_identifier : string -> bool
+
+(** The reserved words, as the lexer reads them. *)
+val keywords : string list
+
 (** A string literal's structure (lexical.md §7.1), read from the text the
     lexer keeps between its quotes. *)
 module Text_literal : sig

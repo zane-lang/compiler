@@ -1,0 +1,63 @@
+package geo;
+
+alias Float = @primitives$F64;
+alias Unit = @primitives$Unit;
+alias Bool = @primitives$Bool;
+
+/// A point in the plane.
+type Point = struct {
+	x Float;
+	y Float;
+}
+
+Point(x Float, y Float) => init{ x; y; }
+
+type Color = enum [ red, green, blue ];
+
+Color.warm Bool {
+	red = true;
+	green = false;
+	blue = false;
+}
+
+/// The squared distance between two points.
+Float dist(a Point, b Point) {
+	dx Float = @operators$add(a.x, @operators$negate(b.x));
+	dy Float = @operators$add(a.y, @operators$negate(b.y));
+	return @operators$add(@operators$multiply(dx, dx), @operators$multiply(dy, dy));
+}
+
+Float norm(this Point) => dist(this, Point(Float(0.0), Float(0.0)));
+
+/// Nothing calls this yet.
+T same(value T Type) {
+	copy T = value;
+	return copy;
+}
+
+/// Two overloads: one per argument count.
+Float scaled(p Point) => p.x;
+Float scaled(p Point, by Float) => @operators$multiply(p.x, by);
+
+/// The point at the origin.
+Point.zero() => init{ x = Float(0.0); y = Float(0.0); }
+
+/// Two numbers, which a caller gives as one.
+type Pair = struct {
+	left Float;
+	right Float;
+	_spare Float;
+}
+
+Pair{ both Float; } => init{ left = both; right = both; _spare = both; }
+
+/// The first of two values of one type.
+T pick(first T Type, second T Type) => first;
+
+/// A row of `size` numbers.
+type Row<size @concepts$Int> = struct {
+	cells @primitives$Array<Float, size>;
+}
+
+/// The subject, unchanged.
+T itself(this T Type) => this;

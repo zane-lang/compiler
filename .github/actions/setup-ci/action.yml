@@ -16,8 +16,8 @@ runs:
         locked: true
         cache: true
 
-    # The opam switch is most of a cold setup: dune, menhir, sedlex, uucp
-    # and uuseg are built from source. Once restored, `pixi run setup` finds
+    # The opam switch is most of a cold setup: dune, menhir, sedlex, uucp,
+    # uuseg and yojson are built from source. Once restored, `pixi run setup` finds
     # every package at its pinned version and installs nothing. The key
     # covers everything the switch is built from: the environment and the
     # pins.

@@ -51,8 +51,8 @@ pixi run setup
 ```
 
 This installs the environment and then builds the project's opam switch (the
-OCaml packages `dev/setup/bootstrap-toolchain` pins: dune, menhir, sedlex and
-the rest) in `_opam/`. Run it once, and again when a pin or `pixi.lock`
+OCaml packages `dev/setup/bootstrap-toolchain` pins: dune, menhir, sedlex,
+yojson for the language server, and the rest) in `_opam/`. Run it once, and again when a pin or `pixi.lock`
 changes. The first run builds several packages from source and takes a while.
 
 ## Build and test
