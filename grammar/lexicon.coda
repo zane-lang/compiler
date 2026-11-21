@@ -325,6 +325,7 @@ literal_tokens [
   INIT           init          keyword                 keyword.control
   MATCH          match         keyword                 keyword.control
   SPAWN          spawn         keyword                 keyword.control
+  COMPTIME       comptime      keyword                 keyword.control
   TRUE           true          boolean                 constant.language.boolean
   FALSE          false         boolean                 constant.language.boolean
   THIS           this          variable.builtin        variable.language

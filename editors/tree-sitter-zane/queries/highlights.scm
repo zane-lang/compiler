@@ -52,6 +52,7 @@
 "init" @keyword
 "match" @keyword
 "spawn" @keyword
+"comptime" @keyword
 "true" @boolean
 "false" @boolean
 "this" @variable.builtin

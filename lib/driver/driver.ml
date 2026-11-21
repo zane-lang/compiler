@@ -547,6 +547,21 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       | Ok cs -> Ok (List.filter_map Fun.id cs)
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* The calls marked `comptime` (docs/design/comptime.md), which every build
+   evaluates. *)
+let comptime ?target ?(c = []) ~arguments packages cgt =
+  let evaluated modules =
+    match Optimize.comptime ~c:modules ~arguments cgt with
+    | Ok cgt -> Ok cgt
+    | Error ds -> fail ~sources:(Assembly.sources packages) ds
+  in
+  if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
+  else if c = [] then evaluated []
+  else
+    match Codegen.with_c_modules ?target c evaluated with
+    | Ok result -> result
+    | Error message -> fail [ Diagnostic.about_invocation message ]
+
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
    runs. A call into C is folded by running [c], the packages' C code
    (docs/design/ffi.md F16). *)

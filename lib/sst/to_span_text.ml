@@ -242,6 +242,9 @@ and expr d (x : Expr.t) =
   | Expr.Spawn call ->
       line d "expr Spawn" at;
       verb_call (deeper d) call
+  | Expr.Comptime call ->
+      line d "expr Comptime" at;
+      verb_call (deeper d) call
   | Expr.Match m ->
       line d "expr Match" at;
       match_expr (deeper d) m
@@ -341,6 +344,9 @@ and stat d (x : Stat.t) =
       verb_call (deeper d) call
   | Stat.Spawn call ->
       line d "stat Spawn" at;
+      verb_call (deeper d) call
+  | Stat.Comptime call ->
+      line d "stat Comptime" at;
       verb_call (deeper d) call
   | Stat.Decl value ->
       line d "stat Decl" at;

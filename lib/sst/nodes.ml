@@ -129,6 +129,7 @@ module rec Expr : sig
     | Init of Field_arg.t list
     | MapLit of (t * t) list
     | Spawn of Verb_call.t
+    | Comptime of Verb_call.t
     | Match of Match_expr.t
     | VerbCall of Verb_call.t
     | FuncLambda of Func_lambda.t
@@ -408,6 +409,7 @@ and Stat : sig
   and node =
     | VerbCall of Verb_call.t
     | Spawn of Verb_call.t
+    | Comptime of Verb_call.t
     | Decl of Decl.t
     | Assign of { target : Expr.t; value : Expr.t }
     | Abort of Expr.t

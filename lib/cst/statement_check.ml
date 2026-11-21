@@ -48,7 +48,7 @@ let rec first_in_statements (statements : Nodes.Statement.t list) =
    own. *)
 and in_stat (stat : Nodes.Stat.t) =
   match stat.Nodes.Stat.node with
-  | Nodes.Stat.VerbCall call | Nodes.Stat.Spawn call -> in_verb_call call
+  | Nodes.Stat.VerbCall call | Nodes.Stat.Spawn call | Nodes.Stat.Comptime call -> in_verb_call call
   | Nodes.Stat.Decl decl -> in_decl decl
   | Nodes.Stat.Assign { target; value } -> first_of [ target; value ]
   | Nodes.Stat.Abort value | Nodes.Stat.Ret value | Nodes.Stat.Resolve value ->
@@ -61,7 +61,7 @@ and first_of exprs =
 
 and in_expr (expr : Nodes.Expr.t) =
   match expr.Nodes.Expr.node with
-  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call -> in_verb_call call
+  | Nodes.Expr.VerbCall call | Nodes.Expr.Spawn call | Nodes.Expr.Comptime call -> in_verb_call call
   | Nodes.Expr.FuncLambda { body; _ } -> in_body body
   | Nodes.Expr.MethLambda { body; _ } -> in_body body
   | Nodes.Expr.Match { scrutinees; arms; abort_handle; _ } -> (

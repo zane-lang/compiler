@@ -189,9 +189,29 @@ let made st decl : Func.t =
    an enum map's. *)
 let name_lambdas st owner (b : T.Block.t) =
   let n = ref 0 in
+  (* The foreign variables declared so far, which a `comptime` call may
+     name (Lower_comptime). *)
+  let foreign = ref [] in
   let rec block (b : T.Block.t) =
-    List.iter (fun s -> List.iter expr (Tst.Traverse.stat_exprs s)) b.T.Block.stats
-  and expr e = List.iter part (Tst.Traverse.parts e)
+    List.iter
+      (fun (s : T.Stat.t) ->
+        (match s.T.Stat.node with
+        | T.Stat.Let { local; value = { T.Expr.node = T.Expr.Foreign_global _; _ } } ->
+            foreign := (local.T.Local.id, s) :: !foreign
+        | _ -> ());
+        List.iter expr (Tst.Traverse.stat_exprs s))
+      b.T.Block.stats
+  and expr e =
+    (match e.T.Expr.node with
+    | T.Expr.Comptime inner when not (List.mem_assq inner st.marked) ->
+        let lambda, body = Lower_comptime.lambda ~foreign:!foreign inner in
+        incr n;
+        let symbol = Printf.sprintf "%s$lambda%d" owner !n in
+        st.lambdas <- (body, symbol) :: st.lambdas;
+        st.marked <- (inner, (lambda, e.T.Expr.span)) :: st.marked;
+        Hashtbl.replace st.comptime symbol e.T.Expr.span
+    | _ -> ());
+    List.iter part (Tst.Traverse.parts e)
   and part = function
     | Tst.Traverse.Same x -> expr x
     | Tst.Traverse.Arm b | Tst.Traverse.Handler b | Tst.Traverse.Block b -> block b
@@ -548,6 +568,11 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
         (Regions.run ~wants:st.wants
            {
              Program.funcs;
+             comptime =
+               List.filter_map
+                 (fun (f : Func.t) ->
+                   Option.map (fun span -> (f.Func.symbol, span)) (Hashtbl.find_opt st.comptime f.Func.symbol))
+                 funcs;
              entry;
              layouts;
              globals = List.rev st.globals @ context;

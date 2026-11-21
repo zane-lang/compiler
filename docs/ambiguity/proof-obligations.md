@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 44 | 44 | 0 |
-| stock | 37 | 37 | 0 |
+| `--GLR`, the parser that ships | 46 | 46 | 0 |
+| stock | 39 | 39 | 0 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -98,7 +98,7 @@ are not independent problems:
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
-| `?` `??`        | 4 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `func_callee -> unbraced_verb_call`, `member_braced -> braced_verb_call` | a spawned call against what follows it |
+| `?` `??`        | 6 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `expr -> COMPTIME unbraced_verb_call`, `expr -> COMPTIME braced_verb_call`, `func_callee -> unbraced_verb_call`, `member_braced -> braced_verb_call` | a spawned or `comptime` call against what follows it |
 
 `&` begins no expression: a reference is minted by storing a place into an
 `&` slot, so `&` only ever marks a type. Every fork that read a leading `&` as

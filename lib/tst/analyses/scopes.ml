@@ -164,7 +164,7 @@ and names env w (e : T.Expr.t) =
     | T.Expr.Var (T.Name_ref.Global { name; _ }) -> Names.singleton (Global, name)
     | T.Expr.Field { target; _ } | T.Expr.Subscript { target; _ } -> names env w target
     | T.Expr.Case_read { target; _ } -> names env w target
-    | T.Expr.Spawn inner -> names env w inner
+    | T.Expr.Spawn inner | T.Expr.Comptime inner -> names env w inner
     | T.Expr.Array_lit items ->
         let element =
           match e.T.Expr.ty with Ty.Concept (Ty.Array_lit (t, _)) -> t | _ -> Ty.Error
@@ -299,7 +299,7 @@ let rec expr env w (e : T.Expr.t) =
           expr env w v)
         entries
   | T.Expr.Case { payload = inner; _ } | T.Expr.Field { target = inner; _ }
-  | T.Expr.Map_read { target = inner; _ } | T.Expr.Spawn inner ->
+  | T.Expr.Map_read { target = inner; _ } | T.Expr.Spawn inner | T.Expr.Comptime inner ->
       expr env w inner
   | T.Expr.Coerce { ctor; value } ->
       expr env w value;

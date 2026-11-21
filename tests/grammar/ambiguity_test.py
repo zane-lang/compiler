@@ -153,6 +153,39 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
             "call(paren(spawn(call(bool))))",
         )
 
+    def test_comptime_takes_the_outer_call(self) -> None:
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "COMPTIME FALSE LPAREN RPAREN LPAREN RPAREN SEMICOLON RCURLY EOF",
+            "Int length() { abort comptime false()(); }",
+            "comptime(call(call(bool)))",
+        )
+
+    def test_parentheses_allow_calling_what_a_comptime_call_produces(self) -> None:
+        self.assert_grouping(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT LPAREN "
+            "COMPTIME FALSE LPAREN RPAREN RPAREN LPAREN RPAREN SEMICOLON RCURLY EOF",
+            "Int length() { abort (comptime false())(); }",
+            "call(paren(comptime(call(bool))))",
+        )
+
+    def test_a_handler_after_a_comptime_call_has_one_reading(self) -> None:
+        # The fork of the `?` `??` census row: the handler goes on the marked
+        # call, or on a call the marked call is the callee of, which no `(`
+        # follows, so one reading survives.
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
+            "COMPTIME LIDENT LPAREN RPAREN QSTNQSTN FALSE SEMICOLON RCURLY EOF",
+            "Int length() { abort comptime f() ?? false; }",
+            1,
+        )
+        self.assert_derivations(
+            "UIDENT LIDENT LPAREN RPAREN LCURLY "
+            "COMPTIME LIDENT LPAREN RPAREN QSTNQSTN FALSE SEMICOLON RCURLY EOF",
+            "Int length() { comptime f() ?? false; }",
+            1,
+        )
+
     def test_leading_reference_binds_the_lambda_return_type(self) -> None:
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "

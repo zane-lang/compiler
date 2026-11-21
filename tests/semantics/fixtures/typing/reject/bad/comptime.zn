@@ -1,0 +1,76 @@
+package bad;
+
+/// Calls marked `comptime` (effects.md §5.6): the form of the call, its
+/// result's type, and that everything it is given can be had at compile
+/// time and nothing in it leaves the verb it is in.
+type MarkedTally = struct {
+	count Int;
+}
+
+MarkedTally(count Int) => init{ count; }
+
+Unit markedBump(this MarkedTally) mut {
+	this.count = @operators$add(this.count, Int(1));
+	return Unit();
+}
+
+Int markedPeek(this MarkedTally) => this.count;
+
+type MarkedSlot = #struct {
+	held Int;
+}
+
+MarkedSlot(held Int) => init{ held; }
+
+^MarkedSlot markedSlot() => MarkedSlot(Int(1));
+
+Int markedSame(n Int) => n;
+
+Int markedEach(n Int, body @concepts$Block) {
+	@controlflow$repeat(n, body);
+	return n;
+}
+
+Int markedCount(runtime &@runtime$Runtime) => runtime:arguments():size();
+
+Int?Int markedRefused(n Int) {
+	abort n;
+}
+
+markedTally MarkedTally(Int(0));
+
+Int markedParameter(n Int) {
+	// A parameter cannot be had at compile time.
+	return comptime markedSame(n);
+}
+
+Unit markedForms() {
+	counter MarkedTally(Int(1));
+	// A `!` call writes its subject, which is run-time storage.
+	comptime counter!markedBump();
+	// A local cannot be had at compile time, even one bound to a literal.
+	single Int(1);
+	a Int = comptime markedSame(single);
+	// A verb that takes a block is never marked.
+	b Int = comptime markedEach(Int(2), { });
+	// The result is built into the program, so it is a value type.
+	c ^MarkedSlot = comptime markedSlot();
+	// A read is made only inside a marked call, never in its arguments.
+	d Int = comptime markedSame(markedCount(@program$runtime));
+	// The marked call itself may read: this one is accepted.
+	e Int = comptime markedCount(@program$runtime);
+	// A constant is had at compile time: so is a call on it.
+	f Int = comptime markedTally:markedPeek();
+	return Unit();
+}
+
+Int?Int markedHandlers() {
+	// A handler is evaluated with the call, so it cannot leave the verb.
+	a Int = comptime markedRefused(Int(1)) ? e {
+		return e;
+	}
+	b Int = comptime markedRefused(Int(1)) ? e {
+		abort e;
+	}
+	return a;
+}

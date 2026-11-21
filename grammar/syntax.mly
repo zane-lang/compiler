@@ -1174,6 +1174,14 @@ block_call:
       expr $loc (Nodes.Expr.Spawn (call None))
     }
 
+(* `comptime` marks a call as `spawn` does (spec effects.md §5.6), and takes
+   the whole call for the same reason: `comptime f()()` marks the outer
+   call. *)
+%inline comptime_expr:
+  | COMPTIME call=verb_call {
+      expr $loc (Nodes.Expr.Comptime (call None))
+    }
+
 (* Postfix bases are deliberately limited so that an uppercase `Type.member`
    has exactly one reading. Bare `Type.member` is a type-member value; when it
    is immediately followed by constructor arguments it is a named constructor
@@ -1239,6 +1247,7 @@ expr:
   | value=app_braced { value }
   | call=block_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | value=spawn_expr { value }
+  | value=comptime_expr { value }
   | func_lambda=func_lambda(body) {
       expr $loc (Nodes.Expr.FuncLambda func_lambda)
     }
@@ -1311,6 +1320,9 @@ expr_braced:
   | call=block_call { expr $loc (Nodes.Expr.VerbCall (call None)) }
   | SPAWN call=braced_verb_call {
       expr $loc (Nodes.Expr.Spawn (call None))
+    }
+  | COMPTIME call=braced_verb_call {
+      expr $loc (Nodes.Expr.Comptime (call None))
     }
   | func_lambda=func_lambda(body_braced) {
       expr $loc (Nodes.Expr.FuncLambda func_lambda)
@@ -1503,6 +1515,36 @@ stat:
       braced_statement ~ends_at:$endpos ~loc:$loc
         ~continued:(verb_call_continues_past_trailing call)
         (Nodes.Stat.Spawn call)
+    }
+  (* A marked call whose value is dropped: evaluated at compile time all the
+     same, so a call that cannot be evaluated is still an error. *)
+  | COMPTIME call=verb_call SEMICOLON {
+      let call = call None in
+      statement
+        ~ends_in_brace:(verb_call_ends_in_brace call)
+        ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Comptime call)
+    }
+  | COMPTIME call=verb_call abort_handle=abort_handle SEMICOLON {
+      let call = call (Some abort_handle) in
+      statement
+        ~ends_in_brace:(verb_call_ends_in_brace call)
+        ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Comptime call)
+    }
+  | COMPTIME call=braced_verb_call {
+      let call = call None in
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Comptime call)
+    }
+  | COMPTIME call=verb_call abort_handle=abort_handle_braced {
+      let call = call (Some abort_handle) in
+      braced_statement ~ends_at:$endpos ~loc:$loc
+        ~continued:(verb_call_continues_past_trailing call)
+        (Nodes.Stat.Comptime call)
     }
   | ABORT value=expr SEMICOLON {
       expr_statement ~ends_at:$endpos ~loc:$loc

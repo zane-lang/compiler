@@ -166,6 +166,7 @@ let rec expr st ctx (e : T.Expr.t) : Expr.t =
   (* A spawned call whose value is read where it is written is waited for
      at once, which makes it the call itself (docs/design/lowering.md §9). *)
   | T.Expr.Spawn call -> expr st ctx call
+  | T.Expr.Comptime inner -> Lower_comptime.site walk st ctx span inner
   | T.Expr.Lambda l ->
       { Expr.node = Expr.Function (Lower_lambda.lambda st span e.T.Expr.ty l); ty = Nodes.Ty.Ptr }
   (* A lambda-variable declared at package scope is its lambda, and any

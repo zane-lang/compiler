@@ -363,6 +363,10 @@ type ('names, 'types, 'verbs, 'instances) t = {
      identity (docs/design/ffi.md F6), which foreign verbs are checked
      against. *)
   interfaces : (string, C_interface.t) Hashtbl.t;
+  (* Each local declared as a foreign variable (ffi.md §5.1), by id: its
+     value is a capability fixed where it is declared, which a call marked
+     `comptime` may be given (Comptime_check). *)
+  foreign_locals : (int, unit) Hashtbl.t;
   names : 'names;
   types : 'types;
   verbs : 'verbs;
@@ -379,6 +383,7 @@ let start () =
     note = ref None;
     counters = { next_decl = ref 0; next_param = ref intrinsic_params; next_local = ref 0 };
     interfaces = Hashtbl.create 4;
+    foreign_locals = Hashtbl.create 4;
     names = ();
     types = ();
     verbs = ();

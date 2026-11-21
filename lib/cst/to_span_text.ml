@@ -269,7 +269,7 @@ and expr d (x : Expr.t) =
           expr d k;
           expr d v)
         entries
-  | Expr.Spawn c | Expr.VerbCall c -> verb_call d c
+  | Expr.Spawn c | Expr.Comptime c | Expr.VerbCall c -> verb_call d c
   | Expr.Match m -> match_expr d m
   | Expr.FuncLambda l -> func_lambda d l
   | Expr.MethLambda l -> meth_lambda d l
@@ -290,7 +290,7 @@ and stat d (x : Stat.t) =
   line d "stat" x.Stat.span;
   let d = deeper d in
   match x.Stat.node with
-  | Stat.VerbCall c | Stat.Spawn c -> verb_call d c
+  | Stat.VerbCall c | Stat.Spawn c | Stat.Comptime c -> verb_call d c
   | Stat.Decl dl -> decl d dl
   | Stat.Assign { target; value } ->
       expr d target;

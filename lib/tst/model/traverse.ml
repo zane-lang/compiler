@@ -37,6 +37,7 @@ let parts (e : T.Expr.t) =
   | T.Expr.Field { target = v; _ }
   | T.Expr.Map_read { target = v; _ }
   | T.Expr.Spawn v
+  | T.Expr.Comptime v
   | T.Expr.Coerce { value = v; _ } ->
       [ Same v ]
   | T.Expr.Case_read { target; handler = h; _ } -> Same target :: handler (Some h)

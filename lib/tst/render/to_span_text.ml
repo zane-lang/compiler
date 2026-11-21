@@ -103,6 +103,9 @@ let rec expr d (e : Expr.t) =
   | Expr.Spawn inner ->
       at "Spawn";
       expr d inner
+  | Expr.Comptime inner ->
+      at "Comptime";
+      expr d inner
   | Expr.Match m ->
       at "Match";
       each d expr m.Match.scrutinees;

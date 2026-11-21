@@ -154,6 +154,13 @@ type state = {
      only feature that distinguishes two lambdas: an instance's body has
      lambdas of its own. *)
   mutable lambdas : (T.Block.t * string) list;
+  (* Each call marked `comptime`, by the marked expression: the lambda it
+     is lifted into ([Lower_comptime]), whose body returns the expression,
+     and the span of the call. The lambda is named as one, among the
+     lambdas of the verb it is written in, and its symbol is in
+     [comptime]. *)
+  mutable marked : (T.Expr.t * (T.Expr.t * Source.Span.t)) list;
+  comptime : (string, Source.Span.t) Hashtbl.t;
   (* The lambdas whose type C can call, with the C types their values are
      passed as (docs/design/ffi.md F11), and [package], the root package's
      symbol prefix, which names the C entries of lambdas that other objects
@@ -274,6 +281,8 @@ let create ~region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped =
     globals = [];
     defaults = Hashtbl.create 8;
     lambdas = [];
+    marked = [];
+    comptime = Hashtbl.create 8;
     callbacks = [];
     package = "";
     layouts = Hashtbl.create 16;

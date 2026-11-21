@@ -8,23 +8,7 @@ open Cgt.Nodes
 
 let run ?(c = []) (p : Program.t) =
   let p = Peel.program p in
-  let table f xs =
-    let t = Hashtbl.create 64 in
-    List.iter (fun x -> let k, v = f x in Hashtbl.replace t k v) xs;
-    t
-  in
-  let prog =
-    {
-      Eval.funcs = Eval.functions p.Program.funcs;
-      layouts = table Fun.id p.Program.layouts;
-      globals = table (fun (g : Global.t) -> (g.Global.symbol, g)) p.Program.globals;
-      constants = Hashtbl.create 16;
-      memo = Value.Key.create 64;
-      left = Eval.total;
-      c = C_cross.program (if c = [] then None else Some (C_ir.make c)) p.Program.foreign p.Program.callbacks;
-      holding = Hashtbl.create 16;
-    }
-  in
+  let prog = Eval.program_of ~c p in
   Constants.find prog p.Program.funcs;
   let failed = Value.Key.create 64 in
   (* Callees first, a spawned call's thunk and a function named as a value
@@ -57,3 +41,5 @@ let run ?(c = []) (p : Program.t) =
   List.iter visit p.Program.funcs;
   Literal_locals.program @@ Strip.program @@ Loop_pushes.program
     { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }
+
+let comptime = Comptime.run

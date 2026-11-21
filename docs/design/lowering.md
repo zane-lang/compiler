@@ -393,7 +393,9 @@ a `mut` function type
 §7.2), so a function value's subject is always passed by address, as a `mut`
 subject is (L6), and one function serves both types. A package
 lambda-variable is its lambda, and each lambda is lifted once, however many
-times it is read. A lambda's body does not exit
+times it is read. A call marked `comptime` is lifted as a lambda of no
+parameters, and called through its address where it is written, until its
+value replaces the call ([`comptime.md`](comptime.md) K3). A lambda's body does not exit
 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
 §4.2), so a call through a function value finishes or aborts, and a spawned
 one carries the function's address in its frame, ahead of its arguments.

@@ -411,6 +411,71 @@ Reconciling means the spec stating whether missed ticks merge or queue.
 
 ---
 
+## 15. A `comptime` call is given no local of its verb
+
+**Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
+§5.6: "An argument qualifies when everything it depends on is a literal, a
+constant, the result of another marked call, or a computation §5.3 permits
+to be evaluated at compile time", and §5.3 permits any computation that
+depends on no parameter and no read of capability-backed state, so a local
+bound to a literal qualifies.
+
+**Compiler** — the marked call, handler included, names no local of the
+verb it is in, except a foreign variable, which is fixed where it is
+declared. `x Int(3); y Int = comptime f(x);` is refused; `comptime f(Int(3))`
+and `comptime f(limit)`, for a package constant `limit`, are accepted. A
+call in an argument that is given a value reaching a capability is refused
+too, other than another marked call, since it may read. Both are checked
+from the tree, because a marked call is evaluated in every build and an
+unoptimized build has no fold to say what a local holds.
+[`design/comptime.md`](design/comptime.md) K1, K2 are the decision, and
+`tests/semantics/fixtures/typing/reject/bad/comptime.zn` the cases.
+
+Reconciling means evaluating a marked call against what the verb has
+computed before it, in every build.
+
+---
+
+## 16. A `comptime` call's writes are refused when they are made
+
+**Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
+§5.6: "A marked call **MUST NOT** write capability-backed state", whether a
+call writes being derived from its body (§5.2); a write an argument's
+computation makes "still happens at run time, as in §5.3".
+[`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
+§6.5: "A pool created inside a `comptime` call runs at compile time with
+that call".
+
+**Compiler** — a write is refused when the evaluation reaches it: a marked
+call whose body could write, on a path this build does not take, is
+accepted. A write made while the arguments are computed is refused too,
+rather than replayed at run time. A marked call that reaches a worker pool
+or a worker's timer is refused, since the evaluator runs neither.
+[`design/comptime.md`](design/comptime.md) K6, K7 are the decision, and
+`tests/codegen/fixtures/reject/comptimeRefused` the cases.
+
+Reconciling means an effect analysis that finds a write in the body, the
+arguments evaluated apart from the call, and pools run by the evaluator.
+
+---
+
+## 17. The build's arguments are given with `--build-argument`
+
+**Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
+§6.6: inside a call marked `comptime`, the runtime's `arguments` "gives the
+arguments the build was started with", which the spec does not otherwise
+define.
+
+**Compiler** — they are the values of the `--build-argument ARGUMENT`
+options `zanec` is given, in order, which `zane` passes on; with none, the
+list is empty. A program sees them only through a marked call.
+[`design/comptime.md`](design/comptime.md) K6 is the decision.
+
+Reconciling means the spec, or `zane`'s own documentation, saying how a
+build is given its arguments.
+
+---
+
 ## Closed
 
 Kept briefly so a reader who remembers them can see they were closed on

@@ -245,6 +245,8 @@ module rec Expr : sig
        empty `{ }` in a value position is a block, so the two never compete. *)
     | MapLit of (t * t) list
     | Spawn of Verb_call.t
+    (* A call marked `comptime` (spec effects.md §5.6). *)
+    | Comptime of Verb_call.t
     | Match of Match_expr.t
     | VerbCall of Verb_call.t
     | FuncLambda of Func_lambda.t
@@ -479,6 +481,7 @@ and Stat : sig
   and node =
     | VerbCall of Verb_call.t
     | Spawn of Verb_call.t
+    | Comptime of Verb_call.t
     | Decl of Decl.t
     | Assign of { target : Expr.t; value : Expr.t }
     | Abort of Expr.t

@@ -57,6 +57,7 @@ let rec token buf =
   | "init" -> INIT
   | "match" -> MATCH
   | "spawn" -> SPAWN
+  | "comptime" -> COMPTIME
   | "true" -> TRUE
   | "false" -> FALSE
   | "this" -> THIS

@@ -275,6 +275,13 @@ then run it again, read the golden diff and promote that.
   gives and the program then changes, recursion, a `mut` call, a function
   value and spawned calls. Every check prints `yes` when it holds, so the
   unoptimized build, which folds nothing, shows the folded one is right.
+- `comptimeCalls` is calls marked `comptime` (docs/design/comptime.md),
+  evaluated in every build: a result of each kind of value, package
+  constants made by marked calls, a marked call in another's arguments,
+  calls on a constant and through function values, both handler forms, the
+  build's arguments, which its `flags` file gives, and a loop several times
+  past one fold's step budget. `comptimeCalls.cgt` is the unoptimized tree,
+  each value built in. Every check prints `yes` when it holds.
 - `runs` is a run of statements folded whole: a sieve makes a list, marks it
   in place and reads it, and the optimized build keeps only what it printed.
   A list still named after the arguments are read stays for the program.
@@ -411,6 +418,11 @@ of integers.
 `rangeFloats` is one too: `@primitives$hashRange` on a `List<F64>`. The
 runtime reads the range's bytes, and equal floats need not be equal bytes,
 so lowering takes only lists of integers.
+
+`comptimeRefused` is a refusal of the program itself too: calls marked
+`comptime` that cannot be evaluated (docs/design/comptime.md K7, K9), one
+that prints, one that reads past a list's end, and one whose handler
+prints, each reported at its call.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

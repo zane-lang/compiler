@@ -48,8 +48,9 @@ let tst_tag : T.Expr.node -> int = function
   | T.Expr.Lambda _ -> 24
   | T.Expr.Invalid -> 25
   | T.Expr.Foreign_global _ -> 26
+  | T.Expr.Comptime _ -> 27
 
-let tst_count = 27
+let tst_count = 28
 
 let tst_stat_tag : T.Stat.node -> int = function
   | T.Stat.Expr _ -> 0
@@ -119,6 +120,7 @@ let tst_samples () =
     (T.Expr.Subscript { target = a; impl = verb; args = [ c; k ] }, [ pa; pc; pk ]);
     (T.Expr.Init [ field a; field c ], [ pa; pc ]);
     (T.Expr.Spawn a, [ pa ]);
+    (T.Expr.Comptime a, [ pa ]);
     ( T.Expr.Match
         {
           scrutinees = [ a; c ];

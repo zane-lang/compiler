@@ -102,7 +102,7 @@ case "${1-}" in
 					next=path ;;
 				--package)
 					next=package ;;
-				--target | --stamp | --import | --fixed-region | --spawned-fixed-region)
+				--target | --stamp | --import | --fixed-region | --spawned-fixed-region | --build-argument)
 					next=value ;;
 				# `-` is standard input, and a leading `-` otherwise marks an option.
 				-*) ;;

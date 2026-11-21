@@ -103,6 +103,11 @@ module rec Expr : sig
     | Subscript of { target : t; impl : Verb_ref.t; args : t list }
     | Init of Field_value.t list
     | Spawn of t
+    (* A call marked `comptime` (effects.md §5.6): a [Call], [Call_value],
+       [Construct] or [Construct_fields], its handler included, that names
+       no local of the verb it is in. It is evaluated at compile time, and
+       its value is built into the program. *)
+    | Comptime of t
     | Match of Match.t
     | Call of { callee : Verb_ref.t; args : Arg.t list; handler : Handler.t option }
     (* Calling a lambda-variable: there is no declaration to name (D8). *)

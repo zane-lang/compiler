@@ -17,6 +17,9 @@ let lambda st span t (l : T.Lambda.t) =
       let key = "lambda " ^ s in
       if not (Hashtbl.mem st.symbols key) then begin
         Hashtbl.replace st.symbols key s;
+        (* A `comptime` call's lambda is called once, at compile time, and
+           C never calls it. *)
+        if not (Hashtbl.mem st.comptime s) then
         Option.iter
           (fun (takes, gives) -> st.callbacks <- { Nodes.Callback.symbol = s; takes; gives; here = false; entry = Nodes.Callback.entry s } :: st.callbacks)
           (Lower_foreign.c_signature st span fv);

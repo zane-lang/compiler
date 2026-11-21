@@ -222,7 +222,7 @@ let rec expr env w (e : T.Expr.t) =
   | T.Expr.Case_read { target; handler; _ } ->
       expr env w target;
       handler_block env w e.T.Expr.ty handler
-  | T.Expr.Spawn inner -> expr env w inner
+  | T.Expr.Spawn inner | T.Expr.Comptime inner -> expr env w inner
   | T.Expr.Init fields ->
       fields_ env w (fun f -> member_type env e.T.Expr.ty f.T.Field_value.name) fields
   | T.Expr.Construct_fields { ctor; fields; handler } ->

@@ -85,6 +85,8 @@ let attach_abort_handle abort_handle span value =
         { Nodes.Expr.node = Nodes.Expr.VerbCall (attach call); span }
     | Nodes.Expr.Spawn call ->
         { Nodes.Expr.node = Nodes.Expr.Spawn (attach call); span }
+    | Nodes.Expr.Comptime call ->
+        { Nodes.Expr.node = Nodes.Expr.Comptime (attach call); span }
     | Nodes.Expr.Match ({ abort_handle = None; _ } as match_) ->
         {
           Nodes.Expr.node =

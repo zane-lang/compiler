@@ -93,6 +93,20 @@ val c_modules :
   Cgt.Nodes.Program.t ->
   (Codegen.c_package list, failure) result
 
+(** Every call marked `comptime` evaluated and its value written in its
+    place, which every build does before stage 5 (docs/design/comptime.md).
+    Inside such a call the runtime's `arguments` gives [arguments], the
+    arguments the build was started with, and a call into C runs [c], as in
+    [optimize]. A call that cannot be evaluated is a diagnostic pointing
+    into [packages]' sources. *)
+val comptime :
+  ?target:string ->
+  ?c:Codegen.c_package list ->
+  arguments:string list ->
+  Tst.Assembly.package list ->
+  Cgt.Nodes.Program.t ->
+  (Cgt.Nodes.Program.t, failure) result
+
 (** Stage 5 when [optimize] is true; otherwise the tree unchanged. A call
     into C is folded by running [c], the packages' C code for [target]
     (docs/design/ffi.md F16). *)

@@ -14,6 +14,8 @@ contexts:
       push: string
     - match: "(?<![\\p{Alphabetic}0-9_])implicit(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
+    - match: "(?<![\\p{Alphabetic}0-9_])comptime(?![\\p{Alphabetic}0-9])"
+      scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])variant(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])foreign(?![\\p{Alphabetic}0-9])"

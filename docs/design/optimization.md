@@ -312,6 +312,10 @@ weight: its text's length and one more, so that an output with no text, a
   result may materialize to, and a fold that outputs more stops with
   "output too large to fold".
 
+A call marked `comptime` is evaluated before stage 5, in every build, by a
+run that is held to none of these limits and takes nothing from them
+([`comptime.md`](comptime.md) K5).
+
 A replacement whose code would be larger than 64 KiB, its value, its outputs
 and the locals it stores counted together, does not fold either, which keeps a cheap call that builds a large value out of the
 binary. A call's result and outputs are remembered by its function and its
