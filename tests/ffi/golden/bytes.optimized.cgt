@@ -1,0 +1,642 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$U8
+    │   └── positions:
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$List<%primitives$U8>
+    │   └── positions[0]: list @0 of %primitives$U8 (1 bytes apart)
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── globals[0]: zane_self : i64, imported
+    ├── thunks[0] > thunk:
+    │   ├── symbol: bytes$next(%primitives$U8).ffi
+    │   ├── package: bytes
+    │   ├── calls: next_byte
+    │   ├── params[0]: i8
+    │   └── result: i8
+    ├── thunks[1] > thunk:
+    │   ├── symbol: bytes$flip(%primitives$U8).ffi
+    │   ├── package: bytes
+    │   ├── calls: flip_bits
+    │   ├── params[0]: i8
+    │   └── result: i8
+    ├── thunks[2] > thunk:
+    │   ├── symbol: bytes$negate(%primitives$U8).ffi
+    │   ├── package: bytes
+    │   ├── calls: negate
+    │   ├── params[0]: i8
+    │   └── result: i8
+    ├── thunks[3] > thunk:
+    │   ├── symbol: bytes$upper(%primitives$U8).ffi
+    │   ├── package: bytes
+    │   ├── calls: upper
+    │   ├── params[0]: i8
+    │   └── result: i8
+    ├── thunks[4] > thunk:
+    │   ├── symbol: bytes$echo(%primitives$U8).ffi
+    │   ├── package: bytes
+    │   ├── calls: echo
+    │   ├── params[0]: i8
+    │   └── result: i8
+    ├── thunks[5] > thunk:
+    │   ├── symbol: bytes$sum(%primitives$Array<%primitives$U8, 4>, %primitives$List<%primitives$U8>).ffi
+    │   ├── package: bytes
+    │   ├── calls: byte_sum
+    │   ├── params[0]: address
+    │   ├── params[1]: view
+    │   └── result: i64
+    ├── thunks[6] > thunk:
+    │   ├── symbol: bytes$swap(bytes$Packet).ffi
+    │   ├── package: bytes
+    │   ├── calls: swap
+    │   ├── params[0]: value
+    │   └── result: value
+    ├── thunks[7] > thunk:
+    │   ├── symbol: bytes$apply(%primitives$U8[%primitives$U8], %primitives$U8).ffi
+    │   ├── package: bytes
+    │   ├── calls: apply
+    │   ├── params[0]: function
+    │   ├── params[1]: i8
+    │   └── result: i8
+    ├── thunks[8] > thunk:
+    │   ├── symbol: bytes$remake(bytes$Packet[bytes$Packet], bytes$Packet).ffi
+    │   ├── package: bytes
+    │   ├── calls: remake
+    │   ├── params[0]: function
+    │   ├── params[1]: value
+    │   └── result: value
+    ├── callbacks[0] > callback:
+    │   ├── symbol: bytes$main()$lambda1
+    │   ├── entry: bytes$entry bytes$main()$lambda1
+    │   ├── takes[0]: i8
+    │   └── gives: i8
+    ├── callbacks[1] > callback:
+    │   ├── symbol: bytes$main()$lambda2
+    │   ├── entry: bytes$entry bytes$main()$lambda2
+    │   ├── takes[0]: {i8, i32, i8}
+    │   └── gives: {i8, i32, i8}
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: bytes$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: bytes$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "42" : handle
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[2] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "0" : handle
+    │       ├── body[3] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[4] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "240" : handle
+    │       ├── body[5] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[6] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "255" : handle
+    │       ├── body[7] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[8] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "65" : handle
+    │       ├── body[9] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[10] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "200" : handle
+    │       ├── body[11] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[12] > let:
+    │       │   ├── local: #1
+    │       │   └── value > record:
+    │       │       ├── type: [4 x i8]
+    │       │       ├── members[0] > member 0: 1 : i8
+    │       │       ├── members[1] > member 1: 2 : i8
+    │       │       ├── members[2] > member 2: 3 : i8
+    │       │       └── members[3] > member 3: 250 : i8
+    │       ├── body[13] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > expand:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── label: @37
+    │       │   │   ├── result: #38
+    │       │   │   └── body[0] > assign:
+    │       │   │       ├── place: #38
+    │       │   │       └── value > runtime:
+    │       │   │           ├── type: handle16
+    │       │   │           ├── fn: zane_list_new
+    │       │   │           └── args:
+    │       │   └── layout: %primitives$List<%primitives$U8>
+    │       ├── body[14] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @6
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #4
+    │       │   │   └── value: 255 : i8
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #5
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #2 : ptr
+    │       │   │       └── args[1]: 1 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #5 : ptr
+    │       │       ├── value: 255 : i8
+    │       │       └── layout: %primitives$U8
+    │       ├── body[15] > eval > expand:
+    │       │   ├── type: void
+    │       │   ├── label: @9
+    │       │   ├── body[0] > let:
+    │       │   │   ├── local: #7
+    │       │   │   └── value: 128 : i8
+    │       │   ├── body[1] > let:
+    │       │   │   ├── local: #8
+    │       │   │   └── value > runtime:
+    │       │   │       ├── type: ptr
+    │       │   │       ├── fn: zane_list_push
+    │       │   │       ├── args[0]: address of #2 : ptr
+    │       │   │       └── args[1]: 1 : i64
+    │       │   └── body[2] > place:
+    │       │       ├── address: local #8 : ptr
+    │       │       ├── value: 128 : i8
+    │       │       └── layout: %primitives$U8
+    │       ├── body[16] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: bytes$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @11
+    │       │       ├── result: #12
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #10
+    │       │       │   ├── scope: %3
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > call:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       ├── fn: bytes$sum(%primitives$Array<%primitives$U8, 4>, %primitives$List<%primitives$U8>)
+    │       │       │   │       ├── args[0]: address of #1 : ptr
+    │       │       │   │       └── args[1]: local #2 : handle16
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #12
+    │       │           └── value: local #10 : handle
+    │       ├── body[17] > let:
+    │       │   ├── local: #18
+    │       │   └── value > record:
+    │       │       ├── type: packed {i32, i8, i8}
+    │       │       ├── members[0] > member 0: 42 : i32
+    │       │       ├── members[1] > member 1: 200 : i8
+    │       │       └── members[2] > member 2: 7 : i8
+    │       ├── body[18] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "200" : handle
+    │       ├── body[19] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[20] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "42" : handle
+    │       ├── body[21] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[22] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "7" : handle
+    │       ├── body[23] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[24] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "4" : handle
+    │       ├── body[25] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[26] > let:
+    │       │   ├── local: #27
+    │       │   └── value > record:
+    │       │       ├── type: packed {i32, i8, i8}
+    │       │       ├── members[0] > member 0: 5 : i32
+    │       │       ├── members[1] > member 1: 254 : i8
+    │       │       └── members[2] > member 2: 9 : i8
+    │       ├── body[27] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "254" : handle
+    │       ├── body[28] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[29] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "5" : handle
+    │       ├── body[30] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       ├── body[31] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "9" : handle
+    │       ├── body[32] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       └── body[33] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: bytes$next(%primitives$U8)
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i8
+    │       ├── fn: bytes$next(%primitives$U8).ffi
+    │       └── args[0]: local #1 : i8
+    ├── funcs[3] > func:
+    │   ├── symbol: bytes$byte(%primitives$U8)
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: bytes$show(%primitives$String)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: handle
+    │       │       ├── label: @3
+    │       │       ├── result: #4
+    │       │       ├── body[0] > hold:
+    │       │       │   ├── local: #2
+    │       │       │   ├── scope: %5
+    │       │       │   ├── value > runtime:
+    │       │       │   │   ├── type: handle
+    │       │       │   │   ├── fn: zane_text_i64
+    │       │       │   │   └── args[0] > convert:
+    │       │       │   │       ├── type: i64
+    │       │       │   │       └── value: local #1 : i8
+    │       │       │   └── layout: %primitives$String
+    │       │       └── body[1] > assign:
+    │       │           ├── place: #4
+    │       │           └── value: local #2 : handle
+    │       └── body[1] > return: unit : void
+    ├── funcs[4] > func:
+    │   ├── symbol: bytes$flip(%primitives$U8)
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i8
+    │       ├── fn: bytes$flip(%primitives$U8).ffi
+    │       └── args[0]: local #1 : i8
+    ├── funcs[5] > func:
+    │   ├── symbol: bytes$negate(%primitives$U8)
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i8
+    │       ├── fn: bytes$negate(%primitives$U8).ffi
+    │       └── args[0]: local #1 : i8
+    ├── funcs[6] > func:
+    │   ├── symbol: bytes$upper(%primitives$U8)
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i8
+    │       ├── fn: bytes$upper(%primitives$U8).ffi
+    │       └── args[0]: local #1 : i8
+    ├── funcs[7] > func:
+    │   ├── symbol: bytes$echo(%primitives$U8)
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i8
+    │       ├── fn: bytes$echo(%primitives$U8).ffi
+    │       └── args[0]: local #1 : i8
+    ├── funcs[8] > func:
+    │   ├── symbol: bytes$sum(%primitives$Array<%primitives$U8, 4>, %primitives$List<%primitives$U8>)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : handle16
+    │   ├── ret: i64
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i64
+    │       ├── fn: bytes$sum(%primitives$Array<%primitives$U8, 4>, %primitives$List<%primitives$U8>).ffi
+    │       ├── args[0]: local #1 : ptr
+    │       └── args[1]: local #2 : handle16
+    ├── funcs[9] > func:
+    │   ├── symbol: bytes$show(%primitives$String)
+    │   ├── params[0]: local #1 : handle
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %5
+    │       ├── body[0] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: local #1 : handle
+    │       ├── body[1] > eval > runtime:
+    │       │   ├── type: void
+    │       │   ├── fn: zane_print
+    │       │   └── args[0]: "\n" : handle
+    │       └── body[2] > return: unit : void
+    ├── funcs[10] > func:
+    │   ├── symbol: bytes$swap(bytes$Packet)
+    │   ├── params[0]: local #1 : packed {i32, i8, i8}
+    │   ├── ret: packed {i32, i8, i8}
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i8, i32, i8}
+    │   │       ├── fn: bytes$swap(bytes$Packet).ffi
+    │   │       └── args[0] > record:
+    │   │           ├── type: {i8, i32, i8}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i8
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #1 : packed {i32, i8, i8}
+    │   │           ├── members[1] > member 1 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 0
+    │   │           │   └── value: local #1 : packed {i32, i8, i8}
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: i8
+    │   │               ├── index: 2
+    │   │               └── value: local #1 : packed {i32, i8, i8}
+    │   └── body[1] > return > record:
+    │       ├── type: packed {i32, i8, i8}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i8
+    │       │   ├── index: 0
+    │       │   └── value: local #2 : {i8, i32, i8}
+    │       ├── members[1] > member 0 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 1
+    │       │   └── value: local #2 : {i8, i32, i8}
+    │       └── members[2] > member 2 > member:
+    │           ├── type: i8
+    │           ├── index: 2
+    │           └── value: local #2 : {i8, i32, i8}
+    ├── funcs[11] > func:
+    │   ├── symbol: bytes$main()$lambda1
+    │   ├── params[0]: local #1 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > convert:
+    │       ├── type: i8
+    │       └── value > binary:
+    │           ├── type: i64
+    │           ├── op: +
+    │           ├── left > convert:
+    │           │   ├── type: i64
+    │           │   └── value: local #1 : i8
+    │           └── right: 100 : i64
+    ├── funcs[12] > func:
+    │   ├── symbol: bytes$apply(%primitives$U8[%primitives$U8], %primitives$U8)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : i8
+    │   ├── ret: i8
+    │   └── body[0] > return > foreign call:
+    │       ├── type: i8
+    │       ├── fn: bytes$apply(%primitives$U8[%primitives$U8], %primitives$U8).ffi
+    │       ├── args[0]: local #1 : ptr
+    │       └── args[1]: local #2 : i8
+    ├── funcs[13] > func:
+    │   ├── symbol: bytes$main()$lambda2
+    │   ├── params[0]: local #1 : packed {i32, i8, i8}
+    │   ├── ret: packed {i32, i8, i8}
+    │   └── body[0] > return > expand:
+    │       ├── type: packed {i32, i8, i8}
+    │       ├── label: @5
+    │       ├── result: #6
+    │       ├── body[0] > let:
+    │       │   ├── local: #2
+    │       │   └── value > member:
+    │       │       ├── type: i8
+    │       │       ├── index: 2
+    │       │       └── value: local #1 : packed {i32, i8, i8}
+    │       ├── body[1] > let:
+    │       │   ├── local: #3
+    │       │   └── value > binary:
+    │       │       ├── type: i32
+    │       │       ├── op: +
+    │       │       ├── left > member:
+    │       │       │   ├── type: i32
+    │       │       │   ├── index: 0
+    │       │       │   └── value: local #1 : packed {i32, i8, i8}
+    │       │       └── right: 1 : i32
+    │       ├── body[2] > let:
+    │       │   ├── local: #4
+    │       │   └── value > member:
+    │       │       ├── type: i8
+    │       │       ├── index: 1
+    │       │       └── value: local #1 : packed {i32, i8, i8}
+    │       ├── body[3] > assign:
+    │       │   ├── place: #6
+    │       │   └── value > record:
+    │       │       ├── type: packed {i32, i8, i8}
+    │       │       ├── members[0] > member 1: local #2 : i8
+    │       │       ├── members[1] > member 0: local #3 : i32
+    │       │       └── members[2] > member 2: local #4 : i8
+    │       └── body[4]: leave @5
+    ├── funcs[14] > func:
+    │   ├── symbol: bytes$remake(bytes$Packet[bytes$Packet], bytes$Packet)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── params[1]: local #2 : packed {i32, i8, i8}
+    │   ├── ret: packed {i32, i8, i8}
+    │   ├── body[0] > let:
+    │   │   ├── local: #3
+    │   │   └── value > foreign call:
+    │   │       ├── type: {i8, i32, i8}
+    │   │       ├── fn: bytes$remake(bytes$Packet[bytes$Packet], bytes$Packet).ffi
+    │   │       ├── args[0]: local #1 : ptr
+    │   │       └── args[1] > record:
+    │   │           ├── type: {i8, i32, i8}
+    │   │           ├── members[0] > member 0 > member:
+    │   │           │   ├── type: i8
+    │   │           │   ├── index: 1
+    │   │           │   └── value: local #2 : packed {i32, i8, i8}
+    │   │           ├── members[1] > member 1 > member:
+    │   │           │   ├── type: i32
+    │   │           │   ├── index: 0
+    │   │           │   └── value: local #2 : packed {i32, i8, i8}
+    │   │           └── members[2] > member 2 > member:
+    │   │               ├── type: i8
+    │   │               ├── index: 2
+    │   │               └── value: local #2 : packed {i32, i8, i8}
+    │   └── body[1] > return > record:
+    │       ├── type: packed {i32, i8, i8}
+    │       ├── members[0] > member 1 > member:
+    │       │   ├── type: i8
+    │       │   ├── index: 0
+    │       │   └── value: local #3 : {i8, i32, i8}
+    │       ├── members[1] > member 0 > member:
+    │       │   ├── type: i32
+    │       │   ├── index: 1
+    │       │   └── value: local #3 : {i8, i32, i8}
+    │       └── members[2] > member 2 > member:
+    │           ├── type: i8
+    │           ├── index: 2
+    │           └── value: local #3 : {i8, i32, i8}
+    ├── funcs[15] > func:
+    │   ├── symbol: bytes$main()$lambda1.adapter
+    │   ├── linkage: shared
+    │   ├── params[0]: local #0 : ptr
+    │   ├── params[1]: local #1 : ptr
+    │   ├── ret: void
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > binary:
+    │   │       ├── type: i1
+    │   │       ├── op: ==
+    │   │       ├── left > deref:
+    │   │       │   ├── type: i64
+    │   │       │   └── ptr: global zane_self
+    │   │       └── right: 0 : i64
+    │   ├── body[1] > if:
+    │   │   ├── cond: local #2 : i1
+    │   │   └── body[0] > eval > runtime:
+    │   │       ├── type: void
+    │   │       ├── fn: zane_callback_attach
+    │   │       └── args:
+    │   ├── body[2] > store:
+    │   │   ├── address: local #1 : ptr
+    │   │   └── value > call:
+    │   │       ├── type: i8
+    │   │       ├── fn: bytes$main()$lambda1
+    │   │       └── args[0] > deref:
+    │   │           ├── type: i8
+    │   │           └── ptr > deref:
+    │   │               ├── type: ptr
+    │   │               └── ptr > offset:
+    │   │                   ├── within: {ptr}
+    │   │                   ├── path: 0
+    │   │                   └── base: local #0 : ptr
+    │   └── body[3] > if:
+    │       ├── cond: local #2 : i1
+    │       └── body[0] > eval > runtime:
+    │           ├── type: void
+    │           ├── fn: zane_callback_detach
+    │           └── args:
+    └── funcs[16] > func:
+        ├── symbol: bytes$main()$lambda2.adapter
+        ├── linkage: shared
+        ├── params[0]: local #0 : ptr
+        ├── params[1]: local #1 : ptr
+        ├── ret: void
+        ├── body[0] > let:
+        │   ├── local: #2
+        │   └── value > binary:
+        │       ├── type: i1
+        │       ├── op: ==
+        │       ├── left > deref:
+        │       │   ├── type: i64
+        │       │   └── ptr: global zane_self
+        │       └── right: 0 : i64
+        ├── body[1] > if:
+        │   ├── cond: local #2 : i1
+        │   └── body[0] > eval > runtime:
+        │       ├── type: void
+        │       ├── fn: zane_callback_attach
+        │       └── args:
+        ├── body[2] > let:
+        │   ├── local: #4
+        │   └── value > call:
+        │       ├── type: packed {i32, i8, i8}
+        │       ├── fn: bytes$main()$lambda2
+        │       └── args[0] > record:
+        │           ├── type: packed {i32, i8, i8}
+        │           ├── members[0] > member 1 > member:
+        │           │   ├── type: i8
+        │           │   ├── index: 0
+        │           │   └── value > deref:
+        │           │       ├── type: {i8, i32, i8}
+        │           │       └── ptr > deref:
+        │           │           ├── type: ptr
+        │           │           └── ptr > offset:
+        │           │               ├── within: {ptr}
+        │           │               ├── path: 0
+        │           │               └── base: local #0 : ptr
+        │           ├── members[1] > member 0 > member:
+        │           │   ├── type: i32
+        │           │   ├── index: 1
+        │           │   └── value > deref:
+        │           │       ├── type: {i8, i32, i8}
+        │           │       └── ptr > deref:
+        │           │           ├── type: ptr
+        │           │           └── ptr > offset:
+        │           │               ├── within: {ptr}
+        │           │               ├── path: 0
+        │           │               └── base: local #0 : ptr
+        │           └── members[2] > member 2 > member:
+        │               ├── type: i8
+        │               ├── index: 2
+        │               └── value > deref:
+        │                   ├── type: {i8, i32, i8}
+        │                   └── ptr > deref:
+        │                       ├── type: ptr
+        │                       └── ptr > offset:
+        │                           ├── within: {ptr}
+        │                           ├── path: 0
+        │                           └── base: local #0 : ptr
+        ├── body[3] > store:
+        │   ├── address: local #1 : ptr
+        │   └── value > record:
+        │       ├── type: {i8, i32, i8}
+        │       ├── members[0] > member 0 > member:
+        │       │   ├── type: i8
+        │       │   ├── index: 1
+        │       │   └── value: local #4 : packed {i32, i8, i8}
+        │       ├── members[1] > member 1 > member:
+        │       │   ├── type: i32
+        │       │   ├── index: 0
+        │       │   └── value: local #4 : packed {i32, i8, i8}
+        │       └── members[2] > member 2 > member:
+        │           ├── type: i8
+        │           ├── index: 2
+        │           └── value: local #4 : packed {i32, i8, i8}
+        └── body[4] > if:
+            ├── cond: local #2 : i1
+            └── body[0] > eval > runtime:
+                ├── type: void
+                ├── fn: zane_callback_detach
+                └── args:

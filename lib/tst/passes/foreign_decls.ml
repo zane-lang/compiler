@@ -193,7 +193,9 @@ let check_handle env (info : type_info) (h : Nodes.Handle.t) =
 (* Types at the boundary                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-type scalar = I32 | I64 | F32 | F64
+(* EXPERIMENT (LangArena zane-vs-c): [U8], `@primitives$U8`, crosses as
+   the other scalars do, with the 8-bit C types as its full-width ones. *)
+type scalar = U8 | I32 | I64 | F32 | F64
 
 (* The C form a Zane type takes when it is passed to C (§3.3). *)
 type crossing =
@@ -208,13 +210,16 @@ type crossing =
   | Function of Ty.verb
 
 let scalar_of = function
+  | Ty.Intrinsic { namespace = "primitives"; name = "U8"; args = [] } -> Some U8
   | Ty.Intrinsic { namespace = "primitives"; name = "I32"; args = [] } -> Some I32
   | Ty.Intrinsic { namespace = "primitives"; name = "I64"; args = [] } -> Some I64
   | Ty.Intrinsic { namespace = "primitives"; name = "F32"; args = [] } -> Some F32
   | Ty.Intrinsic { namespace = "primitives"; name = "F64"; args = [] } -> Some F64
   | _ -> None
 
-let scalar_name = function I32 -> "@primitives$I32" | I64 -> "@primitives$I64" | F32 -> "@primitives$F32" | F64 -> "@primitives$F64"
+let scalar_name = function
+  | U8 -> "@primitives$U8"
+  | I32 -> "@primitives$I32" | I64 -> "@primitives$I64" | F32 -> "@primitives$F32" | F64 -> "@primitives$F64"
 
 (* A value type declared with `struct` whose fields are scalars, arrays of
    them, or such structs in turn: a C-compatible value type (§3.3), with its
@@ -276,12 +281,14 @@ let crossing env (t : Ty.t) =
       | _ -> None)
 
 (* Whether [c] is one of a scalar's full-width C types (§3.3): the C types of
-   the scalar's own size, which are the only C types laid out as the scalar
+   the scalar's own size, for [U8] each 8-bit one, which are the only C types laid out as the scalar
    is. A standard typedef is matched by its name, so `int64_t` is a
    full-width type even on a target where it is a `long`. *)
 let full_width scalar (c : C.ctype) =
   let named standard_names names standard name = (match standard with Some s -> List.mem s standard_names | None -> false) || List.mem name names in
   match (scalar, c) with
+  | U8, C.Int { size = 8; width = 8; name; standard; _ } ->
+      named [ "int8_t"; "uint8_t" ] [ "char"; "signed char"; "unsigned char" ] standard name
   | I32, C.Int { size = 32; width = 32; name; standard; _ } ->
       named [ "int32_t"; "uint32_t" ] [ "int"; "unsigned int" ] standard name
   | I64, C.Int { size = 64; width = 64; name; standard; _ } ->
@@ -305,7 +312,7 @@ let narrow_i32 (c : C.ctype) =
    field at the next offset its alignment allows, and the whole struct
    rounded up to its largest alignment ([value_struct] has already found
    that every field can be passed to C). Sizes are in bytes. *)
-let scalar_layout = function I32 | F32 -> (4, 4) | I64 | F64 -> (8, 8)
+let scalar_layout = function U8 -> (1, 1) | I32 | F32 -> (4, 4) | I64 | F64 -> (8, 8)
 
 let rec layout env (t : Ty.t) =
   match (scalar_of t, array_of t, value_struct env t) with

@@ -396,8 +396,10 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       let kind = function
         | F.Scalar Cgt.Nodes.Ty.I32 -> Foreign.Glue.Scalar "int32_t"
         | F.Scalar Cgt.Nodes.Ty.I64 -> Foreign.Glue.Scalar "int64_t"
+        | F.Scalar Cgt.Nodes.Ty.I8 -> Foreign.Glue.Scalar "uint8_t"
         | F.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Scalar "float"
-        | F.Scalar _ -> Foreign.Glue.Scalar "double"
+        | F.Scalar Cgt.Nodes.Ty.F64 -> Foreign.Glue.Scalar "double"
+        | F.Scalar _ -> Diagnostic.bug "codegen: a foreign verb passes C a scalar of a type it does not take"
         | F.Bool -> Foreign.Glue.Bool
         | F.Unit -> Foreign.Glue.Unit
         | F.Terminated -> Foreign.Glue.Terminated
@@ -513,6 +515,7 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         match s with
         | C.Truth -> Foreign.Glue.Truth
         | C.Nothing -> Foreign.Glue.Nothing
+        | C.Scalar Cgt.Nodes.Ty.I8 -> Foreign.Glue.Value "unsigned char"
         | C.Scalar Cgt.Nodes.Ty.I32 -> Foreign.Glue.Value "int"
         | C.Scalar Cgt.Nodes.Ty.I64 -> Foreign.Glue.Value "long long"
         | C.Scalar Cgt.Nodes.Ty.F32 -> Foreign.Glue.Value "float"

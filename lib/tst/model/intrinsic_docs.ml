@@ -33,7 +33,7 @@ let namespaces =
 
 let types =
   [
-    ("@primitives$U8", "An unsigned byte. It converts to and from the integer primitives and compares, and has no arithmetic.");
+    ("@primitives$U8", "An unsigned byte. It converts to and from the integer primitives and compares, and has no arithmetic. It crosses into C as an 8-bit C type.");
     ( "@primitives$I32",
       "A 32-bit signed integer. Its constructors build one from an integer literal, exactly from `@primitives$U8`, \
        and by name from wider values: `wrap` keeps an `I64`'s low bits, `truncate` drops a float's fraction \

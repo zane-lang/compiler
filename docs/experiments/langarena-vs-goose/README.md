@@ -853,6 +853,27 @@ had the LZWEncode leak. Furthest behind (× Goose/clang): LZWDecode 6.2,
 Sort::Self 5.8, CSV::Parse 4.0, Calculator::Ast 3.9, LZWEncode 3.2,
 LogParser 2.4, SHA256 2.4, HuffDecode 2.3.
 
+## Step 20: `U8` across the C boundary
+
+**Design.** `@primitives$U8` crosses into C wherever `I32`, `I64`, `F32`
+and `F64` do: as a foreign verb's parameter and result, as the element of
+an `Array<U8, n>` lent as a `const` pointer and of a `List<U8>` lent as a
+`zane_span`, as a field of a C-compatible value type, and as what a
+function value C calls takes and gives. Its full-width C types are the
+8-bit ones, `uint8_t`, `int8_t`, `unsigned char`, `signed char` and
+`char`, by the rule that gives `I32` both `int32_t` and `uint32_t`: both
+signs carry the same bits, and Zane reads the byte unsigned, so a
+`signed char` of `-1` is the `U8` `255`. The spec has no `U8`, so it gains
+no row; the checker (`lib/tst/passes/foreign_decls.ml`) treats `U8` as a
+scalar of size and alignment 1, the glue reads and writes it as a
+`uint8_t` (`lib/driver/driver.ml`), a function value's C entry passes it
+as an `unsigned char`, and stage 5's C evaluator (`lib/optimize/c_cross.ml`)
+writes and reads it as one byte, so the optimized build folds such calls.
+
+**Tests.** `tests/ffi/fixtures/bytes` runs each crossing, plain,
+optimized and tiered; `reject/interface` refuses a `U8` against an `int`
+and an `Array<U8, 2>` against a `const int16_t *`.
+
 ## What remains
 
 - Calculator::Ast is still 3.7× Goose: each name is a fresh String

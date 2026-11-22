@@ -18,3 +18,4 @@ extern int64_t not_a_function;
 zane_span returns_list(void);
 int32_t narrow_param(int32_t (*f)(int8_t));
 int32_t narrow_result(int16_t (*f)(int32_t));
+int64_t short_array(const int16_t *xs);

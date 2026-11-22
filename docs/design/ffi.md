@@ -393,7 +393,9 @@ that declares its C function. The glue holds:
   `__zane_args[i]` points to an argument already laid out as C lays out its
   type. The thunk does the conversions of `ffi.md` §3.3 as C casts: an
   `@primitives$I32` passed to a `uint8_t` keeps its low bits, a returned
-  `int16_t` widens by its sign. A string passed to a `const char *`
+  `int16_t` widens by its sign. The experimental `@primitives$U8`
+  ([`langarena-vs-goose`](../experiments/langarena-vs-goose/README.md),
+  step 20) crosses as a `uint8_t`, whatever 8-bit type C declares. A string passed to a `const char *`
   (`ffi.md` §3.4) is copied with a NUL after it, into a 256-byte buffer in
   the thunk's frame when it is shorter, else into `malloc`'s memory, freed
   after the call. A string's block is exactly as long as its bytes, so the
