@@ -1,5 +1,5 @@
 /// `byteSet` reads each of its 256 flags as one byte, so lowering takes
-/// only a list of one-byte flags: an `I64` is eight.
+/// only an array of one-byte flags: an `I64` is eight.
 package byteSetFlags;
 
 alias I64 = @primitives$I64;
@@ -7,9 +7,8 @@ alias String = @primitives$String;
 alias Unit = @primitives$Unit;
 
 Unit main() {
-	flags @primitives$List<I64> = @primitives$List(I64);
-	flags!push(I64(1));
-	set @primitives$List<@primitives$U8> = flags:byteSet();
-	@program$console!print(String(set:size()));
+	flags @primitives$ArrayRef<I64, 256> = @primitives$ArrayRef.fill(256, I64(i I64) => i);
+	set @primitives$ByteSet = flags:byteSet();
+	@program$console!print(String(@primitives$I64(1)));
 	return Unit();
 }

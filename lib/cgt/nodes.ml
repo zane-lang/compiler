@@ -6,7 +6,7 @@
    the nodes here are those that lowering handles so far. *)
 
 (* A CGT type is a machine layout (L5). [Handle] is `@primitives$String`
-   (types.md §2.7), `@primitives$List<T>` and `@primitives$ListRef<T>`: a handle (memory.md §3.6), a
+   (types.md §2.7), `@primitives$List<T>`, `@primitives$ListRef<T>` and `@primitives$ByteSet`, laid out as a list of bytes: a handle (memory.md §3.6), a
    pointer to the first byte or element, the length in bytes or elements,
    with no terminator, and the room in bytes of the block they are in, which
    is 0 when the handle owns no block: a literal's bytes belong to the module.

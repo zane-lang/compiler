@@ -251,7 +251,8 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
           in
           { Expr.node = Expr.Expand { label; body; result = None }; ty = Nodes.Ty.Void }
       | _ -> Diagnostic.bug ~span "lowering: `push` with the wrong arguments")
-  (* EXPERIMENT (LangArena zane-vs-c): a string's bytes. *)
+  (* A string's length in bytes, and the byte at an index counted from 1
+     (types.md §2.12). *)
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$byteCount"; _ }; args = [ T.Arg.Value text ]; handler = None }
     ->
       { Expr.node = Expr.Member { value = w.borrow st ctx span text; index = 1 }; ty = Nodes.Ty.I64 }
@@ -363,14 +364,17 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
       match args with
       | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value other; T.Arg.Value other_start; T.Arg.Value count ] ->
           let s = stride_of list in
+          (* The runtime gives 1 when the ranges are the same, else 0. *)
+          let same =
+            Expr.Runtime
+              {
+                fn = Runtime.List_same;
+                args = [ w.lend st ctx span list; b start; w.lend st ctx span other; b other_start; b count; int s ];
+              }
+          in
           {
-            Expr.node =
-              Expr.Runtime
-                {
-                  fn = Runtime.List_same;
-                  args = [ w.lend st ctx span list; b start; w.lend st ctx span other; b other_start; b count; int s ];
-                };
-            ty = Nodes.Ty.I64;
+            Expr.node = Expr.Binary { op = Expr.Eq; left = { Expr.node = same; ty = Nodes.Ty.I64 }; right = int 1 };
+            ty = Nodes.Ty.I1;
           }
       | [ T.Arg.Value list; T.Arg.Value start; T.Arg.Value count ] ->
           let s = stride_of list in
@@ -380,11 +384,11 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
           }
       | _ -> Diagnostic.bug ~span (Printf.sprintf "lowering: `%s` with the wrong arguments" name))
   | T.Expr.Call { callee = { owner = S.Intrinsic "@primitives$byteSet"; _ }; args = [ T.Arg.Value members ]; handler = None } ->
-      (* The runtime reads each flag as a byte. *)
-      (match element (Tty.strip_mode members.T.Expr.ty) with
-      | Some t when one_byte ~flags:true (ty st span t) -> ()
-      | _ -> refuse span "`@primitives$byteSet` makes a set from a list of one-byte flags");
-      { Expr.node = Expr.Runtime { fn = Runtime.Byte_set; args = [ w.borrow st ctx span members ] }; ty = Nodes.Ty.list_handle () }
+      (* The runtime reads each of the 256 flags as a byte. *)
+      (match array_of (Tty.strip_mode members.T.Expr.ty) with
+      | Some (t, 256) when one_byte ~flags:true (ty st span t) -> ()
+      | _ -> refuse span "`@primitives$byteSet` makes a set from 256 one-byte flags");
+      { Expr.node = Expr.Runtime { fn = Runtime.Byte_set; args = [ w.lend st ctx span members ] }; ty = Nodes.Ty.list_handle () }
   | T.Expr.Call
       {
         callee = { owner = S.Intrinsic ("@primitives$findPair" | "@primitives$findAny" as name); _ };
@@ -392,11 +396,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
         handler = None;
       } -> (
       let b = w.borrow st ctx span in
-      let set (l : T.Expr.t) =
-        match element (Tty.strip_mode l.T.Expr.ty) with
-        | Some t when one_byte (ty st span t) -> w.lend st ctx span l
-        | _ -> refuse span (Printf.sprintf "`%s` takes byte sets, lists of bytes `@primitives$byteSet` makes" name)
-      in
+      let set = w.lend st ctx span in
       match sets with
       | [ T.Arg.Value first; T.Arg.Value gap; T.Arg.Value second ] when name = "@primitives$findPair" ->
           let first = set first and second = set second in

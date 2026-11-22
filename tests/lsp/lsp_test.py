@@ -527,7 +527,7 @@ class CompletionTest(ServerTest):
 
     def test_the_methods_of_a_namespace_after_a_colon(self):
         found = self.complete(self.main, self.text.replace("return Unit();", "k = label:@primitives$byte|\n\treturn Unit();"))
-        # `byteSet` is a method of a list, so a string does not offer it.
+        # `byteSet` is a method of an array of flags, so a string does not offer it.
         self.assertEqual(found, {"byteAt", "byteCount"})
         found = self.complete(self.main, self.text.replace("return Unit();", "@program$console!@runtime$pr|\n\treturn Unit();"))
         self.assertEqual(found, {"print"})

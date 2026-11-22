@@ -959,7 +959,8 @@ let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint
       |> Result.map_error (Printf.sprintf "cannot optimize the module: %s")
       |> Result.map (fun () ->
              if optimize then rewrites tm m;
-             (* EXPERIMENT: the optimized module, for reading. *)
+             (* A debugging aid: with `ZANE_DUMP_OPT` set to a path, the optimized
+                module is printed there as LLVM IR, for reading. *)
              Option.iter (fun path -> Llvm.print_module path m) (Sys.getenv_opt "ZANE_DUMP_OPT"))
       |> Fun.flip Result.bind (fun () -> finish_tier m ~hash exports definitions)
       |> Result.map (fun () -> (triple, tm, whole, apart)))

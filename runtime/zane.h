@@ -137,7 +137,7 @@ int64_t zane_parse_i64(const zane_text *text, int64_t *out);
 int64_t zane_parse_f64(const zane_text *text, double *out);
 int64_t zane_parse_f64_at(const zane_text *text, double *out, int64_t start, int64_t count);
 int64_t zane_text_hash(const zane_text *text);
-void zane_byte_set(zane_list *out, const zane_list *members);
+void zane_byte_set(zane_list *out, const uint8_t *flags);
 int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, const zane_list *set);
 int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap, const zane_list *second);
 void zane_arguments(zane_list *out);
