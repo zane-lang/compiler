@@ -12,7 +12,8 @@
    with no body, a zero-sized allocation, and a spent budget; and the sign-only
    result of `memcmp`.
    Then C reading the views F18 passes it, which fold, and comparing,
-   subtracting or writing them, which stop; a `static` name two modules
+   subtracting or writing them, which stop; a small struct AArch64 returns
+   in registers, whose fields fold and whose padding stops when read; a `static` name two modules
    define, which stops; and a constructor that stops, which stops every
    call. *)
 
@@ -489,6 +490,44 @@ let views base =
              | _ -> false
              | exception Value.Stop w -> String.starts_with ~prefix:"a string longer than any allocation" w))
 
+(* A struct of 16 bytes or fewer that AArch64 returns in two integer
+   registers: the callee loads the registers' words from a temporary whose
+   padding bytes C never wrote, and the caller stores them back and reads
+   the fields. The fields fold; a padding byte read stops. Compiled for
+   AArch64 Linux, whose procedure call standard macOS on Apple silicon
+   shares for such a struct. *)
+let padded_source =
+  {|
+#include <stdint.h>
+#include <string.h>
+
+typedef long long ll;
+
+struct packet { uint8_t tag; int32_t n; uint8_t low; };
+__attribute__((noinline)) static struct packet make(ll a, ll b) {
+  struct packet p;
+  p.tag = (uint8_t)a;
+  p.n = (int32_t)(a * b);
+  p.low = (uint8_t)b;
+  return p;
+}
+ll p_fields(ll a, ll b) { struct packet p = make(a, b); return p.tag + (ll)p.n * 1000 + (ll)p.low * 1000000000; }
+ll p_padding(ll a, ll b) { struct packet p = make(a, b); unsigned char bytes[sizeof p]; memcpy(bytes, &p, sizeof p); return bytes[1]; }
+|}
+
+let padded base =
+  with_zig_cc @@ fun zig ->
+  match compile ~cc:zig ~target:"aarch64-linux-gnu" base "padded" padded_source with
+  | None -> check "the C evaluator's padded-struct cases compile" false
+  | Some bitcode ->
+      with_module bitcode (fun m ->
+          check "a small struct returned in registers folds by its fields"
+            (evaluate m "p_fields" 7L 200L = Ok (C_memory.Int (64, Int64.add 7L (Int64.add 1_400_000L 200_000_000_000L))));
+          check "a padding byte C never wrote stops a read"
+            (match evaluate m "p_padding" 7L 200L with
+            | Error w -> String.starts_with ~prefix:"a read of a byte never written" w
+            | Ok _ -> false))
+
 (* Two modules each defining a `static` helper of one name, as the
    program's C and a retained dependency's may: a call of it stops, since
    the name alone does not identify which module's helper is meant. *)
@@ -534,5 +573,6 @@ let run () =
       agree base;
       stop base;
       views base;
+      padded base;
       shared_static base;
       constructed base)

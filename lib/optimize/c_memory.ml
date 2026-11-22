@@ -58,6 +58,14 @@ and value =
   | Addr of int * ptr
   (* What `memcmp` and its kin promise of their result: its sign alone. *)
   | Sign of int * int
+  (* An integer of [bits] bits loaded from bytes of which only those whose
+     bit is set in [known], one bit per byte from the lowest, were ever
+     written: the bytes of a struct's padding, which a target that returns
+     a small struct in integer registers loads with its fields. Its other
+     bytes are whatever the running process holds, so the value may only be
+     stored again, which writes its known bytes and leaves the rest
+     unwritten. *)
+  | Part of { bits : int; data : int64; known : int }
   | Poison
   | Vec of value array
   | Agg of value array
@@ -159,6 +167,14 @@ let rec store a off (t : C_ir.ty) v =
   | _, Poison -> stop "poison stored"
   | C_ir.Int bits, Int (_, x) -> put_bytes a off ((bits + 7) / 8) x
   | C_ir.Int bits, (Addr _ | Sign _) -> put_frags a off ((bits + 7) / 8) v
+  | C_ir.Int bits, Part { bits = b; data; known } when b = bits ->
+      for i = 0 to ((bits + 7) / 8) - 1 do
+        if known land (1 lsl i) <> 0 then put_bytes a (off + i) 1 (Int64.shift_right_logical data (8 * i))
+        else begin
+          Bytes.set a.written (off + i) '\000';
+          Hashtbl.remove a.frags (off + i)
+        end
+      done
   | (C_ir.Float | C_ir.Double), Fl f when f.known -> put_bytes a off (store_size t) f.bits
   | (C_ir.Float | C_ir.Double), Fl _ -> put_frags a off (store_size t) v
   | C_ir.Ptr, Null -> put_bytes a off 8 0L
@@ -209,7 +225,21 @@ let rec load a off (t : C_ir.ty) =
   | C_ir.Array { count; stride; elem; _ } -> Agg (Array.init count (fun i -> load a (off + (i * stride)) elem))
   | _ -> (
       let n = store_size t in
+      let unwritten = ref false in
+      for i = 0 to n - 1 do
+        if Bytes.get a.written (off + i) = '\000' then unwritten := true
+      done;
       match (whole a off n, t) with
+      | None, C_ir.Int bits when !unwritten && n > 1 ->
+          let data = ref 0L and known = ref 0 in
+          for i = n - 1 downto 0 do
+            data := Int64.shift_left !data 8;
+            if Bytes.get a.written (off + i) <> '\000' then begin
+              known := !known lor (1 lsl i);
+              data := Int64.logor !data (Int64.of_int (Char.code (Bytes.get a.data (off + i))))
+            end
+          done;
+          if !known = 0 then stop "a read of a byte never written" else Part { bits; data = mask bits !data; known = !known }
       | None, C_ir.Int bits -> int bits (get_bytes a off n)
       | None, C_ir.Float -> Fl { double = false; bits = get_bytes a off 4; known = true }
       | None, C_ir.Double -> Fl { double = true; bits = get_bytes a off 8; known = true }
