@@ -193,8 +193,9 @@ let check_handle env (info : type_info) (h : Nodes.Handle.t) =
 (* Types at the boundary                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* EXPERIMENT (LangArena zane-vs-c): [U8], `@primitives$U8`, crosses as
-   the other scalars do, with the 8-bit C types as its full-width ones. *)
+(* The primitives that cross as numbers (§3.3): the scalar primitives and
+   [U8], the byte primitive, whose full-width C types are the 8-bit
+   ones. *)
 type scalar = U8 | I32 | I64 | F32 | F64
 
 (* The C form a Zane type takes when it is passed to C (§3.3). *)

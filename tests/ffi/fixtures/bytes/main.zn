@@ -1,11 +1,10 @@
-/// `@primitives$U8` crossing into C and back (EXPERIMENT, LangArena
-/// zane-vs-c): as each 8-bit C type, `uint8_t`, `unsigned char`, `signed
-/// char`, `char` and `int8_t`, a C result keeping its byte unsigned; as an
-/// array's and a list's elements; as fields of a C-compatible value type,
-/// which Zane lays out in another order than C; and as what a function
-/// value C calls takes and gives, a byte and that value type. The
-/// optimized build folds each call but the one lending an array and a list,
-/// through the same conversions.
+/// `@primitives$U8` crossing into C and back (ffi.md §3.3): as each 8-bit
+/// C type, `uint8_t`, `unsigned char`, `signed char`, `char` and `int8_t`,
+/// a C result keeping its byte unsigned; as an array's and a list's
+/// elements; as fields of a C-compatible value type, which Zane lays out in
+/// another order than C; and as what a function value C calls takes and
+/// gives, a byte and that value type. The optimized build folds each call
+/// but the one lending an array and a list, through the same conversions.
 package bytes;
 
 alias Unit = @primitives$Unit;
