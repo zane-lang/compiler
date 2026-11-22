@@ -100,6 +100,13 @@ jobs:
         if: matrix.suite == 'compiler'
         run: pixi run just check-nesting
 
+      # Valgrind's memory checker, which tests/runtime/valgrind_test.py runs,
+      # starts only where it can read the dynamic loader's symbols, which
+      # Ubuntu ships apart in libc6-dbg.
+      - name: Install glibc's debug symbols
+        if: matrix.suite == 'compiler'
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libc6-dbg
+
       - name: Compiler tests
         if: matrix.suite == 'compiler'
         run: pixi run just test-compiler
