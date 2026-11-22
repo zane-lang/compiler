@@ -296,7 +296,7 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
          range's bytes, so the elements must own no blocks. *)
       let rec plain (t : Nodes.Ty.t) =
         match t with
-        | Nodes.Ty.I1 | Nodes.Ty.I8 | Nodes.Ty.I32 | Nodes.Ty.I64 | Nodes.Ty.F32 | Nodes.Ty.F64 -> true
+        | Nodes.Ty.Void | Nodes.Ty.I1 | Nodes.Ty.I8 | Nodes.Ty.I32 | Nodes.Ty.I64 | Nodes.Ty.F32 | Nodes.Ty.F64 -> true
         | Nodes.Ty.Struct ts | Nodes.Ty.Sum ts -> List.for_all plain ts
         | Nodes.Ty.Array (t, _) | Nodes.Ty.Packed t -> plain t
         | _ -> false

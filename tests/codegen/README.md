@@ -339,7 +339,8 @@ makes of them.
   (`appendRange`) and of itself (`appendOwn`), doubling a list past its
   first block's room so a list's own range is read after the block grows;
   then appends in a loop, and onto a list that is an element, located once
-  and only after a start that grows the list holding it.
+  and only after a start that grows the list holding it; and copies a list
+  of enum values, which own no block.
 - `listSort` sorts lists of integers in place: a thousand 32-bit ones over
   eight keys, past the sizes insertion sort and the pivot's medians of
   medians take, and 64-bit ones in descending order, which one pass sorts;
