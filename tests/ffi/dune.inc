@@ -507,6 +507,140 @@
   (diff golden/assembly.out assembly.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/bytes))
+ (action
+  (with-stdout-to
+   bytes.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/bytes))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.optimized.cgt bytes.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/bytes))
+ (targets bytes.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bytes.exe --package fixtures/bytes)))
+
+(rule
+ (deps (source_tree fixtures/bytes))
+ (targets bytes.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bytes.optimized.exe --optimize --package fixtures/bytes)))
+
+(rule
+ (deps (source_tree fixtures/bytes))
+ (targets bytes.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build bytes.tiered.exe --tiered --package fixtures/bytes)))
+
+(rule
+ (deps (source_tree fixtures/bytes))
+ (targets bytes.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up bytes.tier1 --package fixtures/bytes)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bytes.checked.out.actual
+    (run ./bytes.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.out bytes.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bytes.unchecked.out.actual
+    (run ./bytes.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.out bytes.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bytes.optimized.checked.out.actual
+    (run ./bytes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.out bytes.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bytes.optimized.unchecked.out.actual
+    (run ./bytes.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.out bytes.optimized.unchecked.out.actual)))
+
+(rule
+ (deps bytes.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./bytes.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    bytes.tiered.checked.out.actual
+    (run ./bytes.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.out bytes.tiered.checked.out.actual)))
+
+(rule
+ (deps bytes.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./bytes.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    bytes.tiered.unchecked.out.actual
+    (run ./bytes.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/bytes.out bytes.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/cStrings))
  (targets cStrings.exe)
  (action

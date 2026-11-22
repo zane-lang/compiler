@@ -32,9 +32,9 @@ let types =
     { namespace; name; params; reference }
   in
   [
-    (* EXPERIMENT (LangArena zane-vs-c): an unsigned byte, a storage type
-       with no arithmetic of its own: it converts to and from the integers,
-       and compares. *)
+    (* The byte primitive (syntax.md §2.7): an unsigned byte with no
+       arithmetic of its own, which converts to and from the integer
+       scalars (types.md §2.9) and compares (operators.md §2.6). *)
     t "primitives" "U8";
     t "primitives" "I32";
     t "primitives" "I64";
@@ -96,6 +96,9 @@ let verb ?(generics = []) ?(abort = None) ?(is_mut = false) ~namespace ~kind
     is_mut;
   }
 
+(* The scalar primitives (syntax.md §2.7). The byte primitive `U8` is not
+   one: it has no arithmetic, no `@math$` function and no float
+   conversion. *)
 let integers = [ "I32"; "I64" ]
 let floats = [ "F32"; "F64" ]
 let scalars = integers @ floats

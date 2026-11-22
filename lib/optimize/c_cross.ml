@@ -52,6 +52,7 @@ let rec write prog c (p : M.ptr) (t : Ty.t) (v : v) =
   let scalar ty x = M.store p.M.alloc p.M.off ty x in
   match (t, v) with
   | Ty.I1, VBool b -> scalar (C_ir.Int 8) (M.Int (8, if b then 1L else 0L))
+  | Ty.I8, VInt i -> scalar (C_ir.Int 8) (M.int 8 i)
   | Ty.I32, VInt i -> scalar (C_ir.Int 32) (M.int 32 i)
   | Ty.I64, VInt i -> scalar (C_ir.Int 64) (M.Int (64, i))
   (* A NaN of the Zane side has whatever bits the running program gave it:
@@ -109,6 +110,8 @@ let rec read c (p : M.ptr) (t : Ty.t) =
   in
   match t with
   | Ty.I1 -> VBool (number (scalar (C_ir.Int 8)) <> 0L)
+  (* `@primitives$U8` reads its byte unsigned, as Zane holds it. *)
+  | Ty.I8 -> VInt (Int64.logand (number (scalar (C_ir.Int 8))) 0xffL)
   | Ty.I32 -> VInt (C_ops.sext 32 (number (scalar (C_ir.Int 32))))
   | Ty.I64 -> VInt (number (scalar (C_ir.Int 64)))
   | Ty.F32 | Ty.F64 -> (

@@ -46,6 +46,8 @@ I64 variable(n I64) foreign "not_a_function";
 @primitives$List<I64> list() foreign "returns_list";
 I32 narrowParam(f I32[I32]) foreign "narrow_param";
 I32 narrowResult(f I32[I32]) foreign "narrow_result";
+@primitives$U8 wideByte(b @primitives$U8) foreign "takes_int";
+I64 shortBytes(xs @primitives$Array<@primitives$U8, 2>) foreign "short_array";
 
 Unit main() {
 	return Unit();

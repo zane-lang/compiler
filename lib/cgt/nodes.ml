@@ -28,8 +28,8 @@ module Ty = struct
   type t =
     | Void
     | I1
-    (* EXPERIMENT (LangArena zane-vs-c): `@primitives$U8`, an unsigned
-       byte, widened by zero-extension. *)
+    (* `@primitives$U8`, the byte primitive (spec syntax.md §2.7), an
+       unsigned byte, widened by zero-extension. *)
     | I8
     | I32
     | I64

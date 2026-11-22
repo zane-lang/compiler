@@ -13,7 +13,7 @@
 let namespaces =
   [
     ( "@primitives$",
-      "The storage primitives: the scalars, strings, arrays, lists and worker pools every other type is \
+      "The storage primitives: the scalars, the byte, strings, arrays, lists and worker pools every other type is \
        built over, with their constructors and methods (types.md §2.7)." );
     ( "@concepts$",
       "The compiler concept types: the types of source literals and of block arguments. A concept is never \
@@ -33,7 +33,9 @@ let namespaces =
 
 let types =
   [
-    ("@primitives$U8", "An unsigned byte. It converts to and from the integer primitives and compares, and has no arithmetic.");
+    ( "@primitives$U8",
+      "The byte primitive: an unsigned byte from 0 to 255. It converts to and from the integer scalars and \
+       compares, and has no arithmetic (syntax.md §2.7, types.md §2.9)." );
     ( "@primitives$I32",
       "A 32-bit signed integer. Its constructors build one from an integer literal, exactly from `@primitives$U8`, \
        and by name from wider values: `wrap` keeps an `I64`'s low bits, `truncate` drops a float's fraction \

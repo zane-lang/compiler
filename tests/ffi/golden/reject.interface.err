@@ -74,3 +74,15 @@ File "fixtures/reject/interface/main.zn", line 48, characters 20-28:
 48 | I32 narrowResult(f I32[I32]) foreign "narrow_result";
    |                    ^^^^^^^^
 Error: C declares `int16_t` here, and a function value takes and gives a full-width C type of each scalar, never a narrower one (ffi.md §3.6)
+File "fixtures/reject/interface/main.zn", line 49, characters 1-15:
+49 | @primitives$U8 wideByte(b @primitives$U8) foreign "takes_int";
+   | ^^^^^^^^^^^^^^
+Error: C declares `int64_t` here, which is not one of `@primitives$U8`'s C types (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 49, characters 27-41:
+49 | @primitives$U8 wideByte(b @primitives$U8) foreign "takes_int";
+   |                           ^^^^^^^^^^^^^^
+Error: C declares `int` here, which is not one of `@primitives$U8`'s C types (ffi.md §3.3)
+File "fixtures/reject/interface/main.zn", line 50, characters 19-55:
+50 | I64 shortBytes(xs @primitives$Array<@primitives$U8, 2>) foreign "short_array";
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: C declares `const int16_t *` here, and `@primitives$Array<@primitives$U8, 2>` crosses as a `const` pointer to a full-width C type of its element

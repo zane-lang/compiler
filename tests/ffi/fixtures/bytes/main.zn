@@ -1,0 +1,67 @@
+/// `@primitives$U8` crossing into C and back (ffi.md §3.3): as each 8-bit
+/// C type, `uint8_t`, `unsigned char`, `signed char`, `char` and `int8_t`,
+/// a C result keeping its byte unsigned; as an array's and a list's
+/// elements; as fields of a C-compatible value type, which Zane lays out in
+/// another order than C; and as what a function value C calls takes and
+/// gives, a byte and that value type. The optimized build folds each call
+/// but the one lending an array and a list, through the same conversions.
+package bytes;
+
+alias Unit = @primitives$Unit;
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias U8 = @primitives$U8;
+alias String = @primitives$String;
+
+type Packet = struct {
+	tag U8;
+	n I32;
+	low U8;
+}
+
+Packet(tag U8, n I32, low U8) => init{ tag; n; low; }
+
+U8 next(b U8) foreign "next_byte";
+U8 flip(b U8) foreign "flip_bits";
+U8 negate(b U8) foreign "negate";
+U8 upper(c U8) foreign "upper";
+U8 echo(b U8) foreign "echo";
+I64 sum(xs @primitives$Array<U8, 4>, ys @primitives$List<U8>) foreign "byte_sum";
+Packet swap(p Packet) foreign "swap";
+U8 apply(f U8[U8], b U8) foreign "apply";
+Packet remake(f Packet[Packet], p Packet) foreign "remake";
+
+Unit show(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+Unit byte(b U8) {
+	show(String(I64(b)));
+	return Unit();
+}
+
+Unit main() {
+	byte(next(U8(41)));
+	byte(next(U8(255)));
+	byte(flip(U8(15)));
+	byte(negate(U8(1)));
+	byte(upper(U8(97)));
+	byte(echo(U8(200)));
+	xs @primitives$Array<U8, 4> = @primitives$Array([U8(1), U8(2), U8(3), U8(250)]);
+	ys @primitives$List<U8> = @primitives$List(U8);
+	ys!push(U8(255));
+	ys!push(U8(128));
+	show(String(sum(xs, ys)));
+	p Packet = swap(Packet(U8(7), I32(21), U8(200)));
+	byte(p.tag);
+	show(String(p.n));
+	byte(p.low);
+	byte(apply(U8(b U8) { return U8.wrap(@operators$add(I64(b), I64(100))); }, U8(60)));
+	q Packet = remake(Packet(p Packet) { return Packet(p.low, @operators$add(p.n, I32(1)), p.tag); }, Packet(U8(9), I32(4), U8(254)));
+	byte(q.tag);
+	show(String(q.n));
+	byte(q.low);
+	return Unit();
+}
