@@ -208,7 +208,7 @@ let readable path =
   let ctx = Llvm.create_context () in
   let rt = read ctx path in
   Option.iter Llvm.dispose_module rt;
-  Llvm.dispose_context ctx;
+  Contexts.dispose ctx;
   Option.is_some rt
 
 (* The whole runtime in the bitcode at [path] linked into [m] as the

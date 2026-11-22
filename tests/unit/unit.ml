@@ -1344,6 +1344,16 @@ let range_checks_non_phi () =
   Llvm.dispose_module m;
   Llvm.dispose_context ctx
 
+(* The OCaml sources under [dir], at any depth. *)
+let rec sources dir =
+  Array.fold_left
+    (fun acc name ->
+      let path = Filename.concat dir name in
+      if Sys.is_directory path then sources path @ acc
+      else if Filename.check_suffix name ".ml" then path :: acc
+      else acc)
+    [] (Sys.readdir dir)
+
 (* An empty array codegen reads from LLVM (a function's attributes at a
    parameter that has none, an empty struct's element types) is OCaml's
    own empty array, so a minor collection, which moves young blocks, leaves
@@ -1379,20 +1389,6 @@ let empty_binding_arrays () =
   Llvm.dispose_context ctx;
   (* No compiler source reads them through the bindings. *)
   let raw = [ "Llvm.function_attrs"; "Llvm.struct_element_types"; "Llvm.param_types" ] in
-  let rec sources dir =
-    Array.fold_left
-      (fun acc name ->
-        let path = Filename.concat dir name in
-        if Sys.is_directory path then sources path @ acc
-        else if Filename.check_suffix name ".ml" then path :: acc
-        else acc)
-      [] (Sys.readdir dir)
-  in
-  let contains text word =
-    let n = String.length word and l = String.length text in
-    let rec at i = i + n <= l && (String.sub text i n = word || at (i + 1)) in
-    at 0
-  in
   List.iter
     (fun path ->
       match read_all path with
@@ -1401,6 +1397,22 @@ let empty_binding_arrays () =
             (fun word -> check (Printf.sprintf "%s calls %s, not Llvm_extra's" path word) (not (contains text word)))
             raw
       | None -> ())
+    (sources "../../lib")
+
+(* No compiler source disposes an LLVM context except through
+   Contexts.dispose, which collects the heap first, so a builder made at an
+   instruction with a debug location is finalized while the context that
+   owns the location lives (lib/codegen/contexts.ml).
+   tests/runtime/valgrind_test.py runs builder_after_context.ml under
+   Valgrind to show the collection does that. *)
+let contexts_disposed_after_collection () =
+  List.iter
+    (fun path ->
+      match read_all path with
+      | Some text when Filename.basename path <> "contexts.ml" ->
+          check (Printf.sprintf "%s calls Llvm.dispose_context, not Contexts.dispose" path)
+            (not (contains text "Llvm.dispose_context"))
+      | _ -> ())
     (sources "../../lib")
 
 let () =
@@ -1463,6 +1475,7 @@ let () =
   traverse_leaves ();
   light_references ();
   empty_binding_arrays ();
+  contexts_disposed_after_collection ();
   range_checks_non_phi ();
   if !failures > 0 then begin
     Printf.printf "%d failed\n" !failures;

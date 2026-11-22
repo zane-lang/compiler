@@ -987,7 +987,7 @@ let stub_object ~triple ~tm obj fill =
   fill ctx m;
   Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
   Llvm.dispose_module m;
-  Llvm.dispose_context ctx
+  Contexts.dispose ctx
 
 (* The command *cc* gives for [args], kept in [dir]'s `link/` under
    [name], with every file it links besides [obj] copied into
@@ -1161,7 +1161,7 @@ let empty_object ~triple tm path =
     | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
   in
   Llvm.dispose_module m;
-  Llvm.dispose_context ctx;
+  Contexts.dispose ctx;
   result
 
 (* [c] emitted with [tm] to [dir]'s `c.o`; the path the linker reads. *)

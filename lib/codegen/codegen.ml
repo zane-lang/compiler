@@ -170,7 +170,7 @@ let with_module ?target ?pack ?memos ?version ?tiered ?fixed_region ?spawned_fix
       Atomic.incr live;
       Fun.protect
         ~finally:(fun () ->
-          Llvm.dispose_context ctx;
+          Contexts.dispose ctx;
           Atomic.decr live)
         (fun () ->
           let m = Llvm.create_module ctx "zane" in
@@ -212,7 +212,7 @@ let with_c_modules ?target c f =
       Atomic.incr live;
       Fun.protect
         ~finally:(fun () ->
-          Llvm.dispose_context ctx;
+          Contexts.dispose ctx;
           Atomic.decr live)
         (fun () ->
           match Foreign_c.program_module ctx ~triple ~data_layout c with
