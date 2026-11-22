@@ -55,7 +55,7 @@ let types =
     ("@primitives$Unit", "The type with a single value, which a verb that returns nothing returns (types.md §2.7).");
     ( "@primitives$String",
       "The storage behind `core`'s `String`: a value type whose handle owns its bytes, so a copy owns bytes of its \
-       own. It is built from a string literal, from a scalar's text, or with `escaped` (types.md §2.7)." );
+       own. It is built from a string literal, from a scalar's text, or with `escaped` (types.md §2.7, §2.11)." );
     ( "@primitives$Array",
       "A fixed-length value array of `n` elements of `T`, built from an array literal (generics.md §8.1)." );
     ( "@primitives$ArrayRef",
