@@ -83,7 +83,7 @@ let rec undef_of (ty : C_ir.ty) =
 (* The type a scalar value is, for the casts and operations a constant
    expression applies to it. *)
 let ty_of = function
-  | Int (bits, _) | Addr (bits, _) | Sign (bits, _) -> C_ir.Int bits
+  | Int (bits, _) | Addr (bits, _) | Sign (bits, _) | Part { bits; _ } -> C_ir.Int bits
   | Fl { double = true; _ } -> C_ir.Double
   | Fl _ -> C_ir.Float
   | _ -> C_ir.Ptr

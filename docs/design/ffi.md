@@ -1074,6 +1074,15 @@ calls nested more than 2,000 deep.
   meaning the spec defines, so leaving it to run is never wrong, and folding
   it might be.
 
+  A load of an integer some of whose bytes were written is no such read.
+  AArch64 returns a struct of 16 bytes or fewer in integer registers, so
+  the callee loads whole words from a temporary whose padding bytes it
+  never wrote. The load gives a **partly written** integer, which records
+  the bytes it read and which of them were written. Storing it writes those
+  bytes and leaves the others unwritten. Anything else done with it stops
+  the fold. The caller then reads the struct's fields, all written, and the
+  call folds as it does on x86-64.
+
 The IR evaluated is the IR the program runs, before the pipeline has
 optimized it. Code without undefined behavior means the same before and
 after optimization, and F2's fixed flags take away the two freedoms that
