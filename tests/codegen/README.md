@@ -175,7 +175,8 @@ then run it again, read the golden diff and promote that.
   (docs/design/lowering.md §9). Every check prints `yes` when it holds.
 - `range` indexes past a list's end: the program stops with status 1 after what
   it wrote so far, and writes the reason to stderr. `rangeZero` does the same
-  with index 0, below a list's first element.
+  with index 0, below a list's first element, and `sortByRange` with a
+  `sortBy` position outside its keys, in a list of one element.
 - `regions` is each scope's dynamic region: a value that leaves a scope --
   returned, left from an arm, aborted with, stored or pushed from an inner
   block -- takes its blocks out before the scope drains, and a checked drain
