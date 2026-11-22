@@ -608,9 +608,8 @@ __attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p
 }
 #endif
 
-/* `@primitives$ByteSet` (types.md §2.12) as `findAny` and `findPair` read
-   it, made from `flags`, an array of 256 one-byte flags, byte b's at b
-   (position b + 1). It is laid out as a list of 294 bytes: whether each byte
+/* `@primitives$ByteSet` (types.md §2.12) as `findAny` and `findPair` read it, made from `flags`, an array
+   of 256 one-byte flags, byte b's at b (position b + 1). It is laid out as a list of 294 bytes: whether each byte
    is in it (0 to 255), the two shuffle tables (256 to 287), then how a
    block of 16 is tested (289): 1 to 3 for that many members compared one
    by one, or that many non-members with the result complemented (290 is
@@ -619,13 +618,12 @@ __attribute__((target("ssse3"))) static int64_t zane_any_blocks(const uint8_t *p
 enum { ZANE_BYTE_SET = 294 };
 
 void zane_byte_set(zane_list *out, const uint8_t *flags) {
-	const uint8_t *in = flags;
 	int64_t units = 512 / zl_unit(1);
 	uint8_t *s = (uint8_t *)zane_alloc(zane_here(), zl_block_bytes(units, 1), ZANE_LIST_ALIGN);
 	memset(s, 0, ZANE_BYTE_SET);
 	int count = 0, lowest = 256, highest = -1;
 	for (int b = 0; b < 256; b++) {
-		if (!in[b]) continue;
+		if (!flags[b]) continue;
 		s[b] = 1;
 		s[(b < 128 ? 256 : 272) + (b & 15)] |= (uint8_t)(1 << ((b >> 4) & 7));
 		count++;
@@ -656,8 +654,7 @@ int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, con
 	/* Each bound compared with what is left, so no sum overflows. */
 	if (at < 1 || at - 1 > text->length || count > text->length - (at - 1))
 		zane_out_of_range();
-	/* Only `byteSet` makes a set, so its size is always this; the check
-	   guards the table reads below against a handle that is not one. */
+	/* Only `byteSet` makes a set; the check guards the table reads below against a handle that is not one. */
 	if (ZL_COUNT(set) != ZANE_BYTE_SET) zane_broken("a byte set of the wrong size");
 	int64_t from = at - 1;
 	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
@@ -675,8 +672,7 @@ int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, con
 int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, const zane_list *first, int64_t gap,
                             const zane_list *second) {
 	if (count <= 0) return 0;
-	if (at < 1 || gap < 0 || at - 1 > text->length || gap > text->length - (at - 1) ||
-	    count > text->length - (at - 1) - gap)
+	if (at < 1 || gap < 0 || at - 1 > text->length || gap > text->length - (at - 1) || count > text->length - (at - 1) - gap)
 		zane_out_of_range();
 	if (ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET) zane_broken("a byte set of the wrong size");
 	int64_t from = at - 1;
