@@ -16,7 +16,9 @@ which drops an LLVM builder holding a debug location and then disposes its
 context through Contexts.dispose (lib/codegen/contexts.ml). A builder
 finalized after its context releases memory the context freed, which the
 checker reports as an invalid read. `dune runtest tests/unit` builds the
-program and runs it natively first.
+program and runs it natively first. The checker starts only where it can
+read the dynamic loader's symbols, which Ubuntu and Debian ship in
+libc6-dbg; CI installs it.
 """
 
 from pathlib import Path
