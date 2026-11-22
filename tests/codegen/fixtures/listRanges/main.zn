@@ -38,14 +38,14 @@ Unit main() {
 		back I64 = @operators$multiply(I64(50), @operators$divide(@operators$add(j, @operators$negate(I64(1))), I64(50)));
 		bytes!push(@operators$add(j, @operators$negate(back)));
 	}
-	check(@operators$equal(bytes:sameRange(I64(1), bytes, I64(51), I64(50)), I64(1)));
-	check(@operators$equal(bytes:sameRange(I64(3), bytes, I64(53), I64(7)), I64(1)));
-	check(@operators$equal(bytes:sameRange(I64(1), bytes, I64(52), I64(49)), I64(0)));
-	check(@operators$equal(bytes:sameRange(I64(5), bytes, I64(5), I64(0)), I64(1)));
+	check(bytes:sameRange(I64(1), bytes, I64(51), I64(50)));
+	check(bytes:sameRange(I64(3), bytes, I64(53), I64(7)));
+	check(@operators$not(bytes:sameRange(I64(1), bytes, I64(52), I64(49))));
+	check(bytes:sameRange(I64(5), bytes, I64(5), I64(0)));
 	other @primitives$List<I64> = @primitives$List(I64);
 	other!push(I64(10));
 	other!push(I64(11));
-	check(@operators$equal(bytes:sameRange(I64(10), other, I64(1), I64(2)), I64(1)));
+	check(bytes:sameRange(I64(10), other, I64(1), I64(2)));
 	// Equal ranges of each length up to past a 32-byte block hash alike.
 	n I64(0);
 	n!to(I64(45)) {

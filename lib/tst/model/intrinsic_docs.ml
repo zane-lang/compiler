@@ -55,7 +55,7 @@ let types =
     ("@primitives$Unit", "The type with a single value, which a verb that returns nothing returns (types.md §2.7).");
     ( "@primitives$String",
       "The storage behind `core`'s `String`: a value type whose handle owns its bytes, so a copy owns bytes of its \
-       own. It is built from a string literal, from a scalar's text, or with `escaped` (types.md §2.7)." );
+       own. It is built from a string literal, from a scalar's text, or with `escaped` (types.md §2.7, §2.11)." );
     ( "@primitives$Array",
       "A fixed-length value array of `n` elements of `T`, built from an array literal (generics.md §8.1)." );
     ( "@primitives$ArrayRef",
@@ -68,6 +68,9 @@ let types =
     ( "@primitives$ListRef",
       "A dynamically sized list of `T` as a reference type, whose elements are owners. It is a handle to one \
        block of elements (generics.md §8.5)." );
+    ( "@primitives$ByteSet",
+      "A set of bytes, made by `byteSet` from 256 flags and searched for with `findAny` and `findPair`. It is a \
+       value type, and a copy owns a set of its own (types.md §2.12)." );
     ( "@primitives$WorkerPool",
       "A worker pool over elements of `T`, with shared state `S` and the events `E` its steps publish to the \
        funnel. A reference type, which only a scope's local or an owner's field holds (concurrency.md §6.1)." );
@@ -196,46 +199,50 @@ let methods =
       "The number the string's text spells. The call aborts when the text is not a number (types.md §2.10)." );
     ( "@primitives$parseF64At",
       "`parseF64` on the `count` bytes from byte `start`, counted from 1 as `byteAt` counts. The call aborts \
-       when those bytes are not a number." );
-    ("@primitives$byteCount", "The string's length in bytes.");
-    ("@primitives$byteAt", "The byte at `index`, counted from 1.");
-    ("@primitives$hashBytes", "A hash of the string's bytes, the same for equal strings within one run of the program.");
-    ("@primitives$text", "A string made from a list of bytes.");
+       when those bytes are not a number (types.md §2.10)." );
+    ("@primitives$byteCount", "The string's length in bytes (types.md §2.12).");
+    ("@primitives$byteAt", "The byte at `index`, counted from 1 (types.md §2.12).");
+    ( "@primitives$hashBytes",
+      "A hash of the string's bytes, the same for equal strings within one run of the program (types.md §2.12)." );
+    ("@primitives$text", "A string whose bytes are the list's elements, in order (generics.md §8.6).");
     ( "@primitives$byteSet",
-      "A byte set made from 256 flags, the flag of byte `b` at position `b + 1`, prepared for `findAny` and \
-       `findPair` to test 16 bytes at a time." );
+      "The set of the bytes whose flags are true: byte `b`'s flag is at position `b + 1` of the 256 (types.md \
+       §2.12)." );
     ( "@primitives$findPair",
       "The first of the `count` positions from `from`, counted from 1, whose byte is in the set `first` and the \
-       byte `gap` after it in `second`, or 0 when no position matches. Each set is one `byteSet` made." );
+       byte `gap` after it in `second`, or 0 when no position matches (types.md §2.12)." );
     ( "@primitives$findAny",
       "The first of the `count` positions from `from`, counted from 1, whose byte is in `set`, or 0 when no \
-       position matches. The set is one `byteSet` made." );
+       position matches (types.md §2.12)." );
     ( "@primitives$appendRange",
       "Copies `count` elements of the list `from`, starting at its element `start`, onto the end of this list, \
-       as one copy. Only for elements that own no blocks." );
+       as one copy. Only for elements that own no blocks (generics.md §8.6)." );
     ( "@primitives$appendOwn",
       "Copies `count` of this list's own elements, starting at element `start`, onto its end, as one copy. Only \
-       for elements that own no blocks." );
+       for elements that own no blocks (generics.md §8.6)." );
     ( "@primitives$copyRange",
       "Copies `count` elements of the list `from`, starting at its element `start`, over this list's elements \
-       from `at`, as one copy." );
+       from `at`, as one copy. Only for elements that own no blocks (generics.md §8.6)." );
     ( "@primitives$sortBy",
-      "Sorts a list of `I32` indices into the list `keys` stably, by the `I64` key each index names." );
-    ("@primitives$sort", "Sorts a list of integers in place, ascending.");
+      "Sorts a list of `I32` indices into the list `keys` stably, by the `I64` key each index names \
+       (generics.md §8.6)." );
+    ("@primitives$sort", "Sorts a list of integers in place, ascending (generics.md §8.6).");
     ( "@primitives$sameRange",
-      "1 when `count` elements of this list from `start` equal `count` elements of `other` from `otherStart`, \
-       and 0 otherwise." );
-    ("@primitives$hashRange", "A hash of `count` elements from `start`, the same for equal ranges within one run of the program.");
+      "Whether `count` elements of this list from `start` equal `count` elements of `other` from `otherStart` \
+       (generics.md §8.6)." );
+    ( "@primitives$hashRange",
+      "A hash of `count` elements from `start`, the same for equal ranges within one run of the program \
+       (generics.md §8.6)." );
     ( "@primitives$push",
       "Adds `value` at the end of the list, taken through a `^T` parameter: an owner moves in, and a value \
-       is copied in (generics.md §8.3, §8.5)." );
-    ("@primitives$size", "The number of elements in the list.");
+       is copied in (generics.md §8.6)." );
+    ("@primitives$size", "The number of elements in the list (generics.md §8.6).");
     ( "@primitives$remove",
       "Moves the element at `index` out of the list. The later elements shift down and keep their order \
-       (lifetimes.md §2.1)." );
+       (generics.md §8.6, lifetimes.md §2.1)." );
     ( "@primitives$swapRemove",
-      "Moves the element at `index` out of the list, and moves the last element into its place (lifetimes.md \
-       §2.1)." );
+      "Moves the element at `index` out of the list, and moves the last element into its place (generics.md \
+       §8.6, lifetimes.md §2.1)." );
     ( "@primitives$start",
       "Adds `element` to the pool as a worker and returns at once; the element moves in. The worker calls `step` \
        on the element concurrently with the caller, with a snapshot of the pool's state and a function that \
@@ -285,7 +292,7 @@ let constructors =
 
 let hidden =
   [
-    ("@primitives$[]", "The element at `index` of an array or list, counted from 1 (generics.md §8).");
+    ("@primitives$[]", "The element at `index` of an array or list, counted from 1; an index outside it stops the program (generics.md §8.6).");
     ( "@primitives$publish",
       "Sends an event to the funnel of the pool whose worker is running. A step reaches it through the publish \
        function it receives (concurrency.md §6.5)." );

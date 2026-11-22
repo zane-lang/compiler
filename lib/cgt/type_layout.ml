@@ -43,6 +43,9 @@ let scalar t =
 
 let element = function
   | Tty.Intrinsic { namespace = "primitives"; name = "List" | "ListRef"; args = [ Tty.Type e ] } -> Some e
+  (* A byte set is laid out as a list of bytes, which the runtime fills
+     (types.md §2.12). *)
+  | Tty.Intrinsic { namespace = "primitives"; name = "ByteSet"; args = [] } -> Some (Tst.Intrinsics.prim "U8")
   | _ -> None
 
 let is_list t = Option.is_some (element t)

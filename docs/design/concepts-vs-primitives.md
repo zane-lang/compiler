@@ -19,9 +19,10 @@ reaches the CGT.
 
 ## Primitives: what the machine stores
 
-`@primitives$` names storage: `I32`, `I64`, `F32`, `F64`, `Bool`, `Unit`,
-`String`, `Array<T, n>`, `ArrayRef<T, n>`, `List<T>`, `ListRef<T>`, and the
-worker pool's `WorkerPool<T, S, E>` and `EventSource`. Packages build types on them — an `Int`
+`@primitives$` names storage: `U8`, `I32`, `I64`, `F32`, `F64`, `Bool`, `Unit`,
+`String`, `Array<T, n>`, `ArrayRef<T, n>`, `List<T>`, `ListRef<T>`, the byte
+search's `ByteSet`, and the worker pool's `WorkerPool<T, S, E>` and
+`EventSource`. Packages build types on them — an `Int`
 can be a struct around an `@primitives$I64`, as [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 describes
 `core`'s — or write them directly, under an alias if they like. A primitive
 has no operators; the `@operators$` functions are what a package's own

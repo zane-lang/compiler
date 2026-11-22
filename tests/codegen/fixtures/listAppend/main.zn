@@ -4,13 +4,22 @@
 /// In a loop, a list that grows by an append is read again after it, as
 /// after a push: its block moves as it grows. A list that is an element is
 /// found once, after the range's start runs, so a start that grows the list
-/// holding it moves it first.
+/// holding it moves it first. An enum owns no block, so a list of enum
+/// values is copied the same way.
 package listAppend;
 
 alias I64 = @primitives$I64;
 alias String = @primitives$String;
 alias Unit = @primitives$Unit;
 alias Row = @primitives$List<I64>;
+
+type Light = enum [ red, green ];
+
+/// 1 for green, 0 for red.
+I64 lit(l Light) => match (l) {
+	red => I64(0);
+	green => I64(1);
+}
 
 Unit to(this I64, end I64, body @concepts$Block) mut {
 	@controlflow$repeat(@operators$add(@operators$add(end, @operators$negate(this)), I64(1)), {
@@ -82,5 +91,11 @@ Unit main() {
 	@program$console!print(String(rows:size()));
 	@program$console!print(String(rows[I64(1)]:size()));
 	@program$console!print(String(rows[I64(1)][I64(3)]));
+	// Red, green, then the two copied once more: red green red green.
+	lights @primitives$List<Light> = @primitives$List(Light);
+	lights!push(Light.red);
+	lights!push(Light.green);
+	lights!appendOwn(I64(1), I64(2));
+	@program$console!print(String(@operators$add(lit(lights[I64(3)]), lit(lights[I64(4)]))));
 	return Unit();
 }

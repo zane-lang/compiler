@@ -61,6 +61,10 @@ let types =
     (* A worker's event source (§6.3): a timer, its interval in
        nanoseconds. *)
     t "primitives" "EventSource";
+    (* A set of bytes (types.md §2.12), made by `byteSet` and read by
+       `findAny` and `findPair`. A value type whose handle owns the block
+       the runtime lays the set out in, as a `List`'s owns its elements. *)
+    t "primitives" "ByteSet";
     t ~reference:true "runtime" "Console";
     t ~reference:true "runtime" "Runtime";
   ]
@@ -372,8 +376,8 @@ let methods =
     meth ~abort:(Some (prim "Unit")) "primitives" "parseF64At"
       [ param "this" (prim "String"); param "start" (prim "I64"); param "count" (prim "I64") ]
       (prim "F64");
-    (* EXPERIMENT (LangArena zane-vs-c): a string's length in bytes, the
-       byte at an index counted from 1, and a string made from bytes. *)
+    (* A string's length in bytes, and the byte at an index counted from 1
+       (types.md §2.12). *)
     meth "primitives" "byteCount" [ param "this" (prim "String") ] (prim "I64");
     meth "primitives" "byteAt" [ param "this" (prim "String"); param "index" (prim "I64") ] (prim "U8");
     (* A hash of a string's bytes, the same for equal strings within one
@@ -381,46 +385,44 @@ let methods =
     meth "primitives" "hashBytes" [ param "this" (prim "String") ] (prim "I64");
   ]
   @ (let bytes_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
-     (* Generic so that `core`'s `List<U8>`, a list of `core`'s own `U8`,
-        is accepted; `core` names this intrinsic only for that list, whose
-        elements are one byte. *)
+     (* A string made from a list's bytes (generics.md §8.6). Generic so
+        that `core`'s `List<U8>`, a list of `core`'s own `U8`, is accepted;
+        lowering checks that each element is one byte. *)
      [
        meth ~generics:[ bytes_element ] "primitives" "text"
          [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param bytes_element) ]) ]
          (prim "String");
      ]
-     @ (let set_element = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind
-        and flag = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
+     @ (let flag = Ty.fresh_param ~name:"T" ~kind:Ty.Type_kind in
         [
-    (* A byte set made from 256 flags, byte b's at b + 1, prepared for
-       [findAny] and [findPair] to test 16 bytes at a time. Generic, as
-       [text] is, so that `core`'s own `List<Bool>` is accepted; lowering
-       checks that each flag is one byte. *)
+    (* The set of the bytes whose flags are true, byte b's at position
+       b + 1 of 256 (types.md §2.12). Generic, as [text] is, so that
+       `core`'s own `Bool` is accepted; lowering checks that each flag is
+       one byte. *)
     meth ~generics:[ flag ] "primitives" "byteSet"
-      [ param "this" (prim "List" ~args:[ Ty.Type (Ty.Param flag) ]) ]
-      (prim "List" ~args:[ Ty.Type (prim "U8") ]);
+      [ param "this" (prim "ArrayRef" ~args:[ Ty.Type (Ty.Param flag); Ty.Number (Ty.Known 256) ]) ]
+      (prim "ByteSet");
     (* The first of the [count] positions from [from], counted from 1,
-       whose byte is in the set [first] and the byte [gap] after it in
-       [second], or 0 when there is no such position; each set is one that
-       [byteSet] made. *)
-    meth ~generics:[ set_element ] "primitives" "findPair"
+       whose byte is in [first] and the byte [gap] after it in [second],
+       or 0 when there is no such position. *)
+    meth "primitives" "findPair"
       [
         param "this" (prim "String");
         param "from" (prim "I64");
         param "count" (prim "I64");
-        param "first" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+        param "first" (prim "ByteSet");
         param "gap" (prim "I64");
-        param "second" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+        param "second" (prim "ByteSet");
       ]
       (prim "I64");
     (* The same search for one set: the first of the [count] positions from
        [from] whose byte is in [set], or 0. *)
-    meth ~generics:[ set_element ] "primitives" "findAny"
+    meth "primitives" "findAny"
       [
         param "this" (prim "String");
         param "from" (prim "I64");
         param "count" (prim "I64");
-        param "set" (prim "List" ~args:[ Ty.Type (Ty.Param set_element) ]);
+        param "set" (prim "ByteSet");
       ]
       (prim "I64");
         ]))
@@ -455,9 +457,9 @@ let methods =
          (prim "Unit");
        (* A list of integers sorted in place, ascending. *)
        meth ~generics:[ sorts ] ~is_mut:true "primitives" "sort" [ param "this" sorted ] (prim "Unit");
-       (* 1 when a range of the list holds the same elements as a range
-          of another, else 0; and a hash of a range, the same for equal
-          ranges within one run. *)
+       (* Whether a range of the list holds the same elements as a range
+          of another; and a hash of a range, the same for equal ranges
+          within one run (generics.md §8.6). *)
        meth ~generics:[ compared ] "primitives" "sameRange"
          [
            param "this" compares;
@@ -466,7 +468,7 @@ let methods =
            param "otherStart" (prim "I64");
            param "count" (prim "I64");
          ]
-         (prim "I64");
+         (prim "Bool");
        meth ~generics:[ hashed ] "primitives" "hashRange"
          [ param "this" hashes; param "start" (prim "I64"); param "count" (prim "I64") ]
          (prim "I64");

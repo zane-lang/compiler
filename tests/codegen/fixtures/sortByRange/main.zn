@@ -1,0 +1,21 @@
+/// `sortBy` checks that every element is a position in its keys, a list
+/// of one element included, which needs no sorting: 2 is outside one key,
+/// so the program stops with a failing status, after what it wrote so far.
+package sortByRange;
+
+alias I32 = @primitives$I32;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+@primitives$Unit main() {
+	before String.escaped("before\n");
+	after String.escaped("after\n");
+	keys @primitives$List<I64> = @primitives$List(I64);
+	keys!push(I64(5));
+	order @primitives$List<I32> = @primitives$List(I32);
+	order!push(I32(2));
+	@program$console!print(before);
+	order!sortBy(keys);
+	@program$console!print(after);
+	return @primitives$Unit();
+}

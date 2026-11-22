@@ -576,10 +576,10 @@ static void zane_keyed_merge(const int32_t *l, int64_t nl, const int32_t *r, int
 
 void zane_list_sort_by(zane_list *list, const zane_list *keys) {
 	int64_t n = ZL_COUNT(list), nk = ZL_COUNT(keys);
-	if (n < 2) return;
 	int32_t *values = (int32_t *)ZL_ITEMS(list);
 	for (int64_t i = 0; i < n; i++)
 		if (values[i] < 1 || values[i] > nk) zane_out_of_range();
+	if (n < 2) return;
 	/* Indices from 1: the key of index x is key[x]. */
 	const int64_t *key = (const int64_t *)ZL_ITEMS(keys) - 1;
 	int32_t *v = values, *tmp = malloc((size_t)n * sizeof *tmp);

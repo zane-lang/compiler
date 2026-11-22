@@ -9777,6 +9777,140 @@
   (diff golden/shapes.out shapes.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/sortByRange))
+ (targets sortByRange.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build sortByRange.exe --package fixtures/sortByRange)))
+
+(rule
+ (deps (source_tree fixtures/sortByRange))
+ (targets sortByRange.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build sortByRange.optimized.exe --optimize --package fixtures/sortByRange)))
+
+(rule
+ (deps (source_tree fixtures/sortByRange))
+ (targets sortByRange.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build sortByRange.tiered.exe --tiered --package fixtures/sortByRange)))
+
+(rule
+ (deps (source_tree fixtures/sortByRange))
+ (targets sortByRange.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up sortByRange.tier1 --package fixtures/sortByRange)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    sortByRange.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./sortByRange.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/sortByRange.out sortByRange.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    sortByRange.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./sortByRange.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/sortByRange.out sortByRange.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    sortByRange.optimized.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./sortByRange.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/sortByRange.out sortByRange.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    sortByRange.optimized.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./sortByRange.optimized.exe))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/sortByRange.out sortByRange.optimized.unchecked.out.actual)))
+
+(rule
+ (deps sortByRange.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./sortByRange.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    sortByRange.tiered.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./sortByRange.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/sortByRange.out sortByRange.tiered.checked.out.actual)))
+
+(rule
+ (deps sortByRange.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./sortByRange.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    sortByRange.tiered.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./sortByRange.tiered.exe))))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/sortByRange.out sortByRange.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/spawnSubjects))
  (action
   (with-stdout-to

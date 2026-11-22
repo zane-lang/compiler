@@ -21,7 +21,7 @@ type fn =
   | Text_i64
   | Text_f32
   | Text_f64
-  (* EXPERIMENT (LangArena zane-vs-c): a String made from a List<U8>'s bytes. *)
+  (* A String made from a List<U8>'s bytes (generics.md §8.6). *)
   | Text_bytes
   (* A range of a list's elements
      copied onto the end of a list. *)

@@ -175,7 +175,8 @@ then run it again, read the golden diff and promote that.
   (docs/design/lowering.md §9). Every check prints `yes` when it holds.
 - `range` indexes past a list's end: the program stops with status 1 after what
   it wrote so far, and writes the reason to stderr. `rangeZero` does the same
-  with index 0, below a list's first element.
+  with index 0, below a list's first element, and `sortByRange` with a
+  `sortBy` position outside its keys, in a list of one element.
 - `regions` is each scope's dynamic region: a value that leaves a scope --
   returned, left from an arm, aborted with, stored or pushed from an inner
   block -- takes its blocks out before the scope drains, and a checked drain
@@ -339,7 +340,8 @@ makes of them.
   (`appendRange`) and of itself (`appendOwn`), doubling a list past its
   first block's room so a list's own range is read after the block grows;
   then appends in a loop, and onto a list that is an element, located once
-  and only after a start that grows the list holding it.
+  and only after a start that grows the list holding it; and copies a list
+  of enum values, which own no block.
 - `listSort` sorts lists of integers in place: a thousand 32-bit ones over
   eight keys, past the sizes insertion sort and the pivot's medians of
   medians take, and 64-bit ones in descending order, which one pass sorts;
@@ -355,7 +357,8 @@ makes of them.
   `copyRange`, at either end and of no elements, and sorts a hundred
   `I32` indices by the `I64` keys they name with `sortBy`, keys repeating
   in runs ascending, descending and flat, checking the order is stable.
-- `byteSets` makes byte sets with `byteSet` and searches strings with
+- `byteSets` makes byte sets with `byteSet`, from arrays of 256 flags
+  filled and then marked in place, and searches strings with
   `findAny` and `findPair`, one set of each kind the runtime tests a
   block of 16 by (a few members, a few non-members, a run, any other), in
   texts shorter than a block and longer than several, finding the first
@@ -406,10 +409,11 @@ but it copies the list's storage as the string's bytes, so lowering takes
 only a list whose elements are each one byte.
 
 `appendOwners` is one too: `@primitives$appendRange` on a `List<String>`.
-`byteSetFlags` is one too: `@primitives$byteSet` on a `List<I64>`, whose
-flags are eight bytes each.
 The runtime copies the range's bytes, so lowering takes only elements that
 own no blocks.
+
+`byteSetFlags` is one too: `@primitives$byteSet` on an
+`ArrayRef<I64, 256>`, whose flags are eight bytes each.
 
 `sortFloats` is one too: `@primitives$sort` on a `List<F64>`. The runtime
 sorts the elements as integers of their width, so lowering takes only lists
