@@ -655,7 +655,7 @@ int64_t zane_text_find_any(const zane_text *text, int64_t at, int64_t count, con
 	if (at < 1 || at - 1 > text->length || count > text->length - (at - 1))
 		zane_out_of_range();
 	/* Only `byteSet` makes a set; the check guards the table reads below against a handle that is not one. */
-	if (ZL_COUNT(set) != ZANE_BYTE_SET) zane_broken("a byte set of the wrong size");
+	if (ZL_COUNT(set) != ZANE_BYTE_SET) zane_out_of_range();
 	int64_t from = at - 1;
 	const uint8_t *p = (const uint8_t *)text->bytes + from, *a = (const uint8_t *)ZL_ITEMS(set);
 #if defined(__x86_64__)
@@ -674,7 +674,7 @@ int64_t zane_text_find_pair(const zane_text *text, int64_t at, int64_t count, co
 	if (count <= 0) return 0;
 	if (at < 1 || gap < 0 || at - 1 > text->length || gap > text->length - (at - 1) || count > text->length - (at - 1) - gap)
 		zane_out_of_range();
-	if (ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET) zane_broken("a byte set of the wrong size");
+	if (ZL_COUNT(first) != ZANE_BYTE_SET || ZL_COUNT(second) != ZANE_BYTE_SET) zane_out_of_range();
 	int64_t from = at - 1;
 	const uint8_t *p = (const uint8_t *)text->bytes + from;
 	const uint8_t *a = (const uint8_t *)ZL_ITEMS(first), *b = (const uint8_t *)ZL_ITEMS(second);
