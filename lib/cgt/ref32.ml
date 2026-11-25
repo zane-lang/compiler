@@ -22,14 +22,18 @@ let names triple words =
    Mach-O image on Apple's systems, an ELF image elsewhere. *)
 type image = Pe | Mach_o | Elf
 
+(* The host's kind, looked up once: lowering asks for the image's kind for
+   every box and sum, and the host does not change while it runs. *)
+let host_image =
+  lazy (if Sys.win32 then Pe else if Sys.file_exists "/proc/sys/kernel/ostype" then Elf else Mach_o)
+
 let image () =
   let windows = [ "windows"; "mingw"; "win32"; "msvc" ] and apple = [ "apple"; "darwin"; "macos" ] in
   match !target with
   | Some triple when names triple windows -> Pe
   | Some triple when names triple apple -> Mach_o
   | Some _ -> Elf
-  | None ->
-      if Sys.win32 then Pe else if Sys.file_exists "/proc/sys/kernel/ostype" then Elf else Mach_o
+  | None -> Lazy.force host_image
 
 (* The symbol the target's linker defines at the program image's start,
    which a frame reference counts from (runtime/region.c): the PE image's
