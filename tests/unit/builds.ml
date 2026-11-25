@@ -187,6 +187,9 @@ let linked_in_process () =
     check "and the C compiler links from then on"
       (command unreadable ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"stubs" = None
       && times () = before);
+    check "the stubs' missing re-exports are theirs, but an error of LLD's own is not"
+      (Build.unreadable_stubs (stubs ^ "ld64.lld: error: unable to locate re-export with install name /usr/lib/x.dylib\n")
+      && not (Build.unreadable_stubs (stubs ^ "ld64.lld: error: duplicate symbol: _main\n")));
     check "a system library newer than the oldest macOS is not warned of"
       (Build.without_system_version_warnings
          "ld64.lld: warning: /usr/lib/system/libsystem_kernel.dylib has version 27.2.0, which is newer than \

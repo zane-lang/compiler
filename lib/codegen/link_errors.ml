@@ -172,11 +172,22 @@ let other_link_errors text =
                  [ "undefined"; "linker command failed"; "ld returned"; "too many errors" ]))
     (String.split_on_char '\n' text)
 
-(* Whether [text], what `ld64.lld` wrote, reports that it cannot read a text
-   stub of the macOS SDK because the stub lists an architecture its LLVM
+(* Whether [text], what `ld64.lld` wrote, reports only that it cannot read
+   text stubs of the macOS SDK because they list an architecture its LLVM
    does not know. The macOS 27.2 SDK's stubs list `arm64e.x1`, which LLVM 21
-   does not know, and LLD rejects the whole stub (#419). *)
-let unreadable_stubs text = holds "could not load TAPI file" text && holds "unknown architecture" text
+   does not know, and LLD rejects each such stub whole (#419); the
+   re-exports the stubs held are then missing, and LLD stops after enough
+   errors. Any other error makes the failure LLD's own. *)
+let unreadable_stubs text =
+  let of_stubs line =
+    List.exists
+      (fun part -> holds part line)
+      [ "could not load TAPI file"; "unknown architecture"; "unable to locate re-export"; "too many errors emitted" ]
+  in
+  let errors = List.filter (holds "error:") (String.split_on_char '\n' text) in
+  holds "could not load TAPI file" text
+  && holds "unknown architecture" text
+  && List.for_all of_stubs errors
 
 (* [text], what `ld64.lld` wrote on a link it finished, without its warnings
    that a system library, one installed under `/usr/lib/` or

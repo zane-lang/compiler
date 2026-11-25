@@ -601,9 +601,11 @@ let underscored triple =
    command LLD fails on where *cc* links is warned of: one kept by an
    earlier build may have gone stale, and is asked for again next build;
    one just asked for is not, so *cc* links from then on. When LLD fails
-   only because it cannot read the macOS SDK's stubs, *cc* links from then
-   on whichever way the command came, and the build notes that in one line
-   instead of repeating LLD's errors. When *cc* fails
+   only because it cannot read the macOS SDK's stubs, the build notes that
+   in one line instead of repeating LLD's errors, and a command from the
+   cache is marked so that *cc* links from then on; a command asked for
+   with no cache, or one a toolchain bundles, is tried with LLD again on
+   the next build, which notes it again. When *cc* fails
    too, the program does not link, and nothing is forgotten; when *cc*
    reports that it cannot find one of the `system` [libraries], the error names
    the row that asks for it, and what *cc* wrote is not repeated. [lld]
@@ -676,8 +678,9 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
   in
   (* LLD failed only because it cannot read the macOS SDK's stubs
      ([unreadable_stubs]): asking *cc* for its command again would give one
-     LLD fails on again, so *cc* links from then on, and the build says why
-     in one line instead of repeating LLD's errors for every stub. *)
+     LLD fails on again, so a cached command is marked for *cc* to link
+     from then on, and the build says why in one line instead of repeating
+     LLD's errors for every stub. *)
   let record_unreadable source =
     let why =
       Printf.sprintf
