@@ -63,8 +63,9 @@ let frames () = switch "ZANE_FRAME_REFS"
    for: the system loads the image at 4 GiB and keeps the addresses below
    it unmapped, and the dyld shared cache, with the range the system
    reserves after it, fills the addresses from 6 GiB to 63 GiB (#418).
-   `ZANE_CHUNK_BOXES=1` turns chunk boxes on for every target, whatever
-   `ZANE_IMAGE_BOXES` is, and `ZANE_CHUNK_BOXES=0` turns them off, which on
+   Chunk boxes need frame references, so `ZANE_FRAME_REFS=0` turns them
+   off. Otherwise `ZANE_CHUNK_BOXES=1` turns them on for every target,
+   whatever `ZANE_IMAGE_BOXES` is, and `ZANE_CHUNK_BOXES=0` turns them off, which on
    a Mach-O target brings image boxes back. With any other value, or
    unset, a Mach-O target takes chunk boxes unless `ZANE_IMAGE_BOXES` is
    `0`, which leaves boxes 8 bytes, and other targets do not. *)
