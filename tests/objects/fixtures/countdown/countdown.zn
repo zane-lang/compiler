@@ -1,0 +1,17 @@
+/// A library with a type that contains itself, so its member is boxed
+/// (adt.md §4): how a boxed member is stored depends on the target
+/// (docs/optimizations.md, "Boxes in 32 bits").
+package countdown;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+
+type Countdown = variant {
+	done Unit;
+	more Countdown;
+}
+
+Int depth(c Countdown) => match (c) {
+	d done => Int(0);
+	m more => @operators$add(Int(1), depth(m));
+}
