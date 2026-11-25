@@ -360,8 +360,8 @@ in it, and a leaf allocates nothing.
 
 ### References and list handles in 32 bits
 
-- **Builds:** every build for a Linux target; `ZANE_FRAME_REFS=0` turns it
-  off, and with it the two entries below
+- **Builds:** every build; `ZANE_FRAME_REFS=0` turns it off, and with it
+  the two entries below
 - **Where:** `lib/cgt/ref32.ml`, `lib/codegen/list_handle.ml`,
   `lib/cgt/build.ml` (`stored_ref`), `runtime/region.c`, `runtime/zane.h`
 - **Design:** [`experiments/goose-comparison/FINDINGS.md`](experiments/goose-comparison/FINDINGS.md),
@@ -372,20 +372,21 @@ in it, and a leaf allocates nothing.
   takes one instruction more
 
 A stored `&T` is its owner's signed 32-bit distance in bytes from the
-program's image (`__ehdr_start`): every context's frames come from the
-2 GiB below the image, or from 512 MiB above it within 2 GiB when the
-program is loaded too low for that (as under Valgrind), and globals are in
-it, so every reference fits, and reading one is one address computation. A list's handle is 16 bytes: its
+start of the program's image, a symbol the target's linker defines there:
+`__ehdr_start` for ELF, `_mh_execute_header` for Mach-O, `__ImageBase` for
+PE. Every context's frames come from the 2 GiB below the image, or from
+512 MiB above it within 2 GiB when the program is loaded too low for that
+(as under Valgrind, and on macOS, which keeps the low 4 GiB unmapped), and
+globals are in it, so every reference fits, and reading one is one address computation. A list's handle is 16 bytes: its
 items pointer, then a 32-bit count and a 32-bit room counted in elements,
 so a list holds up to 2^32 − 1 elements. A push adds to the count at 32
-bits, so LLVM folds the element's address into its store. Other targets
-keep 8-byte references and 24-byte handles, since the layout needs the ELF
-linker's `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`.
+bits, so LLVM folds the element's address into its store.
 
 ### Boxes in 32 bits
 
-- **Builds:** every build for a Linux target; `ZANE_IMAGE_BOXES=0` turns
-  it off, and `ZANE_CHUNK_BOXES=1` numbers boxes by chunk instead
+- **Builds:** every build; `ZANE_IMAGE_BOXES=0` turns it off.
+  `ZANE_CHUNK_BOXES=1` numbers boxes by chunk instead, which is the default
+  for a Mach-O target, where `ZANE_CHUNK_BOXES=0` turns image boxes back on
 - **Where:** `lib/cgt/ref32.ml`, `lib/codegen/list_handle.ml`
   (`encode_box`), `runtime/region.c` (`zane_window_take`)
 - **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),
@@ -404,11 +405,20 @@ list's growing span and a pool lie outside the window, since their handles
 hold 8-byte pointers. A box's payload past 1 MiB takes whole chunks of
 its own from the window too, never a list's span, so it fits as well.
 
+A build for macOS numbers boxes by chunk, since arm64 macOS leaves no room
+for the window: the system loads the image at 4 GiB and keeps the addresses
+below it unmapped, and the dyld shared cache, with the range the system
+reserves after it, fills the addresses from 6 GiB to 63 GiB
+([#418](https://github.com/zane-lang/compiler/issues/418)). A boxed member
+is then its MiB's number, which the runtime gives each MiB of a context's
+frames and of a chunk, and its offset in that MiB in 8-byte units, with
+chunks anywhere.
+
 ### A sum of nothing or one box is one word
 
-- **Builds:** every build for a Linux target with boxes in 32 bits (above,
-  so `ZANE_FRAME_REFS=0` or `ZANE_IMAGE_BOXES=0` without
-  `ZANE_CHUNK_BOXES=1` turns it off too); `ZANE_NICHE_SUMS=0` turns it off
+- **Builds:** every build with boxes in 32 bits (above, so
+  `ZANE_FRAME_REFS=0` or `ZANE_IMAGE_BOXES=0` without `ZANE_CHUNK_BOXES=1`
+  turns it off too); `ZANE_NICHE_SUMS=0` turns it off
 - **Where:** `lib/cgt/nodes.ml` (`Ty.niche`), `lib/codegen/emit.ml`,
   `lib/codegen/walks.ml`
 - **Design:** [`experiments/goose-comparison/README.md`](experiments/goose-comparison/README.md),

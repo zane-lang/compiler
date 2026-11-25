@@ -2307,6 +2307,27 @@ symbol differ.
   `ZANE_IMAGE_BOXES=0` and `ZANE_FRAME_REFS=0`. `ZANE_CHUNK_BOXES=1` now
   numbers Windows chunks too, the slabs' included.
 
+## Chunk boxes by default on macOS
+
+On macOS 27.2 (arm64) every program stopped at startup with "the addresses
+near the program are taken"
+([#418](https://github.com/zane-lang/compiler/issues/418)). The window
+search above no longer finds room past the shared cache: with the image at
+4 GiB, the dyld shared cache is mapped from 6 GiB to about 13.6 GiB, and
+the range the system reserves after it ends at 63 GiB, so no 2 GiB range
+within 16 GiB of the image is free. The image cannot simply move higher:
+LLD places a Mach-O program's `__TEXT` right after `__PAGEZERO` and leaves
+`-image_base` unimplemented, and a `__PAGEZERO` past 6 GiB would cover the
+shared cache's addresses.
+
+So a Mach-O target now numbers boxes by chunk (`ZANE_CHUNK_BOXES`, above)
+by default, which needs no window and keeps boxes in 32 bits, at about 5%
+on binarytrees. Frame references are unchanged: the frames still fit in
+the 2 GiB above the image, below the shared cache. `ZANE_IMAGE_BOXES=0`
+still gives 8-byte boxes, and `ZANE_CHUNK_BOXES=0` brings the window back
+on a Mach-O target, for an Intel Mac, whose shared cache lies far above the
+image.
+
 ## What remains
 
 | test | Zane ÷ Goose (wall) | what accounts for it |

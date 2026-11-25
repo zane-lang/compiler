@@ -18,20 +18,25 @@ let names triple words =
   in
   List.exists has words
 
+(* The kind of image the target's linker writes: a PE image on Windows, a
+   Mach-O image on Apple's systems, an ELF image elsewhere. *)
+type image = Pe | Mach_o | Elf
+
+let image () =
+  let windows = [ "windows"; "mingw"; "win32"; "msvc" ] and apple = [ "apple"; "darwin"; "macos" ] in
+  match !target with
+  | Some triple when names triple windows -> Pe
+  | Some triple when names triple apple -> Mach_o
+  | Some _ -> Elf
+  | None ->
+      if Sys.win32 then Pe else if Sys.file_exists "/proc/sys/kernel/ostype" then Elf else Mach_o
+
 (* The symbol the target's linker defines at the program image's start,
    which a frame reference counts from (runtime/region.c): the PE image's
    base on Windows, the Mach-O header on macOS (LLVM adds its `_`), the ELF
    header elsewhere. *)
 let image_symbol () =
-  let windows = [ "windows"; "mingw"; "win32"; "msvc" ] and apple = [ "apple"; "darwin"; "macos" ] in
-  match !target with
-  | Some triple when names triple windows -> "__ImageBase"
-  | Some triple when names triple apple -> "_mh_execute_header"
-  | Some _ -> "__ehdr_start"
-  | None ->
-      if Sys.win32 then "__ImageBase"
-      else if Sys.file_exists "/proc/sys/kernel/ostype" then "__ehdr_start"
-      else "_mh_execute_header"
+  match image () with Pe -> "__ImageBase" | Mach_o -> "_mh_execute_header" | Elf -> "__ehdr_start"
 
 (* `ZANE_FRAME_REFS`: every context's frames are in the 2 GiB right below
    the program's image (runtime/region.c), so a stored reference, which
@@ -40,17 +45,30 @@ let image_symbol () =
    bits each, the room counted in elements. *)
 let frames () = switch "ZANE_FRAME_REFS"
 
-(* `ZANE_CHUNK_BOXES=1`, off by default: a boxed member's block is stored
-   in 32 bits as its MiB's number, which the runtime gives each MiB of a
-   context's frames and of a chunk, and its offset in that MiB in 8-byte
-   units (runtime/arena.c, zane_mib_bases), with chunks anywhere. *)
-let chunk_boxes () = frames () && Sys.getenv_opt "ZANE_CHUNK_BOXES" = Some "1"
+(* `ZANE_CHUNK_BOXES`: a boxed member's block is stored in 32 bits as its
+   MiB's number, which the runtime gives each MiB of a context's frames and
+   of a chunk, and its offset in that MiB in 8-byte units (runtime/arena.c,
+   zane_mib_bases), with chunks anywhere. It is on by default for a Mach-O
+   target, since image boxes need a window that arm64 macOS has no room
+   for: the system loads the image at 4 GiB and keeps the addresses below
+   it unmapped, and the dyld shared cache, with the range the system
+   reserves after it, fills the addresses from 6 GiB to 63 GiB (#418). On a
+   Mach-O target `ZANE_IMAGE_BOXES=0` turns chunk boxes off along with
+   image boxes, and `ZANE_CHUNK_BOXES=0` turns image boxes back on.
+   Elsewhere chunk boxes are off unless `ZANE_CHUNK_BOXES` is `1`. *)
+let chunk_boxes () =
+  frames ()
+  &&
+  match Sys.getenv_opt "ZANE_CHUNK_BOXES" with
+  | Some value -> value = "1"
+  | None -> image () = Mach_o && switch "ZANE_IMAGE_BOXES"
 
 (* `ZANE_IMAGE_BOXES`, with frame references: the runtime takes its chunks
    from a window within 16 GiB of the program's image (runtime/region.c),
    so a boxed member's block is stored as its signed distance from the
    image in 8-byte units, in 32 bits ([Nodes.Ty.Box32]). Chunk boxes also
-   store 32 bits, with their own encoding. *)
+   store 32 bits, with their own encoding, and take the place of image
+   boxes when they are on. *)
 let image_boxes () = frames () && (switch "ZANE_IMAGE_BOXES" || chunk_boxes ())
 
 (* `ZANE_NICHE_SUMS`, with 32-bit boxes: a sum whose first case carries

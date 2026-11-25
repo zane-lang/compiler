@@ -779,9 +779,10 @@
   (run python3 %{dep:abi_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
 ; Which targets zanec builds for: a 32-bit one is refused, a 64-bit one
-; accepted (docs/design/platforms.md).
+; accepted (docs/design/platforms.md); and how each stores a boxed member
+; (docs/optimizations.md).
 (rule
  (alias runtest)
- (deps targets_test.py (source_tree fixtures/geometry))
+ (deps targets_test.py (source_tree fixtures/geometry) (source_tree fixtures/countdown))
  (action
   (run python3 %{dep:targets_test.py} %{exe:../../bin/zanec/zanec.exe})))
