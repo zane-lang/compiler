@@ -151,14 +151,18 @@ let undefined_error ?(underscored = false) text =
       in
       Some (message, named = List.length undefined)
 
+(* Whether [part] occurs in [s], compared in place, since a linker's text
+   can be long. *)
+let holds part s =
+  let n = String.length part and m = String.length s in
+  let rec from i j = j = n || (s.[i + j] = part.[j] && from i (j + 1)) in
+  let rec at i = i <= m - n && (from i 0 || at (i + 1)) in
+  at 0
+
 (* Whether a linker's [text] reports any error other than undefined
    symbols: a symbol defined twice, or any other error. *)
 let other_link_errors text =
-  let has part line =
-    let n = String.length part in
-    let rec at i = i <= String.length line - n && (String.sub line i n = part || at (i + 1)) in
-    at 0
-  in
+  let has = holds in
   List.exists
     (fun line ->
       has "duplicate symbol" line || has "multiple definition" line
@@ -167,12 +171,6 @@ let other_link_errors text =
               (List.exists (fun p -> has p line)
                  [ "undefined"; "linker command failed"; "ld returned"; "too many errors" ]))
     (String.split_on_char '\n' text)
-
-(* Whether [part] occurs in [s]. *)
-let holds part s =
-  let n = String.length part in
-  let rec at i = i <= String.length s - n && (String.sub s i n = part || at (i + 1)) in
-  at 0
 
 (* Whether [text], what `ld64.lld` wrote, reports that it cannot read a text
    stub of the macOS SDK because the stub lists an architecture its LLVM
@@ -192,6 +190,6 @@ let unreadable_stubs text = holds "could not load TAPI file" text && holds "unkn
 let without_system_version_warnings text =
   let system line =
     holds "which is newer than target minimum of" line
-    && List.exists (fun prefix -> holds ("warning: " ^ prefix) line) [ "/usr/lib/"; "/System/Library/" ]
+    && List.exists (fun prefix -> holds prefix line) [ "warning: /usr/lib/"; "warning: /System/Library/" ]
   in
   String.concat "\n" (List.filter (fun line -> not (system line)) (String.split_on_char '\n' text))
