@@ -175,9 +175,9 @@ let other_link_errors text =
 (* Whether [text], what `ld64.lld` wrote, reports only that it cannot read
    text stubs of the macOS SDK because they list an architecture its LLVM
    does not know. The macOS 27.2 SDK's stubs list `arm64e.x1`, which LLVM 21
-   does not know, and LLD rejects each such stub whole (#419); the
-   re-exports the stubs held are then missing, and LLD stops after enough
-   errors. Any other error makes the failure LLD's own. *)
+   does not know, and LLD rejects each such stub whole (#419). LLD then
+   cannot find the libraries those stubs re-export, and it stops after
+   enough errors. Any other error makes the failure LLD's own. *)
 let unreadable_stubs text =
   let of_stubs line =
     List.exists
