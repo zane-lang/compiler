@@ -707,7 +707,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
               if unreadable_stubs text then record_unreadable source
               else begin
                 record_fallback source;
-                say text
+                say (without_system_version_warnings text)
               end;
               Ok ()))
 
