@@ -86,6 +86,22 @@ only what `libSystem` provides. They keep to it: a feature that would need an
 Apple framework, such as a GUI or the GPU, belongs in a package of its own,
 built on a Mac by those who want it.
 
+A macOS program names the oldest macOS it runs on, and the toolchain picks
+the oldest one it builds for on the target's architecture, 13.0 on arm64.
+On a Mac with an SDK installed, the link reads the SDK's stubs, which give
+each system library the SDK's own version. LLD then warns that the library
+is newer than the program's oldest macOS. The program uses the system
+libraries of the Mac it runs on, so the compiler drops that warning for a
+library under `/usr/lib/` or `/System/Library/`, and keeps it for a
+library of the program's own.
+
+The macOS 27.2 SDK's stubs list the architecture `arm64e.x1`, which the
+LLVM in the compiler (21) does not know, so its LLD cannot read them. `zig
+cc` links instead, and the compiler notes that in one line and keeps
+linking with `zig cc` for that target and those flags
+([#419](https://github.com/zane-lang/compiler/issues/419)). LLVM 23 knows
+the architecture.
+
 ## The C math library
 
 The approximate math functions of `@math$` are the C math library's where
