@@ -23,9 +23,15 @@ let names triple words =
 type image = Pe | Mach_o | Elf
 
 (* The host's kind, looked up once: lowering asks for the image's kind for
-   every box and sum, and the host does not change while it runs. *)
+   every box and sum, and the host does not change while it runs. macOS is
+   recognized by its version file, as [Codegen.Build.darwin] recognizes
+   it, so any other Unix host, a Linux one without `/proc` included, is
+   ELF. *)
 let host_image =
-  lazy (if Sys.win32 then Pe else if Sys.file_exists "/proc/sys/kernel/ostype" then Elf else Mach_o)
+  lazy
+    (if Sys.win32 then Pe
+     else if Sys.file_exists "/System/Library/CoreServices/SystemVersion.plist" then Mach_o
+     else Elf)
 
 let image () =
   let windows = [ "windows"; "mingw"; "win32"; "msvc" ] and apple = [ "apple"; "darwin"; "macos" ] in
@@ -56,16 +62,19 @@ let frames () = switch "ZANE_FRAME_REFS"
    target, since image boxes need a window that arm64 macOS has no room
    for: the system loads the image at 4 GiB and keeps the addresses below
    it unmapped, and the dyld shared cache, with the range the system
-   reserves after it, fills the addresses from 6 GiB to 63 GiB (#418). On a
-   Mach-O target `ZANE_IMAGE_BOXES=0` turns chunk boxes off along with
-   image boxes, and `ZANE_CHUNK_BOXES=0` turns image boxes back on.
-   Elsewhere chunk boxes are off unless `ZANE_CHUNK_BOXES` is `1`. *)
+   reserves after it, fills the addresses from 6 GiB to 63 GiB (#418).
+   `ZANE_CHUNK_BOXES=1` turns chunk boxes on for every target, whatever
+   `ZANE_IMAGE_BOXES` is, and `ZANE_CHUNK_BOXES=0` turns them off, which on
+   a Mach-O target brings image boxes back. With any other value, or
+   unset, a Mach-O target takes chunk boxes unless `ZANE_IMAGE_BOXES` is
+   `0`, which leaves boxes 8 bytes, and other targets do not. *)
 let chunk_boxes () =
   frames ()
   &&
   match Sys.getenv_opt "ZANE_CHUNK_BOXES" with
-  | Some value -> value = "1"
-  | None -> image () = Mach_o && switch "ZANE_IMAGE_BOXES"
+  | Some "1" -> true
+  | Some "0" -> false
+  | Some _ | None -> image () = Mach_o && switch "ZANE_IMAGE_BOXES"
 
 (* `ZANE_IMAGE_BOXES`, with frame references: the runtime takes its chunks
    from a window within 16 GiB of the program's image (runtime/region.c),

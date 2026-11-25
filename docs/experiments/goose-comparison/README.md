@@ -2353,7 +2353,8 @@ the representation, partial inlining a recursion's base case, and packing
 the node's size, and Goose's push shape the push itself.
 
 **Every reference and box in 32 bits**, by default: references are
-image-relative (frame references), boxes too, through the window, and list
+image-relative (frame references), boxes too, through the window (by
+chunk number on macOS, above), and list
 handles are 16 bytes, their items still an 8-byte pointer, since a growing
 list's reservation does not fit the window. The cage that put every
 reservation below 2^35 is removed; its one remaining lead, ntree's 18 MB

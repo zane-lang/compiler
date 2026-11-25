@@ -76,6 +76,11 @@ class TargetTests(unittest.TestCase):
         wide = self.boxes(target, {"ZANE_IMAGE_BOXES": "0"})
         self.assertNotIn("zane_mib_bases", wide)
         self.assertNotIn("@_mh_execute_header", wide)
+        # The boxed case's payload is an 8-byte pointer after the tag, not a
+        # 32-bit word.
+        depth = '@"!countdown$depth(!countdown$Countdown)"('
+        self.assertIn(depth + "<{ i8, i64 }>", wide)
+        self.assertIn(depth + "{ i32 }", image)
 
 if __name__ == "__main__":
     unittest.main()
