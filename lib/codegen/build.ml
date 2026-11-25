@@ -577,7 +577,7 @@ let lld_run command =
   let code, again, text = lld_link (Array.of_list command) in
   lld_usable := again;
   if code = 0 then begin
-    prerr_string text;
+    prerr_string (Link_errors.without_system_version_warnings text);
     Ok ()
   end
   else Error text
@@ -600,7 +600,10 @@ let underscored triple =
    can run it, and else by *cc*, which [say]s why under `ZANE_VERBOSE`. A
    command LLD fails on where *cc* links is warned of: one kept by an
    earlier build may have gone stale, and is asked for again next build;
-   one just asked for is not, so *cc* links from then on. When *cc* fails
+   one just asked for is not, so *cc* links from then on. When LLD fails
+   only because it cannot read the macOS SDK's stubs, *cc* links from then
+   on whichever way the command came, and the build notes that in one line
+   instead of repeating LLD's errors. When *cc* fails
    too, the program does not link, and nothing is forgotten; when *cc*
    reports that it cannot find one of the `system` [libraries], the error names
    the row that asks for it, and what *cc* wrote is not repeated. [lld]
@@ -618,7 +621,7 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
        why LLD failed and not why *cc* did. *)
     match (code, library_error libraries written) with
     | 0, _ ->
-        prerr_string written;
+        prerr_string (without_system_version_warnings written);
         Ok ()
     | _, Some error -> Error error
     | n, None -> (
@@ -671,6 +674,23 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
           (Printf.sprintf "%s the toolchain bundles for this target, so `%s` linked instead\n"
              failed cc)
   in
+  (* LLD failed only because it cannot read the macOS SDK's stubs
+     ([unreadable_stubs]): asking *cc* for its command again would give one
+     LLD fails on again, so *cc* links from then on, and the build says why
+     in one line instead of repeating LLD's errors for every stub. *)
+  let record_unreadable source =
+    let why =
+      Printf.sprintf
+        "zanec: note: the built-in LLD cannot read this macOS SDK's library stubs, which name an \
+         architecture its LLVM does not know, so `%s` linked instead"
+        cc
+    in
+    match source with
+    | Known kept | Kept kept ->
+        keep_text ~dir ~kept "\001the built-in LLD cannot read this macOS SDK's library stubs";
+        say (Printf.sprintf "%s, as it will for this target and these flags until %s is removed\n" why kept)
+    | Asked | Bundled -> say (why ^ "\n")
+  in
   match plan with
   | Cc why -> through_cc why
   | Lld _ when not !lld_usable -> through_cc "the built-in LLD cannot run again in this process"
@@ -681,8 +701,11 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
           match through_cc "the built-in LLD could not link" with
           | Error _ as error -> error
           | Ok () ->
-              record_fallback source;
-              say text;
+              if unreadable_stubs text then record_unreadable source
+              else begin
+                record_fallback source;
+                say text
+              end;
               Ok ()))
 
 (* What the runtime is compiled with besides [flags], whatever the C

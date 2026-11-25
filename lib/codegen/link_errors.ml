@@ -167,3 +167,31 @@ let other_link_errors text =
               (List.exists (fun p -> has p line)
                  [ "undefined"; "linker command failed"; "ld returned"; "too many errors" ]))
     (String.split_on_char '\n' text)
+
+(* Whether [part] occurs in [s]. *)
+let holds part s =
+  let n = String.length part in
+  let rec at i = i <= String.length s - n && (String.sub s i n = part || at (i + 1)) in
+  at 0
+
+(* Whether [text], what `ld64.lld` wrote, reports that it cannot read a text
+   stub of the macOS SDK because the stub lists an architecture its LLVM
+   does not know. The macOS 27.2 SDK's stubs list `arm64e.x1`, which LLVM 21
+   does not know, and LLD rejects the whole stub (#419). *)
+let unreadable_stubs text = holds "could not load TAPI file" text && holds "unknown architecture" text
+
+(* [text], what `ld64.lld` wrote on a link it finished, without its warnings
+   that a system library, one installed under `/usr/lib/` or
+   `/System/Library/`, is newer than the oldest macOS the program runs on.
+   The oldest macOS is the oldest one the toolchain builds for on the
+   target's architecture, 13.0 on arm64, so a program runs on every Mac
+   that version supports, while the SDK's stubs give each system library
+   the SDK's own version, 27.2 on macOS 27.2 (#419). The program uses the
+   system libraries of the Mac it runs on, so the warning is noise. A
+   library of the program's own that is newer is still warned of. *)
+let without_system_version_warnings text =
+  let system line =
+    holds "which is newer than target minimum of" line
+    && List.exists (fun prefix -> holds ("warning: " ^ prefix) line) [ "/usr/lib/"; "/System/Library/" ]
+  in
+  String.concat "\n" (List.filter (fun line -> not (system line)) (String.split_on_char '\n' text))

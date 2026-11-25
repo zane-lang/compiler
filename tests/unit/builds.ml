@@ -171,6 +171,34 @@ let linked_in_process () =
     let before = times () in
     check "and the C compiler links from then on"
       (command fresh ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"four" = None && times () = before);
+    let stubs =
+      "ld64.lld: error: could not load TAPI file at /sdk/usr/lib/system/libcache.tbd: malformed file\n\
+       /sdk/usr/lib/system/libcache.tbd:4:20: error: unknown architecture\n\
+      \                   arm64e.x1-macos, arm64e.x1-maccatalyst ]\n"
+    in
+    let unreadable = fake "unreadable-cc" echoing in
+    let linked_unreadable = linked ~lld:(fun _ -> Error stubs) unreadable ~output:"stubs" in
+    check "a link LLD fails on only for the SDK's stubs it cannot read is noted in one line, not warned of"
+      (Result.is_ok linked_unreadable
+      && String.starts_with ~prefix:"zanec: note: the built-in LLD cannot read this macOS SDK's library stubs"
+           (Buffer.contents said)
+      && List.length (String.split_on_char '\n' (Buffer.contents said)) = 2);
+    let before = times () in
+    check "and the C compiler links from then on"
+      (command unreadable ~obj:"/w/program.o" ~runtime:"/r/runtime.o" ~output:"stubs" = None
+      && times () = before);
+    check "a system library newer than the oldest macOS is not warned of"
+      (Build.without_system_version_warnings
+         "ld64.lld: warning: /usr/lib/system/libsystem_kernel.dylib has version 27.2.0, which is newer than \
+          target minimum of 13.0.0\n\
+          ld64.lld: warning: /System/Library/Frameworks/F.framework/F has version 27.2.0, which is newer than \
+          target minimum of 13.0.0\n\
+          ld64.lld: warning: /opt/lib/libmine.dylib has version 27.2.0, which is newer than target minimum of \
+          13.0.0\n\
+          ld64.lld: warning: something else\n"
+      = "ld64.lld: warning: /opt/lib/libmine.dylib has version 27.2.0, which is newer than target minimum of \
+         13.0.0\n\
+         ld64.lld: warning: something else\n");
     let failing = fake ~links:false "failing-cc" echoing in
     let before = times () in
     check "a program neither links is an error, and not warned of"
