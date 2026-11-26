@@ -93,8 +93,8 @@ records are the server's for that body.
 **D7. A document that does not parse keeps its last parse.** While the user
 types, a file is often not valid Zane. Its build then reads the file's last
 text that parsed, so every other file keeps its answers, and the document
-shows its syntax errors alone: the first in each declaration that does not
-parse. Each answer about the
+shows its parse diagnostics alone: the first syntax error in each declaration
+that does not parse, and how each that does misplaces a `;`. Each answer about the
 document moves the spans of the last parse onto the current text, by the edit
 between the two texts: a span before the edit stays, a span after it moves by
 the edit's length, and a span inside it has no place in the current text and
