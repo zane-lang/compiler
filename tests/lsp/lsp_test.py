@@ -611,6 +611,17 @@ class LooseFileTest(unittest.TestCase):
                 self.assertEqual(len(client.diagnostics(path)), 1)
                 symbols = client.request("textDocument/documentSymbol", {"textDocument": {"uri": uri(path)}})
                 self.assertEqual([s["name"] for s in symbols], ["loose", "Bool"])
+                # A `(` left open in a signature does not end recovery: the
+                # declaration after its body is listed, and the error after
+                # that is found.
+                client.change(
+                    path,
+                    "package loose;\n\nalias Unit = @primitives$Unit;\n\nUnit broken( {}\n\n"
+                    "Unit fine() { return Unit(); }\n\nUnit another() { x Unit = ; }\n",
+                )
+                self.assertEqual(len(client.diagnostics(path)), 2)
+                symbols = client.request("textDocument/documentSymbol", {"textDocument": {"uri": uri(path)}})
+                self.assertEqual([s["name"] for s in symbols], ["loose", "Unit", "fine"])
             finally:
                 client.close()
 
