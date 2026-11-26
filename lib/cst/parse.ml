@@ -123,38 +123,40 @@ let lex_all lexbuf =
   in
   Array.of_list (go [])
 
-(* [boundaries.(i)]: whether a declaration may start at token [i].
+(* The boundaries of the tokens from [from] on, read with [braces] braces
+   already open there: [boundary.(i)] is whether a declaration may start at
+   token [i], and [depth.(i)] how many braces are open after token [i].
 
    Depth counts `{ }` alone; a `(` or `[` is counted per brace level and
    forgotten at the next `;` of that level. Entries inside parentheses and
    brackets are separated by `,` (lexical.md §6.2), so a `;` reached with a
    `(` or `[` still open at its level means that bracket was never closed.
    Without the reset, one missing `]` would hide every boundary after it. *)
-let boundaries tokens =
+let scan tokens ~from ~braces:open_braces =
   let n = Array.length tokens in
-  let result = Array.make (n + 1) false in
-  let braces = ref 0 and open_ = ref [ 0 ] in
+  let boundary = Array.make (n + 1) false and depth = Array.make n 0 in
+  let braces = ref open_braces and open_ = ref (List.init (open_braces + 1) (fun _ -> 0)) in
   let top () = List.hd !open_ in
   let set_top k = open_ := k :: List.tl !open_ in
-  Array.iteri
-    (fun i { lexed; _ } ->
-      match lexed with
-      | Token (Parser.LPAREN | Parser.LBRACKET) -> set_top (top () + 1)
-      | Token (Parser.RPAREN | Parser.RBRACKET) -> set_top (max 0 (top () - 1))
-      | Token Parser.LCURLY ->
-          incr braces;
-          open_ := 0 :: !open_
-      | Token Parser.RCURLY ->
-          if !braces > 0 then (
-            decr braces;
-            open_ := List.tl !open_);
-          if !braces = 0 && top () = 0 then result.(i + 1) <- true
-      | Token Parser.SEMICOLON ->
-          set_top 0;
-          if !braces = 0 then result.(i + 1) <- true
-      | _ -> ())
-    tokens;
-  result
+  for i = from to n - 1 do
+    (match tokens.(i).lexed with
+    | Token (Parser.LPAREN | Parser.LBRACKET) -> set_top (top () + 1)
+    | Token (Parser.RPAREN | Parser.RBRACKET) -> set_top (max 0 (top () - 1))
+    | Token Parser.LCURLY ->
+        incr braces;
+        open_ := 0 :: !open_
+    | Token Parser.RCURLY ->
+        if !braces > 0 then (
+          decr braces;
+          open_ := List.tl !open_);
+        if !braces = 0 && top () = 0 then boundary.(i + 1) <- true
+    | Token Parser.SEMICOLON ->
+        set_top 0;
+        if !braces = 0 then boundary.(i + 1) <- true
+    | _ -> ());
+    depth.(i) <- !braces
+  done;
+  (boundary, depth)
 
 type segment = Parsed of Nodes.Package.t | Failed of int * Diagnostic.t
 
@@ -198,7 +200,6 @@ let package_recovering filename input =
       Sedlexing.set_filename lexbuf filename;
       let tokens = lex_all lexbuf in
       let eof = Array.length tokens - 1 in
-      let boundary = boundaries tokens in
       let decls = ref [] and defects = ref [] and diagnostics = ref [] in
       let take (p : Nodes.Package.t) =
         decls := List.rev_append p.decls !decls;
@@ -209,23 +210,39 @@ let package_recovering filename input =
       in
       (* Takes the longest prefix [start, b'), for a boundary b' <= [b], that
          parses. *)
-      let rec salvage start b =
+      let rec salvage boundary start b =
         if b <= start then ()
-        else if not boundary.(b) then salvage start (b - 1)
+        else if not boundary.(b) then salvage boundary start (b - 1)
         else
           match parse_range tokens start b with
           | Parsed p -> take p
-          | Failed _ -> salvage start (b - 1)
+          | Failed _ -> salvage boundary start (b - 1)
       in
-      let rec next_boundary i = if i >= eof || boundary.(i) then i else next_boundary (i + 1) in
+      (* Where to restart after a failure at token [e]: the first boundary
+         after it, read afresh from there. A `(` or `[` the failed declaration
+         left open is forgotten, since it may be the mistake itself -- in
+         `Unit f( {}` it would otherwise hide every boundary to the end. The
+         braces it left open are kept: an unclosed `{` ends recovery. *)
+      let restart depth e =
+        let ends_declaration =
+          match tokens.(e).lexed with Token (Parser.SEMICOLON | Parser.RCURLY) -> true | _ -> false
+        in
+        if e >= eof then eof
+        else if ends_declaration && depth.(e) = 0 then e + 1
+        else
+          let boundary, _ = scan tokens ~from:(e + 1) ~braces:depth.(e) in
+          let rec first i = if i >= eof || boundary.(i) then i else first (i + 1) in
+          first (e + 2)
+      in
       let rec go start =
         if start < eof then
           match parse_range tokens start eof with
           | Parsed p -> take p
           | Failed (e, d) ->
               diagnostics := d :: !diagnostics;
-              salvage start (min e eof);
-              go (next_boundary (e + 1))
+              let boundary, depth = scan tokens ~from:start ~braces:0 in
+              salvage boundary start (min e eof);
+              go (restart depth e)
       in
       go 0;
       let package =
