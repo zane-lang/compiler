@@ -64,19 +64,25 @@ let package filename input =
       | Parser.Error _ | Lexer.Lexing_error | Sedlexing.MalFormed ->
           located "Parse error")
 
-(* Error recovery by restart (option 1 of the parser-recovery experiment).
+(* Recovery from syntax errors, by restarting the parse.
 
-   The grammar is not touched: recovery happens around the parser, by parsing
-   ranges of the token stream as whole packages. A failed parse is never
-   continued -- under GLR, one branch dying is how an ambiguity resolves, so
-   only a parse whose every branch died says the input is wrong. What happens
-   after such a failure is decided here, between parses, where no action runs.
+   It happens around the parser, not in the grammar: Menhir's GLR back-end has
+   neither the `error` token nor the incremental API that recovery inside a
+   parse would need. Ranges of the token stream are parsed as whole packages,
+   and a failed parse is never continued. Under GLR one branch dying is how an
+   ambiguity resolves, so only a parse whose every branch died says the input
+   is wrong, and what follows such a failure is decided between parses, where
+   no action runs.
 
-   A boundary is the position just after a `;` or `}` written at bracket depth
-   zero: where a package-scope declaration may end (lexical.md §6.3). It is a
-   guess, not a parse -- a braced declaration can continue past its `}` -- so a
-   prefix cut at one is parsed again to confirm it, and a later boundary that
-   fails is given up for an earlier one. *)
+   Each range ends at an end of input rather than at the end of one
+   declaration: a GLR parser stops as soon as one branch accepts, so a start
+   symbol for a single declaration would drop the branches that read on.
+
+   A boundary is where a package-scope declaration may start: just after a `;`
+   or `}` written outside every brace (lexical.md §6.3). It is a guess, not a
+   parse -- a braced declaration can continue past its `}` -- so a prefix cut at
+   one is parsed again to confirm it, and a boundary whose prefix fails is
+   given up for an earlier one. *)
 
 type lexed =
   | Token of Parser.token
@@ -113,10 +119,10 @@ let lex_all lexbuf =
 (* [boundaries.(i)]: whether a declaration may start at token [i].
 
    Depth counts `{ }` alone; a `(` or `[` is counted per brace level and
-   forgotten at the next `;` of that level. No `;` is written inside
-   parentheses or brackets except within braces, so one reached with a `(` or
-   `[` still open means that bracket was never closed -- and without the reset,
-   a single missing `]` would hide every boundary after it. *)
+   forgotten at the next `;` of that level. Entries inside parentheses and
+   brackets are separated by `,` (lexical.md §6.2), so a `;` reached with a
+   `(` or `[` still open at its level means that bracket was never closed.
+   Without the reset, one missing `]` would hide every boundary after it. *)
 let boundaries tokens =
   let n = Array.length tokens in
   let result = Array.make (n + 1) false in
@@ -194,7 +200,8 @@ let package_recovering filename input =
         | Ok () -> ()
         | Error d -> diagnostics := d :: !diagnostics
       in
-      (* The longest prefix of [start, e] ending at a boundary that parses. *)
+      (* Takes the longest prefix [start, b'), for a boundary b' <= [b], that
+         parses. *)
       let rec salvage start b =
         if b <= start then ()
         else if not boundary.(b) then salvage start (b - 1)

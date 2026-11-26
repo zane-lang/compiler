@@ -93,10 +93,12 @@ records are the server's for that body.
 **D7. A document that does not parse keeps its last parse.** While the user
 types, a file is often not valid Zane. Its build then reads the file's last
 text that parsed, so every other file keeps its answers, and the document
-shows its parse error alone. Each answer about the document moves the spans
-of the last parse onto the current text, by the edit between the two texts:
-a span before the edit stays, a span after it moves by the edit's length,
-and a span inside it has no place in the current text and is dropped.
+shows its syntax errors alone, every one of them. Each answer about the
+document moves the spans of the last parse onto the current text, by the edit
+between the two texts: a span before the edit stays, a span after it moves by
+the edit's length, and a span inside it has no place in the current text and
+is dropped. The outline is the exception: it needs no build, so it reads the
+current text past its syntax errors and lists every declaration that parses.
 
 **D8. Completion writes a placeholder at the cursor.** To learn what may
 stand at the cursor, the server writes a placeholder identifier there and

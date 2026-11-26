@@ -198,9 +198,9 @@ let load_file ?(buffers = []) ~name ~given path =
   | exception Sys_error message ->
       Error [ (Diagnostic.in_file path (reason ~path message), []) ]
   | source -> (
-      match Cst.parse path source with
-      | Error diagnostic -> Error [ (diagnostic, [ (path, source) ]) ]
-      | Ok cst -> (
+      match Cst.parse_recovering path source with
+      | _, (_ :: _ as diagnostics) -> Error (List.map (fun d -> (d, [ (path, source) ])) diagnostics)
+      | cst, [] -> (
           match check_package_line ~name ~given ~path ~source cst with
           | [] -> Ok { path; source; sst = Sst.of_cst cst }
           | problems -> Error problems))
@@ -268,8 +268,9 @@ let load_package ?buffers ~is_root request =
               (Printf.sprintf "no `%s` files directly in the directory" source_extension);
           ]
     | paths ->
-        (* Every file is loaded, whichever fail: one mistake per file is one
-           report per file, not one report per run (docs/design/semantics.md D4). *)
+        (* Every file is loaded, whichever fail, and a file that does not
+           parse reports each of its syntax errors: every mistake is reported
+           in one run (docs/design/semantics.md D4). *)
         List.map (load_file ?buffers ~name ~given) paths
         |> all_or_problems
         |> Result.map (fun files -> { id; name; dir; is_root; files; imports = []; keyed = false })

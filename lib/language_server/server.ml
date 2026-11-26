@@ -76,19 +76,25 @@ let publish st path diagnostics =
 let reported (p : P.project) path =
   String.starts_with ~prefix:(p.P.root ^ Filename.dir_sep) path || p.P.listed_by_zane = false
 
-(* The diagnostics of [path] in its current text: its parse error alone
-   when it does not parse (D7), and otherwise the build's problems moved
-   onto the current text. *)
-let file_diagnostics st a by_path path current =
-  let lines = Text.lines current in
-  match Hashtbl.find_opt st.project.P.documents path with
-  | Some { P.parse_error = Some e; _ } ->
+(* A document's syntax errors, against its current text. *)
+let parse_diagnostics st lines errors =
+  List.map
+    (fun (e : Diagnostic.t) ->
       let range =
         match e.Diagnostic.location with
         | Diagnostic.Location.Span s -> Some (F.range_json st.encoding lines (F.span_offsets s))
         | _ -> None
       in
-      [ diagnostic_json st lines ?range e ]
+      diagnostic_json st lines ?range e)
+    errors
+
+(* The diagnostics of [path] in its current text: its parse errors alone
+   when it does not parse (D7), and otherwise the build's problems moved
+   onto the current text. *)
+let file_diagnostics st a by_path path current =
+  let lines = Text.lines current in
+  match Hashtbl.find_opt st.project.P.documents path with
+  | Some { P.parse_errors = _ :: _ as errors; _ } -> parse_diagnostics st lines errors
   | _ ->
       let view = F.view st.project a path in
       let placed ((d : Diagnostic.t), s) =
@@ -116,7 +122,7 @@ let publish_file st (p : P.project) (b : P.build) a by_path path =
   | _ -> ()
 
 (* Publishes the problems of every file whose build is [b]. A document that
-   does not parse shows its parse error alone, since the build read its last
+   does not parse shows its parse errors alone, since the build read its last
    text that parsed (D7). *)
 let publish_build st (p : P.project) (b : P.build) =
   match P.ensure st.project b with
@@ -150,20 +156,9 @@ let publish_build st (p : P.project) (b : P.build) =
       in
       List.iter (fun path -> publish_file st p b a by_path path) files
 
-(* A file in no build: its parse error, if it has one. *)
+(* A file in no build: its parse errors, if it has any. *)
 let publish_loose st (d : P.document) =
-  let lines = Text.lines d.P.text in
-  let diagnostics =
-    match d.P.parse_error with
-    | Some e ->
-        let range =
-          match e.Diagnostic.location with
-          | Diagnostic.Location.Span s -> Some (F.range_json st.encoding lines (F.span_offsets s))
-          | _ -> None
-        in
-        [ diagnostic_json st lines ?range e ]
-    | None -> []
-  in
+  let diagnostics = parse_diagnostics st (Text.lines d.P.text) d.P.parse_errors in
   publish st d.P.path diagnostics;
   if diagnostics = [] then Hashtbl.remove st.published d.P.path else Hashtbl.replace st.published d.P.path ()
 
@@ -405,7 +400,7 @@ let with_document st params f =
       | None -> (
           match P.text_of st.project path with
           | Some text ->
-              let d = { P.path; text; version = 0; parsed = None; parse_error = None } in
+              let d = { P.path; text; version = 0; parsed = None; parse_errors = [] } in
               P.reparse d;
               f d
           | None -> `Null))

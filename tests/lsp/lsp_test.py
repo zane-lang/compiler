@@ -82,6 +82,19 @@ class DiagnosticsTest(ServerTest):
         self.client.change(self.main, self.text, version=3)
         self.assertEqual(self.client.diagnostics(self.main), [])
 
+    def test_every_syntax_error_is_published(self):
+        # The parse restarts at the declaration after a syntax error, so a
+        # second one, inside the body of `main`, is found too.
+        broken = self.text.replace("alias Float = @primitives$F64;", "alias Float = ;").replace(
+            "first Float = pair.left;", "first Float = ;"
+        )
+        self.client.change(self.main, broken)
+        diagnostics = self.client.diagnostics(self.main)
+        self.assertEqual(
+            [(d["range"]["start"]["line"], d["range"]["start"]["character"]) for d in diagnostics],
+            [position_of(broken, "= ;", offset=2), position_of(broken, "= ;", occurrence=1, offset=2)],
+        )
+
     def test_a_parse_error_shows_alone_and_keeps_the_other_files_results(self):
         self.client.change(self.main, self.text.replace("d Float = dist(origin, far);", "d Float = dist(origin,"))
         diagnostics = self.client.diagnostics(self.main)
@@ -582,6 +595,22 @@ class LooseFileTest(unittest.TestCase):
                 symbols = client.request("textDocument/documentSymbol", {"textDocument": {"uri": uri(path)}})
                 self.assertEqual([s["name"] for s in symbols], ["loose", "Unit"])
                 self.assertFalse(client.diagnostics(path))
+            finally:
+                client.close()
+
+    @unittest.skipUnless(ZANEC.exists(), "zanec is not built; run dune build")
+    def test_the_outline_reads_past_a_syntax_error(self):
+        # The file has never parsed, so there is no earlier text to fall back
+        # on: the outline is the declarations of the current text that parse.
+        with tempfile.TemporaryDirectory() as d:
+            path = pathlib.Path(d) / "loose.zn"
+            client = Client()
+            try:
+                client.initialize(pathlib.Path(d))
+                client.open(path, "package loose;\n\nalias Unit = ;\n\nalias Bool = @primitives$Bool;\n")
+                self.assertEqual(len(client.diagnostics(path)), 1)
+                symbols = client.request("textDocument/documentSymbol", {"textDocument": {"uri": uri(path)}})
+                self.assertEqual([s["name"] for s in symbols], ["loose", "Bool"])
             finally:
                 client.close()
 

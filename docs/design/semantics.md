@@ -399,9 +399,10 @@ a handler's binder have no arguments to check and are not constant, except
 the `this` of a lambda written as a pool's step, which is an element of a
 pool and so already passes.
 
-**D4. Diagnostics accumulate.** The parser stops at the first error, which suits
-a parser. A type checker that stops at the first error fails the author once per
-mistake. Each pass collects diagnostics and keeps going. An expression that
+**D4. Diagnostics accumulate.** A pass that stops at the first error fails the
+author once per mistake. The parser reports each syntax error and restarts at
+the next declaration after it, though a file with any syntax error goes no
+further than the parse. Each later pass collects diagnostics and keeps going. An expression that
 failed to type gets the type `Ty.Error`, which every check accepts silently. One
 mistake then gives one error, not a cascade. The driver prints them all and
 exits non-zero if there is any.
