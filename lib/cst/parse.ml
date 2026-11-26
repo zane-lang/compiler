@@ -63,3 +63,142 @@ let package filename input =
       | Parse_error.Rejected message -> located message
       | Parser.Error _ | Lexer.Lexing_error | Sedlexing.MalFormed ->
           located "Parse error")
+
+(* Error recovery by restart (option 1 of the parser-recovery experiment).
+
+   The grammar is not touched: recovery happens around the parser, by parsing
+   ranges of the token stream as whole packages. A failed parse is never
+   continued -- under GLR, one branch dying is how an ambiguity resolves, so
+   only a parse whose every branch died says the input is wrong. What happens
+   after such a failure is decided here, between parses, where no action runs.
+
+   A boundary is the position just after a `;` or `}` written at bracket depth
+   zero: where a package-scope declaration may end (lexical.md §6.3). It is a
+   guess, not a parse -- a braced declaration can continue past its `}` -- so a
+   prefix cut at one is parsed again to confirm it, and a later boundary that
+   fails is given up for an earlier one. *)
+
+type lexed =
+  | Token of Parser.token
+  | Bad  (** The lexer refused the text here; any parse reaching it fails. *)
+
+type entry = { lexed : lexed; start_pos : Lexing.position; end_pos : Lexing.position }
+
+exception Unlexable
+
+let lex_all lexbuf =
+  let rec go acc =
+    match Lexer.token lexbuf with
+    | Parser.EOF ->
+        let start_pos, end_pos = byte_positions lexbuf in
+        List.rev ({ lexed = Token Parser.EOF; start_pos; end_pos } :: acc)
+    | token ->
+        let start_pos, end_pos = byte_positions lexbuf in
+        go ({ lexed = Token token; start_pos; end_pos } :: acc)
+    | exception (Lexer.Lexing_error | Sedlexing.MalFormed) ->
+        (* sedlex's [_] arm has consumed the offending code point, so lexing
+           resumes after it. *)
+        let start_pos, end_pos = byte_positions lexbuf in
+        go ({ lexed = Bad; start_pos; end_pos } :: acc)
+  in
+  Array.of_list (go [])
+
+(* [boundaries.(i)]: whether a declaration may start at token [i]. *)
+let boundaries tokens =
+  let n = Array.length tokens in
+  let result = Array.make (n + 1) false in
+  let depth = ref 0 in
+  Array.iteri
+    (fun i { lexed; _ } ->
+      (match lexed with
+      | Token (Parser.LPAREN | Parser.LBRACKET | Parser.LCURLY) -> incr depth
+      | Token (Parser.RPAREN | Parser.RBRACKET | Parser.RCURLY) -> depth := max 0 (!depth - 1)
+      | _ -> ());
+      match lexed with
+      | Token (Parser.SEMICOLON | Parser.RCURLY) when !depth = 0 -> result.(i + 1) <- true
+      | _ -> ())
+    tokens;
+  result
+
+type segment = Parsed of Nodes.Package.t | Failed of int * Diagnostic.t
+
+(* Parse tokens [start, stop) as one package, with an end of input at [stop].
+   On failure, the index of the token being read and its diagnostic. The
+   diagnostic points where [package]'s does: at the last token read. *)
+let parse_range tokens start stop =
+  let last = ref (start - 1) in
+  let eof_at = tokens.(stop).start_pos in
+  let tokenizer () =
+    incr last;
+    if !last >= stop then (Parser.EOF, eof_at, eof_at)
+    else
+      let { lexed; start_pos; end_pos } = tokens.(!last) in
+      match lexed with Token token -> (token, start_pos, end_pos) | Bad -> raise Unlexable
+  in
+  let located message =
+    let i = min !last stop in
+    let span =
+      if i >= stop then (eof_at, eof_at) else (tokens.(i).start_pos, tokens.(i).end_pos)
+    in
+    Failed (i, Diagnostic.error (Span.of_loc span) message)
+  in
+  match MenhirLib.Convert.Simplified.traditional2revised Parser.package tokenizer with
+  | package -> Parsed package
+  | exception Parse_error.Rejected message -> located message
+  | exception (Parser.Error _ | Unlexable) -> located "Parse error"
+
+let package_recovering filename input =
+  match Sedlexing.Utf8.from_string input with
+  | exception Sedlexing.MalFormed -> (
+      match package filename input with
+      | Error diagnostic ->
+          let position =
+            { Lexing.pos_fname = filename; pos_lnum = 1; pos_bol = 0; pos_cnum = 0 }
+          in
+          ( { Nodes.Package.decls = []; defects = []; span = Span.of_loc (position, position) },
+            [ diagnostic ] )
+      | Ok package -> (package, []))
+  | lexbuf ->
+      Sedlexing.set_filename lexbuf filename;
+      let tokens = lex_all lexbuf in
+      let eof = Array.length tokens - 1 in
+      let boundary = boundaries tokens in
+      let decls = ref [] and defects = ref [] and diagnostics = ref [] in
+      let take (p : Nodes.Package.t) =
+        decls := List.rev_append p.decls !decls;
+        defects := List.rev_append p.defects !defects;
+        match Statement_check.check p with
+        | Ok () -> ()
+        | Error d -> diagnostics := d :: !diagnostics
+      in
+      (* The longest prefix of [start, e] ending at a boundary that parses. *)
+      let rec salvage start b =
+        if b <= start then ()
+        else if not boundary.(b) then salvage start (b - 1)
+        else
+          match parse_range tokens start b with
+          | Parsed p -> take p
+          | Failed _ -> salvage start (b - 1)
+      in
+      let rec next_boundary i = if i >= eof || boundary.(i) then i else next_boundary (i + 1) in
+      let rec go start =
+        if start < eof then
+          match parse_range tokens start eof with
+          | Parsed p -> take p
+          | Failed (e, d) ->
+              diagnostics := d :: !diagnostics;
+              salvage start (min e eof);
+              go (next_boundary (e + 1))
+      in
+      go 0;
+      let package =
+        {
+          Nodes.Package.decls = List.rev !decls;
+          defects = List.rev !defects;
+          span = Span.of_loc (tokens.(0).start_pos, tokens.(eof).end_pos);
+        }
+      in
+      (* A salvaged prefix is checked after the failure that prompted it, so
+         its diagnostics are recorded later than they are written. *)
+      let by_position a b = compare (Diagnostic.position a) (Diagnostic.position b) in
+      (package, List.stable_sort by_position (List.rev !diagnostics))

@@ -98,9 +98,9 @@ let arguments () =
   | rest -> go Cst rest
 
 let run_file stage (filename, input) =
-  match Cst.parse filename input with
-  | Error diagnostic -> Driver.fail ~sources:[ (filename, input) ] [ diagnostic ]
-  | Ok cst ->
+  match Cst.parse_recovering filename input with
+  | _, (_ :: _ as diagnostics) -> Driver.fail ~sources:[ (filename, input) ] diagnostics
+  | cst, [] ->
       let output =
         match stage with
         | Cst -> Cst.to_node cst

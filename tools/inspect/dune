@@ -15,3 +15,10 @@
  (name span_dump)
  (modules span_dump)
  (libraries cst diagnostic driver sst tst))
+
+; Reads a source file and prints every syntax error in it, recovering past
+; each one (`Cst.parse_recovering`), then how many declarations survived.
+(executable
+ (name parse_errors)
+ (modules parse_errors)
+ (libraries cst diagnostic))
