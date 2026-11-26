@@ -14,10 +14,10 @@ module Span = Source.Span
    classes), so non-ASCII input is ordinary rather than exotic. *)
 let byte_positions lexbuf = Sedlexing.lexing_bytes_positions lexbuf
 
-(* The package, or the single diagnostic that refused it. There is at most
-   one diagnostic: the parse stops at the first failure, and under GLR,
-   collecting more would be a separate problem. The caller decides how to show
-   the diagnostic; [Diagnostic.render] gives the text for a terminal. *)
+(* The package, or the single diagnostic that refused it: the parse stops at
+   the first failure. [package_recovering], below, goes on past it. The caller
+   decides how to show the diagnostic; [Diagnostic.render] gives the text for a
+   terminal. *)
 let package filename input =
   (* [Sedlexing.Utf8.from_string] raises [Sedlexing.MalFormed] on invalid UTF-8,
      so it has to sit inside the handler too. Until it returns there is no
@@ -95,27 +95,50 @@ let lex_all lexbuf =
     | token ->
         let start_pos, end_pos = byte_positions lexbuf in
         go ({ lexed = Token token; start_pos; end_pos } :: acc)
-    | exception (Lexer.Lexing_error | Sedlexing.MalFormed) ->
+    | exception Lexer.Lexing_error ->
         (* sedlex's [_] arm has consumed the offending code point, so lexing
            resumes after it. *)
         let start_pos, end_pos = byte_positions lexbuf in
         go ({ lexed = Bad; start_pos; end_pos } :: acc)
+    | exception Sedlexing.MalFormed ->
+        (* Invalid UTF-8 is not a code point [_] can consume, so lexing cannot
+           resume: the text ends here. *)
+        let start_pos, end_pos = byte_positions lexbuf in
+        List.rev
+          ({ lexed = Token Parser.EOF; start_pos = end_pos; end_pos }
+          :: { lexed = Bad; start_pos; end_pos } :: acc)
   in
   Array.of_list (go [])
 
-(* [boundaries.(i)]: whether a declaration may start at token [i]. *)
+(* [boundaries.(i)]: whether a declaration may start at token [i].
+
+   Depth counts `{ }` alone; a `(` or `[` is counted per brace level and
+   forgotten at the next `;` of that level. No `;` is written inside
+   parentheses or brackets except within braces, so one reached with a `(` or
+   `[` still open means that bracket was never closed -- and without the reset,
+   a single missing `]` would hide every boundary after it. *)
 let boundaries tokens =
   let n = Array.length tokens in
   let result = Array.make (n + 1) false in
-  let depth = ref 0 in
+  let braces = ref 0 and open_ = ref [ 0 ] in
+  let top () = List.hd !open_ in
+  let set_top k = open_ := k :: List.tl !open_ in
   Array.iteri
     (fun i { lexed; _ } ->
-      (match lexed with
-      | Token (Parser.LPAREN | Parser.LBRACKET | Parser.LCURLY) -> incr depth
-      | Token (Parser.RPAREN | Parser.RBRACKET | Parser.RCURLY) -> depth := max 0 (!depth - 1)
-      | _ -> ());
       match lexed with
-      | Token (Parser.SEMICOLON | Parser.RCURLY) when !depth = 0 -> result.(i + 1) <- true
+      | Token (Parser.LPAREN | Parser.LBRACKET) -> set_top (top () + 1)
+      | Token (Parser.RPAREN | Parser.RBRACKET) -> set_top (max 0 (top () - 1))
+      | Token Parser.LCURLY ->
+          incr braces;
+          open_ := 0 :: !open_
+      | Token Parser.RCURLY ->
+          if !braces > 0 then (
+            decr braces;
+            open_ := List.tl !open_);
+          if !braces = 0 && top () = 0 then result.(i + 1) <- true
+      | Token Parser.SEMICOLON ->
+          set_top 0;
+          if !braces = 0 then result.(i + 1) <- true
       | _ -> ())
     tokens;
   result

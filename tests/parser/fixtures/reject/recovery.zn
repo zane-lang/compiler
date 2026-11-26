@@ -1,0 +1,21 @@
+package main;
+
+/// Four unrelated syntax errors, each reported: the parse restarts after
+/// each one, at the next declaration.
+type Operator = enum [ add, sub, mul, div ];
+
+String describe(op Operator) => "the " + op.symbol + = " operator";
+
+Unit run(two Int, four Int) {
+	ran Bool = two < ;
+	return Unit();
+}
+
+Float peek(this Cursor) => this.env[this.position;
+
+type Pair = struct {
+	first Int
+	second Int;
+}
+
+String fine(op Operator) => "fine";

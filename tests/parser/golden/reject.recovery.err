@@ -1,0 +1,16 @@
+File "fixtures/reject/recovery.zn", line 7, characters 54-55:
+7 | String describe(op Operator) => "the " + op.symbol + = " operator";
+  |                                                      ^
+Error: Parse error
+File "fixtures/reject/recovery.zn", line 10, characters 22-23:
+10 |     ran Bool = two < ;
+   |                      ^
+Error: Parse error
+File "fixtures/reject/recovery.zn", line 14, characters 50-51:
+14 | Float peek(this Cursor) => this.env[this.position;
+   |                                                  ^
+Error: Parse error
+File "fixtures/reject/recovery.zn", line 18, characters 5-11:
+18 |     second Int;
+   |     ^^^^^^
+Error: Parse error
