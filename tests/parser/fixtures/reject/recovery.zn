@@ -1,7 +1,8 @@
 package main;
 
-/// Four unrelated syntax errors, each reported: the parse restarts after
-/// each one, at the next declaration.
+/// Five unrelated syntax errors, each reported: the parse restarts after
+/// each one, at the next declaration. The last is a character no token
+/// starts with, which the lexer skips.
 type Operator = enum [ add, sub, mul, div ];
 
 String describe(op Operator) => "the " + op.symbol + = " operator";
@@ -17,5 +18,7 @@ type Pair = struct {
 	first Int
 	second Int;
 }
+
+String piped(op Operator) => show|op;
 
 String fine(op Operator) => "fine";

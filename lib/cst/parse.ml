@@ -101,11 +101,18 @@ let lex_all lexbuf =
     | token ->
         let start_pos, end_pos = byte_positions lexbuf in
         go ({ lexed = Token token; start_pos; end_pos } :: acc)
-    | exception Lexer.Lexing_error ->
-        (* sedlex's [_] arm has consumed the offending code point, so lexing
-           resumes after it. *)
+    | exception Lexer.Lexing_error -> (
+        (* sedlex's [_] arm matches without consuming, so the offending code
+           point is skipped here, and lexing resumes after it. The report
+           points where [package]'s does: at the lexer's position when it
+           refused. *)
         let start_pos, end_pos = byte_positions lexbuf in
-        go ({ lexed = Bad; start_pos; end_pos } :: acc)
+        let bad = { lexed = Bad; start_pos; end_pos } :: acc in
+        match Sedlexing.next lexbuf with
+        | Some _ -> go bad
+        | None -> List.rev ({ lexed = Token Parser.EOF; start_pos = end_pos; end_pos } :: bad)
+        | exception Sedlexing.MalFormed ->
+            List.rev ({ lexed = Token Parser.EOF; start_pos = end_pos; end_pos } :: bad))
     | exception Sedlexing.MalFormed ->
         (* Invalid UTF-8 is not a code point [_] can consume, so lexing cannot
            resume: the text ends here. *)
