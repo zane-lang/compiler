@@ -246,6 +246,18 @@
 
 (rule
  (with-stderr-to
+  reject.recovery.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/recovery.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.recovery.err reject.recovery.err.actual)))
+
+(rule
+ (with-stderr-to
   reject.rejected.err.actual
   (with-accepted-exit-codes
    1

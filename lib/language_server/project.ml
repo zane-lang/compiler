@@ -6,13 +6,14 @@ module Assembly = Tst.Assembly
 module Span = Source.Span
 
 (* A file the editor has open. [parsed] is its last text that parsed, which
-   the build reads while the current text does not parse (D7). *)
+   the build reads while the current text does not parse (D7), and
+   [parse_errors] every syntax error in the current text, in source order. *)
 type document = {
   path : string;
   mutable text : string;
   mutable version : int;
   mutable parsed : string option;
-  mutable parse_error : Diagnostic.t option;
+  mutable parse_errors : Diagnostic.t list;
 }
 
 (* One build of a project, as `zane builds` lists it. *)
@@ -91,15 +92,15 @@ let canonical path =
 (* ---------------------------------------------------------------------- *)
 
 let reparse (d : document) =
-  match Cst.parse d.path d.text with
-  | Ok _ ->
+  match Cst.parse_recovering d.path d.text with
+  | _, [] ->
       d.parsed <- Some d.text;
-      d.parse_error <- None
-  | Error e -> d.parse_error <- Some e
+      d.parse_errors <- []
+  | _, errors -> d.parse_errors <- errors
   | exception _ -> ()
 
 let open_document t ~path ~text ~version =
-  let d = { path; text; version; parsed = None; parse_error = None } in
+  let d = { path; text; version; parsed = None; parse_errors = [] } in
   reparse d;
   Hashtbl.replace t.documents path d;
   d
@@ -259,7 +260,7 @@ let buffers ?(override = []) t =
     (fun path (d : document) acc ->
       if List.mem_assoc path override then acc
       else
-        let text = match (d.parse_error, d.parsed) with Some _, Some good -> good | _ -> d.text in
+        let text = match (d.parse_errors, d.parsed) with _ :: _, Some good -> good | _ -> d.text in
         (path, text) :: acc)
     t.documents override
 

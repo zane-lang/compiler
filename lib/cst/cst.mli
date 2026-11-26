@@ -7,6 +7,15 @@ module Nodes = Nodes
     every diagnostic, names [filename] as its file. *)
 val parse : string -> string -> (Nodes.Package.t, Diagnostic.t) result
 
+(** [parse_recovering filename text] parses one source file and keeps going
+    past a syntax error: every declaration that parses is in the package, and
+    the diagnostics, in source order, are the first syntax error in each
+    declaration that does not parse and the statement-shape errors of those
+    that do. When the earliest of them is a syntax error, it is the one
+    [parse] gives. Declarations after a `{` that is never closed are read as
+    part of its body, so recovery ends there. *)
+val parse_recovering : string -> string -> Nodes.Package.t * Diagnostic.t list
+
 (** The tree as `zanec --cst` prints it. *)
 val to_node : Nodes.Package.t -> Tree_graph.node
 

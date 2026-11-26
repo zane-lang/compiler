@@ -51,8 +51,10 @@
 ; One fixture per way the parse can fail, each reaching a different producer:
 ; `syntax.zn` the parser itself, after a tab and multibyte text on the same
 ; line; `lexing.zn` a character no token starts with; `malformed-utf8.zn` a
-; byte that is not UTF-8; `rejected.zn` a grammar action; and `statement.zn`
-; the statement check that walks the finished tree, whose span is empty.
+; byte that is not UTF-8; `rejected.zn` a grammar action; `statement.zn`
+; the statement check that walks the finished tree, whose span is empty; and
+; `recovery.zn` several syntax errors in one file, each reported because the
+; parse restarts at the next declaration after a failure (lib/cst/parse.ml).
 
 ; The rules themselves are written from the golden files by
 ; tests/gen/gen_rules.ml, into dune.inc. A fixture added without its rules

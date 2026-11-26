@@ -339,15 +339,18 @@ let symbol_kind = function
   | `Property -> 7
   | `Package -> 4
 
+(* The outline of the current text: every declaration that parses, read
+   past the syntax errors in the others ([Cst.parse_recovering]). Unlike the
+   build's answers, it needs no earlier text: a declaration is listed as soon
+   as it is written, and only the ones that do not parse yet are missing. *)
 let document_symbols encoding (d : P.document) =
-  let text = match (d.P.parse_error, d.P.parsed) with Some _, Some good -> good | _ -> d.P.text in
-  match Cst.parse d.P.path text with
-  | Error _ | (exception _) -> `List []
-  | Ok cst ->
+  match Cst.parse_recovering d.P.path d.P.text with
+  | exception _ -> `List []
+  | cst, _ ->
       let module N = Sst.Nodes in
       let sst = Sst.of_cst cst in
-      let shift = Text.shift ~before:text ~after:d.P.text and lines = Text.lines d.P.text in
-      let range (s : Span.t) = Option.map (range_json encoding lines) (Text.move shift (span_offsets s)) in
+      let lines = Text.lines d.P.text in
+      let range (s : Span.t) = Some (range_json encoding lines (span_offsets s)) in
       let symbol ?(children = []) name kind (whole : Span.t) (selection : Span.t) =
         match (range whole, range selection) with
         | Some r, Some sel ->
