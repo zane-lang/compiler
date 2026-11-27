@@ -4,7 +4,7 @@
 unambiguous. They start from the text of `lib/cst/parser.mly`, and every step
 from that text to the final finite invariant is either a definition or carries
 a proof that Lean's kernel has checked. The construction it formalizes is the
-one [visible-proof.md](visible-proof.md) explains; the
+construction [visible-proof.md](visible-proof.md) explains; the
 [verification roadmap](verification-roadmap.md) lists the obligations it
 discharges.
 
@@ -32,7 +32,7 @@ the executable check `verifySource text ev`.
 **The shipped parser.** The compiler parses with Menhir's `--GLR` backend,
 whose automaton `G` belongs to a grammar in which nullable symbols are split
 into an empty and a nonempty part. `GlrSound text G` (`Ambiguity/Glr.lean`)
-says two things:
+states two facts:
 
 - the trees `G` accepts are determined by their yields;
 - a function `rho` reads each accepted tree as a derivation of the expanded
@@ -60,7 +60,7 @@ The checks follow the same pipeline as the Python tools:
 An unverified producer computes the evidence for every stage: quotient maps,
 angle sets, determinization vectors, minimization maps, witnesses and the
 certificate. The verified checks accept or reject that evidence. No producer
-needs to be correct for a `true` answer to mean what its theorem says.
+needs to be correct for a `true` answer to carry its theorem's statement.
 
 ## Run it
 
@@ -89,8 +89,8 @@ a merge once the repository marks it as a required check.
 - **Lean.** The kernel checks the theorems. The `true` answers come from the
   compiled checker, so Lean's code generator is trusted to run the definitions
   it compiles. This is the same trust as `native_decide`.
-- **The definitions are the intended ones.** `Mly.sourceGrammar` and
-  `Lr1.canonical` define what the file means. Two development commands
+- **The definitions are the intended definitions.** `Mly.sourceGrammar` and
+  `Lr1.canonical` define the file's meaning. Two development commands
   cross-check them against Menhir 20260209:
   - `expand`, against `menhir --only-preprocess-uu`: the same 481 productions.
   - `compare`, against `menhir --canonical --dump`: 4,328 states, with the
