@@ -62,7 +62,7 @@ extern "C" {
 namespace {
 
 /* One error the front end reported. A note or a warning is not an error: a
-   package's C is held only to what makes it fail to compile. */
+   package's C is held only to the errors that fail its compile. */
 struct Problem {
   std::string file;
   unsigned line = 0;
@@ -98,7 +98,7 @@ public:
   }
 };
 
-/* What a run made: [ok] when the front end reported no error, and its
+/* A run's result: [ok] when the front end reported no error, and its
    output, which is meaningful only then. */
 struct Run {
   bool ok = false;
@@ -206,7 +206,7 @@ value to_value(const Run &r) {
 }
 
 /* What a header declares, written as text for interface.ml to read: a
-   stream of words, each a bare token or, for a name, its length, `:` and
+   stream of words, each a bare token or, for an identifier, its length, `:` and
    its bytes. A C type is written canonical, so a typedef is written as the
    type it names: `V` void, `B` bool, `I` an integer (sign, size and width
    in bits, its name, and the standard typedef it was written through or
@@ -348,7 +348,7 @@ public:
   }
 
   /* Every struct a written type reached, laid out as the target lays it
-     out: its kind, whether the main file declares it, whether it is
+     out: struct or union, whether the main file declares it, whether it is
      complete, its size and alignment in bits, and each field's name, type,
      offset in bits and bit-field width (-1 for none). A field's own struct
      is written in turn. */
@@ -482,12 +482,13 @@ struct Marked_alias {
   bool external;
 };
 
-/* What the source's `ZANE_ALIAS` marks name, each refused with an error
-   where it is written unless it is a declaration of a function or variable,
-   not its definition, whose target is defined in the source with external
-   linkage and is of the same kind, where neither has an `__asm__` label
-   and the declaration is not weak. Each declaration of a name counts
-   once, since a redeclaration inherits the mark. */
+/* The declarations the source's `ZANE_ALIAS` marks name. This function
+   reports an error where a mark is written unless it marks a declaration of
+   a function or variable, not its definition, whose target is defined in
+   the source with external linkage and is likewise a function or a
+   variable, where neither has an `__asm__` label and the declaration is not
+   weak. Each declaration of an identifier counts once, since a
+   redeclaration inherits the mark. */
 class Alias_marks : public clang::ASTConsumer {
 public:
   explicit Alias_marks(std::vector<Marked_alias> &marks) : marks(marks) {}
@@ -633,7 +634,7 @@ void make_aliases(llvm::Module &module, const std::vector<Marked_alias> &marks) 
    name none, so the target machine's processor and features stand for
    theirs: on AArch64 the base architecture, `+v8a`, besides the processor,
    as clang names it on every function and LLVM's `generic` lacks
-   (Build.features), and the check below takes the same. The compile is
+   (Build.features), and the check below takes the same features. The compile is
    for the program's own processor (Compile.processor_flags), so a body
    that loses it is emitted for the processor it was compiled for; one whose features
    that processor lacks, as a package's `-mavx2` adds, keeps them, and so
@@ -774,7 +775,7 @@ extern "C" value zane_bitcode_defined_variables(value bitcode) {
   CAMLreturn(list);
 }
 
-/* [g]'s C name, as an object's reader names it: a name an `__asm__`
+/* [g]'s C name, as an object's reader names it: a symbol name an `__asm__`
    label gave, which LLVM writes with a leading \1 and the target's global
    prefix spelled out, is the label. */
 static std::string c_name(const llvm::GlobalValue &g) {
@@ -924,7 +925,7 @@ extern "C" value zane_bitcode_has_assembly(value bitcode) {
    variables, aliases and indirect functions, and whether it runs a
    constructor or destructor, local or external: the check of a header an archive
    compiled too reads them (docs/design/ffi.md F9). Each is its C name, as
-   an object's reader names it: a name an `__asm__` label gave, which LLVM
+   an object's reader names it: a symbol name an `__asm__` label gave, which LLVM
    writes with a leading \1 and the target's global prefix spelled out, is
    the label. */
 extern "C" value zane_bitcode_definitions(value bitcode) {

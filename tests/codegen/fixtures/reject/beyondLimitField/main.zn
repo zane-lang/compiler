@@ -1,7 +1,6 @@
 /// A struct holding an array past the 2^48 bytes any value is limited to,
 /// beside a field of another alignment, so lowering orders its fields
-/// before it measures it, and the compiler still rejects the struct where a
-/// program names it.
+/// before it measures it, and still rejects the struct where it is named.
 package beyondLimitField;
 
 alias Int = @primitives$I64;

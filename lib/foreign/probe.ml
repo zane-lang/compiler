@@ -69,7 +69,7 @@ let run ~dir cc args =
 let canonical path =
   try Unix.realpath path with Unix.Unix_error _ -> path
 
-(* The directories of [cc]'s own builtin headers: the one it names for
+(* The directories of [cc]'s own builtin headers: the directory it names for
    `-print-file-name=include` and, for GCC, the `include-fixed` beside it.
    `zig cc` names none, so a directory holding clang's own
    `__stddef_max_align_t.h`, which no C library ships, is taken for one too.
