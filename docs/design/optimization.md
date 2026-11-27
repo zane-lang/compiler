@@ -135,6 +135,7 @@ classified:
 | `@runtime$print` | `Print` | output (O4) |
 | `@runtime$setThreads`, `setThreadsAuto` | `Set_threads`, `Set_threads_auto` | output (O4) |
 | `@runtime$arguments` | `Arguments` | input |
+| `@runtime$monotonicNanoseconds` | `Monotonic_ns` | input |
 | a foreign call touching no capability, its C body in the build | `Foreign_call` | computed, by the C evaluator ([`ffi.md`](ffi.md) F16–F19) |
 | a foreign call touching no capability, its C in an archive or a system library | `Foreign_call` | input |
 | a foreign call reading or writing a capability | `Foreign_call` | input, and left in place |

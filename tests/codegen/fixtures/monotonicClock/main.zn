@@ -1,0 +1,52 @@
+/// The monotonic clock, `@runtime$monotonicNanoseconds`: a read of the
+/// runtime, as `arguments` is. A later reading is never smaller than an
+/// earlier one, the root package and a verb handed the runtime both read it,
+/// and an optimized build leaves every reading for the running program,
+/// since no fold can know the time. Each check prints `yes` when it holds and
+/// `no` when it does not.
+package monotonicClock;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+/// The nanoseconds since `since`, read through a runtime passed in.
+Int elapsed(runtime &@runtime$Runtime, since Int) =>
+	@operators$add(runtime:monotonicNanoseconds(), @operators$negate(since));
+
+/// Some work between two readings.
+Int busy() {
+	total Int(0);
+	@controlflow$repeat(Int(100000), {
+		total = @operators$add(total, Int(3));
+	});
+	return total;
+}
+
+Unit main() {
+	first Int = @program$runtime:monotonicNanoseconds();
+	second Int = @program$runtime:monotonicNanoseconds();
+	check(@operators$not(@operators$lessThan(second, first)));
+
+	work Int = busy();
+	check(@operators$equal(work, Int(300000)));
+	check(@operators$not(@operators$lessThan(elapsed(@program$runtime, first), Int(0))));
+
+	// Two readings that the same call returns are still two readings.
+	third Int = @program$runtime:monotonicNanoseconds();
+	check(@operators$not(@operators$lessThan(third, second)));
+	return Unit();
+}

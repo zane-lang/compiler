@@ -193,6 +193,9 @@ let methods =
        as it was (concurrency.md §2.2)." );
     ("@runtime$setThreadsAuto", "Sizes the runtime's thread pool to the hardware's concurrency again (concurrency.md §2.2).");
     ("@runtime$arguments", "The arguments the program was started with (effects.md §6.6).");
+    ( "@runtime$monotonicNanoseconds",
+      "The monotonic clock in nanoseconds. A later reading is never smaller than an earlier one, and only \
+       the difference between two readings means anything. A read of the runtime, as `arguments` is." );
     ( "@primitives$parseI64",
       "The integer the string's text spells. The call aborts when the text is not an integer (types.md §2.10)." );
     ( "@primitives$parseF64",

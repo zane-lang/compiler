@@ -49,6 +49,11 @@ then run it again, read the golden diff and promote that.
   the branch around the `sdiv` (`Emit.divide`). Both builds run with the `arguments` file's lines.
   `arguments.optimized.cgt` shows what folds before the read and that the
   read itself stays. Every check prints `yes` when it holds.
+- `monotonicClock` is the monotonic clock, `@runtime$monotonicNanoseconds`,
+  read in `main` and through a runtime passed to a verb: a later reading is
+  never smaller than an earlier one. `monotonicClock.optimized.cgt` shows
+  that every reading stays for the running program. Every check prints
+  `yes` when it holds.
 - `expressions` is verbs whose body is one expression, written out where they
   are called (docs/design/lowering.md L11): a generic one's instance, a chain
   of them, and one whose arguments print in the order they are written, each
@@ -425,8 +430,8 @@ so lowering takes only lists of integers.
 
 `comptimeRefused` is a refusal of the program itself too: calls marked
 `comptime` that cannot be evaluated (docs/design/comptime.md K7, K9), one
-that prints, one that reads past a list's end, and one whose handler
-prints, each reported at its call.
+that prints, one that reads past a list's end, one whose handler prints,
+and one that reads the monotonic clock, each reported at its call.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

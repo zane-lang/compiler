@@ -57,6 +57,7 @@ let runs spelling =
       "@runtime$setThreads";
       "@runtime$setThreadsAuto";
       "@runtime$arguments";
+      "@runtime$monotonicNanoseconds";
       "@primitives$parseI64";
       "@primitives$parseF64";
       "@primitives$parseF64At";
@@ -156,6 +157,11 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
   | T.Expr.Call
       { callee = { owner = S.Intrinsic "@runtime$arguments"; _ }; args = [ _ ]; handler = None } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Arguments; args = [] }; ty = Nodes.Ty.list_handle () }
+  (* A reading of the monotonic clock, in nanoseconds. The program has one
+     clock, so the runtime needs nothing from the subject. *)
+  | T.Expr.Call
+      { callee = { owner = S.Intrinsic "@runtime$monotonicNanoseconds"; _ }; args = [ _ ]; handler = None } ->
+      { Expr.node = Expr.Runtime { fn = Runtime.Monotonic_ns; args = [] }; ty = Nodes.Ty.I64 }
   (* A number read from a string's text (types.md §2.10). The runtime writes
      the number to [value]'s slot and returns whether the text spelled a
      number that fits; when it did not, the call aborts with `Unit`. *)

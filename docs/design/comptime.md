@@ -112,6 +112,7 @@ its counterpart where the build runs:
 | Read | At compile time |
 |---|---|
 | The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)) |
+| The runtime's `monotonicNanoseconds` | The build machine's monotonic clock, which `lib/optimize/clock_stubs.c` reads as `zane_monotonic_ns` reads the program's |
 | A method without `mut` on a foreign capability | Its C, run by the C evaluator against the build's own C memory, where the capability's C global holds its first value, as each run's C memory starts (F16) |
 | An approximate `@math$` function | The build machine's C math library, through OCaml's, in double precision and rounded once for an `F32` |
 

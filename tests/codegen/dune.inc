@@ -6669,6 +6669,140 @@
   (diff golden/math.out math.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/monotonicClock))
+ (action
+  (with-stdout-to
+   monotonicClock.optimized.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --optimize --package fixtures/monotonicClock))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.optimized.cgt monotonicClock.optimized.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/monotonicClock))
+ (targets monotonicClock.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build monotonicClock.exe --package fixtures/monotonicClock)))
+
+(rule
+ (deps (source_tree fixtures/monotonicClock))
+ (targets monotonicClock.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build monotonicClock.optimized.exe --optimize --package fixtures/monotonicClock)))
+
+(rule
+ (deps (source_tree fixtures/monotonicClock))
+ (targets monotonicClock.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build monotonicClock.tiered.exe --tiered --package fixtures/monotonicClock)))
+
+(rule
+ (deps (source_tree fixtures/monotonicClock))
+ (targets monotonicClock.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up monotonicClock.tier1 --package fixtures/monotonicClock)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    monotonicClock.checked.out.actual
+    (run ./monotonicClock.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.out monotonicClock.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    monotonicClock.unchecked.out.actual
+    (run ./monotonicClock.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.out monotonicClock.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    monotonicClock.optimized.checked.out.actual
+    (run ./monotonicClock.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.out monotonicClock.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    monotonicClock.optimized.unchecked.out.actual
+    (run ./monotonicClock.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.out monotonicClock.optimized.unchecked.out.actual)))
+
+(rule
+ (deps monotonicClock.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./monotonicClock.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    monotonicClock.tiered.checked.out.actual
+    (run ./monotonicClock.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.out monotonicClock.tiered.checked.out.actual)))
+
+(rule
+ (deps monotonicClock.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./monotonicClock.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    monotonicClock.tiered.unchecked.out.actual
+    (run ./monotonicClock.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/monotonicClock.out monotonicClock.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/movedOut))
  (action
   (with-stdout-to
