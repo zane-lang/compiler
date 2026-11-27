@@ -532,6 +532,20 @@ and init env ctx span fields =
               (Printf.sprintf "`init{ }` assigns every field, and this one leaves out %s"
                  (String.concat ", " (List.map (fun (n, _) -> quote n) missing)));
           mk (T.Expr.Init values) built span
+      | Some (tid, Enum _) ->
+          error env span
+            (Printf.sprintf
+               "`init{ }` assigns a struct's fields, and the enum %s has none; its constructor \
+                returns one of its members, as `%s.member`"
+               (quote tid.Ty.name) tid.Ty.name);
+          invalid span
+      | Some (tid, Variant _) ->
+          error env span
+            (Printf.sprintf
+               "`init{ }` assigns a struct's fields, and the variant %s has none; its constructor \
+                returns one of its cases, as `%s.case(payload)`"
+               (quote tid.Ty.name) tid.Ty.name);
+          invalid span
       | _ ->
           error env span
             (Printf.sprintf "`init{ }` builds a struct, and %s is not one" (quote (Ty.to_string built)));
@@ -1036,12 +1050,6 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
           Option.iter (fun (n : N.Name.t) -> Uses.add env.uses n.N.Name.span (Uses.Field (tid, m))) name.N.Constructor_name.member;
           no_handler ();
           case_form env ctx span tid (List.assoc m cases) built open_ m args
-      | Some (tid, Variant _), None ->
-          type_args ();
-          no_handler ();
-          error env span
-            (Printf.sprintf "a variant is built by naming a case, as `%s.case(payload)`" tid.Ty.name);
-          invalid span
       | Some (tid, Enum members), Some m when List.mem m members ->
           type_args ();
           no_handler ();
@@ -1056,8 +1064,13 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
           if cands = [] then begin
             type_args ();
             error env span
-              (Printf.sprintf "%s has no constructor%s" (quote (Ty.to_string built))
-                 (match member with Some m -> " named " ^ quote m | None -> ""));
+              (Printf.sprintf "%s has no constructor%s%s" (quote (Ty.to_string built))
+                 (match member with Some m -> " named " ^ quote m | None -> "")
+                 (match definition env built with
+                 | Some (tid, Variant _) when member = None ->
+                     Printf.sprintf "; a variant is also built by naming a case, as `%s.case(payload)`"
+                       tid.Ty.name
+                 | _ -> ""));
             invalid span
           end
           else

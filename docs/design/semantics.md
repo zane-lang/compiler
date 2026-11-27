@@ -834,6 +834,18 @@ either of its types, as at a coercion site, so a call that names one reaches
 it there too (`types.md` §4.1, §4.5): `@primitives$String(text)` reaches
 `core`'s conversion from its `String`.
 
+**Every mould declares constructors.** An enum's or a variant's constructor is
+a verb named after the type, like a struct's (`types.md` §3.1, `adt.md` §2.2,
+§3.3). Its body returns a member or a case, so `init{ }` there is an error
+that names the form the body returns instead. An enum or a variant has no
+fields, so its constructors are positional, and pass 4 refuses a field list on
+one. Pass 4 also refuses a named constructor whose name is a member or a case
+of its type (`types.md` §3.4). `Type.name` therefore names exactly one thing,
+and a call resolves it in a fixed order: a variant case, then an enum member,
+then the named constructors. `Countdown()` with no name always reaches the
+constructors. When a variant declares none, the error suggests naming a case
+instead.
+
 **A field constructor and a positional one are separate overload sets.** They
 are called with different brackets, so no call could confuse the two, and
 `types.md` §3.3 gives a type both.

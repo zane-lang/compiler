@@ -1,0 +1,25 @@
+package bad;
+
+// Constructors on an enum and a variant (types.md §3.1, §3.3, §3.4, §3.7).
+type Hue = enum [ amber, teal ];
+type Ledger = variant { none Unit; some Int; }
+
+// A named constructor takes a name no member or case of its type has.
+Hue.amber() => Hue.teal;
+Ledger.some(n Int) => Ledger.some(n);
+
+// An enum or variant has no fields, so it has no field constructor.
+Hue{level Int;} => Hue.amber;
+Ledger{count Int;} => Ledger.some(count);
+
+// `init{ }` assigns a struct's fields, which an enum or variant has none of.
+Hue.blank() => init{}
+Ledger.blank() => init{}
+
+// A variant without an anonymous constructor is still built by a case.
+type Mark = variant { on Unit; off Unit; }
+
+Unit marks() {
+    m Mark();
+    return Unit();
+}
