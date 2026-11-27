@@ -86,12 +86,20 @@ let pool_args = function
 
 let pool_free = Runtime.workers_free
 
-(* A reference type: a `#` type, a `ListRef`, an `ArrayRef` or a worker
-   pool, whose instances are owned (memory.md §2.1). A roaming owner has
-   the reference type it owns. *)
+(* `@runtime$Console` and `@runtime$Runtime`, the types of the program's
+   console and runtime (effects.md §6.6). Both are reference types, and their
+   only instances are `@program$console` and `@program$runtime`, which hold
+   nothing a program reads (lower.ml). *)
+let is_runtime = function
+  | Tty.Intrinsic { namespace = "runtime"; name = "Console" | "Runtime"; _ } -> true
+  | _ -> false
+
+(* A reference type: a `#` type, a `ListRef`, an `ArrayRef`, a worker pool,
+   or the console's or runtime's type, whose instances are owned
+   (memory.md §2.1). A roaming owner has the reference type it owns. *)
 let reference st t =
   let t = match t with Tty.Roaming t -> t | t -> t in
-  is_list_ref t || is_array_ref t || is_pool t || match definition st t with Some (_, true) -> true | _ -> false
+  is_list_ref t || is_array_ref t || is_pool t || is_runtime t || match definition st t with Some (_, true) -> true | _ -> false
 
 (* The types a type holds inline: its members and payloads, the type a
    distinct type wraps, and an array's elements. A reference holds an
@@ -238,6 +246,9 @@ let rec shape st span (t : Tty.t) : Nodes.Ty.t =
       | "EventSource" -> Nodes.Ty.I64
       | _ -> unhandled span t)
   | _ when is_pool t -> Nodes.Ty.Struct [ Nodes.Ty.Ptr; Nodes.Ty.I64 ]
+  (* The console or the runtime: the word of the variable the program's
+     instance lives in, which holds nothing a program reads (lower.ml). *)
+  | _ when is_runtime t -> Nodes.Ty.I64
   | Tty.Reference _ -> Nodes.Ty.Ptr
   | Tty.Verb _ -> Nodes.Ty.Ptr
   | Tty.Intrinsic _ when Option.is_some (array_of t) -> (

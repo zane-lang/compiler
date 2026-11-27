@@ -1,0 +1,276 @@
+└── program:
+    ├── entry: zane.start
+    ├── layouts[0] > layout:
+    │   ├── type: %primitives$String
+    │   └── positions[0]: text @0
+    ├── layouts[1] > layout:
+    │   ├── type: %primitives$List<%primitives$String>
+    │   └── positions[0]: list @0 of %primitives$String (24 bytes apart)
+    ├── layouts[2] > layout:
+    │   ├── type: %primitives$I64
+    │   └── positions:
+    ├── globals[0]: zane.value.@program$runtime : i64
+    ├── globals[1]: zane.value.@program$console : i64
+    ├── funcs[0] > func:
+    │   ├── symbol: zane.start
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > eval > call:
+    │       ├── type: void
+    │       ├── fn: capabilityBorrows$main()
+    │       └── args:
+    ├── funcs[1] > func:
+    │   ├── symbol: capabilityBorrows$main()
+    │   ├── params:
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %16
+    │       ├── body[0] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: capabilityBorrows$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @2
+    │       │       │   ├── result: #3
+    │       │       │   ├── body[0] > let:
+    │       │       │   │   ├── local: #1
+    │       │       │   │   └── value: global zane.value.@program$runtime
+    │       │       │   └── body[1] > scope:
+    │       │       │       ├── id: %7
+    │       │       │       ├── body[0] > assign:
+    │       │       │       │   ├── place: #3
+    │       │       │       │   └── value > convert:
+    │       │       │       │       ├── type: i64
+    │       │       │       │       └── value > member:
+    │       │       │       │           ├── type: i32
+    │       │       │       │           ├── index: 1
+    │       │       │       │           └── value > expand:
+    │       │       │       │               ├── type: handle16
+    │       │       │       │               ├── label: @5
+    │       │       │       │               ├── result: #6
+    │       │       │       │               ├── body[0] > hold:
+    │       │       │       │               │   ├── local: #4
+    │       │       │       │               │   ├── scope: %7
+    │       │       │       │               │   ├── value > runtime:
+    │       │       │       │               │   │   ├── type: handle16
+    │       │       │       │               │   │   ├── fn: zane_arguments
+    │       │       │       │               │   │   └── args:
+    │       │       │       │               │   └── layout: %primitives$List<%primitives$String>
+    │       │       │       │               └── body[1] > assign:
+    │       │       │       │                   ├── place: #6
+    │       │       │       │                   └── value: local #4 : handle16
+    │       │       │       └── body[1]: leave @2
+    │       │       └── right: 3 : i64
+    │       ├── body[1] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: capabilityBorrows$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: capabilityBorrows$first(%runtime$Runtime)
+    │       │       │   └── args[0]: global zane.value.@program$runtime
+    │       │       └── right: 1 : i64
+    │       ├── body[2] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: capabilityBorrows$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > call:
+    │       │       │   ├── type: i64
+    │       │       │   ├── fn: capabilityBorrows$counted(%runtime$Runtime)
+    │       │       │   └── args[0]: global zane.value.@program$runtime
+    │       │       └── right: 4 : i64
+    │       ├── body[3] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: capabilityBorrows$check(%primitives$Bool)
+    │       │   └── args[0] > expand:
+    │       │       ├── type: i1
+    │       │       ├── label: @9
+    │       │       ├── result: #10
+    │       │       ├── body[0] > let:
+    │       │       │   ├── local: #8
+    │       │       │   └── value: global zane.value.@program$console
+    │       │       ├── body[1] > assign:
+    │       │       │   ├── place: #10
+    │       │       │   └── value: true : i1
+    │       │       └── body[2]: leave @9
+    │       ├── body[4] > spawn:
+    │       │   ├── task: #14
+    │       │   ├── scope: %16
+    │       │   ├── thunk: zane.spawn.1
+    │       │   ├── frame: {i64, ptr}
+    │       │   ├── args[0]: global zane.value.@program$runtime
+    │       │   ├── dest: #15
+    │       │   └── layout: %primitives$I64
+    │       ├── body[5] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: capabilityBorrows$check(%primitives$Bool)
+    │       │   └── args[0] > binary:
+    │       │       ├── type: i1
+    │       │       ├── op: ==
+    │       │       ├── left > expand:
+    │       │       │   ├── type: i64
+    │       │       │   ├── label: @17
+    │       │       │   ├── result: #18
+    │       │       │   ├── body[0]: join #14
+    │       │       │   └── body[1] > assign:
+    │       │       │       ├── place: #18
+    │       │       │       └── value > deref:
+    │       │       │           ├── type: i64
+    │       │       │           └── ptr: address of #15 : ptr
+    │       │       └── right: 4 : i64
+    │       └── body[6] > return: unit : void
+    ├── funcs[2] > func:
+    │   ├── symbol: capabilityBorrows$check(%primitives$Bool)
+    │   ├── params[0]: local #1 : i1
+    │   ├── ret: void
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value: "yes\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[1] > hold:
+    │       │   ├── local: #4
+    │       │   ├── scope: %3
+    │       │   ├── value: "no\n" : handle
+    │       │   └── layout: %primitives$String
+    │       ├── body[2] > if:
+    │       │   ├── cond: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #2 : handle
+    │       ├── body[3] > if:
+    │       │   ├── cond > flip:
+    │       │   │   ├── type: i1
+    │       │   │   └── value: local #1 : i1
+    │       │   └── body[0] > eval > runtime:
+    │       │       ├── type: void
+    │       │       ├── fn: zane_print
+    │       │       └── args[0]: local #4 : handle
+    │       └── body[4] > return: unit : void
+    ├── funcs[3] > func:
+    │   ├── symbol: capabilityBorrows$first(%runtime$Runtime)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   └── body[0] > scope:
+    │       ├── id: %3
+    │       ├── body[0] > hold:
+    │       │   ├── local: #2
+    │       │   ├── scope: %3
+    │       │   ├── value > runtime:
+    │       │   │   ├── type: handle16
+    │       │   │   ├── fn: zane_arguments
+    │       │   │   └── args:
+    │       │   └── layout: %primitives$List<%primitives$String>
+    │       ├── body[1] > if:
+    │       │   ├── cond > binary:
+    │       │   │   ├── type: i1
+    │       │   │   ├── op: ==
+    │       │   │   ├── left > convert:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   └── value > member:
+    │       │   │   │       ├── type: i32
+    │       │   │   │       ├── index: 1
+    │       │   │   │       └── value: local #2 : handle16
+    │       │   │   └── right: 0 : i64
+    │       │   └── body[0] > return: 0 : i64
+    │       ├── body[2] > if:
+    │       │   ├── cond > binary:
+    │       │   │   ├── type: i1
+    │       │   │   ├── op: ==
+    │       │   │   ├── left > runtime:
+    │       │   │   │   ├── type: i64
+    │       │   │   │   ├── fn: zane_text_equal
+    │       │   │   │   ├── args[0] > deref:
+    │       │   │   │   │   ├── type: handle
+    │       │   │   │   │   └── ptr > runtime:
+    │       │   │   │   │       ├── type: ptr
+    │       │   │   │   │       ├── fn: zane_list_at
+    │       │   │   │   │       ├── args[0]: address of #2 : ptr
+    │       │   │   │   │       ├── args[1]: 1 : i64
+    │       │   │   │   │       └── args[2]: 24 : i64
+    │       │   │   │   └── args[1] > expand:
+    │       │   │   │       ├── type: handle
+    │       │   │   │       ├── label: @6
+    │       │   │   │       ├── result: #7
+    │       │   │   │       ├── body[0] > hold:
+    │       │   │   │       │   ├── local: #5
+    │       │   │   │       │   ├── scope: %3
+    │       │   │   │       │   ├── value: "one" : handle
+    │       │   │   │       │   └── layout: %primitives$String
+    │       │   │   │       └── body[1] > assign:
+    │       │   │   │           ├── place: #7
+    │       │   │   │           └── value: local #5 : handle
+    │       │   │   └── right: 1 : i64
+    │       │   └── body[0] > return: 1 : i64
+    │       └── body[3] > return: 0 : i64
+    ├── funcs[4] > func:
+    │   ├── symbol: capabilityBorrows$counted(%runtime$Runtime)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i64
+    │   ├── body[0] > let:
+    │   │   ├── local: #8
+    │   │   └── value > expand:
+    │   │       ├── type: i64
+    │   │       ├── label: @2
+    │   │       ├── result: #3
+    │   │       └── body[0] > scope:
+    │   │           ├── id: %7
+    │   │           ├── body[0] > assign:
+    │   │           │   ├── place: #3
+    │   │           │   └── value > convert:
+    │   │           │       ├── type: i64
+    │   │           │       └── value > member:
+    │   │           │           ├── type: i32
+    │   │           │           ├── index: 1
+    │   │           │           └── value > expand:
+    │   │           │               ├── type: handle16
+    │   │           │               ├── label: @5
+    │   │           │               ├── result: #6
+    │   │           │               ├── body[0] > hold:
+    │   │           │               │   ├── local: #4
+    │   │           │               │   ├── scope: %7
+    │   │           │               │   ├── value > runtime:
+    │   │           │               │   │   ├── type: handle16
+    │   │           │               │   │   ├── fn: zane_arguments
+    │   │           │               │   │   └── args:
+    │   │           │               │   └── layout: %primitives$List<%primitives$String>
+    │   │           │               └── body[1] > assign:
+    │   │           │                   ├── place: #6
+    │   │           │                   └── value: local #4 : handle16
+    │   │           └── body[1]: leave @2
+    │   └── body[1] > return > binary:
+    │       ├── type: i64
+    │       ├── op: +
+    │       ├── left: local #8 : i64
+    │       └── right > call:
+    │           ├── type: i64
+    │           ├── fn: capabilityBorrows$first(%runtime$Runtime)
+    │           └── args[0]: local #1 : ptr
+    └── funcs[5] > func:
+        ├── symbol: zane.spawn.1
+        ├── params[0]: local #13 : ptr
+        ├── ret: void
+        └── body[0] > store:
+            ├── address > offset:
+            │   ├── within: {i64, ptr}
+            │   ├── path: 0
+            │   └── base: local #13 : ptr
+            └── value > call:
+                ├── type: i64
+                ├── fn: capabilityBorrows$counted(%runtime$Runtime)
+                └── args[0] > deref:
+                    ├── type: ptr
+                    └── ptr > offset:
+                        ├── within: {i64, ptr}
+                        ├── path: 1
+                        └── base: local #13 : ptr

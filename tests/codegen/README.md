@@ -49,6 +49,14 @@ then run it again, read the golden diff and promote that.
   the branch around the `sdiv` (`Emit.divide`). Both builds run with the `arguments` file's lines.
   `arguments.optimized.cgt` shows what folds before the read and that the
   read itself stays. Every check prints `yes` when it holds.
+- `capabilityBorrows` is `@program$runtime` and `@program$console` passed to
+  parameters declared without `&` (effects.md §6.6). The runtime types are
+  reference types, so each such parameter is a borrow, and the call passes
+  the address of the program's instance (docs/design/lowering.md L6). The
+  fixture covers a call written out where it is, a call to a function, a
+  borrow passed on to another borrow, and a spawned call. Every build runs
+  with the `arguments` file's lines, and every check prints `yes` when it
+  holds.
 - `expressions` is verbs whose body is one expression, written out where they
   are called (docs/design/lowering.md L11): a generic one's instance, a chain
   of them, and one whose arguments print in the order they are written, each
