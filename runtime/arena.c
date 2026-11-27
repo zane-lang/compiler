@@ -148,7 +148,7 @@ void zane_region_checked(zane_mark *r) {
 		zane_broken("a region taken from another thread");
 }
 
-/* A context for the program's `main`, the first one made, or for a
+/* A context for the program's `main`, the first context made, or for a
    spawned call, with the range its frames go in. A context a call is over
    with keeps its range for the next. */
 zane_context *zane_context_new(void) {
@@ -208,16 +208,17 @@ static zane_mark *zane_scope_holding(zane_context *c, const char *at) {
 	return m;
 }
 
-/* The region that holds `at`: the one whose dynamic chunk it is in, or the
+/* The region that holds `at`: the region whose dynamic chunk it is in, or the
    scope of the context whose range it is in whose frame holds it. Anything
    else, such as a value on the machine stack, is the innermost scope's
    here. Most slots asked about are the innermost scope's own, so the
-   search tries that one first. Only this thread searches its context's
+   search checks that scope first. Only this thread searches its context's
    scopes; when drains are checked, a search from another thread stops the
    program.
 
    It keeps no pointer to `at`: a list's push looks its handle up here, and
-   LLVM is told the push keeps none (lib/codegen/runtime_facts.ml). */
+   the compiler declares to LLVM that the push keeps none
+   (lib/codegen/runtime_facts.ml). */
 zane_mark *zane_region_at(const void *at) {
 	uintptr_t entry = zane_page_entry(at);
 	if (entry == 0) return zane_self->top;
@@ -354,7 +355,7 @@ static void zane_chunks_drop(zane_mapping *m, size_t size) {
 }
 
 /* A drained chunk no context keeps warm turns cold, or goes back to the
-   system past the cold ones kept. */
+   system past the cold chunks kept. */
 static void zane_chill(zane_mapping *m) {
 	size_t page = zane_page_bytes();
 	if (!zane_decommit_range((char *)m + page, ZANE_CHUNK - page)) {
@@ -396,7 +397,7 @@ static void zane_span_drop(zane_context *c, zane_mapping **at) {
 
 /* Every reservation a context keeps, given back: when it goes idle, and
    when the system will not reserve addresses for a new one, since the
-   kept ones may be what uses up the addresses. */
+   kept reservations may be what uses up the addresses. */
 static void zane_spans_give_back(zane_context *c) {
 	while (c->spans) zane_span_drop(c, &c->spans);
 }
@@ -421,8 +422,8 @@ static zane_mapping *zane_span_take(zane_context *c, size_t reserved, int lists)
 }
 
 /* Addresses for `bytes` at a 1 MiB boundary (zane_reserve_aligned), or
-   null. Where the system will not reserve them, the context's kept
-   reservations go back to it first and the reservation is tried again. */
+   null. Where the system will not reserve them, the context gives its kept
+   reservations back to the system first and reserves again. */
 static char *zane_reserve_for(zane_context *c, size_t bytes, char **raw) {
 	char *base = zane_reserve_aligned(bytes, raw);
 	if (!base && c == zane_self && c->spans) {
@@ -517,8 +518,8 @@ static zane_mapping *zane_map(zane_mark *region, size_t size) {
 /* A drained list's reservation kept mapped, its pages resident, for the
    context's next list that grows past 1 MiB (zane_alloc_growable). The
    context keeps at most ZANE_WARM_SPANS of them, holding at most
-   ZANE_WARM_SPAN_BYTES usable bytes: the ones it has kept longest go back
-   to the system to make room, and one larger than all of that goes back
+   ZANE_WARM_SPAN_BYTES usable bytes: the reservations it has kept longest
+   go back to the system to make room, and one larger than all of that goes back
    itself. An unbounded pool's is kept only while fewer than
    ZANE_WARM_POOLS are (zane_span_charge). */
 static void zane_keep_span(zane_context *c, zane_mapping *m) {
@@ -694,8 +695,8 @@ static char *zane_returned_span(zane_mark *region, int64_t size, size_t reserved
 /* A list's oversized block of `size` bytes in a region, at the start of a
    reservation of addresses `ZANE_HEADROOM` times its span, so that it grows
    in place as the list doubles (memory.md §3.6). Reserving costs addresses,
-   not memory: only what is usable is charged, and only what is touched
-   takes RAM. Where a process may not reserve that many addresses, the
+   not memory: only the usable bytes are charged, and only touched pages
+   take RAM. Where a process may not reserve that many addresses, the
    reservation is the span alone. A reservation the region was given back,
    then one its context kept from a drained region, is taken before a new
    one, when it holds as many addresses; its pages are still resident, as
@@ -742,8 +743,8 @@ __attribute__((noinline)) char *zane_alloc_growable(zane_mark *region, int64_t s
    block of `ZANE_UNBOUNDED` bytes in a region, writable from the start and
    backed only where it is touched, as Goose reserves a data stack, so a
    pool in it never needs its room checked. Only its first chunk is in the
-   chunk map: nothing asks which region holds an address past it. It is
-   kept warm for the context's next one, as a list's span is. */
+   chunk map: no caller looks up the region of an address past it. It is
+   kept warm for the context's next pool, as a list's span is. */
 char *zane_alloc_unbounded(zane_mark *region) {
 	size_t total = (size_t)ZANE_UNBOUNDED + ZANE_CHUNK;
 	zane_context *c = region->context;
@@ -847,10 +848,10 @@ char *zane_alloc(zane_mark *region, int64_t size, int64_t align) {
    ZANE_CHUNK - ZANE_LINE bytes): a list's growable span (an oversized block
    with a reservation, zane_alloc_growable) in another region of the same
    context is the one block of its mapping, so the mapping itself leaves
-   the old region's list for the new one's, and its chunks are the new
+   the old region's list for the new region's, and its chunks are the new
    region's in the chunk map, with no byte copied. Any other block is
-   copied into one of the new region as `copied` bytes and the old one
-   returned. A list that LZW's decoder moves into its state each step is a
+   copied into a block of the new region as `copied` bytes and the old
+   block returned. A list that LZW's decoder moves into its state each step is a
    megabyte that would be copied each time. */
 enum { ZANE_REHOMED = 2 };
 

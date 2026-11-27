@@ -32,7 +32,7 @@ type memory_limits = {
   hard_heap_bytes : float;
 }
 
-(* Structural estimates choose how to divide the search space between queued
+(* Structural estimates set how the search space is divided between queued
    work and deduplication.  Actual managed-heap measurements enforce the
    budget at runtime, so unexpectedly large frontiers reduce search reach
    instead of causing an unbounded memory spike.  Ten percent remains outside
@@ -63,7 +63,7 @@ let derive_memory_limits ~memory_mb ~max_frontier_ratio ~jobs ~max_tokens =
   let max_frontiers = max 1 (int_of_float max_frontiers_float) in
   { max_queue; max_frontiers; soft_heap_bytes; hard_heap_bytes }
 
-(* What the command line asked for. *)
+(* The options given on the command line. *)
 type options = {
   grammar : string;
   max_tokens : int option;

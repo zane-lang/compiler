@@ -389,7 +389,7 @@ int64_t zane_parse_f64(const zane_text *text, double *out) {
 	   digits the
 	   digits fold into a u64 exactly; up to 2^53 that integer is an exact
 	   double (converted as an i64, one instruction on x86-64), and so is
-	   10^k for k <= 22, so the one division is the one rounding and gives
+	   10^k for k <= 22, so the single division is the only rounding and gives
 	   the nearest double. Anything else is read by the C library. */
 	static const double pow10[] = {1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,
 	                               1e8,  1e9,  1e10, 1e11, 1e12, 1e13, 1e14, 1e15,
@@ -506,7 +506,7 @@ __attribute__((target("ssse3"))) static inline __m128i zane_set_test(__m128i x, 
 	return _mm_cmpeq_epi8(_mm_and_si128(t, bit), bit);
 }
 
-/* A set's block test, by its kind (zane_byte_set): a set of 1 to 3 bytes
+/* A set's block test, by its `kind` (zane_byte_set): a set of 1 to 3 bytes
    (kind 1 to 3) compares with each, a run (4) by its first byte and
    width, others (5) by the tables; `flip` complements. */
 typedef struct {

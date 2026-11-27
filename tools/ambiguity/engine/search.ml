@@ -327,7 +327,7 @@ let next_bucket s =
       s.current_depth
 
 (* One frontier taken from the queue: recorded as a witness when two
-   derivations accept it, and its successors admitted. *)
+   derivations accept it, and its successors added to the queue. *)
 let expand s item =
   s.expanded <- s.expanded + 1;
   s.last_depth <- item.depth;
@@ -361,7 +361,7 @@ let expand s item =
    also exits with a drained queue, and expanding the last frontier can carry
    the clock past the deadline on its way out - so a search that finished the
    whole token bound would be recorded as timed out, and reported as a
-   curtailed run when it is the conclusive one. Only work still queued makes
+   curtailed run when it is in fact conclusive. Only work still queued makes
    the deadline the reason. A dropped frontier keeps its own reason whatever
    the clock reads: the bound was not covered, so the run is not exhaustive. *)
 let stop_reason s =

@@ -32,10 +32,9 @@ let eprintf fmt =
    On a terminal it is one line rewritten in place several times a second.
    Everywhere else there is no cursor to move back to and the stream is usually
    being saved, so the same numbers go out as ordinary lines at a much slower
-   cadence. Showing nothing at all off a terminal -- which is what this used to
-   do -- is what made every wrapped run silent for its entire length: the
-   wrapper that streams the engine's output line by line was the one guaranteed
-   never to receive a line. AMBIGUITY_PROGRESS_SECONDS sets the cadence; zero
+   cadence. Without those lines a wrapped run would be silent for its entire
+   length: the wrapper that streams the engine's output line by line would
+   never receive a line. AMBIGUITY_PROGRESS_SECONDS sets the cadence; zero
    or less turns progress off, for a caller that wants the verdict and nothing
    else. *)
 let progress_on_terminal = Unix.isatty Unix.stderr

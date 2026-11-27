@@ -30,7 +30,7 @@ let run ~min_tokens ~nodes_per_depth ~automaton ~engine ~temporary ~memory_mb ~m
       ~hard_heap_bytes:memory_limits.hard_heap_bytes conflict_distance
       accept_distance temporary
   in
-  (* Why the search ended determines what its silence is worth: a run that
+  (* Why the search ended determines the weight of its silence: a run that
      exhausted the space within the token bound has checked every sentence
      that short, while one that hit a limit has merely stopped looking, so
      every run reports how it ended. *)

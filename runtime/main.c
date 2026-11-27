@@ -29,7 +29,7 @@
    when stdout is a terminal, at every print that writes a newline, as
    stdio flushes a terminal's lines. Writers take the mutex, and touch the
    buffer only once they have claimed `busy`, from 0 (free) to 1. The fault
-   path claims it from 0 to 2 without the mutex, so a writer that holds the
+   handler sets it from 0 to 2 without the mutex, so a writer that holds the
    mutex and has not claimed it yet has not touched the buffer; a writer
    that finds 2 waits for the program to end. A write that fails drops what
    it held and marks the output failed. */
