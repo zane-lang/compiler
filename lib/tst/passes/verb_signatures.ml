@@ -654,16 +654,16 @@ let check_constructor_target env (d : decl) (s : S.t) =
       let definition =
         match Type_decls.type_info_of_id env tid with Some { definition; _ } -> definition | None -> None
       in
-      let clash what =
+      let clash m what =
         error env d.span
           (Printf.sprintf
              "%s is %s of %s, and naming it already builds one; a named constructor takes a \
               name that no member or case of its type has"
-             (quote (Option.get member)) what (quote tid.Ty.name))
+             (quote m) what (quote tid.Ty.name))
       in
       (match (definition, member) with
-      | Some (Variant cases), Some m when List.mem_assoc m cases -> clash "a case"
-      | Some (Enum members), Some m when List.mem m members -> clash "a member"
+      | Some (Variant cases), Some m when List.mem_assoc m cases -> clash m "a case"
+      | Some (Enum members), Some m when List.mem m members -> clash m "a member"
       | _ -> ());
       match definition with
       | Some ((Variant _ | Enum _) as mould) when fields ->
