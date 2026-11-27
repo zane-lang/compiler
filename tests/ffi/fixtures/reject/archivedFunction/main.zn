@@ -1,7 +1,7 @@
 /// An interface header defining a private function whose address the
 /// program can see, which an `archive` row's member holds a copy of,
 /// since it includes the header: the glue's copy would have an address of
-/// its own, apart from the archive's, so the header is refused.
+/// its own, apart from the archive's, so the compiler refuses the header.
 package archivedFunction;
 
 alias I64 = @primitives$I64;

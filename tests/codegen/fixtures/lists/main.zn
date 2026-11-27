@@ -82,7 +82,7 @@ Unit main() {
 	numbers[Int(50)] = Int(0);
 	check(@operators$equal(sum(numbers), Int(5000)));
 
-	// Strings, moved in and read where they are.
+	// Strings, moved in and read in place.
 	words ListRef<String> = @primitives$ListRef(String);
 	words!push(String("to"));
 	late String("be");
@@ -103,7 +103,7 @@ Unit main() {
 	check(@operators$equal(people[Int(1)].name, String("ada")));
 	check(@operators$equal(people[Int(1001)].age, Int(1000)));
 
-	// An element replaced at its index: the old one dies with its block.
+	// An element replaced at its index: the old element dies with its block.
 	people[Int(1)] = Person(String("grace"), Int(45));
 	check(@operators$equal(people[Int(1)].name, String("grace")));
 	check(@operators$equal(people:size(), Int(1001)));
