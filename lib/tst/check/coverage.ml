@@ -4,7 +4,7 @@
    combinations as the product of the case counts, which can be far too many
    to write out, and the arms cover as many combinations as they have
    distinct valid keys. Only the first three missing combinations are found,
-   by walking the combinations in order and skipping the covered ones, which
+   by walking the combinations in order and skipping the covered combinations, which
    takes at most as many steps as there are arms, plus three. *)
 
 open Env
