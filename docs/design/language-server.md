@@ -86,9 +86,11 @@ members and names a completion offers.
 
 **D6. A generic body that nothing instantiates is still answered.**
 Semantics checks a generic verb's body once per instance, so a body nothing
-calls would have no uses. The check already types such a body once with each
-type parameter as an error type, to report its problems; the uses that check
-records are the server's for that body.
+calls would have no uses. The check already types every generic body once
+where it is declared, with each type parameter as a veiled type, to report
+its veiled-value errors (semantics.md D12). For a body that nothing
+instantiates, that check also records uses, which are the server's for that
+body. For an instantiated body, the instances record the uses.
 
 **D7. A document that does not parse keeps its last parse.** While the user
 types, a file is often not valid Zane. Its build then reads the file's last

@@ -687,16 +687,35 @@ chain is followed to its end before the ones beside it: `f<T>` calling both
 the `2^64` its branches would ask for. Once reported, a declaration is asked
 for no more instances.
 
-A generic verb nothing instantiates is checked once more, where it is
-declared, so an unused one is not an unchecked one. Its type parameters stand
-for the type of an expression that failed to type, which every check accepts
-(D4): what depends on `T` waits for an instance, and what does not -- a name
-that resolves nowhere, `Int(1) + String("a")` -- is reported, since it is
-wrong in every instance. Its number parameters stay symbolic. That check asks
-for no instances, and nothing from it enters the tree. This fits the
-home-package instantiation plan in
-[`generics.md`](generics.md). When a body is checked is a property of this
-compiler, not of the language, so it stays out of the spec.
+Every generic verb is also checked once where it is declared, with each
+type parameter standing for a **veiled** type (`Ty.Veiled`). A veiled value is
+one whose type is a type parameter (`generics.md` §3.8). Every check accepts a
+veiled type as it accepts the error type (D4), except at the uses §3.8
+forbids: reading or writing a field, reading an enum map, naming an enum
+member through the parameter (`T.red`), a `match`, and calling the value as a
+function value. Each of those is reported where the body writes it, whether
+or not anything instantiates the body. `T(...)` and `T.name(...)` build a
+veiled value there and resolve in each instance. A method, function, operator
+or subscript on a veiled value resolves in each instance as well.
+
+What this check reports besides depends on whether anything instantiates the
+body:
+
+- A body nothing instantiates gets all of its errors here, so an unused body
+  is not an unchecked one. A mistake that does not depend on a parameter, such
+  as a name that resolves nowhere or `Int(1) + String("a")`, is wrong in every
+  instance.
+- An instantiated body keeps only its veiled-value errors from this check,
+  since its instances report the rest. An instance's error about the same
+  place is that use failing for one type argument, so pass 5 drops it.
+
+Number parameters stay symbolic. The check asks for no instances, records no
+uses for an instantiated body, and puts nothing into the tree. An error that
+only an instance exposes, such as a type argument with no constructor of the
+name `T.name(...)` calls, is reported at the origin of its type arguments
+(below). When a body is checked is a property of this compiler, not of the
+language, so it stays out of the spec. This fits the home-package
+instantiation plan in [`generics.md`](generics.md).
 
 **D13. A member read takes an abort handler.** `adt.md` §3 makes a variant
 member read "an **abortable** access (`?` / `??`)". Whether a read is of a
@@ -912,8 +931,13 @@ written. An inferred one is reported at the value argument it was read from,
 when the instance's own signature puts it in a value mould's field; that
 instance is then not made, so nothing inside a forwarding verb reports it
 again. A mistake that only a generic body's own code makes, and that its
-signature does not show, is reported inside the instance, which names the
-instance and the call that required it, from any analysis.
+signature does not show, is found in the instance. Pass 5 reports it at the
+origin of the instance's type arguments, the call outside every instance
+that began its chain, and the message names the path from there: each
+instance along the chain, where the one before it calls it, and the place in
+the body (`generics.md` §3.8). The analyses after pass 5 report such a
+mistake inside the instance, with a note that names the instance and the
+call that required it.
 
 **Where `^` is written, beyond what the spec shows.**
 - A function type's `^T` result over a type parameter is filled by a value

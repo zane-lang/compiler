@@ -1,0 +1,83 @@
+/// Veiled values (generics.md §3.8): a generic body reaches a value of its
+/// type parameter through methods, operators, subscripts and constructors,
+/// and `T()` and `T.name(...)` resolve per instance against the type that
+/// fills `T`, whatever its mould (generics.md §5, types.md §3.1). Each check
+/// prints `yes` when it holds and `no` when it does not.
+package veiledValues;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Dial = struct { level Int; }
+
+Dial() => init{ level = Int(0); }
+Dial.at(level Int) => init{ level; }
+Int read(this Dial) => this.level;
+Dial +(left Dial, right Dial) => Dial.at(@operators$add(left.level, right.level));
+(this Dial)[index Int] => this.level;
+
+type Hue = enum [ dim, bright ];
+
+Hue() => Hue.dim;
+Hue.at(level Int) {
+	@controlflow$branch(@operators$equal(level, Int(0)), {
+		return Hue.dim;
+	});
+	return Hue.bright;
+}
+Int read(this Hue) => match (this) {
+	dim => Int(0);
+	bright => Int(1);
+}
+
+type Tick = variant {
+	none Unit;
+	some Int;
+}
+
+Tick() => Tick.none(Unit());
+Tick.at(level Int) => Tick.some(level);
+Int read(this Tick) => match (this) {
+	none => Int(0);
+	n some => n;
+}
+
+Int fresh(T Type) {
+	made T = T();
+	return made:read();
+}
+
+Int named(T Type) {
+	made T = T.at(Int(5));
+	return made:read();
+}
+
+T doubled(x T Type) => x + x;
+
+Int indexed(x T Type) => x[Int(1)];
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	check(@operators$equal(fresh(Dial), Int(0)));
+	check(@operators$equal(fresh(Hue), Int(0)));
+	check(@operators$equal(fresh(Tick), Int(0)));
+	check(@operators$equal(named(Dial), Int(5)));
+	check(@operators$equal(named(Hue), Int(1)));
+	check(@operators$equal(named(Tick), Int(5)));
+	check(@operators$equal(doubled(Dial.at(Int(2))):read(), Int(4)));
+	check(@operators$equal(indexed(Dial.at(Int(7))), Int(7)));
+	return Unit();
+}

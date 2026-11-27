@@ -410,18 +410,18 @@ File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
 11 | import lib$hook;
    | ^^^^^^^^^^^^^^^
 Error: this import brings `hook` from `lib`, which takes the same parameter types as the `hook` declared at fixtures/typing/reject/bad/twin.zn:8; the two cannot be told apart at a call
-File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-56:
-5 | T half(value T Type) => @operators$divide(value, value);
-  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: no `@operators$divide` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$I32 @operators$divide(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$divide(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$divide(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$divide(@primitives$F64, @primitives$F64)` (in `half` with T = @primitives$String, required at fixtures/typing/reject/bad/instances.zn:9)
+File "fixtures/typing/reject/bad/instances.zn", line 9, characters 19-36:
+9 |     text String = half(String("x"));
+  |                   ^^^^^^^^^^^^^^^^^
+Error: no `@operators$divide` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$I32 @operators$divide(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$divide(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$divide(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$divide(@primitives$F64, @primitives$F64)` (in `half` with T = @primitives$String, at fixtures/typing/reject/bad/instances.zn:5)
 File "fixtures/typing/reject/bad/instances.zn", line 22, characters 5-16:
 22 |     ping(value);
    |     ^^^^^^^^^^^
-Error: `ping` is instantiated more than 64 times along one chain of instantiations, which begins `ping`, `pong`, `ping`, `pong`, ...; its calls to itself never reach a fixed set (in `pong` with T = bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:17)
+Error: `ping` is instantiated more than 64 times along one chain of instantiations, which begins `ping`, `pong`, `ping`, `pong`, ...; its calls to itself never reach a fixed set (in `ping` with T = @primitives$I64; which calls `pong` at fixtures/typing/reject/bad/instances.zn:17, in `pong` with T = bad$Jar<@primitives$I64>; which calls `ping` at fixtures/typing/reject/bad/instances.zn:22, in `ping` with T = bad$Jar<@primitives$I64>; ...; which calls `pong` at fixtures/typing/reject/bad/instances.zn:17, in `pong` with T = bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)
 File "fixtures/typing/reject/bad/instances.zn", line 34, characters 5-21:
 34 |     fork(Jar(value));
    |     ^^^^^^^^^^^^^^^^
-Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:35)
+Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = @primitives$I64; which calls `fork` at fixtures/typing/reject/bad/instances.zn:35, in `fork` with T = bad$Sack<@primitives$I64>; which calls `fork` at fixtures/typing/reject/bad/instances.zn:35, in `fork` with T = bad$Sack<bad$Sack<@primitives$I64>>; ...; which calls `fork` at fixtures/typing/reject/bad/instances.zn:35, in `fork` with T = bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)
 File "fixtures/typing/reject/bad/interpolation.zn", line 10, characters 31-33:
 10 |     noName String = String("a \% b");
    |                               ^^
@@ -474,14 +474,6 @@ File "fixtures/typing/reject/bad/literals.zn", line 10, characters 32-37:
 10 | Int first(values Array<T Type, n Int>) => Int(1);
    |                                ^^^^^
 Error: `n` introduces a parameter, which takes `Type` or `@concepts$Int` (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 14, characters 55-74:
-14 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n);
-   |                                                       ^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:44)
-File "fixtures/typing/reject/bad/literals.zn", line 18, characters 12-27:
-18 |     return measure(values);
-   |            ^^^^^^^^^^^^^^^
-Error: no `measure` accepts (@primitives$Array<@primitives$I64, 3>); the candidate is `@primitives$I64 measure(@primitives$Array<@primitives$I64, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:39)
 File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-25:
 29 |     whole Int = Int(2.5);
    |                 ^^^^^^^^
@@ -498,6 +490,14 @@ File "fixtures/typing/reject/bad/literals.zn", line 34, characters 17-37:
 34 |     sized Int = measured(numbers, 4);
    |                 ^^^^^^^^^^^^^^^^^^^^
 Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)`
+File "fixtures/typing/reject/bad/literals.zn", line 39, characters 16-37:
+39 |     like Int = sizedLike(numbers, 4);
+   |                ^^^^^^^^^^^^^^^^^^^^^
+Error: no `measure` accepts (@primitives$Array<@primitives$I64, 3>); the candidate is `@primitives$I64 measure(@primitives$Array<@primitives$I64, 4>)` (in `sizedLike` with n = 4, at fixtures/typing/reject/bad/literals.zn:18)
+File "fixtures/typing/reject/bad/literals.zn", line 44, characters 18-37:
+44 |     passed Int = relayed(numbers, 4);
+   |                  ^^^^^^^^^^^^^^^^^^^
+Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)` (in `relayed` with n = 4, at fixtures/typing/reject/bad/literals.zn:14)
 File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
 47 |     mixed Unit = twice(2, 3.5);
    |                  ^^^^^^^^^^^^^
@@ -1182,10 +1182,6 @@ File "fixtures/typing/reject/bad/temporary.zn", line 12, characters 10-34:
 12 |     hear(Note(@primitives$I64(1)));
    |          ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a new reference names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/typeValues.zn", line 20, characters 21-25:
-20 | T zeroOf(T Type) => T(0);
-   |                     ^^^^
-Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, required at fixtures/typing/reject/bad/typeValues.zn:36)
 File "fixtures/typing/reject/bad/typeValues.zn", line 23, characters 20-36:
 23 |     tooMany Hopper(Couple<Int, Int>);
    |                    ^^^^^^^^^^^^^^^^
@@ -1238,6 +1234,10 @@ File "fixtures/typing/reject/bad/typeValues.zn", line 35, characters 46-61:
 35 |     valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
    |                                              ^^^^^^^^^^^^^^^
 Error: no `emptyOf` accepts (@primitives$I64); the candidate is `^@primitives$ListRef<T> emptyOf(T Type)`
+File "fixtures/typing/reject/bad/typeValues.zn", line 36, characters 25-38:
+36 |     unbuildable Knell = zeroOf(Knell);
+   |                         ^^^^^^^^^^^^^
+Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, at fixtures/typing/reject/bad/typeValues.zn:20)
 File "fixtures/typing/reject/bad/typeValues.zn", line 37, characters 20-26:
 37 |     takesType Unit(T Type) => Unit();
    |                    ^^^^^^
@@ -1334,8 +1334,12 @@ File "fixtures/typing/reject/bad/veiled.zn", line 43, characters 33-38:
 43 | Int instantiated(x T Type) => x.level;
    |                                 ^^^^^
 Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `instantiated`)
-File "fixtures/typing/reject/bad/veiled.zn", line 53, characters 49-54:
-53 | Int heldLevel(this Keeper<T Type>) => this.held.level;
+File "fixtures/typing/reject/bad/veiled.zn", line 53, characters 14-35:
+53 |     r Vane = relayed(Vane(Int(4)));
+   |              ^^^^^^^^^^^^^^^^^^^^^
+Error: `bad$Vane` has no constructor named `fresh` (in `relayed` with T = bad$Vane; which calls `freshened` at fixtures/typing/reject/bad/veiled.zn:49, in `freshened` with T = bad$Vane, at fixtures/typing/reject/bad/veiled.zn:48)
+File "fixtures/typing/reject/bad/veiled.zn", line 60, characters 49-54:
+60 | Int heldLevel(this Keeper<T Type>) => this.held.level;
    |                                                 ^^^^^
 Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `heldLevel`, which nothing instantiates)
 File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:

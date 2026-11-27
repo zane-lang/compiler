@@ -42,8 +42,15 @@ Int called(x T Type) => x(Int(1));
 // Reported though every instance would have the field.
 Int instantiated(x T Type) => x.level;
 
+// `T.name(...)` is always a named-constructor call. A type that declares
+// none of that name makes the instance ill-formed, which is reported at
+// the type's origin, with the path from there to the call.
+T freshened(x T Type) => T.fresh();
+T relayed(x T Type) => freshened(x);
+
 Unit veiledCalls() {
     n Int = instantiated(Vane(Int(3)));
+    r Vane = relayed(Vane(Int(4)));
     return Unit();
 }
 

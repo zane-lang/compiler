@@ -219,14 +219,42 @@ let declaration env (d : decl) : T.Decl.t option =
 
 (* Fills [instances] while it checks every body, and returns the program. *)
 
+(* One requested instance: its field-constructor defaults and its body,
+   typed at its arguments, into the instances the program carries. *)
+let check_instance env (p : pending) =
+  match p.p_sig.kind with
+  | S.Subscript -> ()
+  | _ -> (
+      (match typed_defaults env ~report:false p.p_decl p.p_sig p.p_subst with
+      | [] -> ()
+      | values ->
+          env.instances.defaults :=
+            { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
+            :: !(env.instances.defaults));
+      match check_body env p.p_decl p.p_sig p.p_subst with
+      | Some (params, body) ->
+          env.instances.checked :=
+            {
+              T.Instance.decl = p.p_decl.id;
+              signature = p.p_sig;
+              args = binding_args p.p_sig p.p_subst;
+              params;
+              body;
+              note = Some (describe_instance p.p_sig p.p_subst p.p_at);
+            }
+            :: !(env.instances.checked)
+      | None -> ())
+
 (* The uses of veiled values the declaration check reported join the other
-   diagnostics. An instance's error written at the same span is that use
-   failing for one type argument, so it is dropped: one mistake, one
+   diagnostics. An instance's error about the same place in the body is that
+   use failing for one type argument, so it is dropped: one mistake, one
    diagnostic (D4). *)
 let merge_veiled env =
   let veiled = !(env.veiled_diagnostics) in
   let spans = List.map (fun (d : Diagnostic.t) -> d.location) veiled in
-  let same (d : Diagnostic.t) = List.mem d.location spans in
+  let same d =
+    List.exists (fun (r, body) -> r == d && List.mem (Diagnostic.Location.Span body) spans) !(env.relocated)
+  in
   env.diagnostics := veiled @ List.filter (fun d -> not (same d)) !(env.diagnostics);
   env.veiled_diagnostics := []
 
@@ -247,30 +275,13 @@ let run env (instances : instances) : T.Program.t =
   while not (Stack.is_empty requests.pending) do
     let p = Stack.pop requests.pending in
     requests.current_chain := p.p_decl.id :: p.p_chain;
-    Fun.protect ~finally:(fun () -> requests.current_chain := []) @@ fun () ->
-    with_note env (describe_instance p.p_sig p.p_subst p.p_at) (fun () ->
-      match p.p_sig.kind with
-      | S.Subscript -> ()
-      | _ -> (
-          (match typed_defaults env ~report:false p.p_decl p.p_sig p.p_subst with
-          | [] -> ()
-          | values ->
-              env.instances.defaults :=
-                { T.Defaults.decl = p.p_decl.id; args = binding_args p.p_sig p.p_subst; values }
-                :: !(env.instances.defaults));
-          match check_body env p.p_decl p.p_sig p.p_subst with
-          | Some (params, body) ->
-              env.instances.checked :=
-                {
-                  T.Instance.decl = p.p_decl.id;
-                  signature = p.p_sig;
-                  args = binding_args p.p_sig p.p_subst;
-                  params;
-                  body;
-                  note = Some (describe_instance p.p_sig p.p_subst p.p_at);
-                }
-                :: !(env.instances.checked)
-          | None -> ()))
+    requests.current_path := Some (p.p_origin, p.p_path);
+    Fun.protect ~finally:(fun () ->
+        requests.current_chain := [];
+        requests.current_path := None)
+    @@ fun () ->
+    at_origin env p.p_origin @@ fun () ->
+    with_note env (describe_path p.p_path) (fun () -> check_instance env p)
   done;
   (* D12 checks a generic body once per instantiation. Each generic body is
      also checked once where it is declared, with every type parameter
@@ -310,7 +321,7 @@ let run env (instances : instances) : T.Program.t =
                   s.S.generics
               in
               let env, note =
-                if instantiated d s then ({ env with diagnostics = ref [] }, Printf.sprintf "in %s" (quote s.S.name))
+                if instantiated d s then ({ env with diagnostics = ref []; uses = Uses.create false }, Printf.sprintf "in %s" (quote s.S.name))
                 else (env, Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name))
               in
               with_note env note

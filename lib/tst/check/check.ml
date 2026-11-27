@@ -349,12 +349,7 @@ and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
   if Uses.is_placeholder env.uses m then Uses.probe env.uses member.N.Name.span (Uses.Type_member_of t);
   match (t, definition env t) with
   | Ty.Veiled p, _ ->
-      veiled_error env span
-        (Printf.sprintf
-           "`%s.%s` names a member through the type parameter %s; a generic body names no \
-            enum member through a type parameter, and `%s.%s(...)` would call a named \
-            constructor of the type that fills it (generics.md §3.8)"
-           p.Ty.name m (quote p.Ty.name) p.Ty.name m);
+      Veiled.type_member env span m p;
       invalid span
   | Ty.Error, _ -> invalid span
   | _, Some (tid, Enum members) when List.mem m members ->
@@ -390,12 +385,7 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
   in
   match Ty.strip_mode target.T.Expr.ty with
   | Ty.Veiled p ->
-      veiled_error env field.N.Name.span
-        (Printf.sprintf
-           "this reaches %s of a veiled value, whose type is the type parameter %s; a generic \
-            body reaches such a value only through methods, functions, operators, subscripts \
-            and constructors, never a field or an enum map (generics.md §3.8)"
-           (quote f) (quote p.Ty.name));
+      Veiled.member env field.N.Name.span f p;
       ignore (handler_opt env ctx ~abort:Ty.Error ~ok:Ty.Error handle);
       invalid span
   | Ty.Error ->
@@ -794,12 +784,7 @@ and worker_call env ~flow ctx span name cands actuals handle =
 and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
   match Ty.strip_mode fn.T.Expr.ty with
   | Ty.Veiled p ->
-      veiled_error env span
-        (Printf.sprintf
-           "this calls a veiled value, whose type is the type parameter %s, as a function \
-            value; a generic body calls methods, functions, operators and constructors on \
-            such a value, never the value itself (generics.md §3.8)"
-           (quote p.Ty.name));
+      Veiled.call env span p;
       skip_handler env ctx handle;
       (invalid span, None)
   | Ty.Error ->
@@ -1437,12 +1422,7 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
       (fun (s : T.Expr.t) ->
         match (Ty.strip_mode s.T.Expr.ty, definition env s.T.Expr.ty) with
         | Ty.Veiled p, _ ->
-            veiled_error env s.T.Expr.span
-              (Printf.sprintf
-                 "a match dispatches on a variant or an enum, and this is a veiled value, whose \
-                  type is the type parameter %s; a generic body never depends on the mould of \
-                  the type that fills it (generics.md §3.8)"
-                 (quote p.Ty.name));
+            Veiled.scrutinee env s.T.Expr.span p;
             `Unknown
         | Ty.Error, _ -> `Unknown
         | _, Some (tid, Variant cases) -> `Variant (tid, cases)
