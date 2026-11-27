@@ -218,6 +218,18 @@ let declaration env (d : decl) : T.Decl.t option =
   Option.map (fun node -> { T.Decl.id = d.id; span = d.span; node }) node
 
 (* Fills [instances] while it checks every body, and returns the program. *)
+
+(* The uses of veiled values the declaration check reported join the other
+   diagnostics. An instance's error written at the same span is that use
+   failing for one type argument, so it is dropped: one mistake, one
+   diagnostic (D4). *)
+let merge_veiled env =
+  let veiled = !(env.veiled_diagnostics) in
+  let spans = List.map (fun (d : Diagnostic.t) -> d.location) veiled in
+  let same (d : Diagnostic.t) = List.mem d.location spans in
+  env.diagnostics := veiled @ List.filter (fun d -> not (same d)) !(env.diagnostics);
+  env.veiled_diagnostics := []
+
 let run env (instances : instances) : T.Program.t =
   let requests = Env.requests () in
   let env = { env with instances = { instances with requests = Some requests } } in
@@ -260,15 +272,18 @@ let run env (instances : instances) : T.Program.t =
                 :: !(env.instances.checked)
           | None -> ()))
   done;
-  (* D12 checks a generic body once per instantiation, so a generic body that
-     nothing instantiates would go unchecked. Each generic body is therefore
-     checked once more where it is declared, with every type parameter
-     standing for [Ty.Error]: code that depends on the parameter is accepted,
-     as for any expression that failed to type, and code that does not -- an
-     identifier that resolves nowhere, a call no overload takes -- is
-     reported. A number parameter stays a number parameter. Nothing from this
-     check enters the tree, since there is no instance to hold it. The check
-     runs without requests, so it requests no instances. *)
+  (* D12 checks a generic body once per instantiation. Each generic body is
+     also checked once where it is declared, with every type parameter
+     standing for [Ty.Veiled]: code that depends on the parameter is
+     accepted, as for any expression that failed to type, except a use of a
+     veiled value that generics.md §3.8 forbids, which this check reports
+     whether or not anything instantiates the body. For a body that nothing
+     instantiates, the check also reports code that does not depend on a
+     parameter -- an identifier that resolves nowhere, a call no overload
+     takes -- so an unused body is not an unchecked one; for an instantiated
+     body its instances report those. A number parameter stays a number
+     parameter. Nothing from this check enters the tree. The check runs
+     without requests, so it requests no instances. *)
   let instantiated_subscripts = Hashtbl.create 16 in
   Hashtbl.iter
     (fun _ ((t : S.t), _, _, _) ->
@@ -285,16 +300,20 @@ let run env (instances : instances) : T.Program.t =
       List.iter
         (fun (d : decl) ->
           match Verbs.signature env.verbs d.id with
-          | Some s when s.S.generics <> [] && not (instantiated d s) ->
+          | Some s when s.S.generics <> [] ->
               let subst =
                 List.filter_map
                   (fun (p : Ty.param) ->
                     match p.Ty.kind with
-                    | Ty.Type_kind -> Some (p.Ty.id, Ty.Type Ty.Error)
+                    | Ty.Type_kind -> Some (p.Ty.id, Ty.Type (Ty.Veiled p))
                     | Ty.Number_kind -> None)
                   s.S.generics
               in
-              with_note env (Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name))
+              let env, note =
+                if instantiated d s then ({ env with diagnostics = ref [] }, Printf.sprintf "in %s" (quote s.S.name))
+                else (env, Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name))
+              in
+              with_note env note
                 (fun () ->
                   match s.S.kind with
                   | S.Subscript -> ignore (subscript_body env d s subst)
@@ -302,6 +321,7 @@ let run env (instances : instances) : T.Program.t =
           | _ -> ())
         (package env name).decls)
     (Names.package_order env.names);
+  merge_veiled env;
   (* Generic subscripts were instantiated as their call sites were typed. *)
   let subscript_bodies =
     Hashtbl.fold

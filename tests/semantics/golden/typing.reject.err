@@ -1306,6 +1306,38 @@ File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-27:
 5 | Int unimported() => helper(Int(1));
   |                     ^^^^^^
 Error: no function named `helper` is in scope; the package `lib` declares one, and like every package it needs an import
+File "fixtures/typing/reject/bad/veiled.zn", line 28, characters 27-32:
+28 | Int peeked(x T Type) => x.level;
+   |                           ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `peeked`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 31, characters 10-15:
+31 |     copy.level = Int(1);
+   |          ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `poked`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 34, characters 29-34:
+34 | Int labelled(x T Type) => x.label;
+   |                             ^^^^^
+Error: this reaches `label` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `labelled`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 35, characters 23-29:
+35 | T picked(x T Type) => T.dusk;
+   |                       ^^^^^^
+Error: `T.dusk` names a member through the type parameter `T`; a generic body names no enum member through a type parameter, and `T.dusk(...)` would call a named constructor of the type that fills it (generics.md §3.8) (in `picked`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 36, characters 33-34:
+36 | Int matched(x T Type) => match (x) {
+   |                                 ^
+Error: a match dispatches on a variant or an enum, and this is a veiled value, whose type is the type parameter `T`; a generic body never depends on the mould of the type that fills it (generics.md §3.8) (in `matched`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 40, characters 25-34:
+40 | Int called(x T Type) => x(Int(1));
+   |                         ^^^^^^^^^
+Error: this calls a veiled value, whose type is the type parameter `T`, as a function value; a generic body calls methods, functions, operators and constructors on such a value, never the value itself (generics.md §3.8) (in `called`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 43, characters 33-38:
+43 | Int instantiated(x T Type) => x.level;
+   |                                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `instantiated`)
+File "fixtures/typing/reject/bad/veiled.zn", line 53, characters 49-54:
+53 | Int heldLevel(this Keeper<T Type>) => this.held.level;
+   |                                                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `heldLevel`, which nothing instantiates)
 File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:
 8 | Unit nested(this List<T Type> Type) => Unit();
   |                  ^^^^^^^^^^^^

@@ -90,7 +90,7 @@ let carries env (t : Ty.t) =
        it builds. No container consumes a map literal yet, so no map literal
        carries a reference. *)
     | Ty.Concept (Ty.Array_lit (t, _)) -> carries t
-    | Ty.Error | Ty.Verb _ | Ty.Concept _ -> false
+    | Ty.Error | Ty.Veiled _ | Ty.Verb _ | Ty.Concept _ -> false
     | Ty.Intrinsic { args; _ } -> List.exists carries_arg args
     | Ty.Named (tid, args) -> (
         List.exists carries_arg args

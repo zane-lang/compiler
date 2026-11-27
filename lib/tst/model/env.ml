@@ -375,6 +375,12 @@ end
    is [()]. *)
 type ('names, 'types, 'verbs, 'instances) t = {
   diagnostics : Diagnostic.t list ref;
+  (* The forbidden uses of veiled values (generics.md §3.8), kept apart from
+     [diagnostics] until the check a generic body gets where it is declared
+     has run: that check keeps only these for an instantiated body, whose
+     instances report every other error, and an instance's error at the
+     span of one of these is the same mistake (Program). *)
+  veiled_diagnostics : Diagnostic.t list ref;
   note : string option ref;
   counters : counters;
   (* The declarations and definitions in each package's C code, by package
@@ -402,6 +408,7 @@ let start ?(uses = Uses.create false) () =
   {
     uses;
     diagnostics = ref [];
+    veiled_diagnostics = ref [];
     note = ref None;
     counters = { next_decl = ref 0; next_param = ref intrinsic_params; next_local = ref 0 };
     interfaces = Hashtbl.create 4;
@@ -491,6 +498,14 @@ let error env span message =
     match !(env.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")"
   in
   env.diagnostics := Diagnostic.error span message :: !(env.diagnostics)
+
+(* A use of a veiled value that generics.md §3.8 forbids: reported where
+   the generic body writes it, whether or not anything instantiates it. *)
+let veiled_error env span message =
+  let message =
+    match !(env.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")"
+  in
+  env.veiled_diagnostics := Diagnostic.error span message :: !(env.veiled_diagnostics)
 
 (* A new type or number parameter of this check. *)
 let fresh_param env ~name ~kind =

@@ -175,7 +175,7 @@ and text_literal env ctx span written =
 
 and interpolated env (v : T.Expr.t) =
   let dst = Intrinsics.prim "String" in
-  if v.T.Expr.ty = Ty.Error || Ty.assignable ~dst ~src:v.T.Expr.ty then v
+  if Ty.unknown v.T.Expr.ty || Ty.assignable ~dst ~src:v.T.Expr.ty then v
   else
     match implicit_constructors env ~src:v.T.Expr.ty ~dst with
     | [ ((s, subst) as found) ] ->
@@ -348,6 +348,14 @@ and type_member env ctx span (type_ : N.Name_type.t) (member : N.Name.t) =
   let t = Type_decls.apply env (type_scope ctx) span (Type_decls.resolve_head env (type_scope ctx) type_) type_ [] in
   if Uses.is_placeholder env.uses m then Uses.probe env.uses member.N.Name.span (Uses.Type_member_of t);
   match (t, definition env t) with
+  | Ty.Veiled p, _ ->
+      veiled_error env span
+        (Printf.sprintf
+           "`%s.%s` names a member through the type parameter %s; a generic body names no \
+            enum member through a type parameter, and `%s.%s(...)` would call a named \
+            constructor of the type that fills it (generics.md §3.8)"
+           p.Ty.name m (quote p.Ty.name) p.Ty.name m);
+      invalid span
   | Ty.Error, _ -> invalid span
   | _, Some (tid, Enum members) when List.mem m members ->
       Uses.add env.uses member.N.Name.span (Uses.Member (tid, m));
@@ -380,7 +388,16 @@ and member env ~flow ctx span target (field : N.Name.t) handle =
           (Printf.sprintf "reading %s cannot fail, so it takes no handler" (quote f))
     | None -> ()
   in
-  match target.T.Expr.ty with
+  match Ty.strip_mode target.T.Expr.ty with
+  | Ty.Veiled p ->
+      veiled_error env field.N.Name.span
+        (Printf.sprintf
+           "this reaches %s of a veiled value, whose type is the type parameter %s; a generic \
+            body reaches such a value only through methods, functions, operators, subscripts \
+            and constructors, never a field or an enum map (generics.md §3.8)"
+           (quote f) (quote p.Ty.name));
+      ignore (handler_opt env ctx ~abort:Ty.Error ~ok:Ty.Error handle);
+      invalid span
   | Ty.Error ->
       ignore (handler_opt env ctx ~abort:Ty.Error ~ok:Ty.Error handle);
       invalid span
@@ -462,7 +479,7 @@ and subscript env ctx span target args =
   let cands =
     List.filter (fun (s : S.t) -> List.mem s.home homes && accessible_sig ctx s) (Verbs.subscripts env.verbs)
   in
-  if target.T.Expr.ty = Ty.Error || List.exists (fun (a : T.Expr.t) -> a.T.Expr.ty = Ty.Error) args then
+  if Ty.unknown target.T.Expr.ty || List.exists (fun (a : T.Expr.t) -> Ty.unknown a.T.Expr.ty) args then
     invalid span
   else
     let actuals =
@@ -585,7 +602,7 @@ and owe_handler env ~flow ctx ~what ~span ~abort ~ok handle =
           r.aborts <- r.aborts @ [ (a, span) ];
           None
       | _ ->
-          if a <> Ty.Error then
+          if not (Ty.unknown a) then
             error env span
               (Printf.sprintf
                  "%s can abort with %s, so the call needs a `?` or `??` handler"
@@ -776,6 +793,15 @@ and worker_call env ~flow ctx span name cands actuals handle =
    there is one candidate; the call's arguments are still coercion sites. *)
 and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
   match Ty.strip_mode fn.T.Expr.ty with
+  | Ty.Veiled p ->
+      veiled_error env span
+        (Printf.sprintf
+           "this calls a veiled value, whose type is the type parameter %s, as a function \
+            value; a generic body calls methods, functions, operators and constructors on \
+            such a value, never the value itself (generics.md §3.8)"
+           (quote p.Ty.name));
+      skip_handler env ctx handle;
+      (invalid span, None)
   | Ty.Error ->
       skip_handler env ctx handle;
       (invalid span, None)
@@ -1009,7 +1035,7 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
   (* The type that the constructor name builds, before any arguments: a
      generic type is named bare, and its arguments are inferred (generics.md
      §5.1). *)
-  let target : [ `Type of Ty.t * Ty.param list | `None ] =
+  let target : [ `Type of Ty.t * Ty.param list | `Veiled of Ty.t | `None ] =
     match head with
     | Type_decls.Unknown -> `None
     | Type_decls.Declared d -> (
@@ -1030,6 +1056,7 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
        instantiates (which Program checks with its type parameters bound to
        the error type), a type not yet known. Neither case is reported
        again. *)
+    | Type_decls.Bound (Ty.Type (Ty.Veiled _ as t)) -> `Veiled t
     | Type_decls.Bound (Ty.Type t) when Ty.contains_error t -> `None
     | Type_decls.Bound (Ty.Type t) -> `Type (t, [])
     | Type_decls.Bound (Ty.Number _) ->
@@ -1044,6 +1071,13 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
       type_args ();
       skip_handler env ctx handle;
       invalid span
+  (* `T(...)` and `T.name(...)` on a type parameter resolve per instance,
+     against the constructors of the type that fills it (generics.md §3.8,
+     §5): where the body is declared, the value they build is veiled. *)
+  | `Veiled t ->
+      type_args ();
+      no_handler ();
+      mk T.Expr.Invalid t span
   | `Type (built, open_) -> (
       match (definition env built, member) with
       | Some (tid, Variant cases), Some m when List.mem_assoc m cases ->
@@ -1401,7 +1435,15 @@ and match_ env ~flow ctx (m : N.Match_expr.t) =
   let shapes =
     List.map
       (fun (s : T.Expr.t) ->
-        match (s.T.Expr.ty, definition env s.T.Expr.ty) with
+        match (Ty.strip_mode s.T.Expr.ty, definition env s.T.Expr.ty) with
+        | Ty.Veiled p, _ ->
+            veiled_error env s.T.Expr.span
+              (Printf.sprintf
+                 "a match dispatches on a variant or an enum, and this is a veiled value, whose \
+                  type is the type parameter %s; a generic body never depends on the mould of \
+                  the type that fills it (generics.md §3.8)"
+                 (quote p.Ty.name));
+            `Unknown
         | Ty.Error, _ -> `Unknown
         | _, Some (tid, Variant cases) -> `Variant (tid, cases)
         | _, Some (tid, Enum members) -> `Enum (tid, members)

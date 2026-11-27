@@ -83,7 +83,7 @@ let bind_explicit (p : Ty.param) (a : actual) subst =
       | None -> None)
   | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Number_param { value; _ }); _ } ->
       bind (Ty.Number value)
-  | _, T.Arg.Value { T.Expr.ty = Ty.Error; _ } -> Some subst
+  | _, T.Arg.Value { T.Expr.ty; _ } when Ty.unknown ty -> Some subst
   | _ -> None
 
 (* Every element, when no element is missing. *)
