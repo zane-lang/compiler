@@ -117,7 +117,7 @@ test-grammar-generation: check-grammar-generation
 [doc('The editor grammars against the compiler parser (needs the pinned tree-sitter)')]
 [script]
 test-highlighting: test-grammar-generation
-	# The CLI npm installs locally comes first, so the pinned version is the one used.
+	# The CLI npm installs locally comes first on PATH, so the shell runs the pinned version.
 	export PATH="{{justfile_directory()}}/editors/tree-sitter-zane/node_modules/.bin:$PATH"
 	command -v tree-sitter >/dev/null || { echo "tree-sitter not found; npm ci --prefix editors/tree-sitter-zane" >&2; exit 1; }
 	{{python}} -c 'import tree_sitter'
@@ -158,7 +158,7 @@ check-nesting-ocaml:
 	git ls-files -z -- 'lib/*.ml' 'bin/*.ml' 'tools/*.ml' | xargs -0 _build/default/tools/nesting/nesting.exe
 
 # The scripts under dev/ and .github/scripts/ are listed whole: the check reads
-# the ones with a Python shebang and ignores the rest. lizard is in the pixi
+# the scripts with a Python shebang and ignores the rest. lizard is in the pixi
 # environment, so this is pixi's Python, not the grammar virtualenv's.
 [group('check')]
 [doc('Hand-written C and Python nested at most five deep, counted by lizard')]
@@ -166,6 +166,21 @@ check-nesting-c-python:
 	git ls-files -z -- 'runtime/*.[ch]' 'lib/*.[ch]' 'tests/runtime/*.[ch]' '*.py' 'dev/*' '.github/scripts/*' \
 		':!:*/fixtures/*' ':!:docs/experiments/*' ':!:vendor/*' \
 		| xargs -0 {{pixi_python}} tools/nesting/lizard_check.py
+
+# The recipe runs the prose-lint commit and lockfile that CI pins in prose.yml.
+[group('check')]
+[doc('Check the prose of Markdown files and code comments with prose-lint')]
+[script]
+prose:
+	command -v uv >/dev/null || { echo 'just prose needs uv on PATH: https://docs.astral.sh/uv/' >&2; exit 1; }
+	dir="${XDG_CACHE_HOME:-$HOME/.cache}/prose-lint/107c5f768ea3ce4936d6fdff1b0f30fac9237615"
+	if [ ! -d "$dir" ]; then
+		rm -rf "$dir.tmp"
+		git clone -q https://github.com/zane-lang/prose-lint "$dir.tmp"
+		git -C "$dir.tmp" checkout -q 107c5f768ea3ce4936d6fdff1b0f30fac9237615
+		mv "$dir.tmp" "$dir"
+	fi
+	uv run --frozen --project "$dir" prose-lint .
 
 # --- Benchmarks -------------------------------------------------------------
 
