@@ -718,7 +718,7 @@ followed.
 - **Where:** `lib/codegen/merged_checks.ml`, `lib/codegen/arm_checks.ml`,
   `lib/codegen/range_checks.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md), "After the
-  passes"; [`spec-divergences.md`](spec-divergences.md) §10
+  passes"; [`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#52-a-position-outside-its-sequence-stops-the-program) §5.2
 - **Effect:** `tests/perf` `pairs` (one index into two parallel lists)
   takes 4.3% more estimated cycles optimized without the merge, `merges`
   (a merge step storing to `work[k]` in either arm) 11% more tiered

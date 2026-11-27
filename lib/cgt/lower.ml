@@ -654,7 +654,7 @@ and block ?(enter = fun _ -> []) st ctx (b : T.Block.t) =
   close st scope body
 
 (* A block argument's code, where it was written. An exit ends this run of
-   the block (docs/spec-divergences.md §6). *)
+   the block (control-flow.md §2.3). *)
 and code ?(looping = false) st ctx span (arg : T.Arg.t) =
   (* A loop's body runs inside the loop, and so does a block the body runs,
      wherever the block was written; code inside a walk is still inside the

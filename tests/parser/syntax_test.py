@@ -498,7 +498,7 @@ class TerminatorTests(ParserSyntaxTestCase):
         # (syntax.md §3.8), and in statement position a constructor
         # declaration with a block body (§3.3). A nullary constructor call may
         # not trail, because it would be spelled exactly that way; the block
-        # goes inside the argument list. See docs/spec-divergences.md §2.
+        # goes inside the argument list (syntax.md §4.8).
         self.assert_parses(
             '''
             Unit use() {
@@ -725,8 +725,7 @@ class LiteralTests(ParserSyntaxTestCase):
         self.assert_parses("Unit f() { a Int = 3; b Float = 3.0; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = 3.; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = .5; return Unit(); }")
-        # The compiler's `'` separator groups digits before the `.` only
-        # (docs/spec-divergences.md §5).
+        # A `'` separator groups digits before the `.` only (lexical.md §7).
         self.assert_parses("Unit f() { b Float = 1'000.25; return Unit(); }")
         self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 

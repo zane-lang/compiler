@@ -10,7 +10,7 @@ module T = Nodes
 module S = Signature
 
 (* A numeric literal's digits, without the `'` that only separates groups of
-   them (docs/spec-divergences.md §5). *)
+   them (lexical.md §7). *)
 let digits s = String.concat "" (String.split_on_char '\'' s)
 
 (* Whether the literal [text], written for the primitive [name], fits that

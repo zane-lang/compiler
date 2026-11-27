@@ -1099,7 +1099,7 @@ block_call:
      is exactly the trailing form's own shape. A lower-case callee has no such
      reading, which is why `do() { ... }` is unambiguous and `Foo() { ... }`
      is not. A constructor call whose only argument is a block writes it
-     inside the list. See docs/spec-divergences.md. *)
+     inside the list (syntax.md §4.8). *)
   | name=constructor_name
     open_=LPAREN args=separated_nonempty_list(COMMA, call_arg) RPAREN
     tail=trailing_arg {
@@ -1190,8 +1190,7 @@ block_call:
     }
 
 (* An arm follows the same rule as a declaration body: `=> expr` needs the
-   terminator, a `{ }` block closes itself. The spec terminates every arm; see
-   docs/spec-divergences.md. *)
+   terminator, a `{ }` block closes itself (lexical.md §6.1). *)
 %inline match_arm:
   | patterns=separated_nonempty_list(COMMA, match_pattern) body=block_body {
       ({ Nodes.Match_arm.patterns; body; span = Span.of_loc $loc }

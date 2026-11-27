@@ -315,8 +315,8 @@ indices, and each call makes that store with its own arguments and compares
 there. A call in a body can store one parameter into another in turn, so the
 summaries are computed to a fixed point over every body before any reports.
 
-**Exits** (`lib/tst/analyses/exits.ml`, [`docs/spec-divergences.md`](../spec-divergences.md)
-§9). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
+**Exits** (`lib/tst/analyses/exits.ml`, [`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#23-a-block-is-transparent-to-return-and-abort-and-an-exit-ends-its-run)
+§2.3). A verb exits when `@controlflow$exitFromCall` is in its own frame: its
 body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block. A lambda's own frame holds no
 `@controlflow$exitFromCall` at all
@@ -368,7 +368,7 @@ computes it once and hands it to this analysis and the read-only one.
 
 The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile
-([`spec-divergences.md`](../spec-divergences.md) §8): not by assignment, not as
+([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#43-single-writer-per-storage-location) §4.3): not by assignment, not as
 a `!` call's subject, not by moving it out. A spawned `mut` call on part of it
 is allowed, since it writes back (docs/design/lowering.md §9). Where a write goes
 through a reference, the checker follows the reference to the place it was
@@ -376,7 +376,7 @@ minted from, through other references, as long as the reference has not been
 bound again in a block inside its own. A reference whose place it cannot
 follow may name any owner of its type, so a write through it clashes with a
 lent owner that could be, or contain, or be inside, what it writes; so does a
-write to a known place when the lent owner came through such a reference.
+write to a known place when the lent owner came through such a reference. The spec names the owner a reference points to, so this rejects more than the spec does ([`spec-divergences.md`](../spec-divergences.md) §8).
 
 **Pool elements** (`lib/tst/analyses/pool_elements.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md) §6.4).
 An `&` that a worker pool's element holds, at any depth through the fields

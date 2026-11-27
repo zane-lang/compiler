@@ -557,7 +557,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         # (syntax.md §3.8), and in statement position a constructor
         # declaration as well. A nullary constructor call may not trail,
         # because it would be spelled exactly that way; the block goes inside
-        # the argument list instead. See docs/spec-divergences.md §2.
+        # the argument list instead (syntax.md §4.8).
         self.assert_grouping(
             "UIDENT LIDENT LPAREN RPAREN LCURLY ABORT "
             "UIDENT LPAREN RPAREN LCURLY RCURLY RCURLY EOF",

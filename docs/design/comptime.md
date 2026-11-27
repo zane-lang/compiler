@@ -5,8 +5,8 @@
 > ([`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
 > §5.6, [`syntax.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/syntax.md)
 > §4.10). Each decision is numbered (**K1**…). Where the compiler accepts less
-> than the spec, [`spec-divergences.md`](../spec-divergences.md) §15–§17 say
-> so.
+> than the spec, [`spec-divergences.md`](../spec-divergences.md) §15 and §16
+> say so.
 
 Stage 5 ([`optimization.md`](optimization.md)) evaluates at compile time
 what it can, within budgets, and only in an optimized build: an implicit
@@ -111,7 +111,7 @@ its counterpart where the build runs:
 
 | Read | At compile time |
 |---|---|
-| The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (divergence §17) |
+| The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)) |
 | A method without `mut` on a foreign capability | Its C, run by the C evaluator against the build's own C memory, where the capability's C global holds its first value, as each run's C memory starts (F16) |
 | An approximate `@math$` function | The build machine's C math library, through OCaml's, in double precision and rounded once for an `F32` |
 
