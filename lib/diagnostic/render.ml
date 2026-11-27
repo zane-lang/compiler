@@ -1,7 +1,7 @@
 (* A diagnostic as a person reads it at a terminal: where it is, the line it is
-   on with a caret under the text it covers, and what is wrong.
+   on with a caret under the text it covers, and the message.
 
-   Only the span's first line is shown. The file name is the one the span's
+   Only the span's first line is shown. The file name is the name the span's
    positions carry, which [Cst.parse] sets on every position it produces.
 
    The line is built once, as a list of pieces: each grapheme cluster, the

@@ -1,6 +1,6 @@
 (* A COFF object with its symbols renamed, in either header form: the
-   standard one, or the "big object" one an object with very many sections
-   uses. A symbol keeps a name of up to 8 bytes in its own record, and a
+   standard header, or the "big object" header an object with very many
+   sections uses. A symbol keeps a name of up to 8 bytes in its own record, and a
    longer name as an offset into the string table, which directly follows the
    symbol table and is the last part of the file. A stamped name is always
    longer than 8 bytes, so each renamed symbol gets an offset, and the new

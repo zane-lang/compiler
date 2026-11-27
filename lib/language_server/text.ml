@@ -102,7 +102,7 @@ let move s (start, stop) =
   else if start >= s.old_suffix_start then Some (start + s.delta, stop + s.delta)
   else None
 
-(* Where an offset of [after] was in [before]. Where text was deleted, the
+(* The offset in [before] that an offset of [after] came from. Where text was deleted, the
    offset at the deletion is the start of the text after it, which [move]
    maps there too. *)
 let move_back s offset =

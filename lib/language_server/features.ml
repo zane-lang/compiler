@@ -61,7 +61,7 @@ let analyzed_offset encoding t a path (line, character) =
 let index_of (a : P.analysis) = Option.map (fun r -> Lazy.force r.Driver.index) a.P.result
 
 (* The innermost use whose span holds [offset], its end included, so a
-   cursor just after a name still names it. *)
+   cursor just after an identifier still names it. *)
 let use_at (index : Index.t) path offset =
   List.fold_left
     (fun best (u : Uses.use) ->
@@ -128,8 +128,8 @@ let uses_of_key t (project : P.project) key =
     project.P.builds
 
 (* Whether a span that names [key] also names another target in some build
-   of [project], as a call in a generic body does when its instances choose
-   different overloads. *)
+   of [project], as a call in a generic body does when its instances resolve
+   to different overloads. *)
 let names_another_target t (project : P.project) key =
   let keys = Hashtbl.create 256 in
   List.iter
@@ -168,7 +168,7 @@ let is_intrinsic_type ns name =
   Option.is_some (I.find_type ns name) || (ns = "concepts" && List.mem name I.concept_names)
 
 (* The declaration lines a hover shows for [spelling]: a value's type, or a
-   type and its constructors, or each overload a call to it may choose. *)
+   type and its constructors, or each overload a call to it may resolve to. *)
 let intrinsic_lines spelling =
   let ns, name = split_spelling spelling in
   match I.find_value ns name with
@@ -342,7 +342,7 @@ let symbol_kind = function
 (* The outline of the current text: every declaration that parses, read
    past the syntax errors in the others ([Cst.parse_recovering]). Unlike the
    build's answers, it needs no earlier text: a declaration is listed as soon
-   as it is written, and only the ones that do not parse yet are missing. *)
+   as it is written, and only the declarations that do not parse yet are missing. *)
 let document_symbols encoding (d : P.document) =
   match Cst.parse_recovering d.P.path d.P.text with
   | exception _ -> `List []
@@ -564,7 +564,7 @@ let is_type_kind = function
 
 (* The texts to try, each with the placeholder where the cursor's name is,
    until one parses: the line as it is, then closed as a statement, then
-   closed as a call. A name being typed rarely leaves a file that parses. *)
+   closed as a call. An identifier being typed rarely leaves a file that parses. *)
 let attempts text ~start ~stop ~placeholder =
   let line_end = match String.index_from_opt text stop '\n' with Some i -> i | None -> String.length text in
   let with_rest rest = String.sub text 0 start ^ placeholder ^ rest in
