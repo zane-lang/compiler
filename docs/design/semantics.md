@@ -376,7 +376,7 @@ minted from, through other references, as long as the reference has not been
 bound again in a block inside its own. A reference whose place it cannot
 follow may name any owner of its type, so a write through it clashes with a
 lent owner that could be, or contain, or be inside, what it writes; so does a
-write to a known place when the lent owner came through such a reference The spec names the owner a reference points to, so this rejects more than the spec does ([`spec-divergences.md`](../spec-divergences.md) §8).
+write to a known place when the lent owner came through such a reference. The spec names the owner a reference points to, so this rejects more than the spec does ([`spec-divergences.md`](../spec-divergences.md) §8).
 
 **Pool elements** (`lib/tst/analyses/pool_elements.ml`, [`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md) §6.4).
 An `&` that a worker pool's element holds, at any depth through the fields

@@ -480,7 +480,7 @@ Probe `reflist`. `memory.md` §2.2 speaks of "an `&T` stored *as an element
 value*" and §2.8 reads `current &Weapon = weapons[1]` out of a
 `List<&Weapon>`. The compiler accepts the type and its constructor
 (`@primitives$List(PortRef)` through `alias PortRef = &Port`, since a type
-argument is a bare name, `spec-divergences.md` §3), but rejects every push:
+argument is a bare name, as the closed entry "A type was passed only to a constructor" in `spec-divergences.md` records), but rejects every push:
 
 ```text
 refs!push(r);   // r &Port

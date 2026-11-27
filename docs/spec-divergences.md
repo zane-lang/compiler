@@ -30,7 +30,7 @@ about what the parser accepts, it was measured with
 `ambiguity search --check-tokens`, which reports how many parses a token
 sequence has: `0` is a syntax error, `1` is accepted.
 
-Three entries closed at this re-pin, when the spec moved to `;`-terminated
+Three entries closed at the `034f11a` re-pin, when the spec moved to `;`-terminated
 statements and a brace that ends one. What was the widest divergence — the
 spec separating statements by newline where the compiler terminated them — is
 gone, and with it the same-line rule for a trailing block and the disagreement
@@ -53,6 +53,7 @@ write through a reference whose type may hold a lent owner counts as a write
 of that owner, so some programs that would not race are rejected.
 
 ```zane
+view &Dial = dial;
 seen Int = spawn glance(view);   // lent `dial`, through `view`
 other &Dial = spare;
 @controlflow$branch(flag, {

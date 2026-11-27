@@ -226,7 +226,7 @@ called, and its `return` then leaves only the walk (round 7 drops the
 block: a loop now writes such a search out itself).
 `@controlflow$exitFromCall` is no substitute: the compiler ends the run of
 the block it is called in, so in a loop it skips to the next pass
-([`spec-divergences.md`](../../spec-divergences.md) §6).
+([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#23-a-block-is-transparent-to-return-and-abort-and-an-exit-ends-its-run) §2.3).
 
 **Plain `zanec`** (`results/zane-baseline.tsv`, the compiler at `9536bf4`,
 best of 3, one run of the sweep), against the plain C of rounds 1 and 2 at
