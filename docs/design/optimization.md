@@ -143,11 +143,12 @@ classified:
 | a null handle a call into C gives | `No_object` | input |
 | an abort of `main`, which ends the program | `Main_aborted`, called only by the start function | input |
 
-`arguments` is the one intrinsic that reads input (effects.md §6.6), so a
-fold stops where it is reached, and everything computed before it still
-folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
-no value of the program depends on it. An intrinsic added later that reads
-input, a console read or the time, joins `arguments` in the input class.
+`arguments` and `monotonicNanoseconds` are the intrinsics that read input
+(effects.md §6.6), so a fold stops where it reaches either, and everything
+computed before it still folds. `setThreadsAuto` reads the processor count,
+but gives nothing back, so no value of the program depends on it. An
+intrinsic added later that reads input, such as a console read, joins them
+in the input class.
 `register`'s timer is another input: its first deadline reads the clock, and
 the code after each wait runs at a moment that no replay could reproduce, so
 a fold stops there. So does a worker pool's every operation: its work runs on

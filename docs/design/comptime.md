@@ -177,7 +177,10 @@ them all. A value that holds an address is refused too, which a value type
 - **Callees left behind.** A function only a lifted function called stays
   in the program after the lifted function is dropped. An optimized build
   leaves it to LLVM; an unoptimized build emits it.
-- **Reads that change between builds.** Every read K6 lists gives the same
-  value to both tiers of a tiered build, which are two processes given the
-  same arguments. A read of the clock, or of a file, would not, and tier 1
-  would have to take tier 0's values.
+- **Reads that change between builds.** Both tiers of a tiered build are two
+  processes given the same arguments, and every read K6 lists but the clock
+  gives them the same value. Each tier reads the clock at its own moment, so
+  a marked call that reads it builds different constants into the two
+  modules, their fingerprints differ (tiers.md T3), and the program stays
+  in tier 0. Tier 1 would have to take tier 0's readings, as it would a
+  file's.

@@ -160,7 +160,11 @@ let call w st ctx span (e : T.Expr.t) : Expr.t =
   (* A reading of the monotonic clock, in nanoseconds. The program has one
      clock, so the runtime needs nothing from the subject. *)
   | T.Expr.Call
-      { callee = { owner = S.Intrinsic "@runtime$monotonicNanoseconds"; _ }; args = [ _ ]; handler = None } ->
+      {
+        callee = { owner = S.Intrinsic "@runtime$monotonicNanoseconds"; _ };
+        args = [ _ ];
+        handler = None;
+      } ->
       { Expr.node = Expr.Runtime { fn = Runtime.Monotonic_ns; args = [] }; ty = Nodes.Ty.I64 }
   (* A number read from a string's text (types.md §2.10). The runtime writes
      the number to [value]'s slot and returns whether the text spelled a

@@ -80,8 +80,8 @@ let types =
     ( "@runtime$Console",
       "The program's console, reached as `@program$console`. Its method `print` writes text (effects.md §6.6)." );
     ( "@runtime$Runtime",
-      "The program's runtime, reached as `@program$runtime`: the size of its thread pool and the program's \
-       arguments (effects.md §6.6, concurrency.md §2.2)." );
+      "The program's runtime, reached as `@program$runtime`: the size of its thread pool, the program's \
+       arguments and the monotonic clock (effects.md §6.6, concurrency.md §2.2)." );
     ( "@concepts$Int",
       "The type of an integer literal, a single value known at compile time. As a parameter's type it also \
        marks a number parameter, as in `n @concepts$Int` (syntax.md §2.8, generics.md §3)." );
@@ -195,7 +195,8 @@ let methods =
     ("@runtime$arguments", "The arguments the program was started with (effects.md §6.6).");
     ( "@runtime$monotonicNanoseconds",
       "The monotonic clock in nanoseconds. A later reading is never smaller than an earlier one, and only \
-       the difference between two readings means anything. A read of the runtime, as `arguments` is." );
+       the difference between two readings means anything. Like `arguments`, it reads the runtime, so no \
+       fold evaluates it and no memoized call makes it." );
     ( "@primitives$parseI64",
       "The integer the string's text spells. The call aborts when the text is not an integer (types.md §2.10)." );
     ( "@primitives$parseF64",

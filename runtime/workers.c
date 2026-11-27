@@ -144,7 +144,9 @@ static zane_member **zane_timers;
 static int64_t zane_timer_count, zane_timer_room;
 
 /* The monotonic clock, in nanoseconds: `@runtime$monotonicNanoseconds`,
-   and the clock `register`'s timers wait on. */
+   and the clock `register`'s timers wait on. lib/optimize/clock_stubs.c
+   keeps a copy of this code for a `comptime` call's reading of the build
+   machine's clock; a change to one belongs in the other. */
 int64_t zane_monotonic_ns(void) {
 #ifdef _WIN32
 	LARGE_INTEGER count, rate;
@@ -153,7 +155,7 @@ int64_t zane_monotonic_ns(void) {
 	return (int64_t)(count.QuadPart / rate.QuadPart) * 1000000000 +
 	       (int64_t)(count.QuadPart % rate.QuadPart) * 1000000000 / rate.QuadPart;
 #else
-	struct timespec t;
+	struct timespec t = { 0, 0 };
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	return (int64_t)t.tv_sec * 1000000000 + t.tv_nsec;
 #endif
