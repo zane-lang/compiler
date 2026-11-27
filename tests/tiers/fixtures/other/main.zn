@@ -1,4 +1,4 @@
-/// Another program, whose tier 1 the runtime must refuse to load into `swap`.
+/// Another program: the runtime must not load its tier 1 into `swap`.
 package other;
 
 alias Unit = @primitives$Unit;

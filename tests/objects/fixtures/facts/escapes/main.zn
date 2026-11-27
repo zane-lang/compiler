@@ -1,6 +1,6 @@
 /// Two counted loops that return early: `escapes`, whose body is arithmetic
-/// alone and is asked to be unrolled twice, and `first`, whose body calls a
-/// function and is not. Its first argument is how many points along a line
+/// alone and carries a request to be unrolled twice, and `first`, whose body
+/// calls a function and carries none. Its first argument is how many points along a line
 /// `escapes` tests, the second how far `first` looks. Spawns nothing.
 package escapes;
 
