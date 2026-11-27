@@ -1,4 +1,4 @@
-# Memory semantics: what the compiler does, probed
+# Memory semantics: the compiler's behaviour, probed
 
 An exploratory test of the compiler's memory semantics against the spec's
 [`memory.md`](https://github.com/zane-lang/spec/blob/d0334a3/spec/memory.md)
@@ -17,7 +17,7 @@ so CI, gates on them with `tests/memory-probes/run --check`, which leaves
 the committed files alone and fails when a probe's output differs from its
 `NAME.out`. It also fails on a probe whose build failed or whose optimized
 build differs, unless the probe's directory holds an `EXPECTED` file whose
-first line names that outcome and whose remaining lines say why; the file
+first line names that outcome and whose remaining lines give the reason; the file
 only permits the outcome, and the output must still match. The same recipe
 runs `tests/memory-probes/reclaim.py --check`, which fails when an allocating
 loop's peak RSS grows by more than 1 MiB from 10,000 to 1,000,000 iterations
@@ -32,13 +32,13 @@ To rerun them: `dune build bin/zanec/zanec.exe`, then
 `git diff tests/memory-probes` to see what changed.
 
 All seventeen findings are now closed; the **Outcome** section after the
-summary says how. The rest of this document records the state at
+summary describes each fix. The rest of this document records the state at
 `5bc7684`.
 
 The headline at `5bc7684`: the compile-time rules the spec stated were
 implemented thoroughly — every rejection the probes expected was reported,
 if late in finding 11, and no legal program was refused except by findings
-6, 10 and 12 — and the runtime did what they promise. But four routes let
+6, 10 and 12 — and the runtime behaved as those rules require. But four routes let
 an accepted program read or write freed storage (findings 1–4), each a rule
 the checker did not have, and in three of them the spec did not state the
 rule either. A fifth bug crashed the runtime on deep recursive values (5),
@@ -47,8 +47,8 @@ an element (7) and any fixed array of 512 KiB or more (8).
 
 Findings are numbered by severity and classified:
 
-- **Bug** — the compiler does something the spec says it must not.
-- **Gap** — the compiler accepts or rejects something where the spec is
+- **Bug** — the compiler's behaviour breaks a spec rule.
+- **Gap** — the compiler accepts or rejects a program where the spec is
   silent, ambiguous or self-contradictory; a spec question as much as a
   compiler one.
 - **Nit** — behaviour is right, but a diagnostic is misleading.
@@ -77,8 +77,8 @@ Findings are numbered by severity and classified:
 
 ## Outcome
 
-Every finding is closed. Where the spec had to say something first, it now
-does, at spec commit
+Every finding is closed. Where the spec needed a new rule first, it now
+has one, at spec commit
 [`2a02e33`](https://github.com/zane-lang/spec/tree/2a02e33); the compiler
 follows it. The probe outputs in `tests/memory-probes/*.out` are rerun
 against the fixed compiler, so the sections below describe what the probes
@@ -105,7 +105,7 @@ found at `5bc7684`, and the `.out` files show what they print now.
 
 ## What holds
 
-Everything below behaved as the spec says at `5bc7684`, in the unoptimized
+Everything below behaved as the spec requires at `5bc7684`, in the unoptimized
 and the optimized build alike, and still does.
 
 - **Settled and roaming** (`settled`, `modes`; memory.md §2.1, §2.8,
@@ -193,7 +193,7 @@ and the optimized build alike, and still does.
   even though the next pass reuses its slot.
 - **One object reached twice by a call** (`aliasing`; memory.md §2.9).
   `keepAndRead(cup, cup)`, a borrow and a take of one owner, is reported. A
-  reference-type `mut` subject and a borrow of the same object agree: the
+  reference-type `mut` subject and a borrow of the same object stay consistent: the
   borrow sees the subject's write. (At `5bc7684`, but see 2 and 9.)
 - **Resting places across packages** (`across`; lifetimes.md §1.11). A
   dependency's `wire`, its transitive `relay`, a result naming an argument,
@@ -248,11 +248,11 @@ Consequences of the spec worth knowing, all correctly implemented:
 
 An independent audit on branch
 [`test/memory-semantics-audit`](https://github.com/zane-lang/compiler/tree/test/memory-semantics-audit)
-(commit `ffac90b`, same compiler and spec baselines) tests the same model a
-different way: 56 standalone programs under `tests/memory/examples/`, run by
-`python3 -m unittest tests.memory.memory_test`. Each of the 31 rejected ones
+(commit `ffac90b`, same compiler and spec baselines) tests the same model by
+another method: 56 standalone programs under `tests/memory/examples/`, run by
+`python3 -m unittest tests.memory.memory_test`. Each of the 31 rejected programs
 isolates one illegal line and must fail checking with a semantic error, not
-a parse error; each of the 25 accepted ones must check, then build and print
+a parse error; each of the 25 accepted programs must check, then build and print
 `ok` in both builds. Their ground covers this doc's — string, struct and
 recursive-value copies and self-overlapping assignments, variant case
 changes, settled overwrites and repointed references, moves, partial moves,
@@ -283,7 +283,7 @@ and 1,000-element `ArrayRef.fill` drops, all of which hold. Its three
 findings are 8, which it found first, 6 and 1; for 1 it reads the dangling
 reference after a new owner reuses the slot, the same way `lambdas` does.
 Its runtime probe adds two notes no program reaches: an alignment past 64
-is given 64, which nothing emitted asks for, and `zane_text_join` and
+is given 64, which no emitted code requests, and `zane_text_join` and
 `zane_text_equal` (`runtime/block.c`) hand `memcpy` and `memcmp` a null
 pointer with a zero length, which C leaves undefined, when a handle is
 zero-initialized — `String("")` borrows a literal instead, so only the C
@@ -334,7 +334,7 @@ that a call through a function value which writes its subject stores every
 argument there, wherever the parameter's type can hold a reference. The
 scope analysis makes the opposite assumption today.
 
-### 2. Something else in the same call frees what a borrow names (bug)
+### 2. Another argument of the same call frees what a borrow names (bug)
 
 Probe `aliasing`. A borrow argument may name storage *inside* the call's
 own `mut` subject, and the callee can then destroy that storage while the
@@ -376,7 +376,7 @@ it before the call begins.
 
 The compiler already rejects the closest relative, a borrow and a take of
 one owner in the same call ("a borrow lasts for the whole call"). The
-missing rule is the same one for a `mut` subject, a block argument and a
+missing rule is the same rule for a `mut` subject, a block argument and a
 later argument: a call may not lend, as an argument, a place inside its
 `mut` subject, inside storage its block argument writes, or inside storage
 another argument's evaluation writes, that could be destroyed or moved — a
@@ -419,7 +419,7 @@ version of the same probe, differing only in code after it, had the
 unoptimized build stop with `zane runtime: out of memory for a dynamic
 chunk` (status 134) while the optimized build printed `NO` — the two builds
 disagreeing, as undefined behaviour may. A `mut` call on the
-scrutinee in the arm, `slot!clear()`, which changes its case, does the same.
+scrutinee in the arm, `slot!clear()`, which changes its case, has the same effect.
 
 The fix is the binder's counterpart of 2: while a binder is live, its
 scrutinee may not be overwritten, nor be a `mut` subject (a `mut` method
@@ -441,7 +441,7 @@ relocates the backing store and returns the old block to its size stack, and
 the store lands in that freed block. For `List<Int>` the element keeps its
 old value; for `List<Engine>` the same; and with both cases in one program
 the first write corrupts the allocator's free stack and the second
-segfaults inside `zane_alloc`. (Something allocated after each list keeps
+segfaults inside `zane_alloc`. (A block allocated after each list keeps
 the growth from happening in place, which would hide the bug.)
 
 A `!` call has the same order problem (probe `subjectorder`):
@@ -454,8 +454,8 @@ destination's pre-overwrite state, but not when a place destination is
 resolved relative to its value. Either the compiler resolves a subscript
 destination or subject after evaluating the right-hand side and the
 arguments, or it rejects a `!` call on the list (or on anything owning it)
-inside a store into, or a call on, one of its elements; the spec should say
-which.
+inside a store into, or a call on, one of its elements; the spec should pick
+one.
 
 ### 5. A deep recursive value crashes the runtime (bug)
 
@@ -465,7 +465,7 @@ with SIGSEGV in both builds. `zane_overwrite` (`runtime/value.c`) writes the
 replacement into each boxed member's existing block by calling itself once
 per level, and on an 8 MB stack it overflows at about 22,700 levels (the
 backtrace is 22,765 `zane_overwrite` frames deep). Built in a loop with
-`acc = Count.more(acc)`, it crashes the same way somewhere between 20,000
+`acc = Count.more(acc)`, it crashes the same way at some point between 20,000
 and 50,000 iterations. `zane_copy` (`runtime/block.c`) is recursive in the
 same way. memory.md sets no depth limit, and the spec's own recursive
 examples (`adt.md` §4) are this shape; the recursion along the last boxed
@@ -491,7 +491,7 @@ the candidate is `@primitives$Unit push(this @primitives$List<T>, ^T) mut`
 ```
 
 Minting at the call (`refs!push(p)` with `p` settled) fails the same way. With
-`T = &Port`, `^T` should take an `&Port` — `memory.md` §2.9 says what `^T` is
+`T = &Port`, `^T` should take an `&Port` — `memory.md` §2.9 defines `^T`
 for a reference type and a value type, but not for `T` filled with an `&`, so
 the spec needs a sentence too. An explicit `refs!push(&p)` is rejected with the same
 error. The `ArrayRef<&Port, 2>` built from `[r, r]` is accepted, so only the
@@ -534,7 +534,7 @@ spec makes the array a single SSA value: moving it by elements or with
 `memcpy` removes the limit, and until then the compiler should report a
 limit rather than crash.
 
-### 9. A value parameter is a copy, and a call can tell (bug)
+### 9. A value parameter is a copy, and a call can observe the copy (bug)
 
 Probe `aliasing`. memory.md §2.9: a value-type parameter "has one mode, the
 borrow", and "passing a value by borrow is the semantic model rather than an
@@ -579,7 +579,7 @@ condition is exactly this shape.
 
 The cause is `lib/tst/analyses/read_only.ml`, the `T.Arg.Block` case of
 `arg`: a block argument "may run any number of times", so it is walked
-until the taints stop growing, and the second walk sees what the first one
+until the taints stop growing, and the second walk sees what the first walk
 stored. That assumption is stated in `design/semantics.md` §9, but the
 compiler handles it correctly elsewhere: `lib/tst/analyses/spawns.ml` computes
 which block arguments run more than once (`@controlflow$repeat`'s body, or
@@ -600,7 +600,7 @@ walks reports more than it should. In
 
 all three calls are reported, and `setB` twice, with two different
 messages. Walking to the fixed point silently and then once more to
-report — what the same file already does for whole-program summaries —
+report — as the same file already does for whole-program summaries —
 removes the duplicates; consulting the runs-more-than-once fact removes the
 false positives.
 
@@ -640,7 +640,7 @@ Probe `modes`. `&Engine constRef() => garage`, with `garage` a package
 constant, is accepted. `lifetimes.md` §1.7 says a returned `&T` must be
 rooted in an `&T` parameter and "Nothing else is a root", listing locals,
 `^T` parameters and borrows as excluded; a package constant is not mentioned.
-The store rule (§1.1) it says the rule comes from would allow it, since a
+The store rule (§1.1) it names as the rule's source would allow it, since a
 package constant outlives every caller, and memory.md §2.8 lists a package
 constant as a reference source. The compiler follows §1.1; §1.7 should say
 so or exclude it.
@@ -661,7 +661,7 @@ and its summary (`Rests` in `lib/tst/analyses/scopes.ml`, pairs of
 parameter indices) could record the case if it arose; but the clause is
 dead, and a reader of lifetimes.md alone would expect such a store to be
 legal. Either lifetimes.md drops the `&T` parameter as a store root, or
-effects.md §4.1 makes an exception for it; the spec should say which.
+effects.md §4.1 makes an exception for it; the spec should pick one.
 
 ### 15. An error inside a generic instance names nothing that made it (nit)
 
@@ -689,10 +689,10 @@ type (memory.md §2.4); the direct form of the same error words it correctly
 ### 17. "Part of a temporary value" for a field of a list element (nit)
 
 Probe `elemfield`. A list element is roaming, since elements come and go
-while the list lives (memory.md §2.8.1), and `a &Bolt = bolts[Int(0)]` is
-refused with exactly that reason. One field further, `b &Bolt =
-plates[Int(0)].bolt` is refused as "part of a temporary value", which it is
+while the list lives (memory.md §2.8.1), and the checker rejects `a &Bolt =
+bolts[Int(0)]` with exactly that reason. One field further, it rejects `b
+&Bolt = plates[Int(0)].bolt` as "part of a temporary value", which it is
 not: it is storage inside a list that outlives the statement. In
 `lib/tst/analyses/states.ml` a list subscript is `Contingent`, and the
 field step maps both it and `Fresh` to `Contingent`, so the message can no
-longer tell a list element from a temporary.
+longer separate a list element from a temporary.

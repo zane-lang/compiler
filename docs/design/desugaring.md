@@ -2,20 +2,20 @@
 
 The **SST** — simplified syntax tree — is the stage between the CST and the
 typed tree: still untyped, but fully desugared. This file is the inventory of
-what "fully desugared" means, so the SST's node set can be justified one entry
-at a time rather than argued about as a whole.
+the rewrites "fully desugared" covers, so the SST's node set can be justified
+one entry at a time rather than argued about as a whole.
 
 `lib/sst/` mirrors `lib/cst/`: `nodes.ml` is the tree, `to_tree_graph.ml`
 renders it, `sst.ml` is the entry module, and `lower.ml` is the pass that
-builds one from the other. This file is the argument for what is in them.
+builds one from the other. This file argues for the contents of those modules.
 
-The compiler binary prints either tree for one file — `--cst` for what the
-source says, `--sst` for what it means.
+The compiler binary prints either tree for one file — `--cst` for the source
+as written, `--sst` for its desugared form.
 
 Entries were checked against spec commit
 [`034f11a`](https://github.com/zane-lang/spec/tree/034f11a), and against
 `lib/cst/nodes.ml` as it stands. Links point at that commit so a later spec
-edit cannot silently make a quotation here disagree with what it links to.
+edit cannot silently make a quotation here differ from the text it links to.
 
 ---
 
@@ -24,9 +24,8 @@ edit cannot silently make a quotation here disagree with what it links to.
 A rewrite belongs in the SST when it needs **nothing but the syntax tree**. The
 CST is a whole package's worth of source, so "nothing but the syntax" includes
 looking at another declaration in the same file — but it stops at the file
-boundary and it stops at types. A rewrite that needs to resolve what a name
-refers
-to, what package a member came from, or what type an expression has is not a
+boundary and it stops at types. A rewrite that needs to resolve the target of
+an identifier, the package a member came from, or what type an expression has is not a
 desugaring; it is name resolution or type checking wearing a desugaring's
 clothes. Those are listed in §4 so they are refused deliberately rather than
 attempted and abandoned.
@@ -53,8 +52,8 @@ would read as a bug the moment it printed.
 ## 1. Already desugared, in the parser
 
 One rewrite is done already. It is listed so the SST does not redo it, and
-because it is a place where the parser reaches past what
-[`stages.md`](stages.md) says it does.
+because it is a place where the parser reaches past the role
+[`stages.md`](stages.md) gives it.
 
 | Form | Becomes | Where |
 |---|---|---|
@@ -76,7 +75,7 @@ carry it. `desugar.sst.spans` prints each node's variant against the source its
 span covers, so a rewrite that stops happening is a diff and so is a span that
 moves. `desugar.sst.tree` renders the same file as a named-field tree, and sits
 beside `desugar.cst.tree` — reading the two together is the shortest statement
-of what this section does.
+of this section's rewrites.
 
 Ordered roughly by how much each simplifies the tree. None depends on another
 — every one is a local rewrite.
@@ -88,6 +87,7 @@ ReturnType name(params) => expr     ->  ReturnType name(params) { return expr; }
 ```
 
 [`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md)
+<!-- prose-lint: ignore personified-verb -->
 §3.4 is unusually direct about this: `=> expr` is "**purely a surface
 shorthand**: it means exactly `{ return expr }` and adds no other behavior."
 [`types.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/types.md) §3.2
@@ -152,14 +152,14 @@ rewrite later anyway.
 
 **Two of the five swap their operands, and evaluation order survives it.**
 Operands are evaluated left to right, in written order, whatever operator they
-reach. The spec pinned above says nothing about operand order; spec
+reach. The spec pinned above is silent on operand order; spec
 [#184](https://github.com/zane-lang/spec/issues/184) raised the gap, and spec
 [#199](https://github.com/zane-lang/spec/pull/199) adds this rule to
 `operators.md` §2.3. An operator is an ordinary verb and only `~` must be pure
 (§4.1), so `f(log) > g(log)` can make two observable writes, and `f` has to make
 its write first.
 
-So a swapped call keeps its operands where they were written and says the
+So a swapped call keeps its operands where they were written and records the
 swap in a flag. `a > b` is an `Op` of `Less` with `left` `a`, `right` `b` and
 `swapped` set: evaluate `a`, evaluate `b`, then call `<` with `b` as its first
 argument. `a <= b` is the same call under a `Flip`. That costs one field on `Op`
@@ -182,7 +182,7 @@ to a `?` block that only resolves a default value."
 **CST → SST.** `Abort_handle.t` loses its `Shorthand` arm and becomes a plain
 record.
 
-**No binder is synthesized.** An earlier draft of this file said one would be,
+**No binder is synthesized.** An earlier draft of this file stated one would be,
 on the grounds that §3.1 requires a written binder even when the abort type is
 `Unit`. That rule is about what a `?` handler must write, and `??` is the form
 that writes neither the binder nor the block; inventing an identifier no source
@@ -286,9 +286,9 @@ declared type, since only the declaration states what type of handle the global 
 A type is never parenthesised, so the CST has no such node for one
 ([`proof-obligations.md`](../ambiguity/proof-obligations.md)).
 
-The one thing lost is the span *including* the parens — the inner node keeps
-its own span, which covers only what is inside them. Nothing on the roadmap
-wants the wider one; a formatter or a "redundant parentheses" lint would, and
+The only information lost is the span *including* the parens — the inner node
+keeps its own span, which covers only the text inside them. No planned feature
+needs the wider span; a formatter or a "redundant parentheses" lint would, and
 both would read the CST rather than the SST.
 
 ### 2.9 Trailing arguments
@@ -303,9 +303,9 @@ where the statement ends."
 
 This one is already half-done: the CST puts the trailing argument in the
 ordinary argument list and records only a `trailing : bool` beside it. The
-comment on `Verb_call.t` in `lib/cst/nodes.ml` says outright that "nothing
+comment on `Verb_call.t` in `lib/cst/nodes.ml` states outright that "nothing
 downstream of the parser reads it" — it exists because the two spellings do not
-*end* the same way, and `Statement_check` needs that to decide whether a `;`
+*end* the same way, and `Statement_check` needs that flag to check whether a `;`
 belongs. That check has already run by the time the SST is built, so the SST
 drops the flag.
 
@@ -314,7 +314,7 @@ drops the flag.
 
 ### 2.10 Statement defects
 
-`Statement.defect` records how a statement disagreed with the termination
+`Statement.defect` records how a statement broke the termination
 rules. `Cst.parse` runs `Statement_check.check` and returns `Error` when any
 defect is set, so a package that reaches the SST has `None` everywhere.
 
@@ -381,7 +381,7 @@ parses, type-checks, and is never called, because every `>` at a use site is
 rewritten into a `<` before any call is resolved. That is the worst kind of
 wrong: silent.
 
-The declaration production now admits `==`, `<`, `+`, `*` and `/` only, with
+The declaration production now accepts `==`, `<`, `+`, `*` and `/` only, with
 `~` keeping its own production as the one unary operator. The use sites are
 untouched — `a - b` and `a >= b` parse exactly as before, which is the point:
 the restriction is on what may be *declared*, not on what may be written.
@@ -390,14 +390,14 @@ grammar change fails it on exactly the four that were wrongly accepted.
 
 ## 4. Not the SST's job
 
-Each of these looks like a desugaring and is not, because each needs something
+Each of these looks like a desugaring and is not, because each needs information
 the syntax does not carry. They are listed so the refusal is on the record.
 
 | Construct | Why it is not a desugaring |
 |---|---|
-| `if`, `elif`, `else`, `guard`, `i!to(n)` | **Not sugar at all.** [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §1: "Zane has no `if` statement, no `loop` statement, and no exit keyword." They are `core` declarations called like any other verb, and they reach the SST as ordinary `Verb_call`s. Nothing to do — but a reader arriving from another language will expect an entry here, so this is it. |
+| `if`, `elif`, `else`, `guard`, `i!to(n)` | **Not sugar at all.** [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §1: "Zane has no `if` statement, no `loop` statement, and no exit keyword." They are `core` declarations called like any other verb, and they reach the SST as ordinary `Verb_call`s. Nothing to do — but a reader arriving from another language would look for an entry here, so this is it. |
 | `subject:method(a)` → `Pkg$method(subject, a)` | [`functions.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/functions.md) §2.6 titles this "Method desugaring", and the *qualified* form is indeed syntactic. The unqualified form rewrites to `ResolvedPkg$method`, and resolving that package is method lookup (§6.1), which needs the subject's type. §2.11 does the syntactic half. |
-| Block-taking verbs expanded at the call site | [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §2.3 requires it, and it is what makes `guard` exit the right frame. It needs the callee's declaration, across packages. A lowering, after typing. |
+| Block-taking verbs expanded at the call site | [`control-flow.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/control-flow.md) §2.3 requires it, and the expansion makes `guard` exit the right frame. It needs the callee's declaration, across packages. A lowering, after typing. |
 | `implicit` constructor insertion at coercion sites | [`types.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/types.md) §4.2. Needs both types at the site. |
 | `import pkg$` → an explicit member list | [`packages.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/packages.md) §3.3. Needs the other package's exported members. It is also name resolution rather than desugaring: "An import is a **spelling**, not a linkage." |
 | `Constructor_args.Positional` vs `.Fields` | Unifying them needs the constructor's declared field order. Both arms stay. |
@@ -422,5 +422,5 @@ the syntax does not carry. They are listed so the refusal is on the record.
 | `Statement.t` wrapper | statement + defect | `Stat.t` |
 | call shapes | `Func` \| `Meth` \| … | `Call` with a `form` \| … |
 
-Two things stay that a reader might expect to go: control flow (§4 — it was
+Two constructs stay that a reader might expect to go: control flow (§4 — it was
 never sugar) and `Constructor_args`' two arms (§4 — needs the declaration).
