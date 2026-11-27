@@ -663,14 +663,15 @@ there what it points at.
 
 The first draft left four questions open. These are the answers.
 
-**D12. A generic verb's body is checked once per instantiation, as a C++
-template is.** A parameter's only bound is `Type` or `@concepts$Int`
+**D12. A generic verb's body is checked once where it is declared and once
+per instantiation.** A parameter's only bound is `Type` or `@concepts$Int`
 (`generics.md` §3.3). So a body that writes `a + b` on a `T` has nothing to
 resolve `+` against until `T` is known. The signature is checked once. The body
 is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
-and the TST holds one body per instance. An error in a generic body is reported
-at the instantiation that exposed it, and names the call site that asked for
-it.
+and the TST holds one body per instance. The declaration-site check, below,
+reports what is wrong whatever `T` is. An error that only an instance exposes
+is reported at the origin of the instance's type arguments, with the chain of
+calls from there.
 
 An instance asked for while another is checked extends that one's chain of
 instantiations: `main` calling `f<Int>`, whose body calls `g<Pair<Int>>`, is

@@ -23,6 +23,15 @@ T rebuilt(x T Type) {
     named T = T.from(Int(2));
     return x;
 }
+// A local may mark a veiled type with `&` or `^`, as the parameter does.
+Unit lent(x &T Type) {
+    held &T = x;
+    return Unit();
+}
+^T roamed(x ^T Type) {
+    kept ^T = x;
+    return kept;
+}
 
 // Reported though nothing instantiates them.
 Int peeked(x T Type) => x.level;

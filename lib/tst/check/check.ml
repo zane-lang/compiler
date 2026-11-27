@@ -1733,13 +1733,13 @@ and declared_type env ctx (te : N.Type_expr.t) (value_ty : Ty.t) =
       | Type_decls.Declared d as head -> (
           match (Types.type_info env.types d.id, Ty.strip_mode value_ty) with
           | Some info, Ty.Named (tid, _) when info.params <> [] && tid = info.tid -> Ty.strip_mode value_ty
-          | Some info, Ty.Error when info.params <> [] -> Ty.Error
+          | Some info, ((Ty.Error | Ty.Veiled _) as t) when info.params <> [] -> t
           | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
       | Type_decls.Intrinsic_type info as head when info.params <> [] -> (
           match Ty.strip_mode value_ty with
           | Ty.Intrinsic { namespace; name = n; _ } when namespace = info.namespace && n = info.name ->
               Ty.strip_mode value_ty
-          | Ty.Error -> Ty.Error
+          | (Ty.Error | Ty.Veiled _) as t -> t
           | _ -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
       | Type_decls.Unknown -> Ty.Error
       | head -> Type_decls.apply env (type_scope ctx) te.N.Type_expr.span head name [])
