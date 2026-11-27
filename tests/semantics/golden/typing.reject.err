@@ -1358,6 +1358,14 @@ File "fixtures/typing/reject/bad/veiled.zn", line 69, characters 49-54:
 69 | Int heldLevel(this Keeper<T Type>) => this.held.level;
    |                                                 ^^^^^
 Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `heldLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 74, characters 43-48:
+74 | (this Keeper<T Type>)[n Int] => this.held.level;
+   |                                           ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `[]`)
+File "fixtures/typing/reject/bad/veiled.zn", line 78, characters 34-43:
+78 | Int keptRead(s Pannier<Tint>) => s[Int(1)];
+   |                                  ^^^^^^^^^
+Error: no method `read` accepts (bad$Tint); the candidate is `@primitives$I64 read(this bad$Vane)` (in `[]` with T = bad$Tint, at fixtures/typing/reject/bad/veiled.zn:76)
 File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:
 8 | Unit nested(this List<T Type> Type) => Unit();
   |                  ^^^^^^^^^^^^

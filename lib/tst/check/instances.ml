@@ -53,6 +53,21 @@ let origin_and_path requests (s : S.t) subst at =
       (origin, path @ [ Printf.sprintf "which calls %s at %s, %s" (quote s.name) (where at) (describe_link s subst) ])
   | None -> (at, [ describe_link s subst ])
 
+(* Runs [f], which types an instance at once instead of from the queue, as a
+   generic subscript's body is typed where a call reaches it: the instance
+   extends the chain it is asked for in, and reports its errors at that
+   chain's origin. The declaration-site check asks for no instances, so
+   there it notes the instance only. *)
+let in_instance env (s : S.t) subst at f =
+  match env.instances.requests with
+  | None -> with_note env (describe_instance s subst at) f
+  | Some requests ->
+      let origin, path = origin_and_path requests s subst at in
+      let saved = !(requests.current_path) in
+      requests.current_path := Some (origin, path);
+      Fun.protect ~finally:(fun () -> requests.current_path := saved) @@ fun () ->
+      at_origin env origin @@ fun () -> with_note env (describe_path path) f
+
 let verb_ref (s : S.t) subst =
   { T.Verb_ref.owner = s.owner; name = s.name; instance = binding_args s subst }
 
@@ -158,6 +173,7 @@ let request env ?(args = []) (s : S.t) subst at =
                  (quote s.name) instance_limit (describe_chain env chain))
           end
           else
+            let origin, path = origin_and_path requests s subst at in
             Stack.push
               {
                 p_decl = Names.decl env.names id;
@@ -165,8 +181,8 @@ let request env ?(args = []) (s : S.t) subst at =
                 p_subst = subst;
                 p_at = at;
                 p_chain = !(requests.current_chain);
-                p_origin = fst (origin_and_path requests s subst at);
-                p_path = snd (origin_and_path requests s subst at);
+                p_origin = origin;
+                p_path = path;
               }
               requests.pending
         end

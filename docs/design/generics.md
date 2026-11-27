@@ -2,8 +2,8 @@
 
 A generic type or verb is compiled once for each distinct set of arguments it is
 used at. This page covers two things about such an instance: which package it
-belongs to, and what it is called. How a generic body is type-checked, once where
-it is declared and once for each instance, is described in
+belongs to, and what it is called. How a generic verb's body is type-checked,
+once where it is declared and once for each instance, is described in
 [`semantics.md`](semantics.md) D12, and how instances
 reach the CGT in [`lowering.md`](lowering.md) L4.
 

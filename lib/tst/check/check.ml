@@ -1847,7 +1847,7 @@ and subscript_result env (d : decl) (s : S.t) subst at =
   | None -> (
       Hashtbl.replace env.instances.subscript_results key None;
       let body () = subscript_body env d s subst in
-      let checked = if subst <> [] then with_note env (describe_instance s subst at) body else body () in
+      let checked = if subst <> [] then in_instance env s subst at body else body () in
       match checked with
       | Some (locals, v) ->
           Hashtbl.replace env.instances.subscript_results key (Some v.T.Expr.ty);

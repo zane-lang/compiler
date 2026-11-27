@@ -944,7 +944,9 @@ signature does not show, is found in the instance. Pass 5 reports it at the
 origin of the instance's type arguments, the call outside every instance
 that began its chain, and the message names the path from there: each
 instance along the chain, where the one before it calls it, and the place in
-the body (`generics.md` §3.8). The analyses after pass 5 report such a
+the body (`generics.md` §3.8). A generic subscript's instance, which pass 5
+types where a call first reaches it instead of from the queue, extends the
+chain and reports at its origin the same way. The analyses after pass 5 report such a
 mistake inside the instance, with a note that names the instance and the
 call that required it.
 

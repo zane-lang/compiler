@@ -67,3 +67,12 @@ Unit veiledCalls() {
 // it yields is.
 type Keeper<T Type> = struct { held T; }
 Int heldLevel(this Keeper<T Type>) => this.held.level;
+
+// A generic subscript's body is checked the same way: a veiled use once,
+// where the body writes it, and an error only an instance exposes at the
+// origin of that instance's type arguments.
+(this Keeper<T Type>)[n Int] => this.held.level;
+type Pannier<T Type> = struct { held T; }
+(this Pannier<T Type>)[n Int] => this.held:read();
+Int keptLevel(k Keeper<Tint>) => k[Int(1)];
+Int keptRead(s Pannier<Tint>) => s[Int(1)];

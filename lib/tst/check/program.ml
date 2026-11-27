@@ -321,7 +321,9 @@ let run env (instances : instances) : T.Program.t =
                   s.S.generics
               in
               let env, note =
-                if instantiated d s then ({ env with diagnostics = ref []; uses = Uses.create false }, Printf.sprintf "in %s" (quote s.S.name))
+                if instantiated d s then
+                  ( { env with diagnostics = ref []; uses = Uses.create false },
+                    Printf.sprintf "in %s" (quote s.S.name) )
                 else (env, Printf.sprintf "in %s, which nothing instantiates" (quote s.S.name))
               in
               with_note env note
