@@ -27,7 +27,7 @@ open Traverse
 (* ---------------------------------------------------------------------- *)
 
 (* Whether one owner the function has, from the point where the function
-   first has it, reaches on every way out something that keeps it: the
+   first has it, reaches on every way out a keeper: the
    function's result, a place the caller lent the function, or a callee that
    keeps what it is given. On its way there the owner may sit in locals of
    the function's own, its carriers. Any use this analysis does not follow,
@@ -104,7 +104,7 @@ let rec lent_place a (e : Expr.t) =
   | _ -> false
 
 (* An expression evaluated in [st]: the state after it, and whether its value
-   is the owner, or holds it. [moving] is whether the value goes somewhere,
+   is the owner, or holds it. [moving] is whether the value moves to another place,
    rather than being read in place. *)
 let rec ex a st ~moving (e : Expr.t) =
   match st with
@@ -273,7 +273,7 @@ let followed (f : Func.t) ~entry ~start ~event ~refills ~keeps =
     true
   with Unknown -> false
 
-(* Whether the owner held in slot [h] is moved on. *)
+(* Tests whether the function moves the owner held in slot [h] on. *)
 let moved_on f h ~keeps =
   let is_h (e : Expr.t) = match e.Expr.node with Expr.Address x -> x = h | _ -> false in
   followed f ~entry:false
@@ -510,7 +510,7 @@ let take_params funcs (table, cloned) =
     Hashtbl.iter (fun s () -> Hashtbl.replace origin (taking s) s) made;
     (funcs, fun s -> Option.value ~default:s (Hashtbl.find_opt origin s))
 
-(* An arena is needed while something is held, reserved or spawned in it,
+(* An arena is needed while a value is held, reserved or spawned in it,
    or while a fresh owner moved into a callee that can drop it would
    otherwise go to an enclosing region. *)
 let needed ~wants ~keeps symbol id body =
@@ -874,7 +874,7 @@ let assigned_moves ?(owned = fun _ _ -> false) (f : Func.t) =
       | Some (before, s, rest) -> exclusive h before s @ (stat h s :: rest)
     (* [before] with the `then` branch of [s]'s `if` moving [h] too, when
        [s] is the `else` of a flag: `let f = { …; if(c) { T }; f := c }`
-       somewhere in [before], nothing after it mentions [h] but [s], and [s]
+       at some point in [before], nothing after it mentions [h] but [s], and [s]
        is `{ if(~f) { E }; … }`. `else` runs only when `then` did not, so a
        copy that is last in T is the last read on its path. *)
     and exclusive h before (s : Stat.t) =

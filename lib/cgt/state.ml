@@ -1,7 +1,7 @@
 (* Lowering's state (docs/design/lowering.md): the verbs and types a program
    has reached, what a TST local stands for where it is read, and the
-   context a body is lowered in. The way lowering refuses a construct it
-   cannot handle yet is here too, since every part of lowering can refuse. *)
+   context a body is lowered in. The error lowering raises for a construct
+   it cannot handle yet is here too, since every part of lowering can raise it. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -49,7 +49,7 @@ type binding =
   | Future of { settle : unit -> Stat.t list; at : Expr.t option }
 
 (* A block argument keeps the context it was written in, so its locals and
-   its `return` mean what they meant there. *)
+   its `return` resolve as they did there. *)
 and closure = { block : T.Block.t; ctx : ctx }
 
 and ctx = {
@@ -71,7 +71,7 @@ and ctx = {
   (* The code that ends this invocation with `Unit`: a return from the
      function, or leaving the expansion (control-flow.md §4.2). *)
   finish : Source.Span.t -> Stat.t list;
-  (* What `@controlflow$exitFromCall` does here: end the invocation that
+  (* The lowering of `@controlflow$exitFromCall` here: end the invocation that
      called the verb whose body the exit is in. *)
   exit_call : Source.Span.t -> Stat.t list;
   (* The block being lowered, which holds its reference-type locals (L8). *)
@@ -144,7 +144,7 @@ type state = {
   made : int Queue.t;
   (* The program's variables, latest first. *)
   mutable globals : Global.t list;
-  (* How many functions the compiler has made for spawned calls to verbs
+  (* The count of functions the compiler has made for spawned calls to verbs
      expanded where they are called, and to intrinsics. *)
   expanded : int ref;
   intrinsics : int ref;
