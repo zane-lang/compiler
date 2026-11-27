@@ -17,16 +17,15 @@ settles, in one pass rather than section by section. Until then:
   the claim can be rechecked rather than taken on trust.
 
 A choice the spec leaves open is recorded here when a running program can
-observe it, as §7 and §10 are. The rest sit beside the design they belong
+observe it. The rest sit beside the design they belong
 to: what the type checker determines is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
 lowering and the runtime place and represent things is in
 [`design/lowering.md`](design/lowering.md) §9.
 
-Entries below were checked against spec commit `034f11a`, and the links
-point at that commit so a later spec edit cannot silently make a quotation
-here disagree with what it links to. Re-pin them when the entries are
-rechecked. Where a claim is
+Each entry's links point at the spec commit the entry was last checked
+against, so a later spec edit cannot silently make a quotation here disagree
+with what it links to. Re-pin them when the entries are rechecked. Where a claim is
 about what the parser accepts, it was measured with
 `ambiguity search --check-tokens`, which reports how many parses a token
 sequence has: `0` is a syntax error, `1` is accepted.
@@ -41,244 +40,33 @@ an oversight.
 
 ---
 
-## 1. A match arm's terminator follows its body
+## 8. A write through a reference is judged by type
 
-**Spec** — [`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md)
-§5.1 and [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§4.8: the scrutinee is followed by "a `{ }` block of `;`-terminated arms", with
-the arm given as `[binder] selector => body ;`.
-[`lexical.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/lexical.md)
-§6.3 now says so in as many words: an entry of a `{ }` body "carries its `;`
-unconditionally [...] including an entry whose value ends in a `}` — that
-uniformity is what makes newlines insignificant inside a body, and it does not
-bend for the last entry or for any particular value shape."
+**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#43-single-writer-per-storage-location)
+§4.3: a spawn is lent every owner passed to it, and until its block drains
+the spawning scope "**MUST NOT** write a lent owner". "A write reached through
+a reference is a write of the owner the reference names."
 
-**Compiler** — an arm whose body is `=> expr` is terminated by `;`; an arm whose
-body is a `{ }` block is not, because the block already closes it.
+**Compiler** — where it can follow a reference to the owner it names, it
+applies that rule as written. Where it cannot, it judges the write by type: a
+write through a reference whose type may hold a lent owner counts as a write
+of that owner, so some programs that would not race are rejected.
 
 ```zane
-red { return "Red"; }     // accepted; `red { ... };` is rejected
-green => "Green";         // accepted; `green => "Green"` is rejected
-```
-
-This is the compiler's brace rule applied to an arm as though it were a
-statement. The spec draws the line elsewhere: the brace ends a *statement*, and
-an arm is an entry, which carries its terminator whatever its body looks like.
-Both rules are uniform; they differ over which uniformity an arm belongs to.
-
-The compiler follows the spec on the `=> expr` arm whose *value* ends in a
-brace, which keeps its `;` like any other entry:
-
-```zane
-wanted name => env:lookup(wanted) ? missing {
-    abort missing;
-};                        // accepted, and the `;` is required
-```
-
-## 2. A constructor call with nothing else to pass may not trail
-
-**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§4.9: "A call's **last** argument may instead **trail** [...] Only a `{ }`
-argument may trail", said of calls in general, and "An argument list with
-nothing left inside it still writes its `( )`".
-
-**Compiler** — a constructor call trails its last argument like any other
-call, wherever one is written: as a statement, as an expression, and in the
-instantiation shorthand of
-[`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§1.1. What it may not do is trail when that would leave the `( )` empty.
-
-```zane
-worker Thread(name) {           // the block trails the call
-    poll();
-}
-
-worker Thread(name, { poll(); });   // the same call, written in full
-worker Thread() { poll(); }         // not this call: a lambda literal
-```
-
-The last line is the whole of what is left, and it is not rejected — it is
-read as something else. `Foo() { ... }` is a **lambda literal** whose return
-type is `Foo`
-([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§3.8 lists `ReturnType() { body }` as a form of its own), and in statement
-position it is also a positional constructor declaration with a block body
-(§3.3). Nothing inside the form distinguishes those from a nullary
-constructor call with one trailing block: an empty argument list and an empty
-parameter list are the same `( )`, and a trailing block argument and a block
-body are the same `{ }`. A lower-case callee has no such reading, which is why
-`do() { ... }` is
-unambiguous and `Foo() { ... }` is not — the casing rule is doing the work.
-
-So what is left is a collision inside the spec rather than a place the
-compiler went its own way: §3.8 and §4.9 both claim the spelling, and neither
-says which wins. Until the spec settles it, the compiler reads it as §3.8 has
-it, and a constructor call whose only argument is a block writes the block
-inside the list — `Thread({ poll(); });`, which needs its `;` because it ends
-on the `)`.
-
-Measured with `--check-tokens`, `UIDENT LPAREN RPAREN LCURLY RCURLY EOF` has 1
-parse and `UIDENT LPAREN LIDENT RPAREN LCURLY RCURLY EOF` — the same call
-with something inside the brackets — has 1 parse as the trailing form.
-Admitting the nullary trailing reading gives `return Foo() { }` 2.
-
-What stood here before was wider: no constructor call could trail at all,
-because `Foo() { ... }` already spelled a constructor declaration with a block
-body (§3.3). That reason is real but it only reaches statement position, and
-the grammar was refusing the trailing form everywhere on the strength of it.
-Narrowing it to the empty argument list keeps every spelling the declaration
-and the lambda literal can take, and gives the rest back to the call.
-
-## 4. A `match` parenthesizes its scrutinee list
-
-**Spec** — [`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
-§4.8: a `match` "names one or more scrutinees — a bare `,`-separated list, never
-parenthesised — then a `{ }` block of `;`-terminated arms".
-[`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §5.6
-gives the reason: "Parenthesising them as `(state, event)` would imply a tuple
-to destructure — the pattern-matching road — so the list stays bare."
-
-**Compiler** — the list is written in `( )`. The semantics are the spec's: the
-scrutinees stay independent values matched jointly on their tags, with one
-selector per position and cross-product exhaustiveness.
-
-```zane
-result String = match (e) { … }            // accepted
-worst Severity = match (left, right) { … } // accepted
-result String = match e { … }              // rejected
-```
-
-The bare list is not a syntax the compiler can accept unambiguously. An `expr`
-may end in a brace of its own — a constructor's field body, a map literal, a
-call's trailing argument — so a bare scrutinee leaves the arms' `{` with two
-owners, and a binary operator gives each owner enough to finish on:
-`x Foo = match A { } <= B { }` has a complete derivation as
-`(match A { }) <= (B { })` and another as `match (A { } <= B) { }`. Measured at
-2 for every binary operator the language has, `{` carries no precedence level,
-and `docs/ambiguity/policy.md` does not permit two accepting parses to be
-narrowed afterward. The `)` ends the scrutinee before the brace is read.
-
-Nothing is lost to the tuple reading §5.6 guards against, because Zane has no
-`(a, b)` expression form for the list to collapse into: the parentheses delimit
-it rather than build a value from it. What the divergence does cost is the
-spelling, which is why it is recorded here rather than treated as a bug fix.
-Reconciling it means changing §4.8 and the §5.6 rationale together; if the spec
-later adds tuples, a tuple scrutinee needs its own `( )`.
-
-## 5. A `'` separates groups of digits in a numeric literal
-
-**Spec** — [`lexical.md`](https://github.com/zane-lang/spec/blob/c4295ca/spec/lexical.md)
-§7: "A numeric literal consists of digits and at most one `.`, which has at
-least one digit on each side." This entry was checked against `c4295ca`, which
-added that section, rather than the `034f11a` the others are pinned to.
-
-**Compiler** — a `'` may also sit between two digits before any `.`, and only
-separates them: it changes neither the value nor which concept type the
-literal carries. The digits after a decimal literal's `.` take no separator.
-
-```zane
-count Int = 1'000'000;        // accepted: an integer literal
-ratio Float = 1'000.25;       // accepted: a decimal literal
-bad Float = 1.000'001;        // rejected: no separator after the `.`
-bad Int = 1''000;             // rejected
-bad Int = 1'000';             // rejected
-```
-
-The separator predates the spec's section on numeric literals, which does not
-mention one. It needs a digit on each side, and `'` has no other use, so
-`2'*3` does not lex. Reconciling means either the spec adopting the separator
-or the lexer dropping it.
-
-## 6. An exit ends the run of a block
-
-**Spec** — [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
-§2.3 and §4.2: `@controlflow$exitFromCall` ends the invocation that called
-the verb containing it, and blocks are transparent to it, so a `guard` inside
-`i!to(n) { … }` ends the whole enclosing verb. That invocation must return
-`Unit`, and §3.6 calls `guard` straight from a verb's body.
-
-**Compiler** — the exit ends the run of the block the exiting verb's call is
-written in, and a call to an exiting verb is legal only inside a block. A
-verb's body must end in an explicit `return`, `Unit()` included
-([`error-handling.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/error-handling.md)
-§8), while a block yields nothing
-([`control-flow.md`](https://github.com/zane-lang/spec/blob/7159260/spec/control-flow.md)
-§2.4), so it has nothing to give and
-is the one thing an exit can end.
-
-```zane
-Unit sum(this Int) mut {
-	i Int(1);
-	i!to(Int(10)) {
-		guard(i == Int(3));   // skips this pass; the next one runs
-		this = this + i;
-	}
-	guard(this == Int(0));    // rejected: in no block
-	return Unit();
-}
-```
-
-A verb exits when the intrinsic is in its own frame: its body, or a block
-written there. `lib/tst/analyses/exits.ml` checks the calls, and
-`tests/semantics/fixtures/typing/reject/bad/exits.zn` is the rejected case.
-Reconciling means the spec adopting this reading.
-
-## 7. A spawned call's handler runs where the call settles
-
-**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
-§3.3: an abortable spawned call attaches `?` or `??` directly to the
-`spawn`, the bound symbol has the handled type, and reading it blocks until
-the call finishes. Nothing says when the handler runs, which thread runs it,
-or what happens when nothing reads the symbol.
-
-**Compiler** — the call settles once, on the thread that spawned it: where
-its local is first read, or where the block it is spawned in ends, when
-nothing has read it by then. Settling waits for the call. An abort runs the
-handler there, and an exit ends the run of the block the spawn is written in
-(§6), from there. A block left before it ends -- by a `return`, an exit or
-an `abort` -- still waits for the call as it drains, but runs no handler, and
-the outcome dies with the block.
-
-```zane
-q Int = spawn divide(Int(9), Int(0)) ? e {
-	runs = runs + Int(1);   // runs here, at the first read below
-	resolve Int(7);
-}
-check(q == Int(7));
-check(q == Int(7));         // settled already: the handler does not run again
-```
-
-`tests/codegen/fixtures/spawns` has these cases. Reconciling means the spec
-saying where the handler runs.
-
-## 8. A block does not write an owner it lent a running spawn
-
-**Spec** — [`concurrency.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/concurrency.md)
-§4.2 lets spawned work read the reference-type object graph without writing
-it, which makes "every concurrent **read** of the reference-typed object
-graph safe by construction". §4.3 keeps the spawning block off a location
-while a spawn holds its mutable borrow. Neither says anything about the
-spawning block writing an owner it passed to a spawn that only reads it, and
-that block keeps running while the spawn does.
-
-**Compiler** — a spawn written as a statement or bound by a `let` is lent
-every owner passed to it, directly or through a reference, until its block
-drains, and the block may not write one meanwhile: by assignment, as a `!`
-call's subject, or by moving it out. Where the owner a reference names cannot
-be followed, the write is judged by type, so some programs that would not race
-are rejected.
-
-```zane
-view &Dial = dial;
 seen Int = spawn glance(view);   // lent `dial`, through `view`
-dial.reading = Gauge(Int(3));    // rejected: `glance` may be reading it
-spawn dial.reading!nudge();      // accepted: written back (§4.4)
+other &Dial = spare;
+@controlflow$branch(flag, {
+	other = view;
+});
+other.reading!nudge();           // rejected, even when `flag` is false
 ```
 
 `lib/tst/analyses/spawns.ml` checks it, and
 `tests/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
-Reconciling means the spec stating a rule for this write, this one or
-another.
+Reconciling means following a reference to its owner in more of the cases
+where the type alone decides today.
+
+---
 
 ## 9. A case is not a type
 
@@ -301,21 +89,6 @@ Nothing is lost that the compiler could otherwise rely on: a value of a
 projected case type would still be the whole variant (§3.2), and the
 narrowing it enables is an optimization the tag jump already gives. Reconciling
 means adding the type form and its narrowing, or the spec dropping it.
-
-## 10. An index out of range stops the program
-
-**Spec** — silent. [`control-flow.md`](https://github.com/zane-lang/spec/blob/7fa876f/spec/control-flow.md)
-§5.2 fixes the ordinal base and leaves "the language-level behavior for
-out-of-range element access" as a separate question.
-
-**Compiler** — the program stops: what it wrote so far is flushed, the
-runtime writes `index out of range` to stderr, and the status is 1, for a list
-and an array alike.
-`tests/codegen/fixtures/range` and `tests/codegen/fixtures/bounds` are the
-cases, and [`design/lowering.md`](design/lowering.md) §9 the decision.
-
-Reconciling means the spec stating an outcome, or making element access
-abortable.
 
 ---
 
@@ -367,50 +140,6 @@ bounded walk §4.4 gives a value that owns boxed members.
 
 ---
 
-## 13. A publish function called outside its pool's work stops the program
-
-**Spec** — silent.
-[`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
-§6.2 gives each step call "a function value that publishes an event to the
-funnel", and a function value captures nothing (§5.2).
-
-**Compiler** — the function value is the same for every pool of one event
-type, and the runtime finds its pool through the work that is running: a
-step or funnel call of that pool, or a call spawned from one
-(`zane_context.workers`). A program that stores the function value and calls
-it later, from code outside that pool's work, stops with `a worker pool's
-publish function was called outside the work of its pool` and status 1.
-Called from another pool's work with the same event type, it publishes to
-that pool; with another event type, it stops the program the same way. The
-runtime compares event types by a hash of the type's symbol, which is the
-same in every object. `runtime/workers.c` (`zane_workers_publish`) is the
-decision.
-
-Reconciling means the spec stating what such a call does, or making the
-function value carry its pool.
-
----
-
-## 14. Missed timer ticks merge
-
-**Spec** — silent.
-[`concurrency.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/concurrency.md)
-§6.3: a timer "is ready each time that interval has passed since it was last
-ready", which leaves open what a step slower than its interval sees.
-
-**Compiler** — a timer is ready at most once per call of its step. When a
-call runs with the timer ready, the timer's next deadline becomes the first
-whole interval after the time of the call, so a step that ran past several
-intervals is called once more, not once for each interval it missed. A
-`register` on a timer
-([`control-flow.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/control-flow.md)
-§3.7) does the same. `runtime/workers.c` (`zane_consume`, `zane_tick`) is
-the decision.
-
-Reconciling means the spec stating whether missed ticks merge or queue.
-
----
-
 ## 15. A `comptime` call is given no local of its verb
 
 **Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
@@ -459,23 +188,6 @@ arguments evaluated apart from the call, and pools run by the evaluator.
 
 ---
 
-## 17. The build's arguments are given with `--build-argument`
-
-**Spec** — [`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
-§6.6: inside a call marked `comptime`, the runtime's `arguments` "gives the
-arguments the build was started with", which the spec does not otherwise
-define.
-
-**Compiler** — they are the values of the `--build-argument ARGUMENT`
-options `zanec` is given, in order, which `zane` passes on; with none, the
-list is empty. A program sees them only through a marked call.
-[`design/comptime.md`](design/comptime.md) K6 is the decision.
-
-Reconciling means the spec, or `zane`'s own documentation, saying how a
-build is given its arguments.
-
----
-
 ## Closed
 
 Kept briefly so a reader who remembers them can see they were closed on
@@ -490,8 +202,12 @@ never had, the next two when the spec gave a package-scope declaration the
 terminator a statement takes, the next when the spec stated what may
 continue a value that closes on a brace, the next, which was §3, when
 the compiler widened a form it had limited to constructors to every call,
-and the last, most of §11, when the spec dropped parking and the runtime
-gave a waiting pool thread a stand-in.
+the next, most of §11, when the spec dropped parking and the runtime
+gave a waiting pool thread a stand-in, and the last eleven when the spec
+adopted rules the compiler had settled first: spec PR
+[#298](https://github.com/zane-lang/spec/pull/298) carried nine of them,
+the spec had already settled the out-of-range entry, and the build's
+arguments turned out to belong to `zane`'s documentation.
 
 - **Statements are terminated, not separated.** The spec separated statements
   by newline and called it "the one place a newline is structural"; the
@@ -675,3 +391,74 @@ gave a waiting pool thread a stand-in.
   pool thread a stand-in while it waits in a join or a `register`, so the
   pool keeps its threads for the work that does not wait. What remains is
   §11.
+
+- **A `match` arm whose body was a block took no `;`.** The spec terminated
+  every arm, the same as every entry of a `{ }` body. It now ends a
+  block-bodied arm at its brace, as a statement ending in `}` is ended, and
+  keeps the `;` on an `=> expr` arm
+  ([`lexical.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/lexical.md#61--terminates-an-entry-inside--) §6.1).
+
+- **A constructor call with nothing else to pass did not trail.** The spec
+  let every call trail its last `{ }` argument, which collided with the
+  lambda literal `TypeName() { body }`. It now keeps a constructor call's
+  only block argument inside the `( )`, as the compiler did
+  ([`syntax.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/syntax.md#48-block-arguments-and-trailing-arguments) §4.8).
+
+- **A `match` parenthesized its scrutinee list.** The spec wrote the list
+  bare, which has two parses before a binary operator. It now writes
+  `match (e) { … }` and `match (a, b) { … }`, on the reasoning that the `( )`
+  delimits the list and forms no tuple
+  ([`syntax.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/syntax.md#47-match-expressions) §4.7,
+  [`adt.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/adt.md#56-matching-several-scrutinees) §5.6).
+
+- **A `'` separated groups of digits.** The spec's numeric literals had no
+  separator. It now takes `'` between two digits before the `.`, for the
+  reason the compiler had: `,` and `.` mean opposite things in American and
+  German notation, and the Swiss `'` means only grouping
+  ([`lexical.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/lexical.md#7-literals) §7). `parseI64` and `parseF64`
+  still read digits without it.
+
+- **An exit ended the run of a block.** The spec had an exit end the
+  invocation that called the exiting verb, which therefore had to return
+  `Unit`. It now ends the run of the innermost block the call is written in,
+  and a call to an exiting verb is legal only in a block, since a body ends in
+  the `return` its verb needs
+  ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#23-a-block-is-transparent-to-return-and-abort-and-an-exit-ends-its-run)
+  §2.3, §3.6, §4.2).
+
+- **A spawned call's handler ran where the call settled.** The spec did not
+  say when or where. It now settles the call once, on the spawning thread, at
+  the first read of its symbol or where its block ends, and a block left early
+  runs no handler
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#33-abortable-spawned-calls-are-handled-at-the-spawn-site) §3.3).
+
+- **A block did not write an owner it lent a running spawn.** The spec said
+  nothing about the spawning block's own writes. It now lends a spawn every
+  owner passed to it and bars the spawning scope from writing one until the
+  block drains (§4.3, linked from §8). What remains is §8: where the compiler
+  cannot follow a reference, it judges the write by type.
+
+- **An index out of range stopped the program.** The spec had left the
+  outcome open. It now stops the program for a position or a range outside its
+  sequence ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#52-a-position-outside-its-sequence-stops-the-program)
+  §5.2), with a status other than `0`
+  ([`packages.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/packages.md#63-a-program-ends-with-an-exit-status) §6.3),
+  which the compiler's status 1 is.
+
+- **A publish function called outside its pool's work stopped the program.**
+  The spec did not say. It now has a publish function publish to the pool of
+  its event type whose work is running the call, and stop the program where
+  none is
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#65-the-funnel-is-the-one-writer-of-the-shared-state) §6.5).
+
+- **Missed timer ticks merged.** The spec did not say what a step slower than
+  its interval sees. A timer is now ready at most once per call of its step,
+  with its next deadline the first one on its schedule after the call
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#63-when-a-step-runs) §6.3).
+
+- **The build's arguments came from `--build-argument`.** The spec's
+  `arguments` inside a `comptime` call gives "the arguments the build was
+  started with", and how a build is started belongs to the tool that starts
+  it. `zane`'s own
+  [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)
+  documents `--build-argument`, which it passes on to `zanec`.

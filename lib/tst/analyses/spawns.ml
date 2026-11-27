@@ -15,10 +15,11 @@
    bound by a `let`, keeps its borrow.
 
    Such a lasting spawn is also lent every owner it is passed, directly or
-   through a reference, and may read that owner until the same drain. The spec
-   leaves the lending block free to write an owner it lent; here the block may
-   not write it directly, through a `!` call, by moving it, or through a
-   reference that may name it (docs/spec-divergences.md §8). *)
+   through a reference, and may read that owner until the same drain, and the
+   block may not write it directly, through a `!` call, by moving it, or
+   through a reference that may name it (§4.3). Where a reference cannot be
+   followed to its owner, the write is judged by type, which rejects more
+   than the spec does (docs/spec-divergences.md §8). *)
 
 module T = Nodes
 module S = Signature

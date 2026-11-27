@@ -1406,7 +1406,7 @@ test passing.
   loop, which no atomic load allows.
 - **An owner lent to a running spawn.** The spawning block may not write an
   owner it lent a spawn that may still be reading it; the checker rejects
-  that write ([`spec-divergences.md`](../spec-divergences.md) §8), so the
+  that write ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#43-single-writer-per-storage-location) §4.3), so the
   only writes that race a reader are spawned write-backs, which the
   snapshots above cover.
 - **Where a spawned call is waited for.** Only a spawned call bound by a
@@ -1419,7 +1419,7 @@ test passing.
   result's blocks under the done tag, the abort value's under the
   aborted one. The call settles once, on the spawning thread, where it is
   first read or where its block ends
-  ([`spec-divergences.md`](../spec-divergences.md) §7). A flag the spawn sets
+  ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#33-abortable-spawned-calls-are-handled-at-the-spawn-site) §3.3). A flag the spawn sets
   records whether it has. An abort takes the abort value out of the slot and
   runs the handler written at the spawn, lowered where it settles but in
   the context of the spawn, so its `abort`, `return` and exit go where they
@@ -1600,7 +1600,7 @@ test passing.
   sum of three cases instead: done with its result, aborted with its abort
   value, and exited. A function that can only finish returns its result as
   before. An exit ends the run of the block the call is written in
-  ([`spec-divergences.md`](../spec-divergences.md) §6), so each run of a block
+  ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#23-a-block-is-transparent-to-return-and-abort-and-an-exit-ends-its-run) §2.3), so each run of a block
   argument has a label to leave.
 - **A 64-bit target.** Lowering sizes every type, a sum's payload room
   included, for 8-byte pointers, `i64` and `double` aligned to 8, and C
@@ -1623,9 +1623,9 @@ test passing.
   value over `-1`, wraps, as `+` and `*` do. A conversion is one CGT node,
   `Convert`, whose instruction the source and target types pick, and the
   optimizer folds a truncation by the bounds `Scalar.truncation` gives.
-- **An index out of range.** The spec leaves it open ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md)
-  §5.2, [`spec-divergences.md`](../spec-divergences.md) §10). Until the spec
-  settles it, the program stops:
+- **An index out of range.** The program stops
+  ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#52-a-position-outside-its-sequence-stops-the-program) §5.2), with a
+  status other than `0` ([`packages.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/packages.md#63-a-program-ends-with-an-exit-status) §6.3):
   what it wrote so far is kept, the runtime writes `index out of range` to
   stderr, and the status is 1, for a list and an array alike, and for a
   list's `remove` and `swapRemove`, which find the element they move out
@@ -1945,8 +1945,8 @@ test passing.
 
   A failed check stops the program after flushing its output, so moving
   a stop earlier on a path where no call writes output in between is not
-  seen outside the program (§10 of
-  [`spec-divergences.md`](../spec-divergences.md) says what a stop is).
+  seen outside the program ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#52-a-position-outside-its-sequence-stops-the-program)
+  §5.2 says what a stop is).
   The emitted code itself also takes, in every build: a scalar's alias
   tag by its size, so a
   one-byte store leaves the wider scalars read around it in registers; and

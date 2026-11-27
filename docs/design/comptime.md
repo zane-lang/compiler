@@ -5,8 +5,8 @@
 > ([`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
 > §5.6, [`syntax.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/syntax.md)
 > §4.10). Each decision is numbered (**K1**…). Where the compiler accepts less
-> than the spec, [`spec-divergences.md`](../spec-divergences.md) §15–§17 say
-> so.
+> than the spec, [`spec-divergences.md`](../spec-divergences.md) §15 and §16
+> say so.
 
 Stage 5 ([`optimization.md`](optimization.md)) evaluates at compile time
 what it can, within budgets, and only in an optimized build: an implicit

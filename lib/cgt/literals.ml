@@ -82,7 +82,7 @@ let rec literal_of ctx (e : T.Expr.t) =
   | _ -> e
 
 (* A numeric literal's digits, without the `'` that only separates groups of
-   them (docs/spec-divergences.md §5). *)
+   them (lexical.md §7). *)
 let digits s = String.concat "" (String.split_on_char '\'' s)
 
 (* A storage primitive's constructor embeds its literal (types.md §2.7). *)
