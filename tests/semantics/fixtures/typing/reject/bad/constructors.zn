@@ -13,8 +13,26 @@ Hue{level Int;} => Hue.amber;
 Ledger{count Int;} => Ledger.some(count);
 
 // `init{ }` assigns a struct's fields, which an enum or variant has none of.
+// The values it is given are still checked.
 Hue.blank() => init{}
 Ledger.blank() => init{}
+Hue.tinted() => init{ level = unlit; }
+
+// A name that fixes every type argument builds that type, so a generic
+// constructor that would infer another from the call is refused.
+type Pouch<T Type> = struct { held T; }
+Pouch<T>(x T Type) => init{ held = x; }
+alias IntPouch = Pouch<Int>;
+type Draw<T Type> = variant { one T; none Unit; }
+Draw<T>(x T Type) => Draw.one(x);
+alias IntDraw = Draw<Int>;
+
+Unit pouches() {
+    fits IntPouch(Int(1));
+    misbuilt Pouch<String> = IntPouch(String("x"));
+    drawn Draw<String> = IntDraw(String("y"));
+    return Unit();
+}
 
 // A variant without an anonymous constructor is still built by a case.
 type Mark = variant { on Unit; off Unit; }

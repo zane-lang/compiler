@@ -866,6 +866,14 @@ then the named constructors. `Countdown()` with no name always reaches the
 constructors. When a variant declares none, the error suggests naming a case
 instead.
 
+**A name that fixes every type argument builds that type.** An alias such as
+`alias IntPick = Pick<Int>` and a type parameter bound in an instance each
+name a type with no argument left to infer. A generic constructor
+`Pick<T>(x T Type)` could still infer `T` from the call, so `IntPick(String("x"))`
+would build a `Pick<String>`. The check compares the result with the type the
+name builds and refuses the call when the two differ, for a struct, an enum
+and a variant alike.
+
 **A field constructor and a positional one are separate overload sets.** They
 are called with different brackets, so no call could confuse the two, and
 `types.md` §3.3 gives a type both.
