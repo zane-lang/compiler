@@ -200,7 +200,7 @@ let with_program ?target ?pack ?(memoize = false) ?version ?tiered ?fixed_region
 
 (* The packages' C as the program links it, for stage 5 to evaluate
    (docs/design/ffi.md F16): each package's module renamed and linked, and
-   the retained ones of stamped dependencies beside them, in a context of
+   the retained modules of stamped dependencies beside them, in a context of
    their own that lives only while [f] runs. A package's objects and
    archives run their constructors in the program, and those may write the
    C globals [f] would read from their initializers, so when any package

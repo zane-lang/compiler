@@ -66,7 +66,7 @@ let encode ctx b p =
   let distance = Llvm.build_sub (Llvm.build_ptrtoint p i64 "" b) (Llvm.build_ptrtoint (image b) i64 "" b) "" b in
   fitting ctx b (narrow ctx b distance) distance
 
-(* A loaded pointer that always names something aligned, a block's start
+(* A loaded pointer that always names an aligned address, a block's start
    or a runtime record, is marked so with `!align`: a packed value may be at any
    byte, so a read or write is only as aligned as its address is known to
    be (Alignment), and this is how that is known for an address read from
@@ -200,7 +200,7 @@ let encode_box ctx b p =
     in
     fitting ctx b (narrow ctx b distance) distance
 
-(* The bytes of a list's first block when its first push asks for [bytes]
+(* The bytes of a list's first block when its first push needs [bytes]
    of elements [stride] wide, as runtime/list.c sizes it. *)
 let first_room ~bytes ~stride =
   let room = min Abi.list_first (max Abi.list_least (4 * stride)) in

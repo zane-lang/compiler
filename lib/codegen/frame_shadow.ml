@@ -19,7 +19,7 @@
    another thread or a stored pointer may reach the frame, every store
    writes the slot too. The record's skip and an inline scope entry's
    room check name the frame without reaching its slots. A frame whose
-   address escapes any other way (an offset that is not a constant, a
+   address escapes by any other route (an offset that is not a constant, a
    merge with another pointer) is left alone. *)
 
 let callee i =
@@ -63,11 +63,11 @@ let gep_offset dl p =
    through phis and selects whose every input is at the same offset.
    [seen] holds the phis and selects already reached, with what this
    returns for them: their offset, [Some None] while one is being worked
-   out, which a loop back to it agrees with, or [None] where one has none.
+   out, which a loop back to it matches, or [None] where one has none.
    A failure is kept as well as an offset, or a web of phis that reach
    each other by many paths would be walked again along each. A phi that
    fails while one it reaches is still being worked out fails whatever
-   that one's offset turns out to be, since the loop back agreed with
+   that phi's offset turns out to be, since the loop back matched
    every offset. *)
 let rec offset_from dl seen base p =
   if p == base then Some (Some 0L)
@@ -79,7 +79,7 @@ and reach dl seen base p =
   | Llvm.ValueKind.Instruction Llvm.Opcode.GetElementPtr -> (
       match (gep_offset dl p, offset_from dl seen base (Llvm.operand p 0)) with
       | Some d, Some (Some o) -> Some (Some (Int64.add d o))
-      (* Only a step of zero agrees with the offset a loop back to an
+      (* Only a step of zero matches the offset a loop back to an
          unresolved merge is given. *)
       | Some 0L, Some None -> Some None
       | _ -> None)
@@ -434,8 +434,8 @@ let visit_frame dl ~followed ~parallel base =
 
 let size dl t = Llvm_target.DataLayout.store_size t dl
 
-(* Whether an access at [o'] of [t'] holds all of the slot at [o] of [t],
-   and more. *)
+(* Tests whether an access at [o'] of [t'] holds all of the slot at [o] of
+   [t] and is larger than the slot. *)
 let covers dl (o', t') (o, t) = o' <= o && Int64.add o' (size dl t') >= Int64.add o (size dl t) && size dl t' > size dl t
 
 (* The slots: each offset loaded at least once, where every access that
@@ -555,7 +555,7 @@ let refilled s c = reached s c 0
    the source for a `memcpy` or `memmove`. *)
 let read s c = match callee c with Some n when starts "llvm.memset" n -> [] | _ -> reached s c 1
 
-(* The copies that may hold what their slots do not, at each call and
+(* The copies that may hold values their slots do not, at each call and
    load: stored since the frame was last filled into them or they were
    written back to it, on some path from where the frame is placed. Only
    those are written back, so a call a loop makes each pass writes back
@@ -565,7 +565,7 @@ type dirt = { dirty_at : (Llvm.llvalue, (int64 * Llvm.lltype * Llvm.llvalue) lis
 
 type event = Dirty of (int64 * Llvm.lltype * Llvm.llvalue) | Agree of (int64 * Llvm.lltype * Llvm.llvalue) list | Reads of (int64 * Llvm.lltype * Llvm.llvalue) list
 
-(* What each instruction does to the copies: a store to one dirties it, a
+(* Each instruction's effect on the copies: a store to one dirties it, a
    wider store fills them again, a wider load and a call write back those
    they reach. *)
 let events s =
