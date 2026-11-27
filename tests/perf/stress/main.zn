@@ -486,7 +486,7 @@ Int matrix(n Int, round Int) {
 }
 
 // ---------------------------------------------------------------------
-// Branches no predictor learns: sorting and searching random numbers.
+// Branches no branch predictor can pick up: sorting and searching random numbers.
 
 Int partition(this ListRef<Int>, low Int, high Int) mut {
 	pivot Int = this[high];
@@ -582,7 +582,7 @@ Table(slots Int) => init{
 
 Int home(this Table, key Int) => @operators$add(Int(1), modulo(times(key, Int(2654435761)), this.slots));
 
-/// Counts `key` once more, in its slot or the first free one after it.
+/// Counts `key` once more, in its slot or the first free slot after it.
 Unit insert(this Table, key Int) mut {
 	at Int = this:home(key);
 	probe Int(1);
@@ -599,7 +599,7 @@ Unit insert(this Table, key Int) mut {
 	return Unit();
 }
 
-/// How many times `key` was counted.
+/// The count of times `key` was counted.
 Int find(this Table, key Int) {
 	at Int = this:home(key);
 	probe Int(1);
@@ -785,7 +785,7 @@ Int fibonacci(n Int, round Int) {
 /// calls of a section are equal and every round runs the section's work
 /// rather than finding its result in a table (docs/design/memoization.md).
 /// The seeds are fixed, each a constant plus the round, so every run with
-/// the same argument does the same work and prints the same.
+/// the same argument does the same work and prints the same output.
 Unit main() {
 	rounds Int = scale();
 	names ListRef<String> = @primitives$ListRef(String);

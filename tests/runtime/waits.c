@@ -69,7 +69,7 @@ void zane_main(void) {
 	check(test_now() - before < S && next > before && (next - late) % (10 * S) == 0);
 
 	/* A deadline past the largest time an int64_t holds becomes that time,
-	   both as the first deadline and as the one after a tick. The tick's
+	   both as the first deadline and as the deadline after a tick. The tick's
 	   own deadline here is already past, so it waits not at all. */
 	check(zane_tick_start(INT64_MAX) == INT64_MAX);
 	check(zane_tick(INT64_MAX, 1) == INT64_MAX);
