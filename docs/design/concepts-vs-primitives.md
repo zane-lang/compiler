@@ -5,7 +5,7 @@ Two intrinsic namespaces carry types no package declares
 
 ## Concepts: what the source wrote
 
-`@concepts$` names the types of things that have no storage of their own:
+`@concepts$` names the types of values that have no storage of their own:
 
 - the literals — `@concepts$Int`, `@concepts$Float`, `@concepts$String`,
   `@concepts$Array<T, n>`, `@concepts$Map<K, V>`;
@@ -24,7 +24,7 @@ reaches the CGT.
 search's `ByteSet`, and the worker pool's `WorkerPool<T, S, E>` and
 `EventSource`. Packages build types on them — an `Int`
 can be a struct around an `@primitives$I64`, as [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 describes
-`core`'s — or write them directly, under an alias if they like. A primitive
+`core`'s — or write them directly, under an alias if their authors like. A primitive
 has no operators; the `@operators$` functions are what a package's own
 operators are written over.
 
@@ -41,7 +41,7 @@ costs what an `i64` costs.
 
 Concepts let a literal or a block be checked before it is known where it
 will be stored: `20` is an `Integer` until a parameter or a field declares which
-integer type it becomes. Primitives are the opposite: they say exactly what
+integer type it becomes. Primitives are the opposite: they state exactly what
 the machine holds, and nothing about how the source spelled it. Keeping them
 apart means the front end reports errors in the terms the author wrote, and
 codegen sees only types with a layout.

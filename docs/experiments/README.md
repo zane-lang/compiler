@@ -23,9 +23,9 @@ Every experiment follows the same shape, so a reader knows where to look:
 | `programs/` | The Zane (and Goose or C) programs measured, one package per directory |
 | `results/` | Raw outputs the README quotes: `.txt`, `.tsv`, `.json` |
 
-A new experiment copies that shape. Its directory name says what was measured,
-not when; the README's first lines say which commit it ran on and whether its
-switches still exist.
+A new experiment copies that shape. Its directory name names the quantity
+measured, not the date; the README's first lines give the commit it ran on and
+whether its switches still exist.
 
 ## Index
 
@@ -40,7 +40,7 @@ switches still exist.
 | [`prefetch-reorder/`](prefetch-reorder/README.md) | Prefetching and reordering random memory access | C model, then `zanec`; interleaving ([`interleaving.md`](../design/interleaving.md)) |
 | [`runtime-attrs/`](runtime-attrs/README.md) | The attributes the runtime's declarations give LLVM | Kept: `lib/codegen/runtime_facts.ml` |
 | [`subject-regions/`](subject-regions/README.md) | Whether a context's regions can go without a lock | Kept: subject regions are the only design |
-| [`tight-layouts/`](tight-layouts/README.md) | Whether dropping tail padding pays | The `niche` layout is the only one; switches removed |
+| [`tight-layouts/`](tight-layouts/README.md) | Whether dropping tail padding pays | The `niche` layout is the only layout; switches removed |
 | [`unroll-thresholds/`](unroll-thresholds/README.md) | The unroll budgets `Passes.llvm_options` sets | Kept: `-unroll-threshold=250`, `-unroll-partial-threshold=100` |
 
 ## Elsewhere
