@@ -145,8 +145,10 @@ type state = {
   (* The program's variables, latest first. *)
   mutable globals : Global.t list;
   (* The count of functions the compiler has made for spawned calls to verbs
-     expanded where they are called, and to intrinsics. *)
+     expanded where they are called. *)
   expanded : int ref;
+  (* The count of functions the compiler has made for spawned calls to
+     intrinsics. *)
   intrinsics : int ref;
   (* Each field constructor's defaults, by entry slot, by verb key. *)
   defaults : (string, (int * T.Expr.t) list) Hashtbl.t;

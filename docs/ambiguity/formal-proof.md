@@ -59,8 +59,9 @@ The checks follow the same pipeline as the Python tools:
 
 An unverified producer computes the evidence for every stage: quotient maps,
 angle sets, determinization vectors, minimization maps, witnesses and the
-certificate. The verified checks accept or reject that evidence. No producer
-needs to be correct for a `true` answer to carry its theorem's statement.
+certificate. The verified checks accept or reject that evidence. Each
+soundness theorem derives its statement from a `true` answer, so no producer
+needs to be correct for that statement to hold.
 
 ## Run it
 

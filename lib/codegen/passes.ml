@@ -13,10 +13,10 @@
 (* The passes an unoptimized build runs (docs/design/optimization.md O12):
    inlining the functions [Wrappers.mark] picks, which takes the call out of
    each of `core`'s one-line wrappers over an intrinsic, then putting the
-   wrappers' scalars back in registers, folding the values that makes constant and
-   merging the blocks left behind, with no branch made a select yet, then
-   jump threading and merging again. Each takes time in proportion to the
-   instructions it reads. Jump threading before the first merge copies
+   wrappers' scalars back in registers, folding the values that step makes
+   constant and merging the blocks left behind, with no branch made a select
+   yet, then jump threading and merging again. Each takes time in proportion
+   to the instructions it reads. Jump threading before the first merge copies
    blocks the merge would have joined. Scalar replacement of aggregates and
    instruction combining are left out: on a value array of thousands of
    elements they take longer than the whole `-O2` pipeline. *)

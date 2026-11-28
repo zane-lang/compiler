@@ -184,7 +184,8 @@ runtime; `tsan.sh` builds a package so and counts reports. Results in
 `constantCycle`, `constants`, `expressions`, `folding`, `interpolation`,
 `keeping`, `lambdas`, `spawnSubjects`, `spawned`, `spawnedFrames`,
 `spawns`, `walks`), for `race 3000` and for `reader 2000`.
-`constantCycle` and `spawnedFrames` fail on purpose, as their goldens record
+`constantCycle` and `spawnedFrames` fail on purpose, as their
+`expected-status` files record
 (`spawnedFrames` without its `--spawned-fixed-region` flag reports 8 MiB
 for 2). `tests/ffi`'s `handles` and `tests/objects`' `memolibraryuser`,
 which need packages `tsan.sh` does not pass, were not run. That TSan sees these programs' races at

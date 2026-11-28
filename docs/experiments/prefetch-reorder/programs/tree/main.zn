@@ -85,7 +85,7 @@ type Node = struct {
 Node(key Int, left I32, right I32) => init{ key; left; right; }
 
 /// Places the keys `lo` to `hi` - 1 as a subtree, its root at the id
-/// `ids` gives the middle key, and returns that id, 0 for none.
+/// `ids` holds for the middle position, and returns that id, 0 for none.
 Int build(this ListRef<Node>, ids ListRef<Int>, lo Int, hi Int) mut {
 	@controlflow$branch(@operators$not(below(lo, hi)), {
 		return Int(0);

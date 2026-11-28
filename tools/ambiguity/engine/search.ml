@@ -327,7 +327,7 @@ let next_bucket s =
       s.current_depth
 
 (* One frontier taken from the queue: recorded as a witness when two
-   derivations accept it, and its successors added to the queue. *)
+   derivations accept it, and its successors offered to [admit]. *)
 let expand s item =
   s.expanded <- s.expanded + 1;
   s.last_depth <- item.depth;

@@ -2,7 +2,7 @@
    (docs/design/memoization.md): which functions get a table (M1), how each
    such function is split into a body copy and a plain copy beside the
    dispatcher that codegen emits (M2), what a lookup is charged and a hit
-   credited (M3), and the loops that check once whether their calls look
+   credited (M3), and the loops that pick once whether their calls look
    up their results (M4). *)
 
 open Nodes

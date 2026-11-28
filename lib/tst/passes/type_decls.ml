@@ -1035,7 +1035,7 @@ let check_distinct_cycles env () =
    the intrinsic generics too -- gives an edge from each parameter of `A` an
    argument names to the parameter of `B` it is passed as: plain when the
    argument is that parameter itself, growing otherwise. A path from one of
-   `A`'s parameters to another of them is a cycle from `A` back to itself, and
+   `A`'s parameters to another of them leads from `A` back to `A`, and
    the argument it passes back grows when the path takes a growing edge. So a
    growing edge breaks the rule when some declaration has a parameter that
    reaches the edge and a parameter the edge reaches. That is wider than a

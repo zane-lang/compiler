@@ -23,8 +23,8 @@ Every experiment follows the same shape, so a reader knows where to look:
 | `programs/` | The Zane (and Goose or C) programs measured, one package per directory |
 | `results/` | Raw outputs the README quotes: `.txt`, `.tsv`, `.json` |
 
-A new experiment copies that shape. Its directory name names the quantity
-measured, not the date; the README's first lines give the commit it ran on and
+A new experiment copies that shape. Its directory name names the experiment's
+subject, not its date; the README's first lines give the commit it ran on and
 whether its switches still exist.
 
 ## Index

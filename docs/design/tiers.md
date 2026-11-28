@@ -39,8 +39,8 @@ for its arrival rather than for the last few percent: on that program it
 gave a result in 10.6 s, against 18.3 s plain and 31.8 s optimized.
 
 **T3. Both tiers emit the same module, and each carries its fingerprint.**
-Tier 1 lowers the tree tier 0 does, since it skips stage 5, and plans the
-calls it memoizes from that tree alone ([`memoization.md`](memoization.md) M1).
+Tier 1 lowers the tree tier 0 does, since it skips stage 5, and plans which
+functions' calls it memoizes from that tree alone ([`memoization.md`](memoization.md) M1).
 So the two emit the same LLVM module, and each takes a hash of it before
 anything changes it (`Tiers.fingerprint`). The runtime loads tier 1 only
 into the program whose fingerprint it carries, so a library left from

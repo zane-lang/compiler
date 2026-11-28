@@ -36,12 +36,12 @@ let handle w ?resolve ?dropped st ctx (h : T.Handler.t) label result span (value
   close st scope body
 
 (* L13. The scrutinees are reached once, in order, and a switch on each one's
-   tag nests inside the switch on the previous scrutinee's; the semantic pass wrote
-   one arm per combination of cases, so each arm is lowered once, where its
-   combination is reached. A binder is the address of its case's payload, in
-   the scrutinee's own storage when the scrutinee is a place, so a write
-   through the binder is a write to the payload. A `return` in an arm gives
-   the `match`'s value. *)
+   tag nests inside the switch on the previous scrutinee's tag; the semantic
+   pass wrote one arm per combination of cases, so each arm is lowered once,
+   where its combination is reached. A binder is the address of its case's
+   payload, in the scrutinee's own storage when the scrutinee is a place, so a
+   write through the binder is a write to the payload. A `return` in an arm
+   gives the `match`'s value. *)
 let match_ w st ctx span scrutinees (arms : T.Arm.t list) handler ret =
   let t = ty st span ret in
   let label = fresh st in

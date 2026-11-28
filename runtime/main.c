@@ -28,9 +28,10 @@
    or BUFSIZ. It is flushed when it fills and when the program ends, and,
    when stdout is a terminal, at every print that writes a newline, as
    stdio flushes a terminal's lines. Writers take the mutex, and touch the
-   buffer only once they have claimed `busy`, from 0 (free) to 1. The fault
-   handler sets it from 0 to 2 without the mutex, so a writer that holds the
-   mutex and has not claimed it yet has not touched the buffer; a writer
+   buffer only once they have claimed `busy`, from 0 (free) to 1. On the
+   fault path, `zane_flush_output_in_fault` claims it from 0 to 2 without the
+   mutex, so a writer that holds the mutex and has not claimed it yet has not
+   touched the buffer; a writer
    that finds 2 waits for the program to end. A write that fails drops what
    it held and marks the output failed. */
 static char *zane_out;

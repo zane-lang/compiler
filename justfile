@@ -175,10 +175,14 @@ prose:
 	command -v uv >/dev/null || { echo 'just prose needs uv on PATH: https://docs.astral.sh/uv/' >&2; exit 1; }
 	dir="${XDG_CACHE_HOME:-$HOME/.cache}/prose-lint/58c23886b093aaa76d3f5281d8340813805f22c3"
 	if [ ! -d "$dir" ]; then
-		rm -rf "$dir.tmp"
-		git clone -q https://github.com/zane-lang/prose-lint "$dir.tmp"
-		git -C "$dir.tmp" checkout -q 58c23886b093aaa76d3f5281d8340813805f22c3
-		mv "$dir.tmp" "$dir"
+		# Each run clones into its own directory and links the cache path to
+		# it. Creating the link fails when the path exists, so when two first
+		# runs race, the run that links second deletes its own clone.
+		mkdir -p "$(dirname "$dir")"
+		tmp="$(mktemp -d "$dir.XXXXXX")"
+		git clone -q https://github.com/zane-lang/prose-lint "$tmp"
+		git -C "$tmp" checkout -q 58c23886b093aaa76d3f5281d8340813805f22c3
+		ln -sn "$tmp" "$dir" 2>/dev/null || rm -rf "$tmp"
 	fi
 	uv run --frozen --project "$dir" prose-lint .
 

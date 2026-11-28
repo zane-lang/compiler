@@ -5,7 +5,8 @@ Two intrinsic namespaces carry types no package declares
 
 ## Concepts: what the source wrote
 
-`@concepts$` names the types of values that have no storage of their own:
+`@concepts$` names the types of values and block arguments that have no
+storage of their own:
 
 - the literals — `@concepts$Int`, `@concepts$Float`, `@concepts$String`,
   `@concepts$Array<T, n>`, `@concepts$Map<K, V>`;

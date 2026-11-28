@@ -510,9 +510,9 @@ let take_params funcs (table, cloned) =
     Hashtbl.iter (fun s () -> Hashtbl.replace origin (taking s) s) made;
     (funcs, fun s -> Option.value ~default:s (Hashtbl.find_opt origin s))
 
-(* An arena is needed while a value is held, reserved or spawned in it,
-   or while a fresh owner moved into a callee that can drop it would
-   otherwise go to an enclosing region. *)
+(* An arena is needed while it holds a value, reserves a slot or hosts a
+   spawned call, or while a fresh owner moved into a callee that can drop it
+   would otherwise go to an enclosing region. *)
 let needed ~wants ~keeps symbol id body =
   let wanted =
     match Hashtbl.find_opt wants (symbol, id) with

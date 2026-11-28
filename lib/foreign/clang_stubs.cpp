@@ -206,7 +206,7 @@ value to_value(const Run &r) {
 }
 
 /* What a header declares, written as text for interface.ml to read: a
-   stream of words, each a bare token or, for an identifier, its length, `:` and
+   stream of words, each a bare token or, for a string, its length, `:` and
    its bytes. A C type is written canonical, so a typedef is written as the
    type it names: `V` void, `B` bool, `I` an integer (sign, size and width
    in bits, its name, and the standard typedef it was written through or
@@ -482,7 +482,7 @@ struct Marked_alias {
   bool external;
 };
 
-/* The declarations the source's `ZANE_ALIAS` marks name. This function
+/* The declarations the source's `ZANE_ALIAS` marks name. This consumer
    reports an error where a mark is written unless it marks a declaration of
    a function or variable, not its definition, whose target is defined in
    the source with external linkage and is likewise a function or a

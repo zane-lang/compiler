@@ -160,13 +160,13 @@ static bool used_beyond(llvm::Value *v, const std::set<llvm::Function *> &fs) {
   return false;
 }
 
-/* Whether a private variable [f] reaches, itself, through the functions
-   of its module it calls or through the initializer of a private variable
-   it reaches, is used by any other function: the glue's own
-   copy of a header's state, which only [f] sets up for the glue's
-   functions that read it. A function [f] reaches that another function uses
-   too could read such state for it, and a call through a pointer could
-   reach any function, so either counts as such a use. */
+/* Whether a private variable [f] reaches, itself, through the functions of
+   its module it calls or through the initializer of a private variable it
+   reaches, is used by any other function: the glue's own copy of a header's
+   state, which only [f] sets up for the glue's functions that read it. A
+   function [f] reaches that has a use outside the functions [f] reaches could
+   read such state for it, and a call through a pointer could reach any
+   function, so either counts as such a use. */
 static bool sets_up_private_state(llvm::Function &f) {
   std::set<llvm::Function *> reached{&f};
   std::vector<llvm::Function *> to_read{&f};

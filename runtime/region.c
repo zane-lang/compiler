@@ -109,18 +109,18 @@ int zane_decommit_range(char *at, size_t bytes) {
 #endif
 }
 
-/* A list's reservation of `reserved` bytes from `base`, whose usable
-   block grows from `from` bytes to `to`, gets huge pages from Linux once the
-   block reaches 32 MiB, when it is made or as it grows in place, unless
-   `ZANE_HUGE=0` is in the program's environment. Below 32 MiB a huge page
-   gains a loop little and can cost a list up to half again its memory, in
-   the part of its last 2 MiB page it has not touched; from 32 MiB it gains
-   x1.2 to x2.1 and costs at most 2 MiB a list
+/* For a list's reservation of `reserved` bytes from `base`, whose usable
+   block grows from `from` bytes to `to`, the runtime asks Linux for huge
+   pages once the block reaches 32 MiB, when it is made or as it grows in
+   place, unless `ZANE_HUGE=0` is in the program's environment. Below 32 MiB a
+   huge page gains a loop little and can cost a list up to half again its
+   memory, in the part of its last 2 MiB page it has not touched; from 32 MiB
+   it gains x1.2 to x2.1 and costs at most 2 MiB a list
    (docs/experiments/prefetch-reorder, round 10). A list's block never
-   shrinks, so a kept reservation a list takes again needs nothing undone;
-   one an unbounded pool takes, touched only here and there, is told to
-   leave huge pages out (`to` 0). `ZANE_HUGE_MIN=N` moves the threshold to
-   N bytes, for measuring. */
+   shrinks, so a kept reservation a list takes again needs nothing undone; one
+   an unbounded pool takes, touched only here and there, is told to leave huge
+   pages out (`to` 0). `ZANE_HUGE_MIN=N` moves the threshold to N bytes, for
+   measuring. */
 #if defined(__linux__) && defined(MADV_HUGEPAGE)
 /* Whether to ask, and from what block size, read from the environment once
    by whichever thread first makes a list's large block. */
