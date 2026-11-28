@@ -71,7 +71,7 @@ assert(checked >= 6, 'too few annotated lines checked')
 
 -- Check the captures Neovim actually loads, including its parameter extension.
 -- A qualified name must not become a parameter just because its namespace or
--- member has the same spelling as one, nor may an explicit init key do so.
+-- member has the same spelling as one, nor may an explicit init key become one.
 local role_cases = {
   {
     source = 'Unit main() { return Unit(); } Unit stop() { abort "stopped"; }',
@@ -98,8 +98,8 @@ local role_cases = {
     roles = { { 'x Int;', 'variable.member' }, { 'x =', 'variable.member' } },
   },
 }
--- A role may sit over the capture an earlier pattern gives every node of its
--- kind: `variable` for an identifier, `type` for a type name, and
+-- A role may sit over the capture that an earlier pattern gives every node of
+-- the same node type: `variable` for an identifier, `type` for a type name, and
 -- `constant.builtin` for an intrinsic's name. Neovim draws the capture of the
 -- latest pattern, so the role must come last. It draws no capture whose name
 -- starts with `_`.
