@@ -196,6 +196,11 @@ val write_hashes : output:string -> Foreign.Hashes.row list -> (unit, failure) r
     the object keys it on the build's arguments as well. *)
 val write_arguments_marker : output:string -> read:bool -> (unit, failure) result
 
+(** A usage error when [output] ends in `.arguments`, so that the object
+    would be the path of its own marker; otherwise nothing. `--object`
+    checks [output] before it builds anything. *)
+val check_object_output : string -> (unit, failure) result
+
 val object_file :
   ?target:string ->
   ?pack:bool ->

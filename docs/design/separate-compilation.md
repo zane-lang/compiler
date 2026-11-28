@@ -55,7 +55,8 @@ runtime's `arguments`, `--object` also writes an empty `STEM.arguments`
 beside the object, `STEM` being `OUT` without its extension, and when none
 did, it removes such a file an earlier build wrote there
 ([`comptime.md`](comptime.md) K6). `zane` reads the marker to key its
-cache of the object on the build's arguments. A release whose objects
+cache of the object on the build's arguments. `zanec` refuses an `OUT`
+that ends in `.arguments`, since that object would be its own marker. A release whose objects
 carry the marker is one `zane` compiles from source, so `--rewrite` (C9)
 is never given the marker.
 `--build OUT` keeps its meaning, a linked executable, and for a root with

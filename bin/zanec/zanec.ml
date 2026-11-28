@@ -113,6 +113,7 @@ let ( let* ) = Result.bind
 
 (* Lowering and codegen, once semantics has accepted the program. *)
 let generate packages c_code build program =
+  let* () = match build.view with Object output -> Driver.check_object_output output | _ -> Ok () in
   let root = Option.value build.root ~default:true in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   (* Only an optimized build retains a dependency's C (docs/design/ffi.md

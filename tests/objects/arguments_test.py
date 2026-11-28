@@ -88,6 +88,18 @@ class ArgumentsMarkerTests(unittest.TestCase):
         self.build(READS_NOTHING, "alpha")
         self.assertFalse(self.marker.exists())
 
+    def test_an_object_named_like_its_marker_is_refused(self):
+        # `app.arguments` would be its own marker, which the build removes.
+        (self.root / "app/app.zn").write_text(ROOT.format(call=READS_IN_ROOT), encoding="utf-8")
+        output = self.root / "app.arguments"
+        result = subprocess.run(
+            [ZANEC, "--object", output, "--package", self.root / "app", "--package", self.root / "counts",
+             "--build-argument", "alpha"],
+            capture_output=True, text=True, encoding="utf-8", timeout=120)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("`.arguments`", result.stderr)
+        self.assertFalse(output.exists())
+
     def test_a_build_without_the_read_removes_an_earlier_marker(self):
         self.build(READS_IN_ROOT, "alpha")
         self.assertTrue(self.marker.is_file())

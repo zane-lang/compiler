@@ -365,10 +365,27 @@ let write_hashes ~output rows =
   | () -> Ok ()
   | exception Sys_error why -> fail [ Diagnostic.about_invocation ("cannot write the C modules' hashes: " ^ why) ]
 
+(* The path of the marker beside the object [output]: `STEM.arguments`. *)
+let arguments_marker output = Filename.remove_extension output ^ ".arguments"
+
+(* An object path that is its own marker's path would be removed or emptied
+   by [write_arguments_marker], so `--object` refuses it before it builds. *)
+let check_object_output output =
+  if arguments_marker output = output then
+    fail
+      [
+        Diagnostic.about_invocation
+          (Printf.sprintf
+             "the object `%s` is the path of the marker zanec writes beside it; give the object \
+              another extension than `.arguments`"
+             output);
+      ]
+  else Ok ()
+
 (* Writes an empty `STEM.arguments` beside the object [output] when [read],
    after removing any such file an earlier build wrote there. *)
 let write_arguments_marker ~output ~read =
-  let path = Filename.remove_extension output ^ ".arguments" in
+  let path = arguments_marker output in
   match
     if Sys.file_exists path then Sys.remove path;
     if read then Out_channel.with_open_bin path ignore
