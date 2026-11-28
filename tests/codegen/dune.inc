@@ -1293,6 +1293,140 @@
   (diff golden/byteSets.out byteSets.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/capabilityBorrows))
+ (action
+  (with-stdout-to
+   capabilityBorrows.cgt.actual
+   (run %{exe:../../bin/zanec/zanec.exe} --cgt --package fixtures/capabilityBorrows))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.cgt capabilityBorrows.cgt.actual)))
+
+(rule
+ (deps (source_tree fixtures/capabilityBorrows))
+ (targets capabilityBorrows.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build capabilityBorrows.exe --package fixtures/capabilityBorrows)))
+
+(rule
+ (deps (source_tree fixtures/capabilityBorrows))
+ (targets capabilityBorrows.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build capabilityBorrows.optimized.exe --optimize --package fixtures/capabilityBorrows)))
+
+(rule
+ (deps (source_tree fixtures/capabilityBorrows))
+ (targets capabilityBorrows.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build capabilityBorrows.tiered.exe --tiered --package fixtures/capabilityBorrows)))
+
+(rule
+ (deps (source_tree fixtures/capabilityBorrows))
+ (targets capabilityBorrows.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up capabilityBorrows.tier1 --package fixtures/capabilityBorrows)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    capabilityBorrows.checked.out.actual
+    (run ./capabilityBorrows.exe "one" "two" "three")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.out capabilityBorrows.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    capabilityBorrows.unchecked.out.actual
+    (run ./capabilityBorrows.exe "one" "two" "three")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.out capabilityBorrows.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    capabilityBorrows.optimized.checked.out.actual
+    (run ./capabilityBorrows.optimized.exe "one" "two" "three")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.out capabilityBorrows.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    capabilityBorrows.optimized.unchecked.out.actual
+    (run ./capabilityBorrows.optimized.exe "one" "two" "three")))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.out capabilityBorrows.optimized.unchecked.out.actual)))
+
+(rule
+ (deps capabilityBorrows.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./capabilityBorrows.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    capabilityBorrows.tiered.checked.out.actual
+    (run ./capabilityBorrows.tiered.exe "one" "two" "three")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.out capabilityBorrows.tiered.checked.out.actual)))
+
+(rule
+ (deps capabilityBorrows.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./capabilityBorrows.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    capabilityBorrows.tiered.unchecked.out.actual
+    (run ./capabilityBorrows.tiered.exe "one" "two" "three")))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/capabilityBorrows.out capabilityBorrows.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/comptimeCalls))
  (action
   (with-stdout-to

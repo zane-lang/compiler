@@ -1,0 +1,63 @@
+/// The program's console and runtime passed to parameters declared without
+/// `&` (effects.md §6.6). `@runtime$Console` and `@runtime$Runtime` are
+/// reference types (types.md §2.1), so such a parameter is a borrow
+/// (memory.md §2.9), and lowering passes it as the address of the
+/// program's instance, as it passes any borrowed reference-type argument
+/// (docs/design/lowering.md L6). A borrow is read-only, so a function that
+/// holds one reads the runtime's arguments, or passes either capability on
+/// to another borrow, and writes neither. Each build runs with the
+/// `arguments` file beside this one, a line each. Each check prints `yes`
+/// when it holds and `no` when it does not.
+package capabilityBorrows;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, { @program$console!print(yes); });
+	@controlflow$branch(@operators$not(ok), { @program$console!print(no); });
+	return Unit();
+}
+
+/// One expression, which lowering expands where it is called.
+Int count(runtime @runtime$Runtime) => runtime:arguments():size();
+
+/// A body of statements, so a call to it is a call to its function: 1 when
+/// the first argument is `one`, and 0 otherwise.
+Int first(runtime @runtime$Runtime) {
+	args @primitives$List<String> = runtime:arguments();
+	@controlflow$branch(@operators$equal(args:size(), Int(0)), {
+		return Int(0);
+	});
+	@controlflow$branch(@operators$equal(args[Int(1)], String("one")), {
+		return Int(1);
+	});
+	return Int(0);
+}
+
+/// A borrowed runtime passed on to another borrow.
+Int counted(runtime @runtime$Runtime) {
+	n Int = count(runtime);
+	return @operators$add(n, first(runtime));
+}
+
+/// A borrowed console, only read: passed on to another borrow.
+Bool reached(console @runtime$Console) => holds(console);
+
+Bool holds(console @runtime$Console) {
+	return true;
+}
+
+Unit main() {
+	check(@operators$equal(count(@program$runtime), Int(3)));
+	check(@operators$equal(first(@program$runtime), Int(1)));
+	check(@operators$equal(counted(@program$runtime), Int(4)));
+	check(reached(@program$console));
+	n Int = spawn counted(@program$runtime);
+	check(@operators$equal(n, Int(4)));
+	return Unit();
+}

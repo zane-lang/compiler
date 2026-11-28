@@ -135,6 +135,18 @@ flip forms are gone. What each argument passes follows its parameter's mode
 | `&T` (a reference) | the address of the settled owner it names |
 | `this` | the address of the subject's place, taken once at the call |
 
+Lowering takes whether an intrinsic type is a reference type from the
+`reference` flag of its entry in `lib/tst/model/intrinsics.ml`, the table the
+type checker reads, so no intrinsic type needs a rule of its own. The
+program's console and runtime have reference types, `@runtime$Console`
+and `@runtime$Runtime` ([`types.md`](https://github.com/zane-lang/spec/blob/911d749/spec/types.md) §2.1,
+[`effects.md`](https://github.com/zane-lang/spec/blob/911d749/spec/effects.md) §6.6), so a parameter of
+either type declared without `&` is a borrow like any other. The caller passes
+the address of the program variable that holds the instance, such as
+`zane.value.@program$runtime`, exactly as it passes that address for an `&`
+parameter. The variable holds nothing the program reads, because the runtime
+functions that act on the console or runtime ignore the subject.
+
 A call site that mints a reference for an `&T` parameter, or moves an owner
 into a `^T` one, does so with an explicit CGT operation (§3), not inside the
 call.
