@@ -119,8 +119,12 @@ extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value
     std::string label = String_val(Field(l, 0));
     llvm::GlobalValue *g = m->getNamedValue(p + label);
     if (!g || g->isDeclarationForLinker() || g->hasLocalLinkage() || m->getNamedValue(label)) continue;
+    /* A DLL cannot export a thread-local variable: its address is per
+       thread, and GetProcAddress gives one address. */
+    if (Bool_val(coff) && g->isThreadLocal()) continue;
     auto *a = llvm::GlobalAlias::create(g->getValueType(), g->getAddressSpace(), llvm::GlobalValue::ExternalLinkage,
                                         label, g, m);
+    a->setThreadLocalMode(g->getThreadLocalMode());
     a->setVisibility(llvm::GlobalValue::DefaultVisibility);
     if (Bool_val(coff)) a->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
     g->setVisibility(llvm::GlobalValue::HiddenVisibility);

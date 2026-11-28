@@ -46,8 +46,8 @@ static int64_t zane_blocked;
 
 /* How many threads the pool keeps now: one fewer than it has deques at
    most. */
-/* Whether the pool is stopping, as a dynamic library is unloaded: it then
-   keeps no thread (zane_pool_stop). */
+/* Whether the pool is stopping, as a process that loaded a dynamic
+   library ends: it then keeps no thread (zane_pool_stop). */
 static int zane_stopping;
 
 static int64_t zane_target(void) {
@@ -156,9 +156,9 @@ static void *zane_worker(void *deque) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
 			/* No thread is detached: the next thread that takes over this
-			   deque joins this one, or zane_pool_stop does, so no thread
-			   still runs the library's code once the pool has stopped. A
-			   stopping pool joins the threads it sends away itself. */
+			   deque joins this one, or zane_pool_stop does, so a stopped
+			   pool has waited for every thread it ran. A stopping pool
+			   joins the threads it sends away itself. */
 			if (!zane_stopping) zane_deques[zane_mine].departed = 1;
 			pthread_mutex_unlock(&zane_pool);
 			zane_workers_thread_stop();
@@ -203,10 +203,9 @@ static void zane_start(void) {
 	zane_fill();
 }
 
-/* The pool's threads sent away and joined, as a dynamic library is
-   unloaded (main.c), so that no thread runs the library's code once its
-   host has unloaded it. A thread runs the call it is running to its end
-   first. */
+/* The pool's threads sent away and joined, as a process that loaded a
+   dynamic library ends (main.c), so that what they print as they stop is
+   written. A thread runs the call it is running to its end first. */
 void zane_pool_stop(void) {
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) {

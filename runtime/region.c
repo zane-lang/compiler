@@ -532,16 +532,8 @@ static LONG CALLBACK zane_fault(EXCEPTION_POINTERS *e) {
 
 void zane_thread_stop(void) {}
 
-static void *zane_fault_handler;
-
 void zane_regions_start(void) {
-	if (!(zane_fault_handler = AddVectoredExceptionHandler(1, zane_fault))) zane_broken("no handler for faults");
-}
-
-/* The fault handler removed, as a dynamic library is unloaded (main.c). */
-void zane_regions_stop(void) {
-	if (zane_fault_handler) RemoveVectoredExceptionHandler(zane_fault_handler);
-	zane_fault_handler = NULL;
+	if (!AddVectoredExceptionHandler(1, zane_fault)) zane_broken("no handler for faults");
 }
 
 #else
@@ -632,16 +624,6 @@ void zane_regions_start(void) {
 	sigemptyset(&handler.sa_mask);
 	if (sigaction(SIGSEGV, &handler, &zane_before[0]) != 0 || sigaction(SIGBUS, &handler, &zane_before[1]) != 0)
 		zane_broken("no handler for faults");
-}
-
-/* The handlers that were there before put back, as a dynamic library is
-   unloaded (main.c), so no fault reaches code that is gone. The fork
-   handler needs no removing: glibc removes a library's when `dlclose`
-   unloads it, and macOS never unloads a library that has thread-local
-   variables, as the runtime does. */
-void zane_regions_stop(void) {
-	sigaction(SIGSEGV, &zane_before[0], NULL);
-	sigaction(SIGBUS, &zane_before[1], NULL);
 }
 
 #endif

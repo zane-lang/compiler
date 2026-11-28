@@ -513,7 +513,6 @@ void zane_handle_jobs_drop(zane_handle_jobs *rs);
 /* region.c */
 extern size_t zane_system_page;
 void zane_regions_start(void);
-void zane_regions_stop(void);
 void zane_thread_start(void);
 void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);

@@ -643,9 +643,12 @@ The root package of a dynamic-library build or of a test build also
 offers its C globals under their C names (`Driver.keeps_c_names`). Its
 module is renamed as any package's is, so its own Zane code and C reach
 the renamed definitions, and then `zane_offer_c_names`
-(`lib/codegen/c_stubs.cpp`) gives each definition the rename returned an
-alias under its C name, of default visibility and, on COFF, marked for the
-DLL to export, and hides the renamed definition. A host finds a symbol it
+(`lib/codegen/c_stubs.cpp`) gives each renamed definition an alias under
+its C name, thread-local when the definition is, of default visibility
+and, on COFF, marked for the DLL to export, and hides the renamed
+definition. A DLL cannot export a thread-local variable, whose address
+differs on each thread while `GetProcAddress` gives one, so on COFF a
+thread-local definition gets no alias. A host finds a symbol it
 looks up by a fixed name, such as CLAP's `clap_entry`, and the C that
 defines it calls exported lambdas by their C names (`packages.md` §8.1).
 A build holds one copy of its root, so the C names of no two copies can
@@ -1236,8 +1239,17 @@ printed before it returns (`zane_callback_detach`), so everything a call
 printed has reached the library's output when the host gets the call's
 result. That flush covers only this library's buffer: the order against
 the host's own buffered output, or another library's, is the host's to
-keep. A destructor joins the pool's threads and then writes out the rest
-when the host unloads the library.
+keep. The constructor keeps the library loaded until the process ends,
+whatever the host unloads: Windows pins the module, and the other systems
+mark it `RTLD_NODELETE` (macOS never unloads a library with thread-local
+variables in any case). A pool thread may still run the library's code,
+other code may have saved the library's fault handler as the one it
+passes faults on to, and the runtime's regions and buffers stay with it,
+so none of them outlives the code. A later load of the same file reaches
+the same runtime. As the process ends, a destructor joins the pool's
+threads, except on Windows, which has ended them already and holds the
+loader lock that a thread needs to end, and then writes out the rest of
+the output.
 
 Two Zane libraries in one host each have a runtime of their own, and
 share no runtime state. So nothing of either is reached from outside it

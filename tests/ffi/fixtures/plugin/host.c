@@ -14,7 +14,6 @@
 #include <windows.h>
 #else
 #include <dlfcn.h>
-#include <signal.h>
 #endif
 
 typedef struct { double x, y; } point;
@@ -107,13 +106,22 @@ static void run(void *library, const char *which) {
 	say(line);
 	snprintf(line, sizeof line, "zane_output offered: %s\n", find(library, "zane_output") ? "yes" : "no");
 	say(line);
+	/* The root's thread-local variable, offered under its C name as a
+	   thread-local alias: the host's write through it is what the
+	   library's C reads on the same thread. A DLL cannot export a
+	   thread-local variable, so Windows offers none. */
+	int64_t *seen = (int64_t *)find(library, "plugin_seen");
+	int64_t (*seen_twice)(void) = (int64_t (*)(void))find(library, "plugin_seen_twice");
+#ifdef _WIN32
+	int right = !seen;
+#else
+	int right = seen && (*seen = 21, seen_twice() == 42);
+#endif
+	(void)seen_twice;
+	say(right ? "plugin_seen: right\n" : "plugin_seen: wrong\n");
 }
 
 int main(int argc, char **argv) {
-#ifndef _WIN32
-	struct sigaction before;
-	sigaction(SIGSEGV, NULL, &before);
-#endif
 	void *libraries[2];
 	for (int i = 1; i < argc && i < 3; i++) {
 		libraries[i - 1] = open_library(argv[0], argv[i]);
@@ -126,21 +134,22 @@ int main(int argc, char **argv) {
 	   runtime, a console and C state of its own. */
 	run(libraries[0], "first library");
 	run(libraries[1], "second library");
-#ifndef _WIN32
-	/* Unloaded in the reverse order, each library puts back the fault
-	   handler that was there before it loaded and joins its pool's
-	   threads, so the process keeps nothing of either. */
-	dlclose(libraries[1]);
-	dlclose(libraries[0]);
-	struct sigaction now;
-	sigaction(SIGSEGV, NULL, &now);
-	say(now.sa_handler == before.sa_handler && (now.sa_flags & SA_SIGINFO) == (before.sa_flags & SA_SIGINFO)
-	        ? "unloaded: the fault handler is the one before\n"
-	        : "unloaded: another fault handler is left\n");
+	/* Unloaded by the host, each library stays loaded until the process
+	   ends: loading the file again reaches the same runtime, whose count
+	   goes on from where it was. */
+	for (int i = 0; i < 2; i++) {
+#ifdef _WIN32
+		FreeLibrary((HMODULE)libraries[i]);
 #else
-	FreeLibrary((HMODULE)libraries[1]);
-	FreeLibrary((HMODULE)libraries[0]);
-	say("unloaded: the fault handler is the one before\n");
+		dlclose(libraries[i]);
 #endif
+	}
+	for (int i = 0; i < 2; i++) {
+		void *again = open_library(argv[0], argv[i + 1]);
+		int64_t (*count)(void) = again ? (int64_t (*)(void))find(again, "plugin_count") : NULL;
+		char line[128];
+		snprintf(line, sizeof line, "reloaded, count: %lld\n", count ? (long long)count() : -1LL);
+		say(line);
+	}
 	return 0;
 }
