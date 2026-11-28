@@ -199,7 +199,10 @@ marked call is evaluated, even when one fails. Tier 1 gives its marked
 calls those readings in the same order (`Driver.comptime`), so both tiers
 fold the same values and emit the same module (T3). Since the CLI builds
 tier 1 while it builds tier 0, tier 1 waits for `FILE` at its first reading,
-and a program whose marked calls read no clock never waits. A reading past
+and a program whose marked calls read no clock never waits. A tier 0
+that fails before its marked calls run fails the same way in tier 1, which
+then never waits, so only a tier 0 that dies mid-build leaves tier 1
+waiting, and the caller stops tier 1 then (§5). A reading past
 the last one `FILE` holds is an error at the marked call that makes it. A
 caller removes `FILE` before a run, as it removes `OUT` (T9), so tier 1
 never replays an earlier run's readings. Without the flag each tier reads
@@ -213,9 +216,10 @@ tier 1. The flag is refused on any other build.
 
 `zane run` and `zane test` run each program the same way (zane
 `docs/design/cli.md` §2.4): they start `--tier-up` in the background, build
-tier 0, and run it with `ZANE_TIER_UP` naming tier 1's file beside it. Both
-builds take the same `--comptime-readings` file (T12). A
-tier-1 build still going when the program ends is stopped. A compiler
+tier 0, and run it with `ZANE_TIER_UP` naming tier 1's file beside it. The
+CLI must give both builds the same `--comptime-readings` file and remove it
+before it starts them (T12). A tier-1 build still going when the program
+ends is stopped, and so is one still going when tier 0's build fails. A compiler
 release older than the first release with tiers builds the program
 unoptimized.
 

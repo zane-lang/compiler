@@ -165,6 +165,7 @@ class Tiers(unittest.TestCase):
         self.zanec("--build", str(exe), "--tiered", "--comptime-readings", str(readings), "--package", package)
         self.assertEqual(tier1.wait(timeout=300), 0)
         self.assertEqual(len(readings.read_text().splitlines()), 1)
+        self.assertEqual(list(self.dir.glob("*.partial")), [])
         env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_WAIT="1")
         p = subprocess.run([str(exe)], capture_output=True, text=True, env=env, timeout=60)
         self.assertEqual((p.returncode, p.stdout), (0, "3000\n"), p.stderr)
@@ -191,6 +192,35 @@ class Tiers(unittest.TestCase):
         )
         self.assertEqual(p.returncode, 1, p.stderr)
         self.assertIn("cannot read the clock readings in", p.stderr)
+
+    @unittest.skipIf(sys.platform == "win32", "Windows reports a path under a file as absent")
+    def test_a_readings_path_tier_1_cannot_reach_is_a_diagnostic(self):
+        # A path under a regular file can never appear, so tier 1 reports it
+        # instead of waiting.
+        blocker = self.dir / "blocker"
+        blocker.write_text("")
+        p = subprocess.run(
+            [str(ZANEC), "--tier-up", str(self.dir / "clocked.tier1"), "--comptime-readings", str(blocker / "readings"),
+             "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env, timeout=300,
+        )
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("cannot read the clock readings in", p.stderr)
+
+    def test_a_failed_readings_write_leaves_no_file_behind(self):
+        # A rename onto a directory that holds a file fails, and tier 0
+        # removes the file it wrote the readings to.
+        readings = self.dir / "readings"
+        readings.mkdir()
+        (readings / "held").write_text("")
+        p = subprocess.run(
+            [str(ZANEC), "--build", str(self.dir / "clocked.tier0"), "--tiered", "--comptime-readings", str(readings),
+             "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env, timeout=300,
+        )
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("cannot write the clock readings to", p.stderr)
+        self.assertEqual(list(self.dir.glob("*.partial")), [])
 
     def test_only_a_tiered_build_takes_the_readings(self):
         exe = self.dir / "clocked.plain"

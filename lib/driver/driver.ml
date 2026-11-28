@@ -581,12 +581,16 @@ let write_readings file readings =
     let partial, oc =
       Filename.open_temp_file ~temp_dir:(Filename.dirname file) (Filename.basename file) ".partial"
     in
+    let renamed = ref false in
     Fun.protect
-      ~finally:(fun () -> close_out_noerr oc)
+      ~finally:(fun () ->
+        close_out_noerr oc;
+        if not !renamed then try Sys.remove partial with Sys_error _ -> ())
       (fun () ->
         List.iter (fun r -> Printf.fprintf oc "%Ld\n" r) readings;
-        close_out oc);
-    Sys.rename partial file
+        close_out oc;
+        Sys.rename partial file;
+        renamed := true)
   with
   | () -> Ok ()
   | exception Sys_error message -> Error (Printf.sprintf "cannot write the clock readings to %s: %s" file message)
@@ -604,16 +608,19 @@ let replayed file =
     | line :: rest -> (match Int64.of_string_opt line with Some r -> r :: parsed rest | None -> [])
     | [] -> []
   in
+  let unreadable message = raise (Unreadable (Printf.sprintf "cannot read the clock readings in %s: %s" file message)) in
+  (* Only a file that does not exist yet is waited for: one that [stat]
+     cannot reach for another reason is reported at once. *)
   let rec arrived () =
-    if Sys.file_exists file then
-      match In_channel.with_open_text file In_channel.input_lines with
-      | lines -> parsed lines
-      | exception Sys_error message ->
-          raise (Unreadable (Printf.sprintf "cannot read the clock readings in %s: %s" file message))
-    else begin
-      Unix.sleepf 0.01;
-      arrived ()
-    end
+    match Unix.stat file with
+    | exception Unix.Unix_error (Unix.ENOENT, _, _) ->
+        Unix.sleepf 0.01;
+        arrived ()
+    | exception Unix.Unix_error (error, _, _) -> unreadable (Unix.error_message error)
+    | _ -> (
+        match In_channel.with_open_text file In_channel.input_lines with
+        | lines -> parsed lines
+        | exception Sys_error message -> unreadable message)
   in
   fun () ->
     let readings = match !left with Some r -> r | None -> arrived () in

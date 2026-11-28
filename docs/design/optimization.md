@@ -143,8 +143,10 @@ classified:
 | a null handle a call into C gives | `No_object` | input |
 | an abort of `main`, which ends the program | `Main_aborted`, called only by the start function | input |
 
-`arguments` and `monotonicNanoseconds` are the intrinsics that read input
-(effects.md §6.6), so a fold stops where it reaches either, and everything
+`arguments` and `monotonicNanoseconds` are the intrinsics that read input,
+the program's arguments (effects.md §6.6) and the clock, a read of the
+runtime that effects.md §5.3 keeps out of compile-time evaluation. A fold
+therefore stops where it reaches either, and everything
 computed before it still folds. `setThreadsAuto` reads the processor count,
 but gives nothing back, so no value of the program depends on it. An
 intrinsic added later that reads input, such as a console read, joins them

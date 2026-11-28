@@ -19,9 +19,9 @@ type clock = Live | Recorded of int64 list ref | Replayed of (unit -> int64 opti
     [run]. [arguments] is what the runtime's `arguments` gives inside such
     a call: the arguments the build was started with. A call into C runs on
     [c], as for [run]. A call that cannot be evaluated, or that writes
-    capability-backed state, is a diagnostic naming it. Such a call reads
-    the monotonic clock through [clock], the build machine's own unless
-    given (docs/design/tiers.md T12). *)
+    capability-backed state, is a diagnostic naming it. A call that reads
+    the monotonic clock does so through [clock], the build machine's own
+    unless given (docs/design/tiers.md T12). *)
 val comptime :
   ?c:Llvm.llmodule list ->
   ?clock:clock ->

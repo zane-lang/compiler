@@ -196,7 +196,8 @@ let methods =
     ( "@runtime$monotonicNanoseconds",
       "The monotonic clock in nanoseconds. A later reading is never smaller than an earlier one, and only \
        the difference between two readings means anything. Like `arguments`, it reads the runtime, so no \
-       fold evaluates it and no memoized call makes it." );
+       fold evaluates it and no memoized call makes it. A call marked `comptime` reads the build \
+       machine's clock instead (effects.md §5.6)." );
     ( "@primitives$parseI64",
       "The integer the string's text spells. The call aborts when the text is not an integer (types.md §2.10)." );
     ( "@primitives$parseF64",
