@@ -1386,6 +1386,14 @@ File "fixtures/typing/reject/bad/veiled.zn", line 95, characters 45-50:
 95 | Int perchedLevel(s Perch, x T Type) => s[x].level;
    |                                             ^^^^^
 Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `perchedLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 101, characters 50-55:
+101 | Int builtLevel(x T Type) => Tote{held = x;}.held.level;
+    |                                                  ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `builtLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 104, characters 17-22:
+104 |     v full => v.level;
+    |                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `pouchedLevel`, which nothing instantiates)
 File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:
 8 | Unit nested(this List<T Type> Type) => Unit();
   |                  ^^^^^^^^^^^^

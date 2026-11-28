@@ -1198,7 +1198,8 @@ and field_constructor_call env ctx ?at span what cands (fs : N.Field_arg.t list)
              List.find_map (fun (n, _, a) -> if String.equal n p.name then Some a else None) entries)
            s.params)
   in
-  if List.exists (fun (_, _, a) -> Ty.contains_error a.aty) entries then invalid span
+  let veiled = List.exists (fun (_, _, a) -> Ty.contains_error a.aty) entries in
+  if List.exists (fun (_, _, a) -> Ty.contains_failure a.aty) entries then invalid span
   else if field_cands = [] then begin
     error env span (Printf.sprintf "%s has no field constructor" what);
     invalid span
@@ -1207,7 +1208,7 @@ and field_constructor_call env ctx ?at span what cands (fs : N.Field_arg.t list)
     let args =
       "{" ^ String.concat "; " (List.map (fun (n, _, a) -> n ^ " = " ^ Ty.to_string a.aty) entries) ^ "}"
     in
-    match report_resolution env ~span ~what ~args (resolve env field_cands slots_for) field_cands with
+    match report_resolution env ~veiled ~span ~what ~args (resolve env field_cands slots_for) field_cands with
     | None -> invalid span
     | Some o ->
         Option.iter (fun at -> record_callee env at o.sig_) at;
@@ -1256,7 +1257,7 @@ and case_form env ctx span tid payload built open_ case (args : N.Constructor_ar
   match args.N.Constructor_args.node with
   | N.Constructor_args.Positional [ a ] -> (
       let actual = actual_of env ctx a in
-      if Ty.contains_error actual.aty then invalid span
+      if Ty.contains_failure actual.aty then invalid span
       else
         let s =
           {
@@ -1272,7 +1273,7 @@ and case_form env ctx span tid payload built open_ case (args : N.Constructor_ar
           }
         in
         match
-          report_resolution env ~span ~what:(quote s.S.name) ~args:(describe_args [ actual ])
+          report_resolution env ~veiled:(any_veiled [ actual ]) ~span ~what:(quote s.S.name) ~args:(describe_args [ actual ])
             (resolve env [ s ] (positional [ actual ])) [ s ]
         with
         | None -> invalid span

@@ -699,8 +699,8 @@ function value. Each of those is reported where the body writes it, whether
 or not anything instantiates the body. `T(...)` and `T.name(...)` build a
 veiled value there and resolve in each instance. A method, function, operator
 or subscript on a veiled value resolves in each instance as well. A call
-with a veiled argument, whether of a method, a function, a constructor, an
-operator, a subscript or a worker intrinsic, still resolves here when one
+with a veiled argument, whether of a method, a function, a constructor of
+either form, a case form, an operator, a subscript or a worker intrinsic, still resolves here when one
 overload takes it, and reports nothing when none does or several do. The
 call's result keeps the overload's result type. In `echoed(x).level`, with
 `T echoed(x T Type)`, the field read is therefore of a veiled value and is
@@ -880,7 +880,7 @@ instead.
 `alias IntPick = Pick<Int>` and a type parameter bound in an instance each
 name a type with no argument left to infer. A generic constructor
 `Pick<T>(x T Type)` could still infer `T` from the call, so `IntPick(String("x"))`
-would build a `Pick<String>`. Pass 4 compares the result with the type the
+would build a `Pick<String>`. Pass 5 compares the result with the type the
 name builds and reports an error when the two differ, for a struct, an enum
 and a variant alike.
 

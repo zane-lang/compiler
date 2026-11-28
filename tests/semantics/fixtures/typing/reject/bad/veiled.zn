@@ -93,3 +93,14 @@ type Perch = struct { width Int; }
 Int summedLevel(k Keeper<T Type>) => (k + k).held.level;
 Int flippedLevel(k Keeper<T Type>) => (~k).held.level;
 Int perchedLevel(s Perch, x T Type) => s[x].level;
+
+// A field constructor and a case form with a veiled argument resolve as
+// well, and keep the type they build.
+type Tote<T Type> = struct { held T; }
+Tote<T>{held T Type;} => init{ held = held; }
+Int builtLevel(x T Type) => Tote{held = x;}.held.level;
+type Knapsack<T Type> = variant { full T; empty Unit; }
+Int pouchedLevel(x T Type) => match (Knapsack.full(x)) {
+    v full => v.level;
+    empty => Int(0);
+}
