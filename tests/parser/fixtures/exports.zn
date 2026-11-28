@@ -1,0 +1,20 @@
+/// Export lines and exported lambdas (syntax.md §3.8, §8.3): an export
+/// line beside the imports, one naming an instance of a parameterized
+/// package, and a lambda-variable of each body form followed by `export`
+/// and its C symbol, each closed by a `;`, a braced body's too.
+package plugin;
+
+import synth;
+
+export synth;
+export clap<synth$Synth, synth$Params>;
+
+create @primitives$I64(rate @primitives$F64) {
+    return @primitives$I64(1);
+} export "synth_create";
+
+volume @primitives$Unit(this Synth, level @primitives$F64) mut {
+    return @primitives$Unit();
+} export "synth_set_volume";
+
+rate @primitives$F64() => @primitives$F64(48000.0) export "synth_rate";

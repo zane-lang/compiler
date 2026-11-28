@@ -75,7 +75,9 @@
 ; a library's. `project.app` checks a program quietly. The others each fail
 ; one way: a root without `main`, a build without a root asked to become an
 ; executable, a file declaring a package other than the one its directory
-; names, and a target LLVM does not know.
+; names, and a target LLVM does not know. `project.plugin` checks a plugin
+; package quietly, and the two after it build a plugin's root into an
+; executable and a program's into a dynamic library (packages.md §8.1).
 
 (rule
  (deps (source_tree fixtures/project))
@@ -170,6 +172,61 @@
  (alias runtest)
  (action
   (diff golden/project.bad-target.err project.bad-target.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/project))
+ (action
+  (with-outputs-to
+   project.plugin.check.actual
+   (run
+    %{exe:../../bin/zanec/zanec.exe}
+    --check
+    --root
+    --package
+    synth=fixtures/project/bin/synth))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.plugin.check project.plugin.check.actual)))
+
+(rule
+ (deps (source_tree fixtures/project))
+ (action
+  (with-outputs-to
+   project.plugin-build.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --build
+     synth.exe
+     --package
+     synth=fixtures/project/bin/synth)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.plugin-build.err project.plugin-build.err.actual)))
+
+(rule
+ (deps (source_tree fixtures/project))
+ (action
+  (with-outputs-to
+   project.program-library.err.actual
+   (with-accepted-exit-codes
+    1
+    (run
+     %{exe:../../bin/zanec/zanec.exe}
+     --library
+     demo.library
+     --package
+     demo=fixtures/project/bin/demo)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/project.program-library.err project.program-library.err.actual)))
 
 ; `instances/accept` calls a generic verb that never calls itself at 200
 ; distinct argument types. Each use is a chain of instantiations one deep, so

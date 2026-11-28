@@ -1,0 +1,68 @@
+File "fixtures/typing/exports/app/app.zn", line 11, characters 1-11:
+11 | export lib;
+   | ^^^^^^^^^^
+Error: `app` declares `main`, so it is a program package, and a program package carries no export lines; a plugin package, which declares no `main`, or a test package does (packages.md §8.1)
+File "fixtures/typing/exports/app/app.zn", line 12, characters 1-11:
+12 | export lib;
+   | ^^^^^^^^^^
+Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:11
+File "fixtures/typing/exports/app/app.zn", line 13, characters 8-11:
+13 | export app;
+   |        ^^^
+Error: `app` is this file's own package; its exported lambdas get their C symbols without an export line, which names a library package (packages.md §8.3)
+File "fixtures/typing/exports/app/app.zn", line 14, characters 1-28:
+14 | export lib<@primitives$I64>;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: this export line names an instance of a parameterized package, and zanec does not support parameterized packages (packages.md §2.6)
+File "fixtures/typing/exports/app/app.zn", line 15, characters 8-15:
+15 | export missing;
+   |        ^^^^^^^
+Error: no package named `missing` is part of this build
+File "fixtures/typing/exports/app/app.zn", line 23, characters 5-45:
+23 |     inner I64(x I64) => x export "app_inner";
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: an exported lambda is a package-scope lambda-variable, never one in a body: a host calls it as a C function (packages.md §8.2)
+File "fixtures/typing/exports/app/app.zn", line 24, characters 5-15:
+24 |     export lib;
+   |     ^^^^^^^^^^
+Error: an export line is written at package scope, beside the imports (syntax.md §8.3)
+File "fixtures/typing/exports/app/second.zn", line 3, characters 1-11:
+3 | export lib;
+  | ^^^^^^^^^^
+Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:11
+File "fixtures/typing/exports/lib/lib.zn", line 8, characters 1-11:
+8 | export app;
+  | ^^^^^^^^^^
+Error: only a plugin or test package carries export lines, and `lib` is a library package of this build (packages.md §8.3)
+File "fixtures/typing/exports/lib/lib.zn", line 16, characters 49-60:
+16 | twice I64(x I64) => @operators$add(x, x) export "lib_twice";
+   |                                                 ^^^^^^^^^^^
+Error: this build already exports a C function `lib_twice`, at fixtures/typing/exports/app/app.zn:20; each C name occurs once in a build (packages.md §8.2)
+File "fixtures/typing/exports/lib/lib.zn", line 18, characters 36-48:
+18 | aborts I64?Unit(x I64) => x export "lib_aborts";
+   |                                    ^^^^^^^^^^^^
+Error: an exported lambda declares no abort type: a host calls it, and no Zane caller handles its abort (packages.md §8.2)
+File "fixtures/typing/exports/lib/lib.zn", line 20, characters 44-57:
+20 | subject I64(this Box) => this.value export "lib_subject";
+   |                                            ^^^^^^^^^^^^^
+Error: an exported lambda with a subject borrows a C-held object, which zanec does not support yet (packages.md §8.5)
+File "fixtures/typing/exports/lib/lib.zn", line 22, characters 35-45:
+22 | lent I64(x &Box) => I64(1) export "lib_lent";
+   |                                   ^^^^^^^^^^
+Error: an exported lambda takes what C passes a function value, and C passes no `&lib$Box`: a scalar, `@primitives$Bool`, a C-compatible value type, a string, a list or array of scalars, or a data handle, borrowed or as a roaming owner `^` (packages.md §8.2, ffi.md §3.6)
+File "fixtures/typing/exports/lib/lib.zn", line 24, characters 46-56:
+24 | text String() => String.escaped("no") export "lib_text";
+   |                                              ^^^^^^^^^^
+Error: an exported lambda gives what a function value gives C, and C takes no `@primitives$String`: a scalar, `@primitives$Bool`, a C-compatible value type, or `@primitives$Unit` (packages.md §8.2, ffi.md §3.6)
+File "fixtures/typing/exports/lib/lib.zn", line 26, characters 30-44:
+26 | named I64() => I64(1) export "not a C name";
+   |                              ^^^^^^^^^^^^^^
+Error: `not a C name` is not a C identifier, and an exported lambda becomes the C function it names (packages.md §8.2)
+File "fixtures/typing/exports/lib/lib.zn", line 28, characters 16-21:
+28 | calls I64() => twice(I64(1));
+   |                ^^^^^
+Error: `twice` is an exported lambda, an entry point a host calls, and only the root package's code calls one; `lib` is a library package (packages.md §8.4)
+File "fixtures/typing/exports/lib/lib.zn", line 30, characters 17-22:
+30 | held I64[I64] = twice;
+   |                 ^^^^^
+Error: `twice` is an exported lambda, an entry point a host calls, and only the root package's code calls one; `lib` is a library package (packages.md §8.4)

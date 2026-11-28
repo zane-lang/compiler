@@ -1,0 +1,4 @@
+File "fixtures/reject/exportTerminator.zn", line 9, characters 1-5:
+9 | rate @primitives$I64() => @primitives$I64(2) export "synth_rate";
+  | ^^^^
+Error: Parse error

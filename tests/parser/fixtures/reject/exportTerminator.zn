@@ -1,0 +1,9 @@
+/// An exported lambda ends in its C symbol, a string, not in the lambda's
+/// `}`, so it takes a `;` (lexical.md §6.3); one without it is refused.
+package plugin;
+
+create @primitives$I64() {
+    return @primitives$I64(1);
+} export "synth_create"
+
+rate @primitives$I64() => @primitives$I64(2) export "synth_rate";

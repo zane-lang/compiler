@@ -51,6 +51,20 @@
   (diff golden/typing.exiting.err typing.exiting.err.actual)))
 
 (rule
+ (deps (source_tree fixtures/typing/exports))
+ (action
+  (with-stderr-to
+   typing.exports.err.actual
+   (with-accepted-exit-codes
+    1
+    (run %{exe:../../bin/zanec/zanec.exe} --check --package fixtures/typing/exports/app --package fixtures/typing/exports/lib)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/typing.exports.err typing.exports.err.actual)))
+
+(rule
  (deps (source_tree fixtures/typing/reject))
  (action
   (with-stderr-to

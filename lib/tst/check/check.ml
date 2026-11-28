@@ -1694,6 +1694,13 @@ and local_declaration env ctx (d : N.Decl.t) =
              (quote (Ty.to_string v.T.Expr.ty)));
       let local = declare env ctx Symbol name declared in
       T.Stat.Let { local; value = v }
+  | N.Decl.ExportedVar _ ->
+      error env d.N.Decl.span
+        "an exported lambda is a package-scope lambda-variable, never one in a body: a host calls it as a C function (packages.md §8.2)";
+      T.Stat.Expr (invalid d.N.Decl.span)
+  | N.Decl.ExportLine _ ->
+      error env d.N.Decl.span "an export line is written at package scope, beside the imports (syntax.md §8.3)";
+      T.Stat.Expr (invalid d.N.Decl.span)
   | _ ->
       error env d.N.Decl.span "only a symbol is declared in a body; every other declaration is at package scope";
       T.Stat.Expr (invalid d.N.Decl.span)

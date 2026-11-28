@@ -1,0 +1,1 @@
+Error: the root is a plugin package, which declares no `main`, so it builds into a dynamic library with `--library`, not into an executable or an object

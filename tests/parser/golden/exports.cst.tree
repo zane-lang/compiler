@@ -1,0 +1,91 @@
+└── package:
+    ├── declarations[0] > package_decl: plugin
+    ├── declarations[1] > import_decl > import_package:
+    │   └── package: synth
+    ├── declarations[2] > export_line:
+    │   ├── package: synth
+    │   └── args:
+    ├── declarations[3] > export_line:
+    │   ├── package: clap
+    │   ├── args[0]:
+    │   │   ├── qualifier: synth$Synth
+    │   │   └── args:
+    │   └── args[1]:
+    │       ├── qualifier: synth$Params
+    │       └── args:
+    ├── declarations[4] > exported_var_decl:
+    │   ├── name: create
+    │   ├── type:
+    │   │   ├── param[0]:
+    │   │   │   ├── qualifier: @primitives$F64
+    │   │   │   └── args:
+    │   │   └── type:
+    │   │       ├── qualifier: @primitives$I64
+    │   │       └── args:
+    │   ├── value > func_lambda:
+    │   │   ├── param[0]:
+    │   │   │   ├── name: rate
+    │   │   │   └── type:
+    │   │   │       ├── qualifier: @primitives$F64
+    │   │   │       └── args:
+    │   │   ├── ret_type:
+    │   │   │   ├── qualifier: @primitives$I64
+    │   │   │   └── args:
+    │   │   └── body > scope:
+    │   │       └── stat[0] > ret_stat > ctor_call:
+    │   │           ├── type: @primitives$I64
+    │   │           ├── args[0]: 1
+    │   │           ├── trailing: false
+    │   │           └── abort: none
+    │   └── symbol: synth_create
+    ├── declarations[5] > exported_var_decl:
+    │   ├── name: volume
+    │   ├── type:
+    │   │   ├── this_type:
+    │   │   │   ├── qualifier: Synth
+    │   │   │   └── args:
+    │   │   ├── param[0]:
+    │   │   │   ├── qualifier: @primitives$F64
+    │   │   │   └── args:
+    │   │   ├── type:
+    │   │   │   ├── qualifier: @primitives$Unit
+    │   │   │   └── args:
+    │   │   └── is_mut: true
+    │   ├── value > meth_lambda:
+    │   │   ├── this_type:
+    │   │   │   ├── qualifier: Synth
+    │   │   │   └── args:
+    │   │   ├── param[0]:
+    │   │   │   ├── name: level
+    │   │   │   └── type:
+    │   │   │       ├── qualifier: @primitives$F64
+    │   │   │       └── args:
+    │   │   ├── ret_type:
+    │   │   │   ├── qualifier: @primitives$Unit
+    │   │   │   └── args:
+    │   │   ├── body > scope:
+    │   │   │   └── stat[0] > ret_stat > ctor_call:
+    │   │   │       ├── type: @primitives$Unit
+    │   │   │       ├── args:
+    │   │   │       ├── trailing: false
+    │   │   │       └── abort: none
+    │   │   └── is_mut: true
+    │   └── symbol: synth_set_volume
+    └── declarations[6] > exported_var_decl:
+        ├── name: rate
+        ├── type:
+        │   ├── param:
+        │   └── type:
+        │       ├── qualifier: @primitives$F64
+        │       └── args:
+        ├── value > func_lambda:
+        │   ├── param:
+        │   ├── ret_type:
+        │   │   ├── qualifier: @primitives$F64
+        │   │   └── args:
+        │   └── body > ret_shorthand > ctor_call:
+        │       ├── type: @primitives$F64
+        │       ├── args[0]: 48000.0
+        │       ├── trailing: false
+        │       └── abort: none
+        └── symbol: synth_rate

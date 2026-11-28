@@ -1,0 +1,130 @@
+package | package plugin; import syn … 00.0) export "synth_rate";
+  decl Package | package plugin
+    name plugin | plugin
+  decl Import | import synth
+    import | import synth
+      package synth | synth
+  decl ExportLine | export synth
+    package synth | synth
+  decl ExportLine | export clap<synth$Synth, synth$Params>
+    package clap | clap
+    type_expr Path | synth$Synth
+      name_type | synth$Synth
+        package synth | synth
+        ident Synth | Synth
+    type_expr Path | synth$Params
+      name_type | synth$Params
+        package synth | synth
+        ident Params | Params
+  decl ExportedVar | create @primitives$I64(rat … ); } export "synth_create"
+    name create | create
+    type_expr Verb | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+      verb_type Func | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+        param_type Concrete | @primitives$F64
+          type_expr Path | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+        ret_type Safe | @primitives$I64
+          type_expr Path | @primitives$I64
+            name_type | @primitives$I64
+              package primitives | primitives
+              ident I64 | I64
+    expr FuncLambda | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+      func_lambda | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+        param | rate @primitives$F64
+          name rate | rate
+          param_type Concrete | @primitives$F64
+            type_expr Path | @primitives$F64
+              name_type | @primitives$F64
+                package primitives | primitives
+                ident F64 | F64
+        ret_type Safe | @primitives$I64
+          type_expr Path | @primitives$I64
+            name_type | @primitives$I64
+              package primitives | primitives
+              ident I64 | I64
+        block | { return @primitives$I64(1); }
+          stat Ret | return @primitives$I64(1);
+            expr VerbCall | @primitives$I64(1)
+              verb_call Constructor | @primitives$I64(1)
+                constructor_name | @primitives$I64
+                  name_type | @primitives$I64
+                    package primitives | primitives
+                    ident I64 | I64
+                constructor_args Positional | (1)
+                  call_arg Value | 1
+                    expr IntLit | 1
+    symbol synth_create | "synth_create"
+  decl ExportedVar | volume @primitives$Unit(th …  export "synth_set_volume"
+    name volume | volume
+    type_expr Verb | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+      verb_type Meth mut | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+        type_expr Path | Synth
+          name_type | Synth
+            ident Synth | Synth
+        param_type Concrete | @primitives$F64
+          type_expr Path | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+        ret_type Safe | @primitives$Unit
+          type_expr Path | @primitives$Unit
+            name_type | @primitives$Unit
+              package primitives | primitives
+              ident Unit | Unit
+    expr MethLambda | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+      meth_lambda mut | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+        type_expr Path | Synth
+          name_type | Synth
+            ident Synth | Synth
+        param | level @primitives$F64
+          name level | level
+          param_type Concrete | @primitives$F64
+            type_expr Path | @primitives$F64
+              name_type | @primitives$F64
+                package primitives | primitives
+                ident F64 | F64
+        ret_type Safe | @primitives$Unit
+          type_expr Path | @primitives$Unit
+            name_type | @primitives$Unit
+              package primitives | primitives
+              ident Unit | Unit
+        block | { return @primitives$Unit(); }
+          stat Ret | return @primitives$Unit();
+            expr VerbCall | @primitives$Unit()
+              verb_call Constructor | @primitives$Unit()
+                constructor_name | @primitives$Unit
+                  name_type | @primitives$Unit
+                    package primitives | primitives
+                    ident Unit | Unit
+                constructor_args Positional | ()
+    symbol synth_set_volume | "synth_set_volume"
+  decl ExportedVar | rate @primitives$F64() =>  … 000.0) export "synth_rate"
+    name rate | rate
+    type_expr Verb | @primitives$F64() => @primitives$F64(48000.0)
+      verb_type Func | @primitives$F64() => @primitives$F64(48000.0)
+        ret_type Safe | @primitives$F64
+          type_expr Path | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+    expr FuncLambda | @primitives$F64() => @primitives$F64(48000.0)
+      func_lambda | @primitives$F64() => @primitives$F64(48000.0)
+        ret_type Safe | @primitives$F64
+          type_expr Path | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+        block | => @primitives$F64(48000.0)
+          stat Ret | => @primitives$F64(48000.0)
+            expr VerbCall | @primitives$F64(48000.0)
+              verb_call Constructor | @primitives$F64(48000.0)
+                constructor_name | @primitives$F64
+                  name_type | @primitives$F64
+                    package primitives | primitives
+                    ident F64 | F64
+                constructor_args Positional | (48000.0)
+                  call_arg Value | 48000.0
+                    expr DecimalLit | 48000.0
+    symbol synth_rate | "synth_rate"
