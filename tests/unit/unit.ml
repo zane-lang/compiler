@@ -248,7 +248,7 @@ let growing_types () =
       Borrows.reached_through_references ~members:deeper (named "Node" ~args:[ Ty.Type int ]))
 
 (* A chain of 2,000 verbs, each calling the next, listed caller first, so
-   that the fact the last one starts gets back to the first one link by link.
+   that the fact the last verb starts gets back to the first verb link by link.
    Walking every body until no summary grows takes a round per link, so about
    n * n walks; the worklist walks each body once and each caller once more
    (Fixpoint, F25). The round-robin count is taken here too, so the chain is
@@ -1123,7 +1123,7 @@ let contains text part =
   go 0
 
 (* A stamp given by package name is checked as `--rewrite`'s is, so a caller
-   that is not `zanec` cannot name a package's symbols with something
+   that is not `zanec` cannot name a package's symbols with a string
    lowering would not read as a stamp. *)
 let stamps_are_checked () =
   let request = { Tst.Assembly.manifest_name = Some "geometry"; directory = "nowhere"; stamp = None } in

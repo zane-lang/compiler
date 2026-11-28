@@ -1,7 +1,7 @@
 /// A tokenizer: a text of character codes generated from a seeded generator,
 /// as runs of letters, digits, spaces and single punctuation marks, is
 /// scanned once into a list of `{kind, start, length}` value structs whose
-/// kind is a variant, and a second pass matches on each kind to count them
+/// `kind` is a variant, and a second pass matches on each `kind` to count them
 /// and sum their lengths.
 package tokens;
 

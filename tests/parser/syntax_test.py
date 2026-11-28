@@ -113,7 +113,7 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit work(n Node) { m &Node = &n; }")
 
     def test_comptime_marks_a_call(self) -> None:
-        # syntax.md §4.10: each form, the handled ones included, as a value
+        # syntax.md §4.10: each form, the handled forms included, as a value
         # and as a statement.
         self.assert_parses(
             '''
@@ -246,7 +246,7 @@ class DeclarationTests(ParserSyntaxTestCase):
         self.assert_parses(
             "^ListRef<Pair<T>> pairsOf(T Type) => emptyOf(Pair<T>);"
         )
-        # The inferred half is unchanged and still the one a literal drives.
+        # The inferred half is unchanged and still the half a literal drives.
         self.assert_parses(
             "Unit use() { vec Vector(Int(2), Int(3)); }"
         )
@@ -321,7 +321,7 @@ class BlockArgumentTests(ParserSyntaxTestCase):
         # Nothing may continue the call past the brace that closed it.
         self.assert_rejects("Unit use() { run() { } () }")
         self.assert_rejects("Unit use() { run() { } [index] }")
-        # A handler is one of the things that cannot follow it; the same call
+        # A handler is one of the constructs that cannot follow it; the same call
         # with its block inside the argument list takes one.
         self.assert_rejects("Unit use() { run() { } ? e { resolve Unit(); } }")
         # An operand continues the statement past the brace just as a postfix
@@ -409,7 +409,7 @@ class TerminatorTests(ParserSyntaxTestCase):
     def test_a_value_closed_by_a_brace_takes_no_call_or_subscript(self) -> None:
         # The `}` of a match, a map literal, an `init` or a constructor call by
         # fields may end its statement (lexical.md §6.3), and a `(` or `[` can
-        # open the next one, so what follows it is that statement rather than
+        # open the next statement, so what follows it is that statement rather than
         # a call or subscript on the value (syntax.md §4.9).
         self.assert_parses("Unit f() { abort match (x) { } (y)(); }")
         self.assert_parses("Unit f() { abort { k, v; } [y](); }")
@@ -730,7 +730,7 @@ class LiteralTests(ParserSyntaxTestCase):
         self.assert_rejects("Unit f() { b Float = 1.000'001; return Unit(); }")
 
     def test_a_quote_belongs_only_between_digits(self) -> None:
-        # The separator wants digits on both sides, and `'` has no other use.
+        # The separator needs digits on both sides, and `'` has no other use.
         self.assert_parses("Unit use() { n Int = 1'000'000 * Int(2); }")
         self.assert_rejects("Unit use() { n Int = 2'*3; }")
         self.assert_rejects("Unit use() { n Int = a '* b; }")

@@ -173,9 +173,9 @@ int64_t zane_processors(void) {
 	return n < 1 ? 1 : n;
 }
 
-/* Threads started until the pool has as many as it wants, and those over
+/* Threads started until the pool reaches its target, and those over
    it woken to leave; the pool's lock is held. Each has 8 MiB of machine
-   stack, what the program's own thread has, where systems give a thread
+   stack, as much as the program's own thread has, where systems give a thread
    they start anything from 512 KiB to 8 MiB (docs/design/platforms.md). */
 static void zane_fill(void) {
 	pthread_attr_t attributes;
@@ -261,7 +261,7 @@ void zane_block_end(int began) {
 	pthread_mutex_lock(&zane_pool);
 	zane_blocked--;
 	/* An idle stand-in sleeps on zane_waiting, so it rechecks the target
-	   and leaves only once something wakes it. */
+	   and leaves only once a broadcast wakes it. */
 	if (zane_threads > zane_target()) pthread_cond_broadcast(&zane_waiting);
 	pthread_mutex_unlock(&zane_pool);
 }
@@ -311,8 +311,8 @@ static _Thread_local zane_island *zane_pending_island;
 /* The subject at `*field`, `size` bytes of `type`, goes into a region of
    its own for the call about to be spawned, and `*field` names it there. A
    local takes the region it had for the last call spawned on it, if its
-   scope still holds one, so what is already there stays. While no other
-   call this context spawned is out, nothing else can be reading the
+   scope still holds one, so the blocks already in that region stay. While
+   no other call this context spawned is out, nothing else can be reading the
    subject, so it moves in; otherwise it is copied there whole, since a
    call spawned before may still read it where it is, so its blocks stay
    as they are until the join. A copy made for this call alone (`copied`)

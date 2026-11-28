@@ -66,7 +66,7 @@ static void zane_racy_store(char *to, const char *from, int64_t size) {
 
 /* A coherent copy of the `size` bytes at `from` into `out`. The blocks
    they name stay as they are while it is read: a write-back retires the
-   ones it replaces rather than returning them. */
+   blocks it replaces rather than returning them. */
 void zane_snapshot(char *out, const char *from, int64_t size) {
 	for (;;) {
 		uint64_t done = __atomic_load_n(&zane_done, __ATOMIC_ACQUIRE);

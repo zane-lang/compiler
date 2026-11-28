@@ -22,7 +22,7 @@ let names triple words =
    Mach-O image on Apple's systems, an ELF image elsewhere. *)
 type image = Pe | Mach_o | Elf
 
-(* The host's kind, looked up once: lowering asks for the image's kind for
+(* The host's image format, looked up once: lowering asks for the image format for
    every box and sum, and the host does not change while it runs. macOS is
    recognized by its version file, as [Codegen.Build.darwin] recognizes
    it, so any other Unix host, a Linux one without `/proc` included, is

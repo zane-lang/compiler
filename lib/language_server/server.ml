@@ -37,8 +37,8 @@ let log st message = Transport.notify st.out "window/logMessage" (`Assoc [ ("typ
 let show st ~error message =
   Transport.notify st.out "window/showMessage" (`Assoc [ ("type", `Int (if error then 1 else 2)); ("message", `String message) ])
 
-(* The real path of a file the editor names, remembering the editor's
-   spelling of its directory for the URIs the server sends back. *)
+(* The real path of a file the editor names. The server records the editor's
+   spelling of its directory for the URIs it sends back. *)
 let real_path path =
   let dir = Filename.dirname path in
   Text.spell ~real:(P.canonical_dir dir) ~editor:dir;
@@ -180,7 +180,7 @@ let refresh st =
 (* Requests                                                               *)
 (* ---------------------------------------------------------------------- *)
 
-(* The analysis of the build that checks [path], and what is at [pos]. *)
+(* The analysis of the build that checks [path], and the use or declaration at [pos]. *)
 let at st params =
   match document_path params with
   | None -> None
@@ -228,7 +228,7 @@ let definition st params =
               |> List.map F.location_json
               |> fun l -> `List l))
 
-(* The declaration of the type a name has. *)
+(* The declaration of an identifier's type. *)
 let type_definition st params =
   match at st params with
   | None -> `Null
@@ -351,8 +351,8 @@ let rename_edits st p key ~old_name ~new_name =
            right places. *)
         let in_order es = List.sort_uniq (fun (a, _) (b, _) -> compare b a) es |> List.map snd in
         let files = Hashtbl.fold (fun path es acc -> (path, `List (in_order es)) :: acc) edits [] in
-        (* A client that takes versions gets them, so it refuses edits of a
-           document that changed since. *)
+        (* A client that takes versions gets them, so the client refuses edits
+           of a document that changed since. *)
         if st.versioned_edits then
           let version path =
             match Hashtbl.find_opt st.project.P.documents path with Some d -> `Int d.P.version | None -> `Null
@@ -371,7 +371,7 @@ let rename st id params =
       match renamable p index u with
       | Error message -> Transport.respond_error st.out id ~code:(-32602) message
       | Ok old_name -> (
-          (* The case of an identifier is part of what it is (lexical.md §3):
+          (* The case of an identifier is part of the identifier (lexical.md §3):
              a type stays upper-case and a value lower-case. *)
           let fits =
             if Cst.is_upper_identifier old_name then Cst.is_upper_identifier new_name

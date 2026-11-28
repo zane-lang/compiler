@@ -167,7 +167,7 @@ void zane_main(void) {
 	zane_scope_drain(enclosing);
 	check(zane_blocks() == 0);
 
-	/* A list's block grows where it is while it is the last thing at its
+	/* A list's block grows where it is while it is the last block at its
 	   region's frontier, and a block it gives back serves the next of its
 	   size. */
 	zane_mark *outer = zane_scope_enter(0);
@@ -283,7 +283,7 @@ void zane_main(void) {
 	zane_overwrite((char *)&plain, (char *)&replacing_plain, 8, NULL);
 	check(plain == 2);
 
-	/* An array's element, counted from 1, is its stride apart from the one
+	/* An array's element, counted from 1, is its stride apart from the element
 	   before it. */
 	int64_t numbers[3] = { 7, 8, 9 };
 	check(*(int64_t *)zane_array_at((char *)numbers, 1, 3, 8) == 7 &&

@@ -5,7 +5,7 @@
 open Support
 
 (* A loop's lone push onto a list has its room made before the loop
-   (Loop_shapes.looped_pushes), unless something else in the loop may grow
+   (Loop_shapes.looped_pushes), unless another call in the loop may grow
    the list through a reference, the pushed value's own call included. *)
 let looped_pushes () =
   let module C = Cgt.Nodes in

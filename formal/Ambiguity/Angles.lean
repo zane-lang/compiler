@@ -8,7 +8,7 @@ containing both is a generic rule, and tagging renames its pair to `GLESS` and
 `GMORE` (`tagGrammar`). `checkAngles` verifies, on the tagged grammar, that the
 tags of every sentence are a function of its untagged tokens:
 
-* every `GLESS` follows `UIDENT` and precedes something other than `LPAREN`,
+* every `GLESS` follows `UIDENT` and precedes a token other than `LPAREN`,
   while no untagged `LESS` does both;
 * inside a generic region no untagged `LESS` or `MORE` can occur, so a `MORE`
   is a generic close exactly when a generic region is open.
@@ -74,8 +74,8 @@ def checkSeq (S : AngleSets) (A : List Tok) : List Tok → List Sym → Bool
 
 def isAngleTok (a : Tok) : Bool := a == "LESS" || a == "MORE" || a == "GLESS" || a == "GMORE"
 
-/-- Shape of a rule: either no angle tokens of the generic kind and no
-`GMORE`, or exactly `pre GLESS mid GMORE post` with no other angle tokens. -/
+/-- Shape of a rule: either neither `GLESS` nor `GMORE`, or exactly
+`pre GLESS mid GMORE post` with no other angle tokens. -/
 def genericSplit (rhs : List Sym) : Option (List Sym × List Sym × List Sym) :=
   match rhs.idxOf (.t "GLESS") with
   | i =>

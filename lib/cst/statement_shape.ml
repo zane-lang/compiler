@@ -2,11 +2,11 @@
 
    This module answers two questions about the tail of a statement's tree --
    does it close with a brace, and does it end with a trailing argument that
-   something then continued past -- and holds the constructors that record the
+   more code then continued past -- and holds the constructors that record the
    answers on the statement node.
 
    It is distinct from [Statement_check], which walks the finished CST and
-   reports the defects recorded here: this module decides the shape while the
+   reports the defects recorded here: this module computes the shape while the
    tree is still being built, and [Statement_check] reads the marks off the
    tree that survived. *)
 
@@ -23,7 +23,7 @@ module Span = Source.Span
    at the tail of its tree: every form below either closes with a brace itself
    or passes the question on to the construct it ends with.
 
-   The grammar decides this too -- a statement without a `;` must end in one of
+   The grammar settles this too -- a statement without a `;` must end in one of
    the `_braced` forms in [Parser] -- so the only statement whose answer is
    still read off the tree is a statement closed with a `;`: if it also ends in
    a brace, that `;` terminates nothing. *)
@@ -80,8 +80,8 @@ and body_ends_in_brace (value : Nodes.Body.t) =
 
 (* A mould's contents determine its delimiter: named typed members take
    `{ }`, and a flat list of names takes `[ ]`. Only `{ }` closes a statement,
-   so the shape has to be read from the mould rather than assumed from the
-   fact that a value is moulded. *)
+   so this module reads the shape from the mould rather than inferring it from
+   the fact that a value is moulded. *)
 let moulded_ends_in_brace (moulded : Nodes.Moulded.t) =
   match moulded.Nodes.Moulded.mould.Nodes.Mould.node with
   | Nodes.Mould.Struct _ | Nodes.Mould.Variant _ | Nodes.Mould.Handle _ -> true
@@ -294,8 +294,8 @@ let defect ~ends_in_brace ~ends_at ~continued =
 (* Build a statement that the grammar closed with a `;`, recording its defect,
    if any, in how it ends.
 
-   The grammar decides whether a statement needs its `;` -- a missing one is a
-   parse error -- but it still admits one after a statement that ends in a `}`,
+   The grammar settles whether a statement needs its `;` -- a missing `;` is a
+   parse error -- but the grammar still accepts a `;` after a statement that ends in a `}`,
    where the brace has already closed it. That spelling has one parse, since no
    statement begins with a `;`, so it is marked here rather than refused there.
 

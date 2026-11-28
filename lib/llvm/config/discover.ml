@@ -3,7 +3,7 @@
    the LLVM that `LLVM_CONFIG` names, or from `llvm-config` on PATH. Each
    mode prints one result on standard output. CCOMP is the C compiler's
    type (`%{ocaml-config:ccomp_type}`: `cc` or `msvc`), and the flags are
-   written in the form that compiler type expects.
+   written in the form that compiler type accepts.
 
    - `cflags`: the flags LLVM's OCaml bindings (lib/llvm) compile with, as
      a dune S-expression, and `libs CCOMP TARGETS...`: the flags they link

@@ -119,7 +119,7 @@ let bindings start =
    where [members] gives a type's members. Type_decls rejects a type that
    holds itself at a growing argument (generics.md §2.4), which is the only
    kind of type whose members lead to ever new types. A walk that keeps
-   growing (Ty.Growth) therefore means Type_decls missed such a type: an
+   growing (Ty.Growth) therefore shows Type_decls missed such a type: an
    internal error, not a hang. *)
 let reached_through_references ~members t =
   let seen = Hashtbl.create 16 in
@@ -224,7 +224,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
     | Some p -> Spawns.describe p
     | None -> "this place"
   in
-  (* Where [p] may be part of something the caller passed for [q]. *)
+  (* Where [p] may be part of a value the caller passed for [q]. *)
   let root_pair (x : place) (y : place) =
     match (role_of x.Spawns.local, role_of y.Spawns.local) with
     | Ref i, Subject -> Some (i, 0)
@@ -421,8 +421,8 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
         | None -> None)
     | _ -> None
   in
-  (* Whether an argument of type [arg] passed to a parameter of type [param]
-     is a borrow. *)
+  (* Tests whether an argument of type [arg] passed to a parameter of type
+     [param] is a borrow. *)
   let borrows (param : Ty.t) (arg : Ty.t) =
     match param with
     | Ty.Reference _ | Ty.Concept _ | Ty.Verb _ -> false
@@ -547,7 +547,7 @@ let walk env summaries ~report ~(params : (T.Local.t * role) list) start =
           ws)
       lent
   in
-  (* Argument [j], written after the one borrowed as [b], runs while [b] is
+  (* Argument [j], written after the argument borrowed as [b], runs while [b] is
      already lent. A take of the borrowed place itself is reported by the
      moves analysis instead (lifetimes.md §1.5). *)
   let check_later_argument (i, b) (j, ty, a) =

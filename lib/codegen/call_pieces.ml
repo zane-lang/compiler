@@ -25,7 +25,7 @@ let rec pieces (t : Ty.t) =
   | Ty.Array (t, n) -> n * pieces t
   | Ty.Packed t -> (fst (Ty.size_align (Ty.Packed t)) + 7) / 8
 
-(* How many of [pieces t] are floating-point. *)
+(* The count of floating-point pieces in [pieces t]. *)
 let rec floats (t : Ty.t) =
   match t with
   | Ty.F32 | Ty.F64 -> 1

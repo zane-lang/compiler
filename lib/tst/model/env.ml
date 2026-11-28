@@ -220,7 +220,7 @@ type types = {
 (* The checks pass 3 holds back while it runs, in the order they were
    requested: whether a type is a reference type may depend on a definition
    not yet resolved, so the check of a marker, and the check of a type's
-   explicitly written arguments against their kinds, wait until every type is
+   explicitly written arguments against their [Ty.kind]s, wait until every type is
    defined. *)
 type deferred = {
   marks : (Ty.t * Span.t) Queue.t;
@@ -244,7 +244,7 @@ type verbs = {
   enum_maps : (Ty.type_id * string, enum_map list) Hashtbl.t;
   promoted : (int, string list) Hashtbl.t;
   own_numbers : (int, string list) Hashtbl.t;
-  (* Each foreign handle type's kind, once every foreign verb that makes a
+  (* Each foreign handle type's [handle_kind], once every foreign verb that makes a
      handle of that type is known (ffi.md §4.2), and each foreign verb's C
      function, by declaration ([Foreign_decls]). *)
   handle_kinds : (Ty.type_id, Nodes.Decl.handle_kind) Hashtbl.t;

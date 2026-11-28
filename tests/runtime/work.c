@@ -118,7 +118,7 @@ void zane_main(void) {
 	check(zane_blocks() == 0);
 
 	/* A work zeroed whole, rather than started, starts at its first push,
-	   and gives its jobs back last first past the ones it keeps in itself. */
+	   and gives its jobs back last first past the jobs it keeps in itself. */
 	zane_work zeroed = { 0 };
 	for (int64_t i = 0; i < 10; i++) zane_work_push(&zeroed, (zane_job){ .extra = i });
 	int64_t expected = 9, ordered = 1;

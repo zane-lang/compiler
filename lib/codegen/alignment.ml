@@ -4,7 +4,7 @@
    so the alignment of the type read or written gives no bound on the
    address's: a member of a struct may sit at an odd offset inside a packed
    one. Every non-atomic load and store therefore takes the smaller of its
-   type's alignment and what its address is known to be:
+   type's alignment and its address's known alignment:
 
    - a stack slot or a global is at its own alignment;
    - a getelementptr keeps its base's alignment as far as its constant
@@ -25,7 +25,7 @@ let most = 4096
 
 (* The largest power of two dividing [n], at most [most]; [most] for 0.
    A product may have wrapped, so [n] may be negative: its lowest set bit
-   is still the true one's, and 2^63 is past [most]. *)
+   is still the true product's, and 2^63 is past [most]. *)
 let low_bit n =
   let bit = Int64.logand n (Int64.neg n) in
   if bit = 0L || bit < 0L || bit > Int64.of_int most then most else Int64.to_int bit
@@ -68,7 +68,7 @@ let is_slot p =
          | _ -> false)
        true p
 
-(* What [v] is known to be aligned to. Without [slots] a pointer read
+(* The alignment known for [v]. Without [slots] a pointer read
    back from a stack slot is at any byte: while a function is still being
    emitted, its slots may yet take other stores. *)
 let rec known ?(slots = true) dl ctx depth v =

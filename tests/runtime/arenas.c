@@ -53,7 +53,7 @@ static int fail_commits(void) {
 }
 #endif
 
-/* In the child: the step past what is usable is touched while the system
+/* In the child: the step past the usable end is touched while the system
    refuses to commit it, in the program's context or, with `spawned`, in a
    context of its own. */
 static void commit_child(int spawned) {
@@ -97,7 +97,7 @@ void zane_main(void) {
 		listed = listed && *zane_page(at, 0) == ((uintptr_t)self | 1);
 	check(listed && self->limit - self->base == zane_fixed_region);
 
-	/* A slot is aligned as asked, and the next one follows it. */
+	/* A slot is aligned as requested, and the next slot follows it. */
 	zane_mark *outer = zane_scope_enter(0);
 	char *a = test_slot(outer, 1, 1, NULL);
 	int64_t *b = test_slot(outer, 8, 8, NULL);

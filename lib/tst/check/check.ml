@@ -271,8 +271,8 @@ and call_only env span name =
        (quote name));
   invalid span
 
-(* The placeholder a completion wrote, met as a bare name: what is in scope
-   there. *)
+(* The placeholder a completion wrote, met as a bare identifier: the
+   declarations in scope there. *)
 and probe_name env ctx (id : N.Name.t) =
   if Uses.is_placeholder env.uses id.N.Name.text then
     Uses.probe env.uses id.N.Name.span
@@ -453,7 +453,7 @@ and private_field env ctx span (tid : Ty.type_id) f =
          (quote tid.Ty.package))
 
 (* An enum map is found where a method is: in the enum's home package, then
-   in the current one. *)
+   in the current package. *)
 and map_read env ctx span ~at target tid property ~missing =
   let maps = Option.value ~default:[] (Verbs.enum_maps env.verbs (tid, property)) in
   let in_package p = List.filter (fun m -> m.map_decl.package = p) maps in
@@ -847,7 +847,7 @@ and any_subject env ctx text =
   |> List.rev
 
 (* functions.md §6.1: the subject type's home package first, then the
-   current one, then a method declared for every type; a qualified call
+   current package, then a method declared for every type; a qualified call
    names its package instead. *)
 and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
   let actuals = match actuals with a :: rest -> { a with subject = true } :: rest | [] -> [] in
@@ -1164,7 +1164,7 @@ and field_constructor_call env ctx ?at span what cands (fs : N.Field_arg.t list)
     | None -> invalid span
     | Some o ->
         Option.iter (fun at -> record_callee env at o.sig_) at;
-        (* A label names the field of the constructor the call chose when
+        (* A label names the field of the constructor the call resolved to when
            that constructor declares its fields, and the struct's field
            otherwise. *)
         let declared =
@@ -1358,10 +1358,11 @@ and spawn env ctx (call : N.Verb_call.t) =
   | _ -> error env span "`spawn` starts a function or method call, and this is neither");
   mk (T.Expr.Spawn e) e.T.Expr.ty span
 
-(* effects.md §5.6, syntax.md §4.10. What the call may write, read and
-   compute is decided when it is evaluated (docs/design/comptime.md); what
-   is known from the tree is checked here: the call's form, its result's
-   type, and that everything it is given can be had at compile time. *)
+(* effects.md §5.6, syntax.md §4.10. The evaluator checks what the call may
+   write, read and compute when it evaluates the call
+   (docs/design/comptime.md); what is known from the tree is checked here:
+   the call's form, its result's type, and that everything it is given can
+   be had at compile time. *)
 and comptime env ctx span (call : N.Verb_call.t) =
   let e, s = verb_call env ~flow:false ctx call in
   let checked =

@@ -2,8 +2,8 @@
 
    The rewrites are inventoried in docs/design/desugaring.md; this file applies them.
    Everything not listed there is a walk that rebuilds the node as it found it,
-   which is most of what follows -- the interesting lines are the ones with a
-   comment naming the section they implement.
+   which is most of what follows -- the interesting lines carry a comment
+   naming the section they implement.
 
    Two rules hold throughout.
 
@@ -22,7 +22,7 @@ module Span = Source.Span
 
 (* ---------------------------------------------------------------------- *)
 (* Leaves reused from the CST pass through by identity. Named rather than  *)
-(* inlined so a reader can see which ones they are.                        *)
+(* inlined so a reader can see which leaves pass through.                  *)
 (* ---------------------------------------------------------------------- *)
 
 let name (x : C.Name.t) : S.Name.t = x
@@ -303,12 +303,12 @@ and verb_call_of (x : C.Verb_call.t) : S.Verb_call.t =
 
    The operator node keeps the span of the operator the author typed, so the
    `<` of a lowered `a >= b` spans the `>=`. Every synthesized node around it
-   takes the whole expression's span, since the whole expression is what became
-   them.
+   takes the whole expression's span, since the rewrite made those nodes from
+   the whole expression.
 
    The handler goes on the outermost node. A handler is written against the
-   expression as a whole, and after the rewrite the outermost node is what that
-   expression became.
+   expression as a whole, and after the rewrite the outermost node stands for
+   that whole expression.
 
    Two of the five -- `>` and `<=` -- hand the primitive its operands the
    other way round, because `b < a` is what the spec defines `a > b` as. The
@@ -335,7 +335,7 @@ and derived_op span (op : C.Operator.t) left right ~written_right abort_handle
      from; `a` and `b` keep their own spans either side of it.
 
      The join reaches for the operand's span *as written*, not the lowered
-     one. They differ exactly when the operand is parenthesized: lowering has
+     operand's. They differ exactly when the operand is parenthesized: lowering has
      already dropped the parentheses by this point, so the lowered `(b)` spans
      only `b`, and joining with that would end the flip inside the brackets --
      `- (b`, which is not text anyone wrote. *)
@@ -379,7 +379,7 @@ and match_expr (x : C.Match_expr.t) : S.Match_expr.t =
 
    The bodies are not copied. OCaml shares them, so the expansion costs one
    arm record per combination and no more; what multiplies is the number of
-   arms, which is what the spec asks for -- each expanded arm binds the binder
+   arms, as the spec requires -- each expanded arm binds the binder
    "at *its own* case's payload" (adt.md §5.1), so each has to be checked
    separately whatever the tree does.
 
@@ -430,7 +430,7 @@ and block (x : C.Body.t) : S.Block.t =
   | C.Body.Shorthand value ->
       { S.Block.stats = [ stat span (S.Stat.Ret (expression value)) ]; span }
   (* The grammar writes `foreign` only on a function or a method, which
-     [verb_decl] reads before it asks for a block. *)
+     [verb_decl] reads before it calls for a block. *)
   | C.Body.Foreign _ -> Diagnostic.bug ~span "a foreign body where a block is needed"
 
 (* §2.10: the [Statement.t] wrapper is dropped. It paired a statement with any
@@ -573,7 +573,7 @@ and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
             body;
             foreign;
           }
-    (* The grammar admits only the primitive operators here, so the derived
+    (* The grammar accepts only the primitive operators here, so the derived
        rewrite above has no declaration to contradict. See
        docs/design/desugaring.md §3. *)
     | C.Verb_decl.Op { op; params; ret_type = r; body = b } ->
@@ -613,7 +613,8 @@ and verb_decl (x : C.Verb_decl.t) : S.Verb_decl.t =
 
 (* An operator in declaration position. The grammar accepts only the five
    binary primitives there (docs/design/desugaring.md §3), so the derived cases cannot
-   arise -- and are refused rather than mapped to something, because silently
+   arise -- and this function reports them as a bug rather than mapping them
+   to a primitive, because silently
    turning a declared `>` into a declared `<` would put back exactly the
    unreachable declaration that guard exists to prevent. *)
 and declared_operator (x : C.Operator.t) : S.Operator.t =

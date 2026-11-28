@@ -43,7 +43,7 @@ Unit wrong() {
 }
 
 /// `&` marks only a reference type, so a value type that fills an `&` written
-/// over a type parameter is the wrong kind, reported where it enters
+/// over a type parameter is an error, reported where it enters
 /// (generics.md §3.6): the explicit argument, or the value an inferred one is
 /// read from.
 type Peg<T Type> = #struct { at &T; }

@@ -58,8 +58,8 @@ and ended_at layouts t ((p : Layout.position), at) v acc =
 
 (* A settled overwrite of [old] by [incoming] (spec ffi.md §4.3): each
    handle of [old] that is in no variant's payload and no list keeps its
-   place, its object set from the incoming one's by its set thunk, and the
-   incoming one is consumed; every other handle of [old] is ended. Gives
+   place, its object set from the incoming handle's by its set thunk, and the
+   incoming handle is consumed; every other handle of [old] is ended. Gives
    the incoming value with those places kept, and the thunks to run. *)
 let rec settled layouts layout t old incoming acc =
   let theirs = positions layouts layout t incoming in

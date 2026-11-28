@@ -1,6 +1,7 @@
 /// An `archive` row whose member, a Windows object, exports the function
-/// it defines through a linker directive, which renaming cannot reach: the
-/// check refuses it, naming the member and the symbol.
+/// it defines through a linker directive. Renaming cannot reach the
+/// directive, so the compiler refuses the member when it checks the
+/// package, and names the member and the symbol.
 package archiveExport;
 
 alias I64 = @primitives$I64;

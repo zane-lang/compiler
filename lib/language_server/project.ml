@@ -82,7 +82,7 @@ let canonical_dir path =
    canonical path, joined as a build joins a package directory and a file's
    name. The file's own name stays, so a link `main.zn` to `main.src` is the
    file `main.zn` that its package reads, and on Windows the separator is the
-   one the build writes. *)
+   separator the build writes. *)
 let canonical path =
   let path = absolute path in
   Source.Files.in_directory (canonical_dir (Filename.dirname path)) (Filename.basename path)

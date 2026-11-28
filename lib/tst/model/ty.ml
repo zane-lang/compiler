@@ -205,7 +205,7 @@ and subst_concept s = function
 
 (* The type or number each of a generic's [params] stands for, given its
    [args]. The counts
-   always agree: [Type_decls.apply_args] reports a wrong count in the program
+   always match: [Type_decls.apply_args] reports a wrong count in the program
    and builds no type from it, so a [Named] type with the wrong number of
    arguments is a compiler bug. *)
 let bindings (params : param list) (args : arg list) : subst =
@@ -243,7 +243,7 @@ let free_params t =
   go t;
   List.rev !seen
 
-(* How many type constructors a type is built from. *)
+(* The number of type constructors a type is built from. *)
 let rec size = function
   | Named (_, args) | Intrinsic { args; _ } -> 1 + args_size args
   | Reference t | Roaming t -> 1 + size t
@@ -297,7 +297,7 @@ end
 
 (* The passing mode is not part of a value's type: a `&T` value, a `^T` value
    and a `T` value carry the same type, and the lifetime analysis, not typing,
-   decides which mode a position may take (docs/design/semantics.md D1). So the
+   settles which mode a position may take (docs/design/semantics.md D1). So the
    comparisons below look through a mode marker, `&` or `^`, at the top of either side. *)
 let strip_mode = function Reference t | Roaming t -> t | t -> t
 let is_ref = function Reference _ -> true | _ -> false
@@ -402,8 +402,8 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
   (* `^T` over a type parameter takes an owner when it is filled with a
      reference type and borrows a value otherwise (memory.md §2.9), so a
      function type's `^T` is filled from a value type's result written bare.
-     Only a value type may fill `^T` that way, and the kinds of the types
-     decide whether it is one: the caller checks the filled type
+     Only a value type may fill `^T` that way, and whether a type is a
+     value type depends on its definition: the caller checks the filled type
      ([Type_decls.modes_agree]). *)
   | Roaming (Param p), actual when is_open p && not (is_roaming actual) ->
       unify ~open_ s (Param p) actual

@@ -1,12 +1,12 @@
 # Documentation
 
-What each document here is for. The [spec](https://github.com/zane-lang/spec)
+This index gives the purpose of each document here. The [spec](https://github.com/zane-lang/spec)
 defines the language; these describe how this compiler implements it.
 
 - [`development.md`](development.md) and [`releasing.md`](releasing.md): how
   to set up, build and test the compiler, and how releases are published.
-- [`spec-divergences.md`](spec-divergences.md): where the compiler does
-  something other than the spec says, or settles what the spec leaves open.
+- [`spec-divergences.md`](spec-divergences.md): where the compiler departs
+  from the spec, or settles what the spec leaves open.
   Read it before relying on a spec section.
 - [`optimizations.md`](optimizations.md): every optimization the compiler
   applies to the programs it builds, one entry each, with the builds that get
@@ -41,7 +41,7 @@ One document per stage, in the order the compiler runs them.
 - [`design/tiers.md`](design/tiers.md): tiered builds, as `zane run` and
   `zane test` make them: a program starts unoptimized and moves to optimized
   code while it runs (T1…).
-- [`design/memoization.md`](design/memoization.md): the calls remembered
+- [`design/memoization.md`](design/memoization.md): the calls memoized
   while the program runs, which functions get a table, and how a function
   stops looking when looking does not pay (M1…).
 - [`design/memo-tables.md`](design/memo-tables.md): the table layouts

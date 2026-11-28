@@ -2,8 +2,8 @@
 /// past the sizes insertion sort and the pivot's medians of medians take,
 /// with many equal keys, and 64-bit integers already in descending order.
 /// Each list is checked whole: the count of out-of-order neighbours (or, for
-/// the descending one, of elements off their place) is 0, and the 32-bit
-/// list's keys sum as before, each key as often as before.
+/// the descending list, of elements off their place) is 0, and the 32-bit
+/// list's keys keep their sum and each key its count from before the sort.
 package listSort;
 
 alias I64 = @primitives$I64;
@@ -41,7 +41,7 @@ Unit main() {
 	}
 	@program$console!print(String(bad));
 	@program$console!print(String(@operators$add(after, @operators$negate(before))));
-	// Each of the eight keys, -4 to 3, is there as often as before.
+	// Each of the eight keys, -4 to 3, keeps its count from before the sort.
 	moved I64 = I64(0);
 	key I64 = @operators$negate(I64(4));
 	@controlflow$repeat(I64(8)) {

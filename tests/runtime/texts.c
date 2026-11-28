@@ -147,7 +147,7 @@ void zane_main(void) {
 	zane_arrive((char *)t, &text_type);
 	check(s->room == 0 && holds(t, "abab") && zane_blocks() == 1);
 
-	/* An overwrite returns the block it replaces, and keeps the new one. */
+	/* An overwrite returns the block it replaces, and keeps the new block. */
 	zane_text incoming;
 	zane_text_join(&incoming, &cd, &cd);
 	zane_overwrite((char *)t, (char *)&incoming, sizeof(zane_text), &text_type);

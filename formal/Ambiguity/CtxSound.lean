@@ -5,8 +5,8 @@ import Ambiguity.Automaton
 
 Every accepted tree of the automaton, annotated with the state its
 simulation starts in, is a well-formed tree of `ctxGrammar` with the same
-yield, and distinct accepted trees stay distinct. So an unambiguous context
-grammar means an unambiguous automaton.
+yield, and distinct accepted trees stay distinct. So when the context grammar
+is unambiguous, the automaton is unambiguous too.
 -/
 
 namespace Ambiguity
@@ -219,7 +219,7 @@ theorem runs_inj (A : Automaton) (hA : A.wf = true) {q : Nat} {rhs : List String
     rw [annot_inj A hA ha₁ ha₂ (hk₁.trans hk₂.symm) he.1, runs_inj A hA hr₁ hr₂ he.2]
 end
 
-/-- **R1.** An unambiguous context grammar means an unambiguous automaton. -/
+/-- **R1.** When the context grammar is unambiguous, the automaton is too. -/
 theorem ctx_sound (A : Automaton) (hA : A.wf = true) (h : Unambiguous A.ctxGrammar) :
     AUnambiguous A := by
   intro t₁ t₂ ⟨a₁, l₁, _⟩ ⟨a₂, l₂, _⟩ hy

@@ -1,6 +1,6 @@
 (** Codegen: the CGT to an LLVM module, and the module to an object file or
     an executable linked with the C runtime (docs/design/lowering.md). Its
-    failures are about the build -- a target LLVM does not know, a link that
+    failures are about the build -- a target unknown to LLVM, a link that
     failed -- and are messages, not diagnostics. *)
 
 (** The triple a build for a Windows host is for: MinGW's, the only Windows
@@ -133,7 +133,7 @@ val executable :
   (unit, string) result
 
 (** Tier 1 of a tiered build: the module optimized into the shared library
-    at the given path, which tier 0 loads while it runs, or the one the
+    at the given path, which tier 0 loads while it runs, or the library the
     cache keeps for the same module (docs/design/tiers.md). *)
 val shared_library : ?target:string -> Llvm.llmodule -> string -> (unit, string) result
 

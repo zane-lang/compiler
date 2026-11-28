@@ -9,7 +9,7 @@
 
 Columns: lists, elements per list, on or off, the bytes the elements use,
 then Rss, AnonHugePages and Anonymous from smaps_rollup in kB. Extra
-environment (ZANE_HUGE_MIN, say) reaches the program as it is.
+environment (ZANE_HUGE_MIN, for example) reaches the program unchanged.
 """
 import os, pty, subprocess, sys, tempfile
 

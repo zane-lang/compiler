@@ -3,7 +3,7 @@
 ; for. A library's code-generation tree shows each function's linkage, and
 ; its object's defined symbols are listed by `llvm-nm`, without their
 ; addresses. A listing held to a golden file is of an object built for
-; x86-64 Linux, so every host gives the same one; each object format's own
+; x86-64 Linux, so every host gives the same listing; each object format's own
 ; listing is the per-format goldens' below, and an object a program links is
 ; built for the host.
 
@@ -165,9 +165,9 @@
   (diff golden/survey.out survey.out.actual.unchecked)))
 
 ; geometry's placeholder object rewritten as fetching rewrites a release's
-; (docs/design/separate-compilation.md C9). It defines exactly what the
-; object built from source with the same stamp does, and survey links with
-; it as with that one.
+; (docs/design/separate-compilation.md C9). It defines exactly the symbols of
+; the object built from source with the same stamp, and survey links with it
+; as with that object.
 
 (rule
  (targets geometry.rewritten.o)
@@ -244,7 +244,7 @@
 ; geometry rewritten for macOS (Mach-O) and Windows (COFF) objects, each
 ; held to the object built from source with the same stamp for that target.
 ; `llvm-nm` reads both formats, where GNU `nm` reads neither everywhere, and
-; `-m` spells out a Mach-O symbol's kind. The x86-64 listings are also
+; `-m` spells out a Mach-O symbol's type and section. The x86-64 listings are also
 ; golden: a shared instance is a `weak external` on Mach-O, and on COFF a
 ; function in a COMDAT, which `llvm-nm` lists as `T` with no `.weak.` alias
 ; beside it.
@@ -427,7 +427,7 @@
   (diff golden/versions.out versions.out.actual.unchecked)))
 
 ; Without the keys, atlas's `import geometry` could refer to either version,
-; and the compiler reports the ambiguity rather than choose.
+; and the compiler reports the ambiguity rather than choosing a version.
 
 (rule
  (deps (source_tree fixtures/versions))
@@ -722,9 +722,9 @@
  (action
   (run python3 %{dep:facts_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
-; Calls remembered while the program runs (docs/design/memoization.md): every
-; fixture prints the same with and without `--memoize`, and the functions
-; given a table are the ones the rules pick.
+; Calls memoized while the program runs (docs/design/memoization.md): every
+; fixture prints the same output with and without `--memoize`, and the
+; functions given a table are exactly the functions the rules pick.
 (rule
  (alias runtest)
  (deps memo_test.py (source_tree fixtures/memo) (source_tree fixtures/memolibrary) (source_tree fixtures/memolibraryuser))

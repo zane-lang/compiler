@@ -65,7 +65,7 @@ int zane_commit_range(char *at, size_t bytes) {
    them can be listed alone in the chunk map, or null. The reservation is
    1 MiB larger to find one. A POSIX system gives back what is left over at
    either end; Windows releases a reservation only whole, so there it stays
-   reserved and unused, and `*raw` is where the whole one starts. */
+   reserved and unused, and `*raw` is where the whole reservation starts. */
 char *zane_reserve_aligned(size_t bytes, char **raw) {
 	char *at = zane_reserve_addresses(bytes + ZANE_CHUNK);
 	if (!at) return NULL;
@@ -109,18 +109,18 @@ int zane_decommit_range(char *at, size_t bytes) {
 #endif
 }
 
-/* A list's reservation of `reserved` bytes from `base`, whose usable
-   block grows from `from` bytes to `to`, asks Linux for huge pages once the
-   block reaches 32 MiB, when it is made or as it grows in place, unless
-   `ZANE_HUGE=0` is in the program's environment. Below 32 MiB a huge page
-   gains a loop little and can cost a list up to half again its memory, in
-   the part of its last 2 MiB page it has not touched; from 32 MiB it gains
-   x1.2 to x2.1 and costs at most 2 MiB a list
+/* For a list's reservation of `reserved` bytes from `base`, whose usable
+   block grows from `from` bytes to `to`, the runtime asks Linux for huge
+   pages once the block reaches 32 MiB, when it is made or as it grows in
+   place, unless `ZANE_HUGE=0` is in the program's environment. Below 32 MiB a
+   huge page gains a loop little and can cost a list up to half again its
+   memory, in the part of its last 2 MiB page it has not touched; from 32 MiB
+   it gains x1.2 to x2.1 and costs at most 2 MiB a list
    (docs/experiments/prefetch-reorder, round 10). A list's block never
-   shrinks, so a kept reservation a list takes again needs nothing undone;
-   one an unbounded pool takes, touched only here and there, is told to
-   leave huge pages out (`to` 0). `ZANE_HUGE_MIN=N` moves the threshold to
-   N bytes, for measuring. */
+   shrinks, so a kept reservation a list takes again needs nothing undone; one
+   an unbounded pool takes, touched only here and there, is told to leave huge
+   pages out (`to` 0). `ZANE_HUGE_MIN=N` moves the threshold to N bytes, for
+   measuring. */
 #if defined(__linux__) && defined(MADV_HUGEPAGE)
 /* Whether to ask, and from what block size, read from the environment once
    by whichever thread first makes a list's large block. */
@@ -151,7 +151,7 @@ void zane_huge(char *base, size_t reserved, size_t from, size_t to) {
 }
 
 /* The system's page size, the unit memory is given back in. Any thread
-   may be the first to ask, and each finds the same. */
+   may be the first to ask, and each finds the same size. */
 size_t zane_system_page;
 
 size_t zane_page_bytes(void) {
@@ -202,7 +202,7 @@ static uintptr_t zane_image(void) {
 /* `bytes` of addresses with no access reserved from `at` exactly, or 0
    when any of them are taken. Linux refuses a taken range outright; macOS
    takes the address as a hint, and one that does not hold is given back;
-   Windows reserves only at the address asked. */
+   Windows reserves only at the address given. */
 static int zane_reserve_at(uintptr_t at, size_t bytes) {
 #ifdef _WIN32
 	return VirtualAlloc((void *)at, bytes, MEM_RESERVE, PAGE_NOACCESS) == (void *)at;
@@ -395,8 +395,8 @@ static int zane_under_valgrind(void) {
    the registers the handler was given, and Valgrind gives a handler only
    the registers its translated code last wrote back: an address computed
    just before the access may be an older value, and the access runs again
-   at that address instead. So the program would write where it never
-   meant to (LangArena's Maze tests crashed, and its Graph::BFS summed
+   at that address instead. So the program would write to a wrong address
+   (LangArena's Maze tests crashed, and its Graph::BFS summed
    wrong). The guard still faults, to stop the program, which never runs
    an access again. The pages still take memory only where touched; only
    a system with strict overcommit charges the run for the whole range. */
@@ -422,12 +422,12 @@ void zane_reserve(zane_context *c, int64_t size) {
 	c->top = NULL;
 }
 
-/* Everything from what is usable up to the step that holds `at` is made
+/* Every page from the usable end up to the step that holds `at` is made
    usable. Two threads may do this at once for one context -- a spawned
    call writing to a slot of the context that spawned it -- and making a
    page usable twice is harmless, so the larger end is kept. An access below
-   what is usable faulted while another thread was making it so, and can
-   run again. */
+   the usable end faulted while another thread was moving that end, and
+   can run again. */
 static int zane_commit(zane_context *c, char *at) {
 	char *from = __atomic_load_n(&c->committed, __ATOMIC_ACQUIRE);
 	if (at < from) return 1;
@@ -574,9 +574,9 @@ void zane_thread_start(void) {
 #endif
 }
 
-/* A thread that stops running the program's code, a pool worker the pool
-   no longer wants or one C made returning from a function value, gives back
-   the handler's stack and has the one it had before again. */
+/* A thread that stops running the program's code, a pool worker past the
+   pool's target or a thread C made returning from a function value, gives
+   back the handler's stack and gets its earlier signal stack back. */
 void zane_thread_stop(void) {
 	stack_t prior = zane_prior_stack;
 	prior.ss_flags &= SS_DISABLE;

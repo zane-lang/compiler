@@ -74,8 +74,7 @@ let arguments () =
     (* `-` is the stdin source, not an option, so it is taken before the guard
        below rejects everything else that starts with a dash. Without that
        guard a mistyped `--ss` reads as a path, and the error names a file the
-       author never meant to open rather than the option they meant to
-       write. *)
+       author never meant to open rather than the mistyped option. *)
     | [ "-" ] -> File (stage, read "-")
     | [ source ] when not (String.starts_with ~prefix:"-" source) ->
         File (stage, read source)
@@ -178,7 +177,7 @@ let built_into = function
   | Assembled | Check | Declarations | Typed | Cgt | Ir | Compile_commands _ | Write_backs _ -> `Other
 
 (* No tree is printed when semantics found a problem, since neither tree view
-   promises a tree with holes in it. *)
+   can show a tree with holes in it. *)
 let run_packages build =
   (* The memory layout depends on the target (Cgt.Ref32), which is known
      before anything is lowered. *)
@@ -211,7 +210,7 @@ let run_packages build =
 (* The only place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,
    and 3 for a broken invariant, the compiler's own fault. Any other
-   exception that escapes a stage also means a broken invariant. The binary
+   exception that escapes a stage also marks a broken invariant. The binary
    ends each line it writes with `\n` on every system, as the programs it
    builds do (docs/design/platforms.md): Windows's text mode would end each
    line with `\r\n`. *)

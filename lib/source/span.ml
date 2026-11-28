@@ -31,7 +31,7 @@ let join a b = { start_ = a.start_; end_ = b.end_ }
 
 (* A span standing in for one that was never written. Only for nodes the parser
    synthesises rather than reduces -- there are none today, so nothing uses it
-   yet; it exists so a later desugaring has something honest to put on a node
+   yet; it exists so a later desugaring has an honest span to put on a node
    with no source of its own, rather than borrowing a nearby node's span and
    reporting an error at the wrong place. *)
 let none =

@@ -62,7 +62,7 @@ measure; the unit tests hold it to `Abi` on every host the compiler suite
 runs on, and `dev/bin/cross-programs` holds the Windows and macOS builds it
 makes on Linux to the header. On a target with 4-byte pointers, such as
 `i386-unknown-linux-gnu` or `armv7-unknown-linux-gnueabihf`, those offsets
-would disagree with what LLVM and the C compiler lay out.
+would differ from the layout LLVM and the C compiler use.
 
 So once LLVM has made the target machine, `Build.target_machine`
 (`lib/codegen/build.ml`) reads its data layout and refuses the target
@@ -84,10 +84,10 @@ the macOS SDK, whose license allows its use only on Apple hardware.
 That holds as long as the compiler, the runtime and the standard library use
 only what `libSystem` provides. They keep to it: a feature that would need an
 Apple framework, such as a GUI or the GPU, belongs in a package of its own,
-built on a Mac by those who want it.
+built on a Mac by the people who need it.
 
 A macOS program names the oldest macOS it runs on, and the toolchain picks
-the oldest one it builds for on the target's architecture, 13.0 on arm64.
+the oldest version it builds for on the target's architecture, 13.0 on arm64.
 On a Mac with an SDK installed, the link reads the SDK's stubs, which give
 each system library the SDK's own version. LLD then warns that the library
 is newer than the program's oldest macOS. The program uses the system
@@ -161,7 +161,7 @@ a process to reserve. It applies to dynamic chunks and the fixed-size range,
 including its guard. Supporting higher addresses requires extending the
 chunk map; native pointers themselves impose no 32 GiB ceiling.
 
-The same bound limits the size of a type: lowering refuses a type that takes
+The same bound limits the size of a type: lowering rejects a type that takes
 `2^48` bytes or more where it is named, since no value of it could be
 placed ([`lowering.md`](lowering.md) §9). The limit is `Ty.limit` in
 `lib/cgt/nodes.ml`, and it rises with the chunk map if the map is extended.

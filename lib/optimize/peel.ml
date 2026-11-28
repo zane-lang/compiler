@@ -1,11 +1,11 @@
-(* Experimental partial inlining (docs/experiments/goose-comparison): each
-   call a function whose body has a cheap way out makes to itself is
-   preceded by a copy of that way out, so the call is made only when the
-   cheap way is not taken. A recursion's base case is the common one: `make(depth - 1)`
-   builds a leaf in its caller when `depth - 1` is 0, and `check(p.left)`
-   counts one when `p.left` is a leaf, where each was a call before. LLVM
-   never inlines a function into itself, and runs no partial inliner at
-   `-O2`, so stage 5 does it (O11).
+(* Experimental partial inlining (docs/experiments/goose-comparison): when a
+   function's body has a cheap exit path, each call the function makes to
+   itself is preceded by a copy of that exit path, so the call is made only
+   when the cheap path is not taken. A recursion's base case is the common
+   cheap path: `make(depth - 1)` builds a leaf in its caller when `depth - 1`
+   is 0, and `check(p.left)` counts one when `p.left` is a leaf, where each
+   was a call before. LLVM never inlines a function into itself, and runs no
+   partial inliner at `-O2`, so stage 5 does it (O11).
 
    A function's copy is its body with every arm of a branch or a switch
    that calls anything, or does more than a few steps of work, replaced by
@@ -183,7 +183,7 @@ let instantiate rename ~out ~result (kept : Stat.t list) =
 
 (* Every call in [f] to itself, when it has a copy, made to try the copy
    first. A call from outside the recursion is left as it is: it enters the
-   recursion once, at a depth where the cheap way is rarely the one taken,
+   recursion once, at a depth where the cheap path is rarely taken,
    so a copy there costs its test on every call and saves few. *)
 let rewrite copies (f : Func.t) : Func.t =
   let next = ref (largest f) in
@@ -229,8 +229,8 @@ let rewrite copies (f : Func.t) : Func.t =
   let body = Cgt.Traverse.map_stats fe (fun _ -> None) f.Func.body in
   { f with body; values = f.Func.values @ !added }
 
-(* Every function's calls to itself, when its copy fits, tried first.
-   On unless `ZANE_PARTIAL_INLINE` is 0. *)
+(* The pass precedes every function's calls to itself with the copy, when the
+   copy fits. The pass runs unless `ZANE_PARTIAL_INLINE` is 0. *)
 let program (p : Program.t) : Program.t =
   if Sys.getenv_opt "ZANE_PARTIAL_INLINE" = Some "0" then p
   else begin

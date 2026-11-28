@@ -1,6 +1,6 @@
 /* A static library written from its members (docs/design/ffi.md F4, F9):
    an `archive` row's library once its members are renamed, written by
-   LLVM's archive writer in the kind the target's linker reads, with a
+   LLVM's archive writer in the archive format the target's linker reads, with a
    symbol table, and nothing in it that differs between builds of the same
    members. */
 

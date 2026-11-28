@@ -1,7 +1,7 @@
 /// A particle simulation in sequential passes over a list of value structs
 /// that mix four floats with a flag, so each struct has padding: every step
 /// integrates all particles, bounces them off the walls and floor, then
-/// kills the ones that have settled and respawns the dead from a generator.
+/// kills the particles that have settled and respawns the dead from a generator.
 package particles;
 
 alias Int = @primitives$I64;
