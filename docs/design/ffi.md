@@ -971,7 +971,11 @@ source holding assembly is an object of its own (F9), renamed with the
 `!` placeholder as the package's object is, and `--object` writes these
 beside `OUT` too, as `STEM.c.0.o`, `STEM.c.1.o` and so on, `STEM` being
 `OUT` without its extension; one an earlier build wrote there under that
-name is removed first. LLVM's linkers cannot join objects into one for
+name is removed first. (`--object` also writes the empty marker
+`STEM.arguments` when a `comptime` call read the build's arguments, and
+removes one an earlier build left when none did; the marker concerns
+`comptime` calls rather than C: [`separate-compilation.md`](separate-compilation.md)
+C3.) LLVM's linkers cannot join objects into one for
 Apple's targets or Windows, so they stay apart: the release archive's
 `build/` directory holds them all (`dependencies.md` §3.1), fetching
 rewrites each (C9 of [`separate-compilation.md`](separate-compilation.md)),

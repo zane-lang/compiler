@@ -1,0 +1,106 @@
+/// Constructors on every mould (types.md §3.1, adt.md §2.2, §3.3): an enum
+/// constructor returns a member, a variant constructor returns a case, a
+/// named one sits beside the members and cases, an implicit one is inserted
+/// at a callable argument, and the `#` forms declare them as well. Each
+/// check prints `yes` when it holds and `no` when it does not.
+package mouldConstructors;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+type Color = enum [ red, green, blue ];
+
+Color() => Color.green;
+Color.background() => Color.blue;
+
+/// A constructor body is an ordinary verb body that ends in a member.
+implicit Color(warm Bool) {
+	@controlflow$branch(warm, {
+		return Color.red;
+	});
+	return Color.blue;
+}
+
+type Countdown = variant {
+	done Unit;
+	more Int;
+}
+
+Countdown() => Countdown.done(Unit());
+Countdown.from(n Int) => Countdown.more(n);
+
+type Switch = #enum [ on, off ];
+
+Switch() => Switch.off;
+
+type Slot = #variant {
+	empty Unit;
+	held Int;
+}
+
+Slot() => Slot.empty(Unit());
+
+Bool isRed(c Color) => match (c) {
+	red => true;
+	[green, blue] => false;
+}
+
+Int left(c Countdown) => match (c) {
+	done => Int(0);
+	n more => n;
+}
+
+Bool isOff(s Switch) => match (s) {
+	on => false;
+	off => true;
+}
+
+Bool isEmpty(s Slot) => match (s) {
+	empty => true;
+	held => false;
+}
+
+Unit check(ok Bool) {
+	yes String.escaped("yes\n");
+	no String.escaped("no\n");
+	@controlflow$branch(ok, {
+		@program$console!print(yes);
+	});
+	@controlflow$branch(@operators$not(ok), {
+		@program$console!print(no);
+	});
+	return Unit();
+}
+
+Unit main() {
+	base Color();
+	shade Color.background();
+	check(match (base) {
+		green => true;
+		[red, blue] => false;
+	});
+	check(match (shade) {
+		blue => true;
+		[red, green] => false;
+	});
+
+	// The implicit constructor is inserted at a callable argument.
+	warm Bool = true;
+	cold Bool = false;
+	check(isRed(warm));
+	check(@operators$not(isRed(cold)));
+
+	// A case form still names a case beside the named constructor.
+	check(@operators$equal(left(Countdown()), Int(0)));
+	check(@operators$equal(left(Countdown.from(Int(3))), Int(3)));
+	check(@operators$equal(left(Countdown.more(Int(4))), Int(4)));
+
+	// Reference moulds declare constructors too.
+	sw Switch();
+	check(isOff(sw));
+	slot Slot();
+	check(isEmpty(slot));
+	return Unit();
+}
