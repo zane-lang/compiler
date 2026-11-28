@@ -132,7 +132,7 @@ module Ty = struct
      payload has a byte with an unused value (a [spare] byte) for each of
      the other cases, is laid out as the payload's bytes alone. Each other
      case is one of those unused values at that byte: the first unused value
-     for the first such case, and so on. *)
+     for the first such case, the second for the second, through the last. *)
   and byte_niche ts =
     let key = (Ref32.niche (), ts) in
     match Hashtbl.find_opt byte_niches key with
@@ -216,7 +216,7 @@ module Ty = struct
      a byte niche is laid out as that niche; any other sum of at most 256
      cases is packed, its tag one byte and its payload room right after it,
      and a sum of more cases keeps the 4-byte tag of a bare [Sum]. A type too
-     large to measure is left for the size check to refuse. *)
+     large to measure is left for the size check to reject. *)
   let tight t =
     match t with
     | Struct _ when (try fst (size_align (Packed t)) < fst (size_align t) with Too_large -> false) -> Packed t
@@ -308,7 +308,7 @@ end
 
 (* The semantics of a scalar conversion (types.md §2.9), which the optimizer
    uses to fold conversions and which codegen's `llvm.fptosi.sat` matches for
-   a truncation. A float is held as a double either way; an [F32] is a double
+   a truncation. A float of either width is held as a double; an [F32] is a double
    that [single] has rounded. *)
 module Scalar = struct
   let single f = Int32.float_of_bits (Int32.bits_of_float f)
@@ -823,7 +823,7 @@ module Callback = struct
         | [ t ] -> t
         | ts -> if c then Ty.Struct ts else Ty.tight (Ty.Struct (Ty.placed ts ts)))
     (* A view, an array's pointer and a C object hold no struct that either
-       language reorders, so both layouts are the same. *)
+       language reorders, so the Zane and C layouts match. *)
     | View _ | Object _ -> Ty.Ptr
     | Elements (s, n) -> Ty.Array (layout ~c s, n)
 

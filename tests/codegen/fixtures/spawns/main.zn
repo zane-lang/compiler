@@ -165,7 +165,7 @@ Int pick(n Int) {
 Int ageOf(p Person) => p.age;
 
 Unit main() {
-	// The pool resized before it starts, and a count it refuses.
+	// The pool resized before it starts, and a thread count out of range.
 	@program$runtime!setThreads(Int(2)) ? u {
 		resolve Unit();
 	}

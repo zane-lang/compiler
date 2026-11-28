@@ -9,7 +9,7 @@
    between its span's two positions. A span that covers the wrong tokens then
    shows the wrong text, which is the whole point -- the five span bugs found
    in review on #86,
-   and the two after them, were all invisible to a suite that only asks whether
+   and the two after them, were all invisible to a suite that only checks whether
    a file parses. `tests/parser/golden/` checks the output on every run, so a
    grammar change that moves a span shows the move as a diff.
 

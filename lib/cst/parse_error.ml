@@ -4,7 +4,7 @@
    position, so these stay inside the [Ok]/[Error] contract instead of escaping
    as [Invalid_argument].
 
-   It carries the message alone because the action raising it does not choose
+   It carries the message alone because the action raising it does not set
    where the report points: the lexer's position at the time of the raise is
    what the report has always used. *)
 exception Rejected of string

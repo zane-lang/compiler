@@ -1,12 +1,12 @@
-(* The SST's job is to represent what the source means, once every shorthand
+(* The SST represents the source's meaning, once every shorthand
    has been written out.
 
    The CST holds what was written; this tree holds what was written, spelled
-   in a single way. The rewrites that get from one to the other are
+   in one canonical form. The rewrites that get from one to the other are
    inventoried in docs/design/desugaring.md; each one is a surface form collapsing
    into the longhand the spec already defines it as. Nothing here needs a type
-   or a resolved name, which is the line docs/design/desugaring.md draws: a rewrite
-   that would need either is refused and left for a later stage.
+   or a resolved name, which is the line docs/design/desugaring.md draws: this
+   pass makes no rewrite that would need either, and leaves it for a later stage.
 
    Read against lib/cst/nodes.ml, this file is mostly the same tree with
    alternatives removed. At every place where the two trees differ, a comment
@@ -19,12 +19,12 @@
    Each of these leaves is an identifier, or a spelling of one, as written, and
    both trees need exactly that; a copy would add a conversion function that is
    the identity in all but the module path, and those are exactly the
-   conversions that hide the real ones. The leaves that do not appear here are
+   conversions that hide the real conversions. The leaves that do not appear here are
    absent because they
    reach [Type_expr] or [Expr], both of which change -- so the whole recursive
    core below is redefined even where an individual node's shape is unchanged.
 
-   The coupling this creates is the right one: if [Name_type] ever gains a
+   The coupling this creates is intended: if [Name_type] ever gains a
    case, the SST has to represent a type name written in that case too. *)
 module Span = Source.Span
 module Name = Cst.Nodes.Name
@@ -73,10 +73,10 @@ end
 
    functions.md §2.1: a method "is a verb whose first parameter is `this`", and
    §2.6 desugars `subject:method(arg)` to `method(subject, arg)`. So the SST
-   has one call node and the subject is an ordinary first argument -- which is
-   what the language means by it, not a flattening of it.
+   has one call node and the subject is an ordinary first argument -- which
+   is the language's own definition of a method call, not a flattening of it.
 
-   What cannot go is the marker itself. `a:f(b)` and `f(a, b)` are the same
+   The marker itself must stay. `a:f(b)` and `f(a, b)` are the same
    shape after the subject moves, but they do not resolve the same way: an
    unqualified method is looked up in its subject type's home package, then
    the current package (§6.1), while a function is found by plain name and
@@ -86,7 +86,7 @@ end
    indistinguishable, so [Function] and [Method] stay apart.
 
    [is_mut] is the `:`/`!` distinction, which a pass checks but which does not
-   change what the call does -- calling a `mut` method with `:` is illegal,
+   change the call's behaviour -- calling a `mut` method with `:` is illegal,
    and so is the reverse (§2.5) -- so [is_mut] travels with the call to the
    pass that checks it. *)
 module Call_form = struct
@@ -210,7 +210,7 @@ and Verb_call : sig
 
        No [trailing]. The two spellings "are the same call" (syntax.md §4.8);
        the flag existed because they do not *end* the same way, and
-       [Cst.Statement_check] needed it to decide whether a `;` belonged. That
+       [Cst.Statement_check] needed it to check whether a `;` belonged. That
        check has already run and passed before this tree is built. *)
     | Call of {
         callee : Expr.t;
@@ -419,7 +419,7 @@ end = Stat
 
 (* A run of statements, and where it was written.
 
-   This is what the CST's [Body.t] becomes. `=> expr` "means exactly
+   The CST's [Body.t] becomes this type. `=> expr` "means exactly
    `{ return expr }` and adds no other behavior" (functions.md §3.4), so the
    `Shorthand` arm is written out and only the statement list is left. The
    record outlives the arm because a body has a span worth keeping: "not every

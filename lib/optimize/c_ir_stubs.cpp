@@ -208,7 +208,7 @@ struct Function_out : Out {
 
   void block(const BasicBlock *b) { n(blocks.at(b)); }
 
-  /* What an instruction's flags are, as bits: 1 `nsw`, 2 `nuw`, 4
+  /* An instruction's flags, as bits: 1 `nsw`, 2 `nuw`, 4
      `exact`, 8 `disjoint`, 16 `nneg`, 32 any fast-math flag. */
   int64_t flags(Instruction &i) {
     int64_t f = 0;

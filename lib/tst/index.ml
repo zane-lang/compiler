@@ -1,4 +1,4 @@
-(* What a check knows about the names of a build, for the language server
+(* The facts a check found about the names of a build, for the language server
    (docs/design/language-server.md): every use [Uses] recorded, and a
    description of each target a use can name. *)
 
@@ -49,14 +49,14 @@ type t = {
   params : (int, Ty.param) Hashtbl.t;
   probes : (Span.t * Uses.probe) list;
   (* The members a value of a type offers in a file of [package] at [path]:
-     fields, cases, enum maps and methods, each with its kind and a
+     fields, cases, enum maps and methods, each with its [member_kind] and a
      description, under the rules the checker reads them by. *)
   members_of : Ty.t -> package:string -> path:string -> (string * member_kind * string) list;
   (* The members of a type itself: an enum's members and a variant's
      cases. *)
   type_members_of : Ty.t -> (string * member_kind * string) list;
   (* The names a file can write: the declarations of its own package and the
-     members its imports bring bare, each with its kind and description,
+     members its imports bring bare, each with its [kind] and description,
      and the qualifiers it may write before `$`. *)
   in_scope : path:string -> (string * kind * string) list * string list;
   (* Whether the file at [path] belongs to the build's root package, the
@@ -184,7 +184,7 @@ let build env (uses : Uses.t) : t =
       | None -> ({ Ty.package = ""; name = "" }, [])
     in
     (* An enum map is found where Check.map_read finds it: in the enum's
-       home package, then in the current one. *)
+       home package, then in the current package. *)
     let maps =
       Names.fold_decls
         (fun _ (d : decl) acc ->
@@ -201,7 +201,7 @@ let build env (uses : Uses.t) : t =
     let home = Verb_signatures.home t in
     let subject_fits s = subject_fits s t in
     (* Check.method_call reaches a method of the subject's home package or
-       of the current one, and Context.accessible_sig hides another
+       of the current package, and Context.accessible_sig hides another
        package's private method. *)
     let reachable (s : S.t) =
       match s.S.home with

@@ -11,11 +11,11 @@ File "constants/main.zn", line 31, characters 13-18:
    |             ^^^^^
 Error: a package constant is not a move-source: an owner is moved only from a roaming symbol (one declared `^T`), a field of one, a verb's result or a case form
 File "constants/main.zn", line 32, characters 5-11:
-32 |     garage = Engine(Int(3));                  // ILLEGAL: the same
+32 |     garage = Engine(Int(3));                  // ILLEGAL: constants are immutable
    |     ^^^^^^
 Error: a package constant is immutable: package scope holds no mutable state
 File "constants/main.zn", line 33, characters 5-11:
-33 |     garage!tune();                            // ILLEGAL: the same
+33 |     garage!tune();                            // ILLEGAL: constants are immutable
    |     ^^^^^^
 Error: a `!` call writes its subject, and a package constant is immutable
 == rejected

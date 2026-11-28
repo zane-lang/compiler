@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Profile one test in Zane and in C with Callgrind and print, for each,
-its hottest functions and the hot instructions of the top ones beside their
+its hottest functions and the hot instructions of the top functions beside their
 disassembly.
 
   hotasm.py TEST ZANE_BIN [--iterations N] [--real] [--funcs K] [--min FRAC]
             [--out DIR]
 
-TEST is a run.js name. Iterations default to a tenth of run.js's; --real
+TEST is a test name from run.js. Iterations default to a tenth of run.js's; --real
 runs a Brainfuck test's timed program instead of its warmup program.
 --funcs is how many functions per side get their code printed (default 2),
 --min the share of a function's cost an instruction needs to be printed

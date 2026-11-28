@@ -207,8 +207,8 @@ let walk_body env multi (body : T.Block.t) =
         | Ty.Reference _, T.Expr.Var (T.Name_ref.Local l) ->
             (* A reference bound again points where the new value does, unless
                the binding is in a block nested inside the reference's own
-               block, which may not run; then the checker no longer knows
-               where the reference points. *)
+               block, which may not run; then the checker can no longer
+               track where the reference points. *)
             let own =
               match frames with f :: _ -> Hashtbl.mem f.declared l.T.Local.id | [] -> false
             in

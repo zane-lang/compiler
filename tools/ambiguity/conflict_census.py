@@ -10,8 +10,9 @@ the build itself writes, `_build/default/lib/cst/parser.conflicts`, so the
 census it prints is the shipped parser's.
 
 Menhir explains each conflict state once, so the number of blocks is the number
-of conflict states. Each block is keyed by what the ledger's table keys on --
-the kind Menhir gives it, the lookahead tokens, and the productions it reduces
+of conflict states. Each block is keyed by the ledger table's own keys --
+Menhir's conflict class (shift/reduce or reduce/reduce), the lookahead tokens,
+and the productions it reduces
 -- with the state number left out, since any grammar edit renumbers states.
 
 Usage:

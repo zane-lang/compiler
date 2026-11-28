@@ -8,7 +8,7 @@
    modules can link against is `available_externally`, or a declaration
    when its body is not the object's code to copy: a variable that is not
    a constant, a weak definition another object may override, a constant
-   holding the address of something local to the module or of a label,
+   holding the address of a function or variable local to the module or of a label,
    and a function that shares state the object owns or lets out an
    address a copy would change. That is a function that reaches a variable local to the module
    that is not a constant (a `static` counter, or a `static const volatile`
@@ -18,8 +18,8 @@
    local constant's address but read through it (one whose address LLVM
    may merge, as a string literal's, aside), or with a local
    function's but call it, or that calls a local function that does any
-   of those. What is local and still reached is copied; what nothing
-   reaches is removed. Aliases and indirect functions are declarations.
+   of those. A local definition still reached is copied; a definition
+   nothing reaches is removed. Aliases and indirect functions are declarations.
    Whether anything was retained comes back: false when what is left
    would still need a local definition it reaches, which leaves the
    caller to drop the whole module. */
@@ -213,7 +213,7 @@ extern "C" value zane_retain_c(value mod) {
     else
       declare(*o);
   }
-  // What is local and no longer reached goes, until nothing more does.
+  // Local definitions no longer reached go, until no more definitions do.
   for (bool changed = true; changed;) {
     changed = false;
     std::vector<llvm::GlobalObject *> unused;

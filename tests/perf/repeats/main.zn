@@ -1,4 +1,4 @@
-/// A heavy call in a loop that asks for the same 64 arguments over and
+/// A heavy call in a loop that passes the same 64 arguments over and
 /// over: no recursion, but each call mixes 200 rounds, so a table of its
 /// results saves almost all of the loop's work after the first 64 calls.
 package repeats;

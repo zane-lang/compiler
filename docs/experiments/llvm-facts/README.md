@@ -27,7 +27,7 @@ commit that reads them, kept in PR 360's history: get it with
 `ZANE_LLVM_FACTS_HISTORICAL=1` is set, because on `main` every switch is
 ignored and every label measures the same build.
 
-| switch | what it does |
+| switch | effect |
 | --- | --- |
 | `ZANE_UNROLL_PARTIAL=n` | passes `-unroll-partial-threshold=n` to LLVM |
 | `ZANE_UNROLL_THRESHOLD=n` | passes `-unroll-threshold=n` |
@@ -43,11 +43,11 @@ ignored and every label measures the same build.
 (`ZANE_UNROLL_PARTIAL`) and `-unroll-threshold=n` (`ZANE_UNROLL_THRESHOLD`,
 the budget for *full* unrolling of a loop with a known trip count) when set.
 The options are part of the tier-1 cache key already, so a tiered build
-picks them up. Unrolling never changes what a program means, so no fact is
+picks them up. Unrolling never changes a program's behaviour, so no fact is
 claimed here.
 
 **Results.** `ZANE_UNROLL_PARTIAL=n ZANE_UNROLL_THRESHOLD=m measure.py LABEL`;
-`upN` is the partial budget, `utM` the full one. Estimated cycles against
+`upN` is the partial budget, `utM` the full budget. Estimated cycles against
 `base`; every row not shown moved less than 0.2% in every column. `.text`
 is the whole executable's (runtime included) for optimized and tier 1's
 library for tiered. Every build printed its golden output.
@@ -81,11 +81,11 @@ neighbours with `d!to(Int(4))` and four `branch(d == k, …)` blocks. Under
 `-O2` the loop stays rolled and the four tests become one `switch i64 %d`
 in the loop body; LLVM's estimate of the unrolled cost lies between 200 and
 250 (`ut200` leaves it, `ut250` takes it). At 250 it is
-unrolled, each copy knows `d`, and the switch disappears. Instructions fall
+unrolled, each copy has `d` as a constant, and the switch disappears. Instructions fall
 24% and mispredicted branches 1.10 M → 0.31 M: most of the gain (15.7 M of
 21.8 M estimated cycles) is mispredicts. Callgrind's predictor is a table of
-2-bit counters with no history, so it cannot learn the 1-2-3-4 period of the
-switch; a real core's history-based predictor learns much of it, so on
+2-bit counters with no history, so it cannot pick up the 1-2-3-4 period of the
+switch; a real core's history-based predictor captures much of it, so on
 hardware the win is likely nearer the 24% instruction drop than 42%.
 `returns` is the same shape (`k!to(Int(4))`), mispredicts 1.12 M → 0.68 M.
 
@@ -95,8 +95,8 @@ the default budget it is unrolled (not checked in the assembly: inferred from
 the −28% instructions with the same branch count per element), sharing the
 index arithmetic and bounds checks of the copies. Mispredicts rise 10% (one branch per element either
 way, now at more addresses), which costs back part of the instruction win.
-`entities`, `particles`, `repeats` and tiered `kept` are loops of the same
-kind; their gain grows with the budget up to 300.
+`entities`, `particles`, `repeats` and tiered `kept` hold loops of the same
+shape; their gain grows with the budget up to 300.
 
 **Why removal loses 1%.** The extra instructions are all in `zane_main`
 (+2.4 M, memmove unchanged at 131 M). Partial unrolling unrolls the cold
@@ -115,7 +115,7 @@ its loops unroll, and its `.text` +10–23%.
 `ZANE_UNROLL_PARTIAL=300 ZANE_UNROLL_THRESHOLD=250` (about 2 minutes each).
 
 **Reading.** Two separate effects. (1) Full unrolling of 4-trip loops whose
-body branches on the counter is the large one, and it is all-or-nothing at
+body branches on the counter is the large effect, and it is all-or-nothing at
 a budget between 150 and 250. A targeted fact — `llvm.loop.unroll.full` on a
 counted loop whose trip count is a small constant (Zane's `to`/`repeat` with
 a literal) — would take it without growing every other loop, the way PR 356
@@ -136,7 +136,7 @@ particles and division.
   member at its offset from the data layout), the scalar type and the
   offset. Every scalar is still the one "zane scalar" type node, so the
   snapshot rule in `Emit.tags` is kept. Why it is true for every program:
-  two struct-path tags say "no alias" only for different members, or for
+  two struct-path tags give "no alias" only for different members, or for
   struct types neither of which holds the other at that offset. Storage
   that can hold two struct types is a sum's room or a block freed and
   reused. A path through a sum's room never gets a struct-path tag (it
@@ -183,9 +183,9 @@ which no TBAA tag affects; step 4 looks at those.
 
 ## Step 3: `nsw` on arithmetic — an upper bound only
 
-**What Zane's integers do.** They wrap. `spec/operators.md` §2.6: "On
+**Zane's integer overflow.** Zane integers wrap. `spec/operators.md` §2.6: "On
 `@primitives$I32` and `@primitives$I64`, an arithmetic operation whose exact
-result the type cannot hold wraps: the result is the exact one reduced to
+result the type cannot hold wraps: the result is the exact result reduced to
 the type's width in two's complement", and `negate`/`abs` of the most
 negative value give it back (`spec/math.md`). Codegen matches:
 `Emit.binary` emits plain `add`/`mul` and `Expr.Flip` a plain `neg`; the
@@ -277,8 +277,8 @@ program beyond noise).
 
 ## What remains
 
-Ranked by expected value for a real (non-experimental) change. What
-became of each:
+Ranked by expected value for a real (non-experimental) change, with the
+outcome of each:
 
 - Items 1 and 2: taken in PR 359 as two global budgets, not a per-loop mark:
   `-unroll-threshold=250` and `-unroll-partial-threshold=100`. Langbench's

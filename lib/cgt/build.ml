@@ -52,7 +52,7 @@ let arena st scope =
 
 (* A block's statements in its arena, when the block has one: either an arena
    the block holds values in, or an arena kept for the fresh owners the block
-   moves into callees that may drop them, which Regions decides once every
+   moves into callees that may drop them, which Regions settles once every
    function is lowered. *)
 let close st scope body =
   match (scope.arena, scope.wants) with
@@ -109,7 +109,7 @@ let escape st span t exit (value : Expr.t) =
     { value with Expr.node = Expr.Escape { value; layout = layout st span t; exit } }
   else value
 
-(* What a `return` to an expansion does: store the result, and leave. *)
+(* A `return` to an expansion: store the result, and leave. *)
 let leave label result value =
   match result with
   | Some id -> [ Stat.assign id value; Stat.Leave label ]

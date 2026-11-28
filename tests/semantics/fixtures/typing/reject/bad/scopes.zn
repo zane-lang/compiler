@@ -26,7 +26,7 @@ Unit raise() {
 }
 
 /// A roaming value carries the references reachable inside it, and each
-/// store of it asks again (§1.10): a struct, and a case form.
+/// store of it is checked again (§1.10): a struct, and a case form.
 Unit carry() {
 	far Branch(Leaf(Int(3)));
 	parked ^Pin = Pin(far.leaf);
@@ -56,7 +56,7 @@ Unit hold(this Pin, other &Leaf) mut {
 	return Unit();
 }
 
-/// A call's result names what its arguments do.
+/// A call's result names the places its arguments name.
 &Leaf pass(leaf &Leaf) => leaf;
 &Leaf relay() {
 	value Leaf(Int(8));

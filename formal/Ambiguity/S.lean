@@ -155,7 +155,7 @@ theorem le_sumL {α} {l : List α} {a : α} (h : a ∈ l) (f : α → S) : f a �
     | head => exact S.le_add_right _ _
     | tail _ h => exact S.le_trans (ih h) (S.le_add_left _ _)
 
-/-- Sums over `l` are equal when the summands agree on every element of `l`. -/
+/-- Sums over `l` are equal when `f` and `g` agree on every element of `l`. -/
 theorem sumL_congr {α} (l : List α) {f g : α → S} (h : ∀ a ∈ l, f a = g a) :
     sumL l f = sumL l g := by
   induction l with

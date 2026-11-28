@@ -29,7 +29,7 @@ Unit main() {
 	r &Engine = garage;                       // legal
 	m Engine = garage;                        // ILLEGAL: a settled owner never moves
 	consume(spare);                           // ILLEGAL: constants are immutable (packages.md §4)
-	garage = Engine(Int(3));                  // ILLEGAL: the same
-	garage!tune();                            // ILLEGAL: the same
+	garage = Engine(Int(3));                  // ILLEGAL: constants are immutable
+	garage!tune();                            // ILLEGAL: constants are immutable
 	return Unit();
 }

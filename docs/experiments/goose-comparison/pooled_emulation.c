@@ -1,4 +1,4 @@
-// The pooled binarytrees in plain C, to tell what the code's shape costs
+// The pooled binarytrees in plain C, to separate what the code's shape costs
 // from what Zane's code generation adds (README.md, "Pooled variants"). The
 // tree is built in one pool with relative 4-byte links, as Zane's pooled
 // variants are; the macros switch between Zane's shape and Goose's:

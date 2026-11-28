@@ -1,5 +1,5 @@
 /// A spawned call runs in a context of its own, whose range is the smaller
-/// one for spawned calls, here 2 MiB: frames of 512 KiB nested past it
+/// range for spawned calls, here 2 MiB: frames of 512 KiB nested past it
 /// stop the program with an error that names its own manifest field.
 package spawnedFrames;
 alias Int = @primitives$I64;

@@ -5,7 +5,7 @@
    bound to a local, stored in a field, passed as an argument, or returned.
    §4.1 is checked while the tree is built, because it needs nothing but the
    place a write names: a parameter, or a place reached through one. This
-   rule needs to know where a reference went, and the tree shows that only once
+   rule needs the place each reference went to, and the tree shows that only once
    every call in it has a callee. So this analysis runs afterwards, over the
    whole program.
 
@@ -15,7 +15,7 @@
    type carries no taint, because a value is copied deep and holds no reference
    (memory.md §2.10), so storing a value drops its taint.
 
-   A verb's [summary] is what a call needs to know without the body: which
+   A verb's [summary] holds the facts a call needs without the body: which
    parameters reach the verb's result, and which come to rest in its `this`.
    It is the same record as lifetimes.md §1.11's resting places, without the
    owners, and like them it is transitive: a call substitutes its arguments'
@@ -39,7 +39,7 @@ module Taint = Set.Make (struct
 end)
 
 (* Recursive types would let a path grow without end, so a long path is cut. A
-   cut path names a bigger place than the real one, which can only make the
+   cut path names a bigger place than the real path, which can only make the
    analysis stricter, never let a write through. *)
 let depth = 4
 
@@ -379,7 +379,7 @@ and arg env w ~often = function
          stored, so the block is walked silently until those taints stop
          growing, and then once more to report. *)
       (* After the block a local holds the taint of any run's stores, so each
-         run is joined into the one before, and the walk stops once a run
+         run is joined into the run before, and the walk stops once a run
          adds nothing. A `let` or an assignment replaces the taint a run sees,
          which is why the join, and not the size of the table, determines
          when the walk stops. *)

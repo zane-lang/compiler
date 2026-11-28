@@ -30,9 +30,9 @@ static int zane_outlives(const zane_mark *r, const zane_mark *s) {
    does not outlive that one: a move whose destination outlives the blocks
    is an escape, and any other leaves them where they are (§3.5). When
    `from` is set the blocks are leaving this context's scopes from `from`
-   in, which drain first. A type's move walk asks this of each block it
+   in, which drain first. A type's move walk calls this on each block it
    owns: one that must move goes into an equal block in `region`, and the
-   old one is returned. */
+   old block is returned. */
 int64_t zane_leaves(const char *block, zane_mark *region, int64_t from) {
 	zane_mark *r = zane_region_at(block);
 	if (r == zane_constants_region) return 0;
@@ -147,7 +147,7 @@ static pthread_cond_t zane_constant_made = PTHREAD_COND_INITIALIZER;
    not yet given its context leads nowhere yet. Edges are set, cleared and
    followed under one lock, so of the waits that close a cycle, the last
    finds it, by following the edges from itself back to itself. Contexts
-   are reused, never freed, and each names at most one thing. */
+   are reused, never freed, and each names at most one wait target. */
 static pthread_mutex_t zane_waits = PTHREAD_MUTEX_INITIALIZER;
 
 /* A cycle of waits is the program's error, as an index out of range is: a

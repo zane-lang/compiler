@@ -1,7 +1,7 @@
-/// The four scalar primitives and what `@operators$` does with them
+/// The four scalar primitives and the `@operators$` operations on them
 /// (syntax.md §2.7): each operation on each type, `Bool`'s three and
 /// `String`'s join, then every conversion between two scalars (types.md
-/// §2.9) -- the exact ones as plain constructors, the rest named for how
+/// §2.9) -- the exact conversions as plain constructors, the rest named for how
 /// they lose a value. Every check prints `yes` when it holds and `no` when
 /// it does not.
 package scalars;

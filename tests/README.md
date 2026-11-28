@@ -1,8 +1,8 @@
 # Tests
 
-One directory per thing tested. Each suite has a `just` recipe, and `just test`
+One directory per tested component. Each suite has a `just` recipe, and `just test`
 runs the compiler, grammar, ambiguity-tool and grammar-generator suites. CI
-runs the slower ones separately, so a change that cannot affect the grammar or
+runs the slower suites separately, so a change that cannot affect the grammar or
 the ambiguity tools does not wait on them (`.github/scripts/ci-suites` selects
 which suites run).
 
@@ -13,7 +13,7 @@ The compiler itself.
 - `dune runtest` holds the golden files in `parser/`, `semantics/`, `codegen/`,
   `ffi/`, `runtime/`, `objects/`, `unit/` and `nesting/`. The span files in
   `parser/golden/` and `semantics/golden/` are the only place a moved span or a
-  rewrite that stopped happening shows up: the Python suites ask whether a
+  rewrite that stopped happening shows up: the Python suites check whether a
   file parses and what shape it parsed to, never where a node is or what the
   desugared or typed tree looks like. Read the diff, check that each moved
   span still covers what its node stands for, and accept it with
@@ -79,9 +79,9 @@ with main's numbers on the `perf-log` branch. Linux only; see
 ## `just test-windows`
 
 The test programs built for Windows (`dev/bin/cross-programs`) and run
-under Wine, as CI runs them on Windows itself, and the ones it builds for
+under Wine, as CI runs them on Windows itself, and the programs it builds for
 macOS on macOS ([`docs/design/platforms.md`](../docs/design/platforms.md)).
-Needs `zig` and `wine64`; set `RUNNER` to run them some other way.
+Needs `zig` and `wine64`; set `RUNNER` to run them under another command.
 
 ## `just verify-grammar`
 

@@ -23,7 +23,7 @@
    pool's workers and its funnel first (§6.7).
 
    Each element lives in a region of its own (a `zane_member`'s `mark`),
-   of the kind a spawned call's subject lives in: no scope, so it outlives
+   like the region a spawned call's subject lives in: no scope, so it outlives
    none, and written only by the step running on it. The shared state lives
    in a second such region, written only by the funnel, and the events
    waiting for the funnel in a third. Each of the three regions is touched
@@ -377,7 +377,7 @@ static zane_pool_job *zane_take(zane_workers *only) {
 static int zane_pool_finished(zane_workers *p) {
 	/* The funnel stays busy until it finds the queue empty, and only a
 	   running step or the funnel publishes, so an idle funnel with no
-	   element left means an empty queue. */
+	   element left shows an empty queue. */
 	return p->live == 0 && !__atomic_load_n(&p->funnel_busy, __ATOMIC_ACQUIRE);
 }
 
@@ -435,7 +435,7 @@ static void zane_run_step(zane_member *m) {
 	char *snapshot = NULL;
 	if (p->state) {
 		/* A state of no bytes, a `Unit`, has nothing to read, but the
-		   version the call saw is recorded all the same. */
+		   version the call saw is still recorded. */
 		int reads = p->state_size || p->state_type;
 		if (reads) {
 			snapshot = malloc((size_t)(p->state_size < 8 ? 8 : p->state_size));

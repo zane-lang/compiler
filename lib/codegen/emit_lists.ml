@@ -69,7 +69,7 @@ let innermost fr p =
    holds no block (its room is 0, as runtime/list.c reads it: the push's
    fast path loads the room already, while a look at the items would load
    them ahead of its check) and is in the innermost scope's region, the
-   open one, as the runtime would make it (runtime/list.c): the top of the
+   open region, as the runtime would make it (runtime/list.c): the top of the
    scope's size class of [first] bytes when it holds a returned block; else
    the next word-aligned bytes in the scope's heap when it has them; or,
    when nothing has yet been allocated in the scope, the first word-aligned

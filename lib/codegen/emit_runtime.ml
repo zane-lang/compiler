@@ -29,7 +29,7 @@ let runtime env fn =
       let ret, params = Cgt.Runtime.signature fn in
       let fty = Llvm.function_type (abi ret) (Array.of_list (List.map abi params)) in
       let f = Llvm.declare_function name fty env.m in
-      (* What the runtime's body is known to do (Runtime_facts). *)
+      (* The known facts of the runtime's body (Runtime_facts). *)
       Runtime_facts.apply f fn;
       Hashtbl.replace env.funcs name (f, fty);
       (f, fty)
