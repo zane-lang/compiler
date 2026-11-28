@@ -72,10 +72,10 @@ builds skip that child, as they skip `scalar_lists.c`'s budget. A list's
 block past 1 MiB that is ended while its scope is open, as an overwrite
 ends the list it replaces, is where the next list there grows past 1 MiB:
 of a 2 MiB and a 4 MiB block returned, a list growing to 2 MiB takes the
-2 MiB one, and a block whose reservation holds fewer addresses than a new
+2 MiB block, and a block whose reservation holds fewer addresses than a new
 one would is passed over. A scope that drains three such lists leaves its context
 keeping all three, the next three grow into them, and of three lists of
-32 MiB the context keeps only the one it was given back last, under
+32 MiB the context keeps only the list it was given back last, under
 `ZANE_WARM_SPAN_BYTES`. Of three unbounded pools drained, the context
 keeps `ZANE_WARM_POOLS`, counted outside that budget, and a list growing
 past 1 MiB leaves a kept pool's reservation to the next pool. A second capped child holds a drained list's
@@ -221,7 +221,7 @@ Issue [#211](https://github.com/zane-lang/compiler/issues/211) found that a
 drain spent much of binarytrees and treecopy walking its values to return
 their blocks one at a time, just before it released their chunks anyway. A
 drain now releases its region in bulk and walks nothing; a program run with
-`ZANE_CHECK` set walks and checks every drain as before. `texts.c` checks
+`ZANE_CHECK` set still walks and checks every drain. `texts.c` checks
 both ways for a block moved into a deeper owner: an unchecked drain leaves
 it, dead, in the outer region it is in, and a checked one returns it. The
 other fixtures run unchecked; `zane_blocks()` counts the blocks out in the

@@ -1,7 +1,7 @@
 /// Sums a byte niche lays out as their payload alone (`ZANE_PACK=niche`):
 /// built, matched, copied, stored in lists and in structs, nested, with a
 /// payload that owns a block, and with more than one case without a
-/// payload. Prints a line per check; every mode prints the same.
+/// payload. Prints a line per check; every mode prints the same lines.
 package niches;
 
 alias Int = @primitives$I64;
@@ -40,7 +40,7 @@ type Maybe = variant {
 	none Unit;
 }
 
-/// Three cases without a payload, in two orders around the one with.
+/// Three cases without a payload, in two orders around the case with one.
 type Several = variant {
 	first Unit;
 	value Flagged;

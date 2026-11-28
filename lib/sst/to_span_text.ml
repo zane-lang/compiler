@@ -1,8 +1,8 @@
 (* Every node of the desugared tree, with the source text its span covers.
 
-   This is [Cst.To_span_text] over the SST, and it shows one more thing than
+   This is [Cst.To_span_text] over the SST, and it shows one more detail than
    [Cst.To_span_text] does. Each line carries the node's *variant*, not just its
-   kind, so the expectation shows that the rewrites of
+   node type, so the expectation shows that the rewrites of
    docs/design/desugaring.md have happened:
 
      verb_call Flip       | a >= b
@@ -14,7 +14,7 @@
    when a span moves and when a desugaring changes shape, which is what a pass
    whose whole job is to change shape needs from a test.
 
-   The second thing the dump checks is the rule [Lower] holds itself to: every
+   The dump also checks the rule [Lower] holds itself to: every
    synthesized node takes the span of the syntax it came from. A node that
    pointed nowhere would print `<INVALID SPAN>`, and a node that pointed at the
    wrong syntax would print the wrong text.
@@ -310,7 +310,7 @@ and verb_call d (x : Verb_call.t) =
       opt (deeper d) abort_handle_ abort_handle
 
 (* Named with a trailing underscore because [Abort_handle] is a module in
-   scope and the walker below wants the shorter name for its own use. *)
+   scope and the walker below uses the shorter name for its own node. *)
 and abort_handle_ d (x : Abort_handle.t) =
   line d "abort_handle" x.Abort_handle.span;
   opt (deeper d) (fun d b -> name d "binder" b) x.Abort_handle.binder;

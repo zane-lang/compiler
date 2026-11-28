@@ -44,7 +44,7 @@ def cases(suite):
 
 
 def accepted_sources():
-    """Every source the compiler's syntax suite expects to parse."""
+    """Every source that the compiler's syntax suite requires to parse."""
     suite = unittest.defaultTestLoader.loadTestsFromModule(syntax_test)
     accepted = []
     for case in cases(suite):

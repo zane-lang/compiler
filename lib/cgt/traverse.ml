@@ -60,7 +60,7 @@ let exists_in stats ~expr ~stat =
   walk_stats (fun e -> if expr e then found := true) (fun s -> if stat s then found := true) stats;
   !found
 
-(* Whether [stats] can end somewhere other than after their last statement:
+(* Whether [stats] can end at a point other than after their last statement:
    a statement returns, or leaves an expansion that is not inside [stats]. A
    [Leave] of an expansion inside [stats], the `return` of a verb expanded
    there, ends only that expansion. *)

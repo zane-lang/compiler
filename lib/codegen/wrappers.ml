@@ -3,8 +3,8 @@
 
    `core` writes even `Int +` as a one-line wrapper over an intrinsic, and a
    program that calls each one runs several times slower than one that has
-   them inlined. LLVM's own inliner weighs a call by what the passes after it
-   in an optimized build will make of the result. Without those passes a
+   them inlined. LLVM's own inliner weighs a call by the code the passes
+   after it in an optimized build will make of the result. Without those passes a
    callee's locals stay the caller's for good, so inlining functions that
    hold large value arrays into one caller can make its frame overflow the
    stack. An unoptimized build therefore inlines only what [mark] picks, by
@@ -12,7 +12,7 @@
    [largest] bytes, which is not [shared], whose every callee with a body
    in the module is picked too, and which is at most [most] instructions
    long once they are inlined into it. Measuring a function with its
-   callees inlined keeps a chain of functions that each call the one below
+   callees inlined keeps a chain of functions that each call the function below
    twice from doubling at every step: no call site grows its caller by more
    than [most]. A function that can reach itself is never picked, since
    nothing on the cycle is picked first. *)

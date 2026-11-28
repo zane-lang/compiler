@@ -24,8 +24,9 @@ type automaton = {
   aliases : (string, string) Hashtbl.t;
   (* Terminals that behave identically everywhere in the automaton share a
      class id. Two terminals are in one class when swapping them is an
-     automorphism of the recognition relation, so the search only needs to try
-     one representative per class instead of every interchangeable token. *)
+     automorphism of the recognition relation, so the search only needs to
+     explore one representative per class instead of every interchangeable
+     token. *)
   terminal_class : (string, int) Hashtbl.t;
 }
 

@@ -1,4 +1,4 @@
-/// A LINEAR RECURSION CALLED AGAIN: each call recurses once, and the loop asks for the same few hundred depths over and over.
+/// A LINEAR RECURSION CALLED AGAIN: each call recurses once, and the loop passes the same few hundred depths over and over.
 package linear;
 
 alias Int = @primitives$I64;

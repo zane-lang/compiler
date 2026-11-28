@@ -3,7 +3,7 @@
 /// Spans are byte offsets, because everything that reads the source a span
 /// covers indexes it by byte. Menhir's positions come from the lexer, and
 /// sedlex will report either, so the two can be confused -- and while a file is
-/// ASCII the confusion is invisible, since the counts agree. They stop agreeing
+/// ASCII the confusion is invisible, since the counts are equal. They start to differ
 /// at the first multibyte character, and every span after it shifts by the
 /// bytes that character added.
 ///

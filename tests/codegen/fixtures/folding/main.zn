@@ -4,7 +4,7 @@
 /// measured, a list and a boxed value a call gives and the program then
 /// changes, recursion, a `mut` call, a function value and a spawned call.
 /// Each check prints `yes` when it holds and `no` when it does not, so the
-/// unoptimized build, which folds nothing, shows the folded one is right.
+/// unoptimized build, which folds nothing, shows the folded build is right.
 package folding;
 
 alias Int = @primitives$I64;

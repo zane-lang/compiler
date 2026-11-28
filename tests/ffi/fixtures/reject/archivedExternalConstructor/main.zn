@@ -1,5 +1,5 @@
 /// An interface header running an external constructor, which an
-/// `archive` row's member compiles too, refused: as for a local one,
+/// `archive` row's member compiles too, which the compiler refuses: as for a local constructor,
 /// whether the archive runs the constructor cannot be determined.
 package archivedExternalConstructor;
 

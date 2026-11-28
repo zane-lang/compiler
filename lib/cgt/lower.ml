@@ -297,7 +297,7 @@ and storage st ctx span (e : T.Expr.t) : Expr.t option =
       match Hashtbl.find_opt st.constants decl with
       | Some { value = { T.Expr.node = T.Expr.Lambda _; _ }; _ } | None -> None
       | Some _ -> Some (constant st decl))
-  (* What the program has, such as `@program$console`, holds nothing a
+  (* A capability the program has, such as `@program$console`, holds nothing a
      program reads (effects.md §6.6), so its place is a variable of the
      program's that holds nothing, whose address a reference to it holds. *)
   | T.Expr.Var (T.Name_ref.Intrinsic name) ->
@@ -363,7 +363,7 @@ and moved st ctx span dst (e : T.Expr.t) =
     { Expr.node = Expr.Copy { value; layout = layout st span dst }; ty = value.Expr.ty }
   else read st ctx e
 
-(* Whether an expression reads a value that something else owns, rather than
+(* Whether an expression reads a value that another place owns, rather than
    making a fresh value: a place, a member of any value (a fresh value is
    borrowed for the member), an element, or the payload a case read gives. *)
 and is_place (e : T.Expr.t) =

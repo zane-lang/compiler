@@ -5,7 +5,7 @@
    may inline them, and calls it does not inline, and every address taken,
    still go to the runtime the program links with. Nothing the runtime keeps
    is copied: each of its variables is linked in as a declaration of the
-   one the runtime defines. A body is left out, and the call stays a call,
+   variable the runtime defines. A body is left out, and the call stays a call,
    when it reaches a variable of the runtime's own translation unit, which
    no other unit can name, or takes the address of one of its functions,
    which a copy would not share, or calls one that is never inlined, which
@@ -19,7 +19,7 @@ let internal v = match Llvm.linkage v with Llvm.Linkage.Internal | Llvm.Linkage.
 let is_function v = Llvm.classify_value v = Llvm.ValueKind.Function
 let is_variable v = Llvm.classify_value v = Llvm.ValueKind.GlobalVariable
 
-(* Whether the runtime keeps something in [v]: a variable of its own unit
+(* Whether the runtime keeps state in [v]: a variable of its own unit
    that changes. *)
 let state v = is_variable v && internal v && not (Llvm.is_global_constant v)
 

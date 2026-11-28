@@ -3,7 +3,7 @@
 > **Status: built.** Stage 3 — the passes that turn the SST into the typed
 > syntax tree — follows this design. Each decision is numbered (**D1**…). The
 > questions the first draft left open are answered in §8. Where the spec is
-> silent and the compiler had to choose, §9 says what it chose.
+> silent and the compiler had to pick a rule, §9 records the rule it follows.
 
 The **TST** is the SST with every name resolved and every expression typed
 ([`stages.md`](stages.md)). Where the SST answers "what was written, said one
@@ -16,8 +16,8 @@ to repeat a lookup.
 `render/to_tree_graph.ml` renders it, `render/to_span_text.ml` reads its spans
 back out of the source, and `tst.ml` is the entry module. Unlike
 `lib/sst/lower.ml`, the code that builds it is several passes (§3), because
-each one needs the tables the previous one built. The subdirectories group the
-modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
+each pass needs the tables the previous pass built. The subdirectories group the
+modules by role; module names stay flat, so `passes/collect.ml` is `Collect`:
 
 | Module | Holds |
 |---|---|
@@ -27,10 +27,10 @@ modules by kind; module names stay flat, so `passes/collect.ml` is `Collect`:
 | `passes/type_decls.ml` | Type-expression resolution, and pass 3 |
 | `passes/verb_signatures.ml` | Pass 4 |
 | `check/` | Pass 5: the recursive walk (`check.ml`), and beside it its scopes (`context.ml`), instantiation (`instances.ml`), overload resolution (`overloads.ml`), the arguments the checker supplies to a call (`supplied.ml`), `termination.ml`, `coverage.ml`, and `program.ml`, which runs the walk over every body |
-| `model/ty.ml`, `model/signature.ml` | Types (§4), and what a call site needs to know about a verb |
+| `model/ty.ml`, `model/signature.ml` | Types (§4), and the facts a call site needs about a verb |
 | `model/intrinsics.ml` | The intrinsic namespaces (D3), and the catalogue of the names a program writes in them, which the language server offers |
 | `model/intrinsic_docs.ml` | A description of each intrinsic, which the language server shows (`language-server.md` D17) |
-| `model/traverse.ml` | What each expression and statement is made of, which every analysis walks the tree by |
+| `model/traverse.ml` | The children of each expression and statement, which every analysis walks the tree by |
 | `analyses/` | The analyses over the finished tree (D1) |
 | `model/uses.ml` | Each name a check resolved and its target, recorded when the language server asks (`language-server.md` D5) |
 | `index.ml` | What the language server reads of a check: the recorded uses, and a description of each declaration |
@@ -82,7 +82,7 @@ neither. That is a lowering, and it belongs to the lowering stage, which builds 
 
 Whether a call reads or writes capability-backed state
 ([`effects.md`](https://github.com/zane-lang/spec/blob/54b3566/spec/effects.md) §5.2) is not a semantic check either. No program is
-rejected for it: it decides only what may be evaluated at compile time or
+rejected for it: it settles only what may be evaluated at compile time or
 run in parallel, which is stage 5's to decide
 ([`optimization.md`](optimization.md) O3).
 
@@ -97,7 +97,7 @@ for stages 1 and 2, which never look past the file. It is not enough for stage
 - A package is "one order-independent compilation unit" made of every file in
   its directory (`packages.md` §2.3). A name in one file resolves to a
   declaration in another.
-- Imports are per file (§3.1), so resolution needs to know which file a
+- Imports are per file (§3.1), so resolution needs the file a
   declaration came from, not only its package.
 - `Int` is not built in. [`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6 makes it a declaration in `core`, "an
   ordinary package", and a file that writes it imports `core` like any other
@@ -127,8 +127,8 @@ warnings of the packages being worked on among them ([`ffi.md`](ffi.md) F3), and
 ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6), so the compiler reads it as source and checks it by the
 same rules as every other package, and names none of its members. Whether
 `Int` is a distinct type over `@primitives$I64` or a struct wrapping one is
-`core`'s own choice, and the compiler does not care which it makes, just as it
-does not care how any other package writes its types.
+`core`'s own choice, and the compiler accepts either, just as it
+accepts every other package's type definitions.
 
 The repository has no `core` yet. Each test fixture writes the storage
 primitives directly, usually under aliases of its own
@@ -145,11 +145,11 @@ table in `lib/tst/model/intrinsics.ml`. Most intrinsic operations have one
 signature, and the overloads `syntax.md` §2.7 states are sets in the table,
 resolved like any other overload set (`functions.md` §5): an `@operators$`
 function has one per operand type, a scalar's constructors take its concept
-and each scalar that converts into it exactly (`types.md` §2.7), and methods
-that share a name are told apart by the subject, found by its home, which for
-an intrinsic type is the namespace that holds it (`functions.md` §6.1). No
-intrinsic is an operator. What the table holds beyond what the spec names is
-in §9.
+and each scalar that converts into it exactly (`types.md` §2.7), and the
+checker separates methods that share a verb name by the subject, found by its
+home, which for an intrinsic type is the namespace that holds it
+(`functions.md` §6.1). No intrinsic is an operator. §9 lists the entries the
+table holds beyond the spec's names.
 
 ---
 
@@ -159,12 +159,12 @@ Each pass reads the SST and the tables of the passes before it, and nothing
 else. Its entry point enforces this: it is given empty tables for its own group,
 fills them, and returns a view of them that has no way to write
 (`Env.Names`, `Env.Types`, `Env.Verbs`). `Semantics.check` hands that view to
-the next pass, so no pass can run before the ones it reads. Pass 3 holds back
-the checks that need every type's kind until every type is defined; while it
+the next pass, so no pass can run before the passes it reads. Pass 3 holds back
+the checks that depend on whether each type is a reference type until every type is defined; while it
 runs they wait, as the type and span each check needs, in queues its view
 carries, and it drains them before it returns a view that has none.
 Pass 5 asks for generic instances through a queue that it closes before it
-checks the generic verbs nothing instantiates, which ask for none.
+checks the generic verbs nothing instantiates, which need none.
 
 1. **Collect.** Walk every declaration of every package. Give each one a
    `Decl_id` and file it under its package:
@@ -179,8 +179,8 @@ checks the generic verbs nothing instantiates, which ask for none.
 
    Check here: the `package` line matches the directory (§2.2); a non-verb name
    is not declared twice; `_` privacy (§4.1).
-2. **Imports.** For each file, build the map from what the file may write to
-   what it means (§3.3). Check here: two spellings of one entity (§3.4); alias
+2. **Imports.** For each file, build the map from the names the file may write
+   to their targets (§3.3). Check here: two spellings of one entity (§3.4); alias
    casing (§3.7); collisions reported at the import (§3.8); no method or
    operator import (§3.6).
 3. **Types.** Resolve every `type` and `alias` right-hand side to a `Ty.t`
@@ -188,7 +188,7 @@ checks the generic verbs nothing instantiates, which ask for none.
    (`types.md` §5.3); value-downstream (`memory.md` §2.10); `&` and `^` only
    on a reference type, and `^` only on a local, a parameter or a return type
    ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1, §2.4, [`syntax.md`](https://github.com/zane-lang/spec/blob/911d749/spec/syntax.md)
-   §2.3); a type argument of the wrong kind, reported where it is written
+   §2.3); a misplaced type argument, reported where it is written
    ([`generics.md`](https://github.com/zane-lang/spec/blob/911d749/spec/generics.md) §3.6),
    including a `^` or a `ListRef` element filled with an `&` type, a worker
    pool's state or events filled with a reference type
@@ -219,7 +219,7 @@ checks the generic verbs nothing instantiates, which ask for none.
    - enum-map exhaustiveness (`adt.md` §6);
    - the C interface's declarations, last, once every signature is known
      (`lib/tst/passes/foreign_decls.ml`, [`ffi.md`](ffi.md) F7): each
-     foreign handle's C type and C functions, each handle type's kind, read
+     foreign handle's C type and C functions, each handle type's `handle_kind`, read
      from the foreign verbs that make it, and each foreign verb against its
      C function's declaration in its package's interface headers, with what
      it reads and writes outside the program.
@@ -245,8 +245,8 @@ its arguments into the callee's summary; summaries are computed to a fixed
 point first, because verbs may call each other in a cycle.
 
 **States** (`lib/tst/analyses/states.ml`, [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.1,
-§2.8.1). The one function the three analyses below read to know what state
-the place an expression denotes is in:
+§2.8.1). The single function the three analyses below call for the state of
+the place an expression denotes:
 - **settled**: a bare reference-type local or a package constant, what a
   reference names, and a struct field or `ArrayRef` element of a settled root;
 - **roaming**: a local or parameter declared `^T`, and a field or `ArrayRef`
@@ -321,7 +321,7 @@ body, or a block written there. A call to one ends the run of the block it is
 written in, so it is an error in no block. A lambda's own frame holds no
 `@controlflow$exitFromCall` at all
 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
-§4.2): it is called through a function value, whose type does not say that it
+§4.2): it is called through a function value, whose type does not show that it
 exits.
 The root's `main` cannot exit either: the runtime calls it from no block
 ([`packages.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/packages.md) §6.2).
@@ -364,7 +364,7 @@ value, or a block argument at a position its verb runs more than once: one
 it passes on to such a position or to a function value, or passes anywhere
 from inside a block that runs more than once, computed to a fixed
 point over every body (`lib/tst/analyses/repeats.ml`). `Semantics.check`
-computes it once and hands it to this analysis and the read-only one.
+computes it once and hands it to this analysis and the read-only analysis.
 
 The same spawn is lent every owner passed to it, directly or through a reference,
 until the same drain, and the block may not write one meanwhile
@@ -467,8 +467,8 @@ parameters. Each occurrence of `B<args>` in a member of `A`, inside `&`,
 `^` and the element types of `Array`, `ArrayRef`, `List` and `ListRef` too, gives an
 edge from each parameter of `A` an argument names to the parameter of `B`
 it fills: plain when the argument is that parameter itself, growing
-otherwise. A path from one of `A`'s parameters to another of them is a way
-`A` leads back to itself, so a growing edge breaks the rule when some
+otherwise. A path from one of `A`'s parameters to another of them is a cycle
+from `A` back to itself, so a growing edge breaks the rule when some
 declaration has a parameter that reaches the edge and a parameter the edge
 reaches. The error names the member that holds the edge, and is reported
 whether or not anything uses the type. Its graph is the one Go's
@@ -482,7 +482,8 @@ expression that failed to type (D4), so no later walk follows it.
 expanding one would not stop a layout, but the borrow checker follows
 references to every type behind them (`Borrows.behind_references`), and
 such a member usually cannot be filled: an `&` is never empty, so a
-`Node<Int>` would need a `Node<Array<Int, 2>>` to exist first, and so on.
+`Node<Int>` would need a `Node<Array<Int, 2>>` to exist first, which would
+need a larger instance in turn, without end.
 
 Boxing is unchanged. Whether a member is boxed is still decided per instance
 in lowering (`Type_layout.boxed`, [`adt.md`](https://github.com/zane-lang/spec/blob/8298a3a/spec/adt.md)
@@ -527,7 +528,7 @@ interpolation site has no candidates, and its destination is always
 `@primitives$String`. A call
 types its arguments first and then runs overload resolution. That is the three
 phases of `functions.md` §5 (direct, generic, implicit), each tried only if the
-one before found nothing.
+phase before found nothing.
 
 Where the typing rules need care:
 
@@ -570,8 +571,8 @@ type Name_ref.t =
   declaration to name.
 - The SST kept `Call_form` because a method and a function resolve differently
   ([`desugaring.md`](desugaring.md) §2.11). After resolution, the callee's
-  declaration says whether it is a method and whether it is `mut`, so the form
-  has nothing left to say. The `:`/`!` check runs while resolving, against that
+  declaration shows whether it is a method and whether it is `mut`, so the form
+  carries no further information. The `:`/`!` check runs while resolving, against that
   declaration.
 
 `Op` and `Flip` stay separate nodes. Each gains `impl : Verb_ref.t`, and `Op`
@@ -588,8 +589,8 @@ therefore a `Coerce` of that type's implicit constructor from `@concepts$Int`
 around an `Integer_lit`. No later stage re-derives a coercion, and a diagnostic about one
 can point at the argument that caused it.
 
-**D10. Constructor calls resolve to what they are.** The SST's `Constructor`
-covers three different things, which only types can tell apart:
+**D10. Constructor calls resolve to their real construct.** The SST's `Constructor`
+covers three different constructs, which the checker separates by types alone:
 
 - `Construct { ctor; args }`: a positional, named or field constructor.
   Field-constructor entries **keep their written order**, each tagged with the
@@ -682,11 +683,11 @@ at every step and never reaches a fixed set. Since instances are memoized, a
 chain that only revisits a fixed set of instances stops growing, so only such
 a chain gets that deep. The limit is on one chain's depth; uses on separate
 chains are not counted together, so one generic verb can be used at any number
-of distinct arguments. The latest instance asked for is checked first, so a
-chain is followed to its end before the ones beside it: `f<T>` calling both
+of distinct arguments. The latest instance requested is checked first, so a
+chain is followed to its end before the instances beside it: `f<T>` calling both
 `f<Jar<T>>` and `f<Crate<T>>` is reported after about 64 instances, not after
-the `2^64` its branches would ask for. Once reported, a declaration is asked
-for no more instances.
+the `2^64` its branches would need. Once reported, a declaration is given
+no more instances.
 
 Every generic verb is also checked once where it is declared, with each
 type parameter standing for a **veiled** type (`Ty.Veiled`). A veiled value is
@@ -732,8 +733,8 @@ the SST, attached by `attach_abort_handle` in `lib/cst/parser_actions.ml` as a
 call's is. Typing then requires one on a variant read and rejects one on a
 total read, the same rule it applies to calls.
 
-**D14. A local may not shadow a name already in scope.** The spec says nothing
-about locals, but it forbids an import from shadowing (`packages.md` §3.8). A
+**D14. A local may not shadow an identifier already in scope.** The spec is
+silent on locals, but it forbids an import from shadowing (`packages.md` §3.8). A
 local declared with a name already bound — an enclosing local, a parameter, or
 a package-scope name the file can write — is an error, reported at the new
 declaration. Like D12, this is the compiler's rule and stays out of the spec
@@ -741,7 +742,7 @@ for now.
 
 The fourth question, what `core` declares, turned out not to be one. `core` is
 an ordinary package, so the compiler has no more need to know its declarations
-than any other package's. D3 says so.
+than any other package's, as D3 states.
 
 ---
 
@@ -752,7 +753,7 @@ they stay out of the spec.
 
 **Literals.** `true` and `false` have the type `@primitives$Bool`; the spec
 names concept types only for numeric and text literals (`syntax.md` §2.8).
-A package's implicit constructor from `@primitives$Bool` is what makes them
+A package's implicit constructor from `@primitives$Bool` converts them to
 its own boolean type at a coercion site.
 
 **The intrinsic table.** Each intrinsic a program can name also needs a
@@ -772,16 +773,16 @@ lambdas written with its own `Bool` and `Unit`. An index, a size and a count are
 `@primitives$I64`. `remove` and `swapRemove` give the element at an index as
 `^T`, which moves it out, and the list closes over its place: `remove` moves
 the later elements down, keeping their order, and `swapRemove` moves the
-last one in. An index outside the list stops the program, as reading there
+last element in. An index outside the list stops the program, as reading there
 does. Where nothing takes the element, it dies there, which is the
 disappearing place of `lifetimes.md` §2.1.
 
 **A `match` arm is where its `return` goes.** `=> expr` is `{ return expr }`
 (`adt.md` §5.1), so a `return` in an arm gives the arm's value, not the verb's.
 An `abort` in an arm, and an unhandled abortable call in an arm's `return`, are
-the arm aborting: that is what makes the `match` abortable (§5.4), and the
+the arm aborting: an aborting arm makes the `match` abortable (§5.4), and the
 `match` then needs a handler like any abortable expression. Aborting arms must
-agree on one abort type.
+share one abort type.
 
 **A failed case read aborts with `@primitives$Unit`.** `adt.md` §3 makes a
 variant's member read abortable without giving it an abort type, and a handler
@@ -812,7 +813,7 @@ body to check and a function to write out.
 
 Whether a callee's parameter is a number parameter can itself turn on the
 callee's body, so pass 4 settles this for the whole build before it builds a
-signature: it starts from what the types say and promotes a parameter
+signature: it starts from the parameters' types and promotes a parameter
 whenever a call hands it, by name, to a number parameter of some candidate
 with the right arity, until nothing changes. Chains resolve, and a cycle of
 calls that never reaches a number parameter stays ordinary. The candidates are
@@ -820,7 +821,7 @@ matched by name, ahead of overload resolution, so a call that resolves to an
 overload the promotion did not anticipate leaves a parameter generic that did
 not need to be; that costs instances, never correctness.
 
-An explicit number and one inferred from another argument must agree, so
+An explicit number and one inferred from another argument must be equal, so
 `measured(values Array<Int, n>, n @concepts$Int)` called with a
 three-element array and `4` matches nothing.
 
@@ -851,8 +852,8 @@ parameter is a borrow, so `if(dirty) { dirty = false; }` is an error. While a
 `match` binder names its scrutinee's payload, the arm writes the scrutinee
 only through the binder.
 
-**Where constructors and enum maps are found.** A type's constructors are the
-ones declared in its home package and in the current package, the order
+**Constructor and enum-map lookup.** A type's constructors are the
+constructors declared in its home package and in the current package, the order
 `functions.md` §6.1 gives methods; an enum map is found the same way. An
 import brings a type's constructors with it (`packages.md` §3.5) because they
 live in its home. An implicit constructor is found in the home package of
@@ -889,14 +890,14 @@ the value: `p Pair(Int(1), Int(2))` declares `p` as `Pair`, since the shorthand
 writes the constructor's name and a call carries no `< >` (`generics.md`
 §5.1).
 
-**What the read-only analysis assumes where it cannot see.** Each choice can
+**The read-only analysis's defaults where it cannot see.** Each choice can
 only reject more, never let a write through.
 - An intrinsic, or a call through a function value, has no body to summarise.
   It is taken to hand every argument back in its result and, when it writes its
   subject, to store every argument there — each only where the parameter's type
   can hold a reference.
 - A path into a value is cut at four steps, since a recursive type would let
-  one grow without end. A cut path names the place that contains the real one.
+  one grow without end. A cut path names the place that contains the real path.
 - A block argument that runs more than once (as for spawns, above) leaves a
   local holding what any run stored. It is walked again, each run joined into
   the last, until a run adds nothing, and then once more to report, so every
@@ -904,7 +905,7 @@ only reject more, never let a write through.
   most once is walked once.
 - A generic verb's summary is the union over its instances.
 
-**What the scope analysis assumes.** Each choice can only reject more.
+**The scope analysis's defaults.** Each choice can only reject more.
 - A local names everything ever stored in it, at any path: the body is walked
   until that stops growing, then once more to report.
 - A call's result names what each argument names as its parameter takes it,
@@ -926,7 +927,7 @@ only reject more, never let a write through.
 **What moves, where the spec leaves it to the table.**
 - A subscript's body is a place (`functions.md` §2.9), so it moves nothing
   out; reading `list[i]` into an owner is what the move rule then rejects.
-- A case read and what its handler resolves are a place too: the store the
+- A case read and the value its handler resolves are a place too: the store the
   whole expression feeds determines whether it moves.
 - An `@operators$` function or an intrinsic constructor reads its arguments,
   and `push` takes its value as `^T`. `remove` and `swapRemove` give theirs

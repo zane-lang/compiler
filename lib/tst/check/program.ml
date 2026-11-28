@@ -149,7 +149,7 @@ let verb_declaration env (d : decl) (s : S.t) =
     | Verb { N.Verb_decl.node = N.Verb_decl.Func { foreign = Some _; _ } | N.Verb_decl.Meth { foreign = Some _; _ }; _ } -> true
     | _ -> false
   in
-  (* A foreign verb's body is C. A foreign verb that [Foreign_decls] refused
+  (* A foreign verb's body is C. A foreign verb that [Foreign_decls] rejected
      has no body, and is left out, as a verb whose signature did not resolve
      is. *)
   if foreign then Option.map (fun f -> T.Decl.Verb { signature = s; body = T.Decl.Foreign f }) (Verbs.foreign_verb env.verbs d.id)

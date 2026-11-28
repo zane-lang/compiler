@@ -9,10 +9,10 @@
    statements before the walk and the walk itself, and writes only the
    iteration's own locals; the *retire half*, everything after the walk,
    runs strictly in iteration order (I4). A slot holds one iteration; the
-   iterations in flight are always the [ways] after the oldest one not yet
+   iterations in flight are always the [ways] after the oldest iteration not yet
    retired, iteration k in slot k mod [ways], so the slots themselves are
    the ring the design describes, with R = W. A walk that finishes early
-   waits in its slot until the ones before it have retired. A retire half
+   waits in its slot until the iterations before it have retired. A retire half
    that only combines integers into accumulators with one wrapping
    operator each gives the same bits in any order, and retires as soon as
    its walk ends, freeing the slot at once (I1, "Which retire halves skip
@@ -50,7 +50,7 @@
      it part way, and every local more than one part of the body names is
      a scalar (a slot's state).
 
-   A loop that fails a check is left as it was. *)
+   A loop that fails a check is left unchanged. *)
 
 open Cgt.Nodes
 
@@ -163,7 +163,7 @@ let holds_walk stats =
     | _ -> false)
 
 (* One level of the path from the loop's body down to its walk: the
-   statements before and after the one the path goes through, and, for a
+   statements before and after the statement the path goes through, and, for a
    level the path enters through an expansion, how that expansion's value
    was used ([wrap]), its label and its result. *)
 type level = { before : Stat.t list; after : Stat.t list }
@@ -331,7 +331,7 @@ let plan ~symbol ~params ~fresh ~counter:(x, step) ~x_ty ~count original =
   let walk_half = prefix @ [ Stat.Eval p.walk_count ] @ trip in
   if not (closed [ eval_expand start_label prefix ] && closed [ eval_expand trip_label trip ]) then refuse __LOC__;
   (* The finish for each exit: the rest of each level the path is inside,
-     from the one the exit lands in outward. *)
+     from the level the exit lands in outward. *)
   let levels = Array.of_list p.levels and opened = Array.of_list p.opened in
   let rec outward k inner =
     (* [inner] are the statements of level [k], still inside its expansion. *)

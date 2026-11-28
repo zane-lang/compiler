@@ -1,7 +1,7 @@
-/// A recursion that calls itself once, called from a loop that asks for the
+/// A recursion that calls itself once, called from a loop that passes the
 /// same 500 depths over and over. With a table of its results, a call on
 /// the first pass recurses once and finds the depth below it, which the loop
-/// asked for just before; after that every call is found at once, rather
+/// passed just before; after that every call is found at once, rather
 /// than walking down to the bottom.
 package depths;
 alias Int = @primitives$I64;

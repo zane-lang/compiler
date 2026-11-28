@@ -22,7 +22,7 @@ include Emit_lists
 (* Arithmetic                                                             *)
 (* ---------------------------------------------------------------------- *)
 
-(* LLVM leaves an integer division by zero undefined, and the one quotient an
+(* LLVM leaves an integer division by zero undefined, and the single quotient an
    integer cannot hold too. The first gives zero and the second wraps, as `+`
    and `*` do (operators.md §2.6). Both divisors, 0 and -1, are the two that
    `r + 1` takes below 2 unsigned, and they branch away to an unlikely block,
@@ -206,7 +206,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
                    [| out; p; Llvm.const_int env.i64 size |]));
           Some (Llvm.build_load lt out "" b))
   | Expr.Escape { value; layout = l; exit } -> (
-      (* The arenas the exit drains are the innermost ones: all of the
+      (* The arenas the exit drains are the innermost arenas: all of the
          function's, or those opened since the expansion began. *)
       let kept = match exit with None -> 0 | Some label -> snd (Hashtbl.find fr.labels label) in
       let drained = List.filteri (fun i _ -> i < List.length fr.open_ - kept) fr.open_ in
@@ -461,7 +461,7 @@ and expr env fr b (e : Expr.t) : Llvm.llvalue option =
       Option.bind result (fun id -> expr env fr b { Expr.node = Expr.Local id; ty = e.Expr.ty })
 
 (* A call (docs/design/lowering.md §9). Each argument passes as its type
-   says: as itself; as words, through a slot of words; or by address, a
+   requires: as itself; as words, through a slot of words; or by address, a
    place's own and a fresh slot of this frame for any other value. The
    arguments run in order first. A result that comes back by address is
    written to [into], a fresh slot the caller names, or to one made here;
@@ -718,7 +718,7 @@ and stat env fr b (s : Stat.t) =
         match value.Expr.ty with
         | Ty.Sum ts when Option.is_some (Ty.byte_niche ts) ->
             (* The case a byte-niche sum holds: another case's when its spare
-               byte holds one of their values, else the one with a payload. *)
+               byte holds one of their values, else the case with a payload. *)
             let n = Option.get (Ty.byte_niche ts) in
             let i32 = Llvm.i32_type env.ctx and i8 = Llvm.i8_type env.ctx in
             let tmp = alloca env fr (Llvm.type_of v) in
@@ -805,7 +805,7 @@ and stat env fr b (s : Stat.t) =
       | Some v ->
           (* The slot is listed before it is written, since listing it only
              takes its address: the write is then the last LLVM sees before
-             what follows, and it knows the value there, a new list's empty
+             what follows, and LLVM can use the value there, a new list's empty
              header included. A large value is written first, so its load
              and its store stay next to each other for Big_moves. *)
           let slot = frame_slot env fr b scope id in
@@ -1097,7 +1097,7 @@ and stat env fr b (s : Stat.t) =
 (* ---------------------------------------------------------------------- *)
 
 (* A parameter passed by address is the caller's place or a fresh slot of the
-   caller's, which the attributes promise the callee only reads. Lowering
+   caller's, which the attributes declare the callee only reads. Lowering
    never writes a parameter's own slot: a borrow is read-only (memory.md
    §2.9), and a `^T` parameter is held in a slot of the body's own before it
    is moved on. So one that does is an invariant broken, not a program to

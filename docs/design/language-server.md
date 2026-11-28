@@ -17,8 +17,8 @@ The server offers:
 | Request | What the server answers |
 |---|---|
 | Diagnostics | Every problem semantics reports, published as the user types |
-| Hover | A name's declaration: a verb's signature, a type's definition, a local's type, with the `///` documentation before the declaration; for an intrinsic, its signatures and its description (D17) |
-| Go to definition | Where the name's target is declared, for the overload a call chose |
+| Hover | An identifier's declaration: a verb's signature, a type's definition, a local's type, with the `///` documentation before the declaration; for an intrinsic, its signatures and its description (D17) |
+| Go to definition | Where the identifier's target is declared, for the overload a call resolved to |
 | Go to type definition | The declaration of a value's type |
 | Find references | Every use of the target, across the files and builds of the project |
 | Rename | An edit of each use's identifier |
@@ -74,11 +74,11 @@ even when it opened the project through a link, as macOS's `/var` links to
 `/private/var`.
 
 **D5. Semantics records each name it resolves.** When the server asks, a
-check records every use of a name: its span, its target (a declaration, a
+check records every use of an identifier: its span, its target (a declaration, a
 field or case, an enum member, a local, a type parameter, a package or an
 intrinsic) and whether the use declares the target. Semantics already
-decides what each name means, and the record is taken where it decides, so
-the server never resolves a name a second way. A build records nothing, and
+resolves each identifier, and the record is taken where semantics resolves
+it, so the server never runs a second resolver. A build records nothing, and
 pays nothing for the record. The same record holds what a check found where
 a completion wrote its placeholder (D8). `Index` turns the record into what
 the server reads: a description of each declaration, the type of each field, and the
@@ -133,8 +133,8 @@ writes JSON with `yojson` and frames the messages itself; it needs a small
 part of the protocol, and a library of the protocol's types would add more
 code than the server has.
 
-**D12. C code compiles once per build.** A package's C changes what its
-foreign declarations mean, and compiling it takes much longer than a check.
+**D12. C code compiles once per build.** A package's C changes the meaning
+of its foreign declarations, and compiling it takes much longer than a check.
 The server compiles a build's C the first time it checks the build, and
 again after a `.c` file, a `.h` file or the `c.coda` of one of the build's
 packages changes on disk, never on an edit to a Zane file.
@@ -190,7 +190,7 @@ Completion reads an intrinsic's place from the text before the cursor: `@`
 offers the namespaces, `@namespace$` the namespace's names, and
 `@namespace$Type.` the type's named constructors. A name after `:` or `!`
 before the `@` is a method's, and the server offers the methods whose subject
-takes the value before it: after `!` the `mut` ones, after `:` the others, as
+takes the value before it: after `!` the `mut` methods, after `:` the others, as
 the checker requires. Where the check finds a type at the cursor, the
 server offers only types. Only a file of the root package is offered
 `@program$`, since only the root package reaches it (spec `effects.md` §6.6);

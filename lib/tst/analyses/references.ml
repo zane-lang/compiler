@@ -4,7 +4,7 @@
 
    This file checks two rules, each decided by looking at one store alone,
    and the rule about overwriting a foreign handle in place (ffi.md §4.3),
-   decided the same way:
+   all checked the same way:
 
    - A new reference is minted only from a settled place (memory.md §2.8): a
      settled symbol or package constant, or a path from one -- or from an

@@ -40,7 +40,7 @@ Tools here, run from the repository root after `pixi run just build`:
 - `measure.py [N] [PASSES] [RUNS] [MODE…]`: `programs/layouts` built once per mode,
   timed and its peak memory read (`SHAPES=1,2` picks shapes).
 - `programs/niches`: a program that builds, matches, copies and stores sums
-  of every niche kind; every mode must print the same.
+  of every niche shape; every mode must print the same output.
 - `arm64.sh`: the check and the measurements on another machine, through
   the Shell workflow (step 5).
 
@@ -51,7 +51,7 @@ existing `Ty.Packed` layout, which the pooled-variant experiment
 (`docs/experiments/goose-comparison`) added for its nodes.
 `Type_layout.shape` and the Zane side of the C conversion
 (`Callback.layout`) apply it, so a C-compatible value type still crosses in
-C's layout, rebuilt field by field. What had to follow:
+C's layout, rebuilt field by field. The changes that had to follow:
 
 - every walk over a layout's members that matched only `Ty.Struct` (a
   constructor's record, the owned-block positions, the memo tables'
@@ -104,7 +104,7 @@ up to 3%):
 - **A sequential pass gets faster by about what it reads less**: 14% for
   `Pair`, 39% for `Flagged`, 30% for `Outer`, 37% for `Maybe`. These
   loops are bound by memory traffic, and an element at any byte costs x86
-  nothing when the next one is read straight after it.
+  nothing when the next element is read straight after it.
 - **Scattered reads gain nothing.** Each one misses the cache wherever the
   element is, and a 13-byte element straddles two 64-byte lines in about
   one read in five, where a 16-byte one never does: the second miss eats
@@ -168,9 +168,9 @@ scattered reads and the unpadded control unchanged.
 **Design.** Step 1 marks every plain read and write in the module as at
 any byte. That stays the starting point, since a reference, a place lent
 to a callee and a member inside a packed value can each be at any byte,
-and nothing in the IR tells them from an aligned pointer. What changed is
-that each load of a pointer that always names something aligned now says
-so with LLVM's `!align` metadata (`List_handle.aligned`):
+and nothing in the IR separates them from an aligned pointer. The change:
+each load of a pointer that always names an aligned address now carries
+LLVM's `!align` metadata (`List_handle.aligned`):
 
 - a runtime record's or context's pointer field (`Emit.field`) and the open
   scope read from `zane_open`, which name records and frames;
@@ -185,8 +185,8 @@ address it can trace to a stack slot, a global or an `llvm.assume`d frame;
 with these facts it traces the rest of the runtime's bookkeeping and every
 element of a list whose stride keeps it aligned, while an element of a
 13-byte stride stays at any byte. The facts hold with or without packing,
-but are said only under `ZANE_PACK`, so the default build is unchanged;
-`ZANE_PACK_HINTS=0` leaves them unsaid, as step 2 did.
+but codegen emits them only under `ZANE_PACK`, so the default build is unchanged;
+`ZANE_PACK_HINTS=0` leaves them out, as step 2 did.
 
 In `programs/layouts`'s optimized IR under `structs`, reads and writes marked
 at any byte go from 362 (of 854) to 111. What is left is the members of
@@ -228,7 +228,8 @@ same under `structs` and `all`.
 and others that have none is laid out as that payload alone, when the
 payload has a byte with enough values it never holds (`Ty.byte_niche`,
 `Ty.spare`, in `lib/cgt/nodes.ml`): another case is one of those values at
-that byte, the first of them for the first such case, and so on. A spare
+that byte, the first of them for the first such case, the second for the
+second, through the last. A spare
 byte is
 
 - a `Bool`'s, which holds 0 or 1, so 254 values are left;
@@ -240,7 +241,7 @@ found through a struct's members (the first that has one) and an array's
 first element. This generalizes `Ref32.niche`, which does the same for a
 sum of nothing and a box or reference, with 0 for nothing.
 
-What had to follow:
+The changes that had to follow:
 
 - the sum's LLVM type is its payload's with the spare `Bool` an `i8`
   (`Emit.with_byte`): a `Bool` read as `i1` from a byte that holds 2 does
@@ -248,7 +249,7 @@ What had to follow:
   case's payload, which holds 0 or 1 there, is read as its own type;
 - a case is built as its payload's bytes, or as zero bytes with the case's
   value at the spare byte; a match reads that byte and takes the case its
-  value names, or the one with the payload when it names none; the payload
+  value names, or the case with the payload when it names none; the payload
   is at the sum's own address;
 - an owned-block position under a byte-niche sum carries its tag as the
   byte's offset and its range of values (`Layout.byte_niche_tag`), which a
@@ -292,7 +293,7 @@ Callgrind, 1,000,000 values and 2 passes:
 | 10 `Nested` | 63.5 M | 76.7 M | 59.5 M |
 
 A packed sum inside a packed sum (`Nested` under `all`) costs instructions:
-its inner tag and payload are at odd offsets in the outer one's room, read
+its inner tag and payload are at odd offsets in the outer sum's room, read
 a piece at a time, so it runs barely faster than the default build for all
 its smaller footprint. Without a tag at all, `niche` reads it as one
 `Flagged` and runs 2.2 times as fast as `all`.
@@ -354,7 +355,7 @@ Dispatched as runner `macos-latest`, command
   `trios` serves the scattered shape too, so its loop picks its index
   between two computations, one a division, before multiplying it by the
   stride. Step 6 separates the two. (The runner of this run was slower
-  than the first one's throughout; only rows within one run compare.)
+  than the first run's throughout; only rows within one run compare.)
 - **Scattered reads gain a little** (3-5%), where x86 gained nothing.
 - **The alignment facts make no difference here either**: `structs` with
   and without them is the same to within the noise.
@@ -376,7 +377,7 @@ branch (run 43074938173, AArch64, 9 runs, `results/results-arm64.txt`):
 | 11 `Quads` | 0.176 s | 0.146 s |
 
 In a loop of its own, packed `Trio` gains 13%: the layout is not the cost.
-`trios` picks each index between `j` and the scattered one with a
+`trios` picks each index between `j` and the scattered index with a
 loop-invariant flag, so LLVM cannot step a pointer through the list and
 computes the address from the index on every element: with a 16-byte
 stride a shift folded into the add, with 13 a multiply-add. Apple's cores
@@ -393,8 +394,8 @@ build, the default included, with `ZANE_UNSWITCH=1`. Compiled for
 sequential reads step a pointer by 13, two elements a turn.
 
 **Correctness.** `fixtures.sh` with `ZANE_PACK=structs` and with
-`ZANE_PACK=niche`, which now unswitch: all 140 builds the same.
-`programs/niches` the same under both.
+`ZANE_PACK=niche`, which now unswitch: all 140 builds print the same output.
+`programs/niches` prints the same output under both.
 
 **Results, AArch64** (run 43076494289, 7 runs; this runner was noisy:
 `Pair`, whose loop unswitching does not touch, moves by 20% between two
@@ -432,7 +433,7 @@ ran in their own build directory (`--build-dir _build_niche`, with
 `DUNE_CACHE=disabled`), so dune's cache could not replay a default run.
 The first run found two bugs, both fixed here:
 
-- **Memoization refused packed keys.** `Memo.fixed` treated every
+- **Memoization rejected packed keys.** `Memo.fixed` treated every
   `Ty.Packed` as holding an address, so `moves`, a recursion over a
   variant, lost its table in all three builds. A packed type is now as
   fixed as what it packs.
@@ -446,14 +447,14 @@ with no padding keeps its natural type and alignment. That took 14
 golden layouts and two alignment tests off the list without changing
 any padded shape's layout.
 
-What still differs, and why each is expected:
+The remaining differences, each with its expected cause:
 
 | Test | Count | Why |
 | --- | --- | --- |
 | codegen and ffi `.cgt` goldens | 15 | They print the layout: `packed <…>` types, `@1` instead of `@8` offsets. |
 | `tests/unit` layout tests | 7 | They assert the default order and padding. |
-| `abi_test` (3 targets) | 1 | It expects a fieldless variant as `{ i32 }`; packed, its tag is `<{ i8 }>`. |
-| `facts_test` alignment | 1 | It expects `align 8` on every `i64` access, which the blanket alignment-1 pass removes (step 3). |
+| `abi_test` (3 targets) | 1 | The test requires a fieldless variant as `{ i32 }`; packed, its tag is `<{ i8 }>`. |
+| `facts_test` alignment | 1 | The test requires `align 8` on every `i64` access, which the blanket alignment-1 pass removes (step 3). |
 
 No program's output changed:
 - tests/runtime, tests/semantics, tests/parser and tests/nesting pass;
@@ -462,7 +463,7 @@ No program's output changed:
 The default build (`ZANE_PACK` unset) passes `just test-compiler` after
 the fixes.
 
-What making it the default would take: regenerate the goldens and the
+Making it the default would take two steps: regenerate the goldens and the
 unit tests' expectations. Also replace the blanket alignment-1 pass with
 each access's own alignment. Steps 3 and 6 measured no speed cost to
 the blanket pass, but it hides from LLVM every alignment the emitter
@@ -475,13 +476,13 @@ The C functions are `noinline` and hide one input behind an empty `asm`,
 so LLVM cannot fold the calls away. Four shapes:
 
 - **`Vec3`**: three `F64`. It has no padding, so every layout passes it
-  as it is.
+  unchanged.
 - **`Tagged`** and **`Nested`**: they have padding, and the default
   layout already reorders their fields. The crossing converts them
   member by member in both layouts; packing changes only what the
   conversion reads from.
 - **`Ordered`** (`{I64, I32}`): already in C's order, with tail padding.
-  The default passes it as it is. Packing makes it 12 bytes against C's
+  The default passes it unchanged. Packing makes it 12 bytes against C's
   16, so only the packed layout converts it.
 
 On x86 (`results/results-step8-ffi.txt`), best of 7, then best of 15
@@ -514,7 +515,7 @@ stripped executable's size, summed over the programs.
 The first run found a bug in this experiment's own code. Optimized
 `niche` builds took 6.1× as long: `division` 6s → 48s, `stress` 11s →
 84s. Plain builds took 16% longer. The blanket alignment-1 pass (step
-3) printed every load and store to text to find the atomic ones. Each
+3) printed every load and store to text to find the atomic accesses. Each
 print renumbers the whole function, so the cost grew with the square of
 function size. The pass now reads the access's ordering through a
 stub, `Llvm_extra.is_atomic`. Atomic accesses still keep their
@@ -578,7 +579,7 @@ not been migrated to the compiler's current ownership rules and syntax,
 so these failures have nothing to do with packing. The wall clock here moved rows by up to
 ±20% between runs (`results/results-step10-langbench-x86.txt`; a rerun at 21
 runs put `listgrowth`'s +16.6% at −2.8%). The Callgrind counts
-(`results/results-step10-langbench-cycles.txt`) are the reliable ones:
+(`results/results-step10-langbench-cycles.txt`) are the reliable measurements:
 
 | Test | Default + unswitch | Niche |
 | --- | --- | --- |
@@ -636,7 +637,7 @@ slower by more than Windows' +3% on `Trio plain loop`.
 
 **The perf programs by wall clock.** At their gate sizes most of them
 run 1–30 ms, so best-of-7 differences of a few percent are noise. The
-realistic ones were rerun at 10–100× their size, best of 15, twice on
+realistic programs were rerun at 10–100× their size, best of 15, twice on
 each runner:
 
 | Program | Zen 3 niche | Zen 3 niche, no unswitch | Zen 3 default + unswitch | Zen 5 niche | Zen 5 default + unswitch | Xeon (container) niche | M1 niche |
@@ -662,9 +663,9 @@ each runner:
   layout too. In `zane_main` it unswitches the loops `irce` (LLVM's
   pass that splits a loop to remove its range checks) had already split
   into pre-, main and post-loops. The code is no larger (194 blocks
-  against 197), and Callgrind counts +1.3%. The cost is in something it
-  does not model: loop alignment, or what the predictor makes of the
-  new shape. Finding which one needs hardware counters, which none of
+  against 197), and Callgrind counts +1.3%. The cost is in an effect it
+  does not model: loop alignment, or the branch predictor's response to
+  the new shape. Finding which effect it is needs hardware counters, which none of
   these machines exposes.
 
 **langbench by wall clock:**
@@ -682,10 +683,10 @@ was to remove step 11's `entities` loss on x86, whose optional
 components have no niche.
 
 Under `aligned`:
-- all 140 fixture builds print the same;
+- all 140 fixture builds print the same output;
 - the FFI fixtures match, apart from the three `ffi.sh` cannot run in
   any mode;
-- `programs/niches` prints the same;
+- `programs/niches` prints the same output;
 - every perf program matches its golden.
 
 In Callgrind (`results/perf12-aligned.txt`, unswitching off), `entities`,
@@ -751,7 +752,7 @@ experiment that were good enough to measure with but not to ship:
 
 - **Per-access alignment.** The blanket pass set every non-atomic load and
   store to alignment 1. `lib/codegen/alignment.ml` now gives each the
-  smaller of its type's alignment and what its address is known to be:
+  smaller of its type's alignment and its address's known alignment:
   - a stack slot or a global at its own alignment;
   - a getelementptr as far as its constant offset and each index's known
     factor divide its base's;
@@ -763,7 +764,7 @@ experiment that were good enough to measure with but not to ship:
   In the `facts` fixtures every `i64` access keeps `align 8` except in
   the walk helpers, which are given an address that may be anywhere.
 - **Truthful parameter attributes.** A by-address borrow and a place
-  parameter claimed their type's alignment. Under packing either may be
+  parameter declared their type's alignment. Under packing either may be
   a member at any byte of a packed value, so that claim could be false,
   and LLVM is entitled to rely on it. They now claim none; the `sret`
   slot, the caller's own, keeps its alignment.
@@ -807,7 +808,7 @@ has none.)
 ## Step 14: the branch is instruction combining's sinking
 
 [zane-lang/compiler#354](https://github.com/zane-lang/compiler/issues/354)
-asked why step 13's `entities` lost 7.5% tiered while it gained 10.7%
+raised the question of why step 13's `entities` lost 7.5% tiered while it gained 10.7%
 optimized. Measured with Callgrind as `tests/perf` measures, each
 conditional branch's mispredicts read from `--dump-instr=yes`:
 
@@ -868,7 +869,7 @@ $1` for `cmp; je`). Code is 1.4% larger over the perf programs
 median of 15, at 10× the gate size, three runs): `entities` −20% to −25%
 optimized and −35% to −41% tiered, against `main`, far past the
 container's noise. `growth` at 10× swung from −25% to +16% between runs,
-so it says nothing either way. These runs cannot show what step 11 found
+so it shows nothing either way. These runs cannot show what step 11 found
 on real x86: whether packing's unaligned 8-byte accesses, and the stores
 the core cannot forward, cost more than Callgrind counts. `wall14.py`
 times one program's optimized and tiered builds by two compilers,
@@ -931,5 +932,5 @@ as `zanec-main`:
   branch only; `main`'s workflow runs on `ubuntu-latest` alone.
 - More spare values: a box's or a reference's pointer is never null and
   aligned, so it leaves 0 and the low bits; a sum with two payloads could
-  put its tag in a spare byte of the larger one when the smaller fits
+  put its tag in a spare byte of the larger payload when the smaller fits
   around it.
