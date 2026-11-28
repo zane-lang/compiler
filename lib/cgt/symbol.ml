@@ -34,7 +34,7 @@ let rec ty_ stamp = function
   | Tty.Concept c -> concept stamp c
   | Tty.Verb v -> verb_type stamp v
   | Tty.Param p -> Diagnostic.bug ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")
-  | Tty.Error -> Diagnostic.bug "Symbol.ty: an ill-typed type has no symbol"
+  | Tty.Error | Tty.Veiled _ -> Diagnostic.bug "Symbol.ty: an ill-typed type has no symbol"
 
 and args_ stamp = function
   | [] -> ""

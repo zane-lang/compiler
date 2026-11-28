@@ -19,7 +19,7 @@ let conversion_lambda env span ~name ~src ~dst ~missing =
   let local = fresh_local env name src span in
   let read = mk (T.Expr.Var (T.Name_ref.Local local)) src span in
   let converted =
-    if Ty.assignable ~dst ~src || src = Ty.Error || dst = Ty.Error then read
+    if Ty.assignable ~dst ~src || Ty.unknown src || Ty.unknown dst then read
     else
       match implicit_constructors env ~src ~dst with
       | [ ((s, subst) as found) ] ->
@@ -68,7 +68,7 @@ let pool_publish env span e p =
   let callee = verb_ref f (List.map (fun (q : Ty.param) -> (q.Ty.id, Ty.Type e)) f.S.generics) in
   let call = mk (T.Expr.Call { callee; args = [ T.Arg.Value read ]; handler = None }) unit span in
   let converted =
-    if Ty.assignable ~dst:p ~src:unit || p = Ty.Error then call
+    if Ty.assignable ~dst:p ~src:unit || Ty.unknown p then call
     else
       match implicit_constructors env ~src:unit ~dst:p with
       | [ ((s, subst) as found) ] ->

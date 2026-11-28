@@ -37,11 +37,36 @@ let binding_args (s : S.t) (subst : Ty.subst) =
         | None -> Type_decls.param_arg p ))
     s.generics
 
-let describe_instance (s : S.t) subst at =
-  Printf.sprintf "in %s with %s, required at %s" (quote s.name)
+let describe_link (s : S.t) subst =
+  Printf.sprintf "in %s with %s" (quote s.name)
     (String.concat ", "
        (List.map (fun ((p : Ty.param), a) -> p.name ^ " = " ^ Ty.arg_to_string a) (binding_args s subst)))
-    (where at)
+
+let describe_instance (s : S.t) subst at = Printf.sprintf "%s, required at %s" (describe_link s subst) (where at)
+
+(* Where an instance requested at [at] reports its errors, and the path
+   from there: the origin of the chain it extends, or [at] itself outside
+   every instance (generics.md §3.8). *)
+let origin_and_path requests (s : S.t) subst at =
+  match !(requests.current_path) with
+  | Some (origin, path) ->
+      (origin, path @ [ Printf.sprintf "which calls %s at %s, %s" (quote s.name) (where at) (describe_link s subst) ])
+  | None -> (at, [ describe_link s subst ])
+
+(* Runs [f], which types an instance at once instead of from the queue, as a
+   generic subscript's body is typed where a call reaches it: the instance
+   extends the chain it is asked for in, and reports its errors at that
+   chain's origin. The declaration-site check runs without requests, so
+   there the checker notes the instance only. *)
+let in_instance env (s : S.t) subst at f =
+  match env.instances.requests with
+  | None -> with_note env (describe_instance s subst at) f
+  | Some requests ->
+      let origin, path = origin_and_path requests s subst at in
+      let saved = !(requests.current_path) in
+      requests.current_path := Some (origin, path);
+      Fun.protect ~finally:(fun () -> requests.current_path := saved) @@ fun () ->
+      at_origin env origin @@ fun () -> with_note env (describe_path path) f
 
 let verb_ref (s : S.t) subst =
   { T.Verb_ref.owner = s.owner; name = s.name; instance = binding_args s subst }
@@ -141,13 +166,14 @@ let request env ?(args = []) (s : S.t) subst at =
             (* Reported once: the instances still waiting on this
                declaration request no more instances of it. *)
             Hashtbl.replace requests.runaway id ();
-            error env at
+            error_here env at
               (Printf.sprintf
                  "%s is instantiated more than %d times along one chain of instantiations, \
                   which begins %s; its calls to itself never reach a fixed set"
                  (quote s.name) instance_limit (describe_chain env chain))
           end
           else
+            let origin, path = origin_and_path requests s subst at in
             Stack.push
               {
                 p_decl = Names.decl env.names id;
@@ -155,6 +181,8 @@ let request env ?(args = []) (s : S.t) subst at =
                 p_subst = subst;
                 p_at = at;
                 p_chain = !(requests.current_chain);
+                p_origin = origin;
+                p_path = path;
               }
               requests.pending
         end
