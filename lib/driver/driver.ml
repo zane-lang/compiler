@@ -573,11 +573,14 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
    and tier 1 replays that file. *)
 type readings = Record of string | Replay of string
 
-(* [readings] in the file, whole: tier 0 writes it beside its name and
-   renames it into place, so tier 1 never reads half of it. *)
+(* [readings] in the file, whole: tier 0 writes a file it creates afresh
+   beside [file], never one already there, and renames it into place, so
+   tier 1 never reads half of it. *)
 let write_readings file readings =
-  let partial = file ^ ".partial" in
   match
+    let partial =
+      Filename.temp_file ~temp_dir:(Filename.dirname file) (Filename.basename file) ".partial"
+    in
     Out_channel.with_open_text partial (fun oc ->
         List.iter (fun r -> Printf.fprintf oc "%Ld\n" r) readings);
     Sys.rename partial file
@@ -588,15 +591,22 @@ let write_readings file readings =
 (* The readings in [file], in order, given one at a time. Tier 1 is built
    while tier 0 is, so the first reading waits until tier 0 has put the
    file in place; a program whose `comptime` calls never read the clock
-   never waits. A line that is not a reading ends them. *)
+   never waits. A line that is not a reading ends them. A file that cannot
+   be read raises [Unreadable], which [comptime] reports. *)
+exception Unreadable of string
+
 let replayed file =
   let left = ref None in
-  let rec parsed = function
+  let[@tail_mod_cons] rec parsed = function
     | line :: rest -> (match Int64.of_string_opt line with Some r -> r :: parsed rest | None -> [])
     | [] -> []
   in
   let rec arrived () =
-    if Sys.file_exists file then parsed (In_channel.with_open_text file In_channel.input_lines)
+    if Sys.file_exists file then
+      match In_channel.with_open_text file In_channel.input_lines with
+      | lines -> parsed lines
+      | exception Sys_error message ->
+          raise (Unreadable (Printf.sprintf "cannot read the clock readings in %s: %s" file message))
     else begin
       Unix.sleepf 0.01;
       arrived ()
@@ -629,12 +639,14 @@ let comptime ?target ?(c = []) ?readings ~arguments packages cgt =
     | Error ds -> fail ~sources:(Assembly.sources packages) ds
   in
   let result =
-    if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
-    else if c = [] then evaluated []
-    else
-      match Codegen.with_c_modules ?target c evaluated with
-      | Ok result -> result
-      | Error message -> fail [ Diagnostic.about_invocation message ]
+    try
+      if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
+      else if c = [] then evaluated []
+      else
+        match Codegen.with_c_modules ?target c evaluated with
+        | Ok result -> result
+        | Error message -> fail [ Diagnostic.about_invocation message ]
+    with Unreadable message -> fail [ Diagnostic.about_invocation message ]
   in
   match readings with
   | Some (Record file) -> (

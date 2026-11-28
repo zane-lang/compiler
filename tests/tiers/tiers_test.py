@@ -158,6 +158,9 @@ class Tiers(unittest.TestCase):
             [str(ZANEC), "--tier-up", str(library), "--comptime-readings", str(readings), "--package", package],
             env=self.env,
         )
+        # A tier 1 left waiting for readings that never come is stopped,
+        # however the test ends.
+        self.addCleanup(lambda: tier1.poll() is None and (tier1.kill(), tier1.wait()))
         exe = self.dir / "clocked.tier0"
         self.zanec("--build", str(exe), "--tiered", "--comptime-readings", str(readings), "--package", package)
         self.assertEqual(tier1.wait(timeout=300), 0)
@@ -176,6 +179,18 @@ class Tiers(unittest.TestCase):
         p = subprocess.run([str(exe)], capture_output=True, text=True, env=env, timeout=60)
         self.assertEqual(p.returncode, 1)
         self.assertIn("zane: tier 1 is another program's", p.stderr)
+
+    def test_an_unreadable_readings_file_is_a_diagnostic(self):
+        # A directory exists, so tier 1 stops waiting, but it cannot be read.
+        readings = self.dir / "readings"
+        readings.mkdir()
+        p = subprocess.run(
+            [str(ZANEC), "--tier-up", str(self.dir / "clocked.tier1"), "--comptime-readings", str(readings),
+             "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env, timeout=300,
+        )
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("cannot read the clock readings in", p.stderr)
 
     def test_only_a_tiered_build_takes_the_readings(self):
         exe = self.dir / "clocked.plain"

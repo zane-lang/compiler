@@ -430,8 +430,8 @@ so lowering takes only lists of integers.
 
 `comptimeRefused` is a refusal of the program itself too: calls marked
 `comptime` that cannot be evaluated (docs/design/comptime.md K7, K9), one
-that prints, one that reads past a list's end, one whose handler prints,
-and one that reads the monotonic clock, each reported at its call.
+that prints, one that reads past a list's end, and one whose handler
+prints, each reported at its call.
 
 `hugeArray`, `nestedArray`, `beyondLimit` and `beyondLimitField` are refusals of a type too
 large to hold (docs/design/lowering.md §9): an `Array<I64, 4294967296>` and

@@ -194,7 +194,7 @@ folds the time of its build into the module, and the two tiers run as two
 processes that read the clock at different moments. With
 `--comptime-readings FILE` on both runs, tier 0 records each reading its
 marked calls make, in order, and writes them to `FILE`, one decimal number
-of nanoseconds a line, through `FILE.partial` and a rename, once every
+of nanoseconds a line, through a file it creates afresh beside `FILE` and a rename, once every
 marked call is evaluated, even when one fails. Tier 1 gives its marked
 calls those readings in the same order (`Driver.comptime`), so both tiers
 fold the same values and emit the same module (T3). Since the CLI builds
@@ -203,8 +203,9 @@ and a program whose marked calls read no clock never waits. A reading past
 the last one `FILE` holds is an error at the marked call that makes it. A
 caller removes `FILE` before a run, as it removes `OUT` (T9), so tier 1
 never replays an earlier run's readings. Without the flag each tier reads
-the build machine's clock itself, the fingerprints differ, and the runtime
-refuses tier 1. The flag is refused on any other build.
+the build machine's clock itself, so the two tiers can fold different
+values; where they do, the fingerprints differ and the runtime refuses
+tier 1. The flag is refused on any other build.
 
 ---
 
