@@ -719,7 +719,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--cgt` | prints the code-generation tree, as stage 5 left it when `--optimize` is given |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
-| `--library OUT` | builds a plugin package, a root without `main`, into the dynamic library `OUT`, linked with the runtime compiled for one, offering its exports ([`ffi.md`](ffi.md) F20, F21) |
+| `--library OUT` | builds a plugin package, a root without `main` that carries an export line or declares an exported lambda, into the dynamic library at the path `OUT`, whose extension the caller chooses, linked with the runtime compiled for one, offering its exports ([`ffi.md`](ffi.md) F20, F21) |
 | `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3), and beside it `STEM.c.N.o`, the objects of their C sources holding assembly ([`ffi.md`](ffi.md) F15) |
 | `--tiered` | with `--build`, makes tier 0 of a tiered build, whose calls go through slots tier 1 fills while it runs, linked with the runtime compiled with `-O2` ([`tiers.md`](tiers.md) T1, T4, T5) |
 | `--tier-up OUT` | makes tier 1 of a tiered build, the program optimized into the shared library `OUT` ([`tiers.md`](tiers.md) T1, T2) |

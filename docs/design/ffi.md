@@ -1185,7 +1185,7 @@ call (`Tst.Check.Exports.check_lambda`, using the same tests of
 parameter and result types as `ffi.md` §3.6, `Foreign_decls.function_param`
 and `function_result`): no abort type, no subject (a subject borrows a
 C-held object, `packages.md` §8.5, which zanec does not build yet), and
-a C identifier for a lambda name. The program's `exports` lists the exported
+a C identifier for the exported symbol, the string after `export`. The program's `exports` lists the exported
 lambdas the build gives C symbols: the root's own and those of the
 libraries its export lines name, each C name once (§8.3), and none in a
 build without a root, where an exported lambda stays an ordinary lambda
@@ -1214,7 +1214,9 @@ included, and passes none on as a function value.
 
 **F21. A plugin package builds into a dynamic library.** A root without
 `main` is a plugin's when it carries an export line or declares an
-exported lambda (`Driver.root_kind`), and `--library OUT` builds it; a
+exported lambda (`Driver.root_kind`), and `--library OUT` builds it into
+the dynamic library at the path `OUT`, whose extension (`.so`, `.dylib` or
+`.dll`) the caller chooses; a
 program's root builds with `--build`, and each refuses the other's root.
 Lowering a plugin starts from its exports and has no entry, so no start
 function makes the package constants first: each constant's function
@@ -1230,9 +1232,12 @@ the program's own scope and the constants' region in a context no thread
 runs, with `arguments` empty, since a host passes no command line
 (`packages.md` §8.1). Each host call runs in a context the adapter makes
 for it, as F11's call on a thread C started does, and writes out what it
-printed before it returns (`zane_callback_detach`), so the library's
-output and the host's reach the terminal in the order they were made; a
-destructor writes out the rest when the host unloads the library.
+printed before it returns (`zane_callback_detach`), so everything a call
+printed has reached the library's output when the host gets the call's
+result. That flush covers only this library's buffer: the order against
+the host's own buffered output, or another library's, is the host's to
+keep. A destructor joins the pool's threads and then writes out the rest
+when the host unloads the library.
 
 Two Zane libraries in one host each have a runtime of their own, and
 share no runtime state. So nothing of either is reached from outside it

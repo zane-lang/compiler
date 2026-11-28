@@ -1449,7 +1449,7 @@ let dynamic_library ?target ?(optimize = false) ?(link = []) ?(bundled = bundled
   | Ok (triple, tm, _, apart) -> (
       Foreign_c.drop_pie_level m;
       let cc = cc () in
-      let level = level ~optimize and system = library_system_libraries target in
+      let level = library_level ~optimize and system = library_system_libraries target in
       let flags = target_flag target @ level @ library_link triple in
       let rows = List.map (fun (l : Foreign_c.library) -> "-l" ^ l.name) libraries in
       let deps (c : c_files) = c.objects @ link @ c.archives @ rows in

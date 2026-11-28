@@ -280,7 +280,9 @@ let key ?(library = false) ~triple ~compiler packages =
           ("c-object" :: triple :: compiler :: (if library then "dynamic library" else "program")
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: (if p.keeps_names then "keeps names" else "renames") :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 (p.prefix
+                  :: (if p.keeps_names then "keeps names" else "renames")
+                  :: List.map (fun c -> c.key) (p.sources @ p.glue))
                  @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
                  @ ("" :: List.sort_uniq compare p.defined)

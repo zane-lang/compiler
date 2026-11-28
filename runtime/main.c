@@ -262,13 +262,14 @@ __attribute__((constructor)) static void zane_library_start(void) {
 	zane_reopen();
 }
 
-/* As the host unloads the library or ends: what the library printed and
-   has not written yet is written, its pool's threads are joined, and the
-   fault handlers that were there before it loaded are back, so that
-   nothing the process keeps runs the library's code once it is gone. */
+/* As the host unloads the library or ends: its pool's threads are
+   joined, then what the library printed and has not written yet, theirs
+   included, is written, and the fault handlers that were there before it
+   loaded are back, so that nothing the process keeps runs the library's
+   code once it is gone. */
 __attribute__((destructor)) static void zane_library_stop(void) {
-	zane_flush_output();
 	zane_pool_stop();
+	zane_flush_output();
 	zane_regions_stop();
 }
 

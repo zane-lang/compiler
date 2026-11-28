@@ -98,6 +98,7 @@ are not independent problems:
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
+| `export`        | 5 | `body -> block_body`, and the `expr -> …` forms of a block call, a braced application and a braced `spawn` or `comptime` call | a lambda-variable ending in `}` against an `export` suffix (reduce/reduce) |
 | `?` `??`        | 6 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `expr -> COMPTIME unbraced_verb_call`, `expr -> COMPTIME braced_verb_call`, `func_callee -> unbraced_verb_call`, `member_braced -> braced_verb_call` | a spawned or `comptime` call against what follows it |
 
 `&` begins no expression: a reference is minted by storing a place into an

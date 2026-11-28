@@ -404,8 +404,11 @@ typedef struct {
 	pthread_mutex_t lock;
 	zane_task *first, *last;
 	int kept;
-	/* The pool thread that keeps it, while one does (spawn.c). */
+	/* The pool thread that keeps it, while one does, and after it leaves
+	   until a thread joins it: `departed` marks a thread that left and
+	   that nothing has joined yet (spawn.c). */
 	pthread_t thread;
+	int departed;
 } zane_deque;
 
 enum { ZANE_DEQUES = 1 << 12 };

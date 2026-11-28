@@ -114,6 +114,10 @@ void zane_run(zane_task *t) {
 static int64_t zane_keep(void) {
 	for (int64_t i = 1; i < zane_slots; i++)
 		if (!zane_deques[i].kept) {
+			/* The thread that kept it last has left, and no longer takes the
+			   pool's lock, so the join ends without waiting on this one. */
+			if (zane_deques[i].departed) pthread_join(zane_deques[i].thread, NULL);
+			zane_deques[i].departed = 0;
 			zane_deques[i].kept = 1;
 			return i;
 		}
@@ -151,9 +155,11 @@ static void *zane_worker(void *deque) {
 		if (zane_threads > zane_target()) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
-			/* A thread the pool no longer keeps leaves on its own; one a
-			   stopping pool sends away is joined there. */
-			if (!zane_stopping) pthread_detach(pthread_self());
+			/* No thread is detached: the next thread that takes over this
+			   deque joins this one, or zane_pool_stop does, so no thread
+			   still runs the library's code once the pool has stopped. A
+			   stopping pool joins the threads it sends away itself. */
+			if (!zane_stopping) zane_deques[zane_mine].departed = 1;
 			pthread_mutex_unlock(&zane_pool);
 			zane_workers_thread_stop();
 			zane_thread_stop();
@@ -210,7 +216,10 @@ void zane_pool_stop(void) {
 	pthread_t leaving[ZANE_DEQUES];
 	int64_t n = 0;
 	for (int64_t i = 1; i < zane_slots; i++)
-		if (zane_deques[i].kept) leaving[n++] = zane_deques[i].thread;
+		if (zane_deques[i].kept || zane_deques[i].departed) {
+			leaving[n++] = zane_deques[i].thread;
+			zane_deques[i].departed = 0;
+		}
 	zane_stopping = 1;
 	pthread_cond_broadcast(&zane_waiting);
 	pthread_mutex_unlock(&zane_pool);
