@@ -58,6 +58,14 @@ T doubled(x T Type) => x + x;
 
 Int indexed(x T Type) => x[Int(1)];
 
+// A generic subscript reached from a generic body: the body's declaration
+// check types it at the veiled `T`, and only the instance at `Dial` is
+// compiled.
+type Box<T Type> = struct { held T; }
+Box<T>(held T Type) => init{ held; }
+(this Box<T Type>)[n Int] => this.held;
+T unboxed(b Box<T Type>) => b[Int(0)];
+
 Unit check(ok Bool) {
 	yes String.escaped("yes\n");
 	no String.escaped("no\n");
@@ -79,5 +87,6 @@ Unit main() {
 	check(@operators$equal(named(Tick), Int(5)));
 	check(@operators$equal(doubled(Dial.at(Int(2))):read(), Int(4)));
 	check(@operators$equal(indexed(Dial.at(Int(7))), Int(7)));
+	check(@operators$equal(unboxed(Box(Dial.at(Int(3)))):read(), Int(3)));
 	return Unit();
 }

@@ -294,8 +294,14 @@ let request_coercions env (o : outcome) =
       | _ -> ())
     o.converted
 
-let report_resolution env ?(literal = false) ~span ~what ~args result cands =
+(* With [veiled], an argument is veiled where a generic body is declared
+   (generics.md §3.8): the call keeps the outcome it resolves to, so its
+   result type stays veiled, and reports nothing, since what fails depends
+   on the parameter and its instances report it. *)
+let report_resolution env ?(veiled = false) ?(literal = false) ~span ~what ~args result cands =
   match result with
+  | Resolved o when veiled -> Some o
+  | _ when veiled -> None
   | Resolved o ->
       List.iter (fun (at, message) -> error env at message) o.site_errors;
       request_coercions env o;

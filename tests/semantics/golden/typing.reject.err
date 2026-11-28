@@ -1366,6 +1366,14 @@ File "fixtures/typing/reject/bad/veiled.zn", line 78, characters 34-43:
 78 | Int keptRead(s Pannier<Tint>) => s[Int(1)];
    |                                  ^^^^^^^^^
 Error: no method `read` accepts (bad$Tint); the candidate is `@primitives$I64 read(this bad$Vane)` (in `[]` with T = bad$Tint, at fixtures/typing/reject/bad/veiled.zn:76)
+File "fixtures/typing/reject/bad/veiled.zn", line 83, characters 38-43:
+83 | Int sameLevel(x T Type) => echoed(x).level;
+   |                                      ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `sameLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 84, characters 44-49:
+84 | Int appliedLevel(x T Type, f T[T]) => f(x).level;
+   |                                            ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `appliedLevel`, which nothing instantiates)
 File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:
 8 | Unit nested(this List<T Type> Type) => Unit();
   |                  ^^^^^^^^^^^^

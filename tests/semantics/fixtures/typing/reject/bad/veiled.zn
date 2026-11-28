@@ -76,3 +76,9 @@ type Pannier<T Type> = struct { held T; }
 (this Pannier<T Type>)[n Int] => this.held:read();
 Int keptLevel(k Keeper<Tint>) => k[Int(1)];
 Int keptRead(s Pannier<Tint>) => s[Int(1)];
+
+// A call with a veiled argument keeps its veiled result, so a field of
+// that result is reported as a field of the argument would be.
+T echoed(x T Type) => x;
+Int sameLevel(x T Type) => echoed(x).level;
+Int appliedLevel(x T Type, f T[T]) => f(x).level;

@@ -92,26 +92,36 @@ let string_primitive = Intrinsic { namespace = "primitives"; name = "String"; ar
    is declared. *)
 let unknown t = match t with Error | Veiled _ | Reference (Error | Veiled _) | Roaming (Error | Veiled _) -> true | _ -> false
 
-let rec contains_error = function
-  | Error | Veiled _ -> true
-  | Named (_, args) | Intrinsic { args; _ } -> List.exists arg_contains_error args
-  | Reference t | Roaming t -> contains_error t
-  | Concept c -> concept_contains_error c
+(* Whether [t] holds an [Error] anywhere, and with [veiled] a [Veiled]
+   parameter too. *)
+let rec contains ~veiled = function
+  | Error -> true
+  | Veiled _ -> veiled
+  | Named (_, args) | Intrinsic { args; _ } -> List.exists (arg_contains ~veiled) args
+  | Reference t | Roaming t -> contains ~veiled t
+  | Concept c -> concept_contains ~veiled c
   | Verb v ->
-      Option.fold ~none:false ~some:contains_error v.this_
-      || List.exists contains_error v.params
-      || contains_error v.ret
-      || Option.fold ~none:false ~some:contains_error v.abort
+      Option.fold ~none:false ~some:(contains ~veiled) v.this_
+      || List.exists (contains ~veiled) v.params
+      || contains ~veiled v.ret
+      || Option.fold ~none:false ~some:(contains ~veiled) v.abort
   | Param _ -> false
 
-and arg_contains_error = function
-  | Type t -> contains_error t
+and arg_contains ~veiled = function
+  | Type t -> contains ~veiled t
   | Number _ -> false
 
-and concept_contains_error = function
-  | Array_lit (t, _) | Mixed_lit (t, _) -> contains_error t
-  | Map_lit (k, v) -> contains_error k || contains_error v
+and concept_contains ~veiled = function
+  | Array_lit (t, _) | Mixed_lit (t, _) -> contains ~veiled t
+  | Map_lit (k, v) -> contains ~veiled k || contains ~veiled v
   | _ -> false
+
+let contains_error = contains ~veiled:true
+let arg_contains_error = arg_contains ~veiled:true
+
+(* Whether [t] holds the type of an expression that failed to type. A veiled
+   parameter is not such a failure: a call can still resolve with it. *)
+let contains_failure = contains ~veiled:false
 
 (* ---------------------------------------------------------------------- *)
 (* Printing                                                               *)

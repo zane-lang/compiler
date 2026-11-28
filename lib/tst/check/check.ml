@@ -636,6 +636,9 @@ and verb_call env ~flow ctx (vc : N.Verb_call.t) : T.Expr.t * S.t option =
   | N.Verb_call.Flip { value; abort_handle } -> flip env ~flow ctx span value abort_handle
 
 and any_error actuals = List.exists (fun a -> Ty.contains_error a.aty) actuals
+(* A call with a veiled argument but no failed one still resolves, quietly. *)
+and any_failed actuals = List.exists (fun a -> Ty.contains_failure a.aty) actuals
+and any_veiled actuals = any_error actuals && not (any_failed actuals)
 
 and finish_call env ~flow ctx ?at ~span ~what (o : outcome) handle build =
   Option.iter (fun at -> record_callee env at o.sig_) at;
@@ -657,13 +660,13 @@ and skip_handler env ctx handle = ignore (handler_opt env ctx ~abort:Ty.Error ~o
 and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
   let call_decls ~at ~name cands =
     let cands = List.filter_map (fun (d : decl) -> Verbs.signature env.verbs d.id) cands in
-    if any_error actuals then begin
+    if any_failed actuals then begin
       skip_handler env ctx handle;
       (invalid span, None)
     end
     else
       match
-        report_resolution env ~literal:(literal_drives_inference cands actuals) ~span ~what:(quote name)
+        report_resolution env ~veiled:(any_veiled actuals) ~literal:(literal_drives_inference cands actuals) ~span ~what:(quote name)
           ~args:(describe_args actuals) (resolve env cands (positional actuals)) cands
       with
       | None ->
@@ -734,12 +737,12 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
 
 (* A call to the intrinsic operation [name], resolved among its [cands]. *)
 and intrinsic_call env ~flow ctx ?at span name cands actuals handle =
-  if any_error actuals then (
+  if any_failed actuals then (
     skip_handler env ctx handle;
     (invalid span, None))
   else
     match
-      report_resolution env ~span ~what:(quote name) ~args:(describe_args actuals)
+      report_resolution env ~veiled:(any_veiled actuals) ~span ~what:(quote name) ~args:(describe_args actuals)
         (resolve env cands (positional actuals))
         cands
     with
@@ -819,10 +822,10 @@ and call_value env ~flow ctx span (fn : T.Expr.t) actuals handle =
           is_mut = v.Ty.is_mut;
         }
       in
-      if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
+      if any_failed actuals then (skip_handler env ctx handle; (invalid span, None))
       else
         match
-          report_resolution env ~span ~what ~args:(describe_args actuals)
+          report_resolution env ~veiled:(any_veiled actuals) ~span ~what ~args:(describe_args actuals)
             (resolve env [ s ] (positional actuals)) [ s ]
         with
         | None ->
@@ -885,7 +888,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
         (Printf.sprintf "%s is not a `mut` method, so it is called with `:`" (quote s.name))
   in
   let resolve_in ~at stages name =
-    if any_error actuals then (skip_handler env ctx handle; (invalid span, None))
+    if any_failed actuals then (skip_handler env ctx handle; (invalid span, None))
     else
       (* A pool's `start` is resolved without the parameters the checker
          supplies (pool_start). *)
@@ -931,7 +934,7 @@ and method_call env ~flow ctx span (callee : N.Expr.t) actuals ~is_mut handle =
       end
       else
         match
-          report_resolution env ~literal:(literal_drives_inference all actuals) ~span
+          report_resolution env ~veiled:(any_veiled actuals) ~literal:(literal_drives_inference all actuals) ~span
             ~what:(Printf.sprintf "method %s" (quote name))
             ~args:(describe_args actuals) (try_stages stages) all
         with
@@ -1123,7 +1126,7 @@ and names_what_it_builds env span built open_ (made : T.Expr.t) =
 (* `Type(x, y)` against the positional constructors among [cands]. *)
 and positional_constructor_call env ctx ?at span what cands ps =
   let actuals = List.map (actual_of env ctx) ps in
-  if any_error actuals then invalid span
+  if any_failed actuals then invalid span
   else
     let positional_cands = List.filter is_positional_constructor cands in
     (* `ArrayRef.fill`'s last parameter, `index`, is the checker's, so it is
@@ -1134,7 +1137,7 @@ and positional_constructor_call env ctx ?at span what cands ps =
       else s
     in
     match
-      report_resolution env
+      report_resolution env ~veiled:(any_veiled actuals)
         ~literal:(literal_drives_inference cands actuals)
         ~span ~what ~args:(describe_args actuals)
         (resolve env (List.map written positional_cands) (positional actuals))
@@ -1851,7 +1854,10 @@ and subscript_result env (d : decl) (s : S.t) subst at =
       match checked with
       | Some (locals, v) ->
           Hashtbl.replace env.instances.subscript_results key (Some v.T.Expr.ty);
-          Hashtbl.replace env.instances.subscript_instances key (s, subst, locals, v);
+          (* An instance at a veiled argument is the declaration check's, and
+             no program holds it. *)
+          if not (List.exists (fun (_, a) -> Ty.arg_contains_error a) subst) then
+            Hashtbl.replace env.instances.subscript_instances key (s, subst, locals, v);
           v.T.Expr.ty
       | None -> Ty.Error)
 
