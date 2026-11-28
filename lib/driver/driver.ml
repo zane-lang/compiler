@@ -578,11 +578,14 @@ type readings = Record of string | Replay of string
    tier 1 never reads half of it. *)
 let write_readings file readings =
   match
-    let partial =
-      Filename.temp_file ~temp_dir:(Filename.dirname file) (Filename.basename file) ".partial"
+    let partial, oc =
+      Filename.open_temp_file ~temp_dir:(Filename.dirname file) (Filename.basename file) ".partial"
     in
-    Out_channel.with_open_text partial (fun oc ->
-        List.iter (fun r -> Printf.fprintf oc "%Ld\n" r) readings);
+    Fun.protect
+      ~finally:(fun () -> close_out_noerr oc)
+      (fun () ->
+        List.iter (fun r -> Printf.fprintf oc "%Ld\n" r) readings;
+        close_out oc);
     Sys.rename partial file
   with
   | () -> Ok ()
