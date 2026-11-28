@@ -8,7 +8,7 @@
    integer derived from one, a sign-only result and a NaN of unknown bits.
    Stored, each of their bytes is a fragment of the value, and a load
    gives the value back only when it reads all of its fragments in order
-   as a type that holds it; reading them any other way gives bytes only
+   as a type that holds it; any other read of them gives bytes only
    the running process has, and stops the fold. *)
 
 open Value
@@ -253,7 +253,7 @@ let rec load a off (t : C_ir.ty) =
       | Some _, _ -> stop "a read of an address or of an unknown NaN's bits"
       | None, _ -> stop "a load of a type the evaluator does not model")
 
-(* [n] bytes copied from [src] to [dst], with what each byte is: written
+(* [n] bytes copied from [src] to [dst], with each byte's state: written
    or not, a byte or a fragment. *)
 let copy ~dst ~src n =
   check ~write:true dst n 1;

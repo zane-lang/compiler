@@ -2,7 +2,7 @@
    expression typed (docs/design/stages.md, docs/design/semantics.md §6).
 
    Read against lib/sst/nodes.ml. This tree adds a [ty] to every expression
-   and a resolved reference wherever the SST held a name. It removes every
+   and a resolved reference wherever the SST held an identifier. It removes every
    ambiguity that resolution settled: which overload a call picked, whether
    `Expr.intLit(x)` is a case or a named constructor, whether `a.b` is a
    field, a case read or an enum-map read. No later stage repeats a
@@ -11,7 +11,7 @@
 module Span = Source.Span
 
 (* A symbol or parameter of the verb being checked. [id] is unique within a
-   build, so two locals that share a name in different verbs stay apart. *)
+   build, so two locals that share an identifier in different verbs stay apart. *)
 module Local = struct
   type t = { id : int; name : string; ty : Ty.t; span : Span.t }
 end
@@ -26,7 +26,7 @@ module Verb_ref = struct
   }
 end
 
-(* D7: a name read as a value. *)
+(* D7: an identifier read as a value. *)
 module Name_ref = struct
   type t =
     | Local of Local.t
@@ -35,7 +35,7 @@ module Name_ref = struct
     (* A number parameter read in a body position (generics.md §3.5). Its
        value is known, because a body is checked per instantiation (D12). *)
     | Number_param of { name : string; value : Ty.number }
-    (* `@program$console`, and the like. *)
+    (* `@program$console` and every other intrinsic value. *)
     | Intrinsic of string
 end
 

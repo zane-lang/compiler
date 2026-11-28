@@ -545,8 +545,8 @@ theorem node_lemma (hF : checkFirst T F = true) : ∀ n (t : Tree), t.size ≤ n
         · rw [y3]; simp [lrhsYield, lsymNts, kyields, ye]
         · rw [p3]; simp [pkidsL, pkidsWrap, lsymNts, pe]
 
-/-- **R3.** The specified plain product, as explored, being unambiguous means
-the guarded grammar is. -/
+/-- **R3.** When the specified plain product, as explored, is unambiguous, the
+guarded grammar is unambiguous too. -/
 theorem lookahead_sound (hF : checkFirst T F = true) (L : LGrammar) (hL : checkExplore T F L = true)
     (hU : PUnambiguous L.plain) : Unambiguous T := by
   intro t₁ t₂ w₁ w₂ hy

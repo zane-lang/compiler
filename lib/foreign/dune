@@ -4,7 +4,7 @@
 ; (clang_stubs.cpp), with the modules kept in the cache, and its archives
 ; and the sources holding assembly read and made as objects
 ; (object_stubs.cpp). Codegen and
-; semantics read what it makes; it reads neither.
+; semantics read its output; it reads neither.
 (library
  (name foreign)
  (foreign_stubs

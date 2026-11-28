@@ -1,4 +1,4 @@
-(* What a call site needs to know about a verb: the same record whether the
+(* The facts a call site needs about a verb: the same record whether the
    verb was declared in a package or supplied by an intrinsic namespace, so
    overload resolution is one procedure for both (functions.md §5).
 

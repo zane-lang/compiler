@@ -80,7 +80,7 @@ let subscript w st ctx span (target : T.Expr.t) (impl : T.Verb_ref.t) args =
    result in a pool its caller gives it, as one more parameter after its
    own, and returns the position of the result's top node in that pool
    (Lower.into). A verb written out where it is called, or a verb that can
-   abort or exit, returns its result as before. *)
+   abort or exit, returns its result as a plain value. *)
 let pours st span (v : verb) =
   v.decl >= 0
   && pooled st (Tty.strip_mode v.signature.S.ret)
@@ -464,7 +464,7 @@ and arguments w ?direct st ctx span v args =
    §3.5), so they are freed when this block drains, as they would be in the
    block's own scope, rather than piling up in an enclosing scope for as long
    as a loop runs. The block keeps an arena for that only when the callee can
-   drop the owner, which Regions decides; a call through a function value,
+   drop the owner, which Regions settles; a call through a function value,
    and a verb expanded here, which has no function of its own, can always
    drop it. *)
 and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
@@ -485,7 +485,7 @@ and argument w ?(direct = true) st ctx span v (p : T.Local.t) a =
   end
   else w.borrow st ctx span a
 
-(* L12. A call that can end in more than one way is switched on how it ended:
+(* L12. A call that can end other than by finishing is switched on how it ended:
    a finished call gives its result, an aborted call runs its handler or the
    abort of the `match` it flows out of, and an exit ends this invocation
    too. The call is to [v]'s function, or through [fn], a function value's

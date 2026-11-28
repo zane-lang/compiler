@@ -112,7 +112,7 @@ Maze::Generator 1.8, Words 1.7, Interpreter 1.6, Sort::Merge 1.5.
 - Port uses PCRE2 JIT through the arena FFI, as C's entry does (72% in
   JIT code). Goose has its own regex engine: literal-pair prefilters
   (`gs_find_pair`, `gs_scan_pair_tables`) and a DFA (`regex_find_end`).
-  Closing it means a regex library for Zane: a library project, left.
+  Closing it needs a regex library for Zane: a library project, left.
 
 ### SHA256: 0.78 → 0.75 s (Goose/clang 0.33, gcc 0.57); open
 
@@ -239,7 +239,7 @@ fast as Goose, or faster, on every test.
   branch name, off v0.11 (bfdcb3c). LangArena: branch
   `experiment/zane-vs-goose` off `zane`.
 - Toolchain: release v0.37 (`build.sh` now copies v0.37 to `dev`), compiler
-  built with `pixi run just build`; the same `SW` switches as before.
+  built with `pixi run just build`; the same `SW` switches as the previous run.
 - Goose: `aardappel/goose` at 369c7a2 (the arena's pin), built with cmake as
   `docker/goose_clang`; benchmark `goose -O2 --standalone`, then clang 18.1.3
   / gcc 13.3 `-O2` (Ubuntu 24.04 compilers, a different machine from the
@@ -341,7 +341,7 @@ New switch this run: `ZANE_ARM_CHECKS=1` (below); `SW` plus it is the build.
     and freeing the old block.
 - Compiler `ZANE_REHOME=1` (`walks.ml`, runtime `zane_relocate`): a moved
   list's or string's block that is a growable span in the same context is
-  handed over: its mapping leaves the old region's list for the new one's
+  handed over: its mapping leaves the old region's list for the new region's
   and its chunks are re-entered in the chunk map, with no byte copied.
   Alone, that was 0.51 → 1.3 s: the old `decoded`, freed on the next
   overwrite, went to `State`'s region stack, so every decode mapped fresh
@@ -396,7 +396,7 @@ rounds, minimum of each:
   set, a set's tables prepared once on the Zane side.
 - Scalar skip loop: 1.21 s; with `findPair`: 0.67 s; with the inner byte
   as well: 0.46 s (PCRE2: 0.62 s).
-- The patterns are the ones PCRE2 had; checksums are unchanged.
+- The patterns are the patterns PCRE2 had; checksums are unchanged.
   (Note: `guard(c)` leaves when `c` holds.)
 
 ### Template::Regex, Template::Parse: Goose's data layout
@@ -417,7 +417,7 @@ rounds, minimum of each:
   `and` evaluates both sides, so every probed slot compared bytes. Now
   nested.
 - `StringMap` hashes with the runtime's word-at-a-time hash (`hashBytes`,
-  the one `hashRange` uses) instead of djb2 per byte.
+  the hash `hashRange` uses) instead of djb2 per byte.
 
 ### HuffDecode: looked at, left at about 2× (Goose/clang 0.69–0.81 s)
 
@@ -583,8 +583,8 @@ cost 450 instructions each against Goose's 263. Now as Goose's
 `gs_scan_pair`:
 - `rxTable` classifies each set after its tables (bytes 289–293): one to
   three bytes, or three non-members complemented, or a run, or tables
-  (Goose's byte-set kinds); the runtime instantiates the block loop for
-  each pair of kinds and tests small sets with `pcmpeqb`.
+  (Goose's byte-set classes); the runtime instantiates the block loop for
+  each pair of classes and tests small sets with `pcmpeqb`.
 - The table test takes pshufb's zero for an index with its top bit set
   (`lo[x]`, `hi[x ^ 0x80]`) instead of masking each half: 0.40 → 0.33.
 - The last partial block is one overlapping load, its searched
@@ -843,10 +843,10 @@ level with Goose and Obj ahead.
   each self-call then goes to `F$peel`, which makes the compare on the
   call's arguments and calls `F` or `F$leaf`. Both are always inlined and
   folded by the passes run again. Since arguments do not change, the
-  compare at the call is the one `F` would make.
+  compare at the call is the compare `F` would make.
 - It takes both binarytrees `build`s, `sort$merge` and brainfuck's `Op`
   copy/end/move layouts. Sort::Merge 1.48 → 1.51 and Brainfuck::Recursion
-  2.12 → 2.13 (the same). 50/50 checks pass.
+  2.12 → 2.13 (within noise). 50/50 checks pass.
 
 ### Compress::ArithEncode: emit, the frame's refills, the divisor
 
@@ -886,7 +886,7 @@ so a call may write any slot).
   Goose's is unsigned), the normalize loop's bound of 64, three index
   checks, spilled values, and the slot stores frame shadow keeps.
 
-### Etc::LogParser: the byte sets' block-test kind was read one byte off
+### Etc::LogParser: the byte sets' `zane_set_kind` byte was read one byte off
 
 Sampled (step-28 build + `ZANE_SHADOW_REFILL`): 4.28 s whole run against
 Goose's 3.08; `zane_pair_blocks` 1.79 s against Goose's `gs_find_pair` +
@@ -894,10 +894,10 @@ Goose's 3.08; `zane_pair_blocks` 1.79 s against Goose's `gs_find_pair` +
 1.56 s. Callgrind: the same 5.9 M pair scans and 2.4 M `findEnd`s, but
 every one of ours went through the two-table test, where Goose's takes
 the compare tests for 2.6 M of them. `rx.zn`'s `rxTable`/`rxKind` wrote
-the set's kind, complement flag and bytes at its (1-based) 289, 290 and
+the set's `kind` byte, complement flag and bytes at its (1-based) 289, 290 and
 291–293, which are bytes 288–292; the runtime reads them at 289–293
 (`zane_set_kind`, `zane_bsm_init`). So it took the complement flag (0)
-for the kind, and kind 0 falls to the default, the tables. Port fixed
+for the `kind` byte, and `kind` 0 falls to the default, the tables. Port fixed
 (the indices one up). A complemented set would have read its first byte
 as the flag; none of LogParser's or CSV's are, and 50/50 checks passed
 before and after.
@@ -977,7 +977,7 @@ Medians of 7 with `ZANE_NO_COPY_IDIOM`: 1.29 s against Goose/clang 1.13
 (1.14×). Sampled: 97% in `step` (decode inlined); the most samples
 (12%) just after the 64-bit `idiv` by `range`, which varies per symbol
 and which Goose makes too (as `div`; on this Emerald Rapids core the two
-cost about the same). The rest is spread: the binary search, the bit
+cost about the same time). The rest is spread: the binary search, the bit
 reader (`position/8`, a check and a byte load per bit), and the
 decoder's fields (`low`, `high`, `value`, the reader's position) stored
 to the frame each time round `normalize`.
@@ -1007,7 +1007,7 @@ worker reading the whole transpose. Port changed to Goose's split
 (`multiplyColumns`; the result's rows joined from the workers' blocks
 with `appendRange`). Medians: T16 5.43 → 5.13 s (Goose 5.11), T8 5.50 →
 5.23 (4.92), T4 5.51 → 5.66 (5.08; minimums 5.37 → 5.30, noise), Single
-the same. 50/50 checks pass.
+unchanged. 50/50 checks pass.
 
 ### Etc::Sieve: the byte list as Goose's `u8[>..]`
 
@@ -1024,7 +1024,7 @@ The same for ArithDecode's output: a `Buffer` pushed one byte per symbol
 (the port's C, a store LLVM takes to alias anything), now a `List<U8>`
 as Goose's `u8[>..]`: 1.316 → 1.280 s (Goose 1.124). The C runtime's
 own tags could not help: C's TBAA and the compiler's have different
-roots, which LLVM never tells apart.
+roots, which LLVM never separates.
 
 ### Etc::NeuralNet: the synapse checks
 
@@ -1097,7 +1097,7 @@ loaded and stored the output list's count in the frame.
 
 Frame_shadow had left the count and the room out of its slots: one
 `<2 x i32>` store wrote both (`ZANE_FRAME_SHADOW_WHY=1` now prints each
-offset refused and the accesses that overlap it). `ZANE_SHADOW_SPLIT=1`
+rejected offset and the accesses that overlap it). `ZANE_SHADOW_SPLIT=1`
 makes such a vector load or store of the frame one per element first.
 Both are then slots and the load goes, but the frame is escaped, so each
 store stays: 1,912 → 1,897 M instructions, 0.846 → 0.856 s, within the

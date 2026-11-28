@@ -1,7 +1,7 @@
 /// An `archive` row whose member, a Mach-O object, defines a global
 /// symbol an `__asm__` label names without the `_` a C name takes there,
-/// which renaming cannot reach: the check refuses it, naming the member
-/// and the symbol.
+/// which renaming cannot reach: when it checks the package, the compiler
+/// refuses the member, naming it and the symbol.
 package archiveLabel;
 
 alias I64 = @primitives$I64;

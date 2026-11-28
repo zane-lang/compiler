@@ -1,4 +1,4 @@
-/// Declares a package other than the one its directory names.
+/// Declares a package other than the package its directory names.
 package other;
 
 @primitives$Unit main() {

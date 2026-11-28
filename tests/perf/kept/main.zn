@@ -1,7 +1,7 @@
 /// Values a call left to run is given no address of, kept known past it: a
 /// random generator held in a value struct, and the draws taken from it,
 /// worked out while compiling though a counter the running program advances
-/// sits between them. What is left to run sums with the size it was given.
+/// sits between them. The remaining loop sums with the size it was given.
 package kept;
 
 alias Int = @primitives$I64;

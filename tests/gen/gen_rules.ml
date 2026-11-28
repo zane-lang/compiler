@@ -28,8 +28,8 @@
    - ffi: `golden/NAME.check` is what `zanec --check` prints, both
      streams, for the build `fixtures/NAME`, which it accepts,
      `golden/NAME.tst` its typed tree, `golden/NAME.cgt`,
-     `golden/NAME.optimized.cgt` and `golden/NAME.out` what they are in
-     codegen, `golden/NAME.optimized.out`, when there is one, what the
+     `golden/NAME.optimized.cgt` and `golden/NAME.out` its codegen trees and
+     output, `golden/NAME.optimized.out`, when there is one, what the
      optimized build's runs print in place of `golden/NAME.out`, for a
      program whose optimized build may print otherwise (spec ffi.md §5.5),
      and `golden/reject.NAME.err` what it reports for
@@ -149,7 +149,7 @@ let program_rules ~goldens ~packages name =
           "(rule\n (deps %s)\n (targets %s.tier1)\n (action\n  (run %s --tier-up %s.tier1%s%s)))\n\n"
           deps name zanec name (flags name) packages;
         (* The optimized build is held to the same golden file: optimizing
-           never changes what a program does, but for an ffi fixture with
+           never changes a program's behaviour, but for an ffi fixture with
            `golden/NAME.optimized.out`, whose C keeps state a folded call
            reads at compile time (spec ffi.md §5.5). So is the tiered build, run
            with tier 1 in place of every function before `main` starts
@@ -269,8 +269,8 @@ let ffi () =
           diff golden (golden ^ ".actual")
       | [ "reject"; name; "err" ] ->
           let dir = "fixtures/reject/" ^ name in
-          (* A fixture refused only when it is built is built, to a program
-             its refusal never writes. *)
+          (* A fixture that the compiler refuses only at build time is
+             built, to a program the refused build never writes. *)
           let view = if Sys.file_exists (dir // "build") then Printf.sprintf "build reject.%s.exe" name else "check" in
           Printf.printf
             "(rule\n (deps %s)\n (action\n  (with-stderr-to\n   %s.actual\n   (with-accepted-exit-codes\n    1\n    %s))))\n\n"

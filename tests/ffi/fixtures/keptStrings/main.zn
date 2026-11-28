@@ -1,5 +1,5 @@
 /// Conversions to `@primitives$String` that stay copies (docs/design/lowering.md
-/// L11, "lent conversions"): in each call something may write the source
+/// L11, "lent conversions"): in each call another part of the call may write the source
 /// while the call reads the converted string, so the call is given a copy
 /// and reads the text as it was converted. Each line prints 97, the byte of
 /// `a`, and 122, that of `z`, where the source was overwritten.

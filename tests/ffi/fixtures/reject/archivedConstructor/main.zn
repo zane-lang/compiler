@@ -1,5 +1,5 @@
 /// An interface header running a constructor of its own whose
-/// definitions an `archive` row's member compiles too, refused: which of
+/// definitions an `archive` row's member compiles too, which the compiler refuses: which of
 /// the header's constructors the archive runs cannot be determined from
 /// the glue.
 package archivedConstructor;

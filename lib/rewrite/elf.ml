@@ -1,6 +1,6 @@
 (* An ELF relocatable object with its symbols renamed. A symbol refers to its
    name by an offset into a string table, and a stamped name is longer than the
-   placeholder it replaces, so the new names cannot go where the old ones
+   placeholder it replaces, so the new names cannot go where the old names
    are. Instead the string table is copied to the end of the file with the
    new names after it, its section header points there, and each renamed
    symbol points at its new name. The old table stays behind, unread, and

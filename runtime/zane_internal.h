@@ -36,7 +36,7 @@
 #include "zane.h"
 #include "zane_abi.h"
 
-/* What Windows does differently (docs/design/platforms.md). Its POSIX
+/* The Windows differences (docs/design/platforms.md). Its POSIX
    threads are MinGW's winpthreads, which also counts the processors. */
 #ifdef _WIN32
 #include <fcntl.h>
@@ -58,7 +58,7 @@
    instead of being checked (region.c). Its dynamic region is where the
    blocks its values own are, with a bump frontier and a stack of returned
    blocks for each size and alignment (§3.2): first its own frame,
-   stretched past its slots while the scope is the innermost one, then
+   stretched past its slots while the scope is the innermost scope, then
    1 MiB chunks of its own, each made at a 1 MiB boundary, all given back
    at the drain with no walk of what its values own. A scope whose blocks
    all fit in its frame maps no chunk, so its drain stays inline, unless
@@ -148,7 +148,7 @@ typedef struct zane_mapping {
 	char *raw;
 	struct zane_slab *slab; /* with slabs, the reservation it was carved from */
 	int boxed;
-	/* While a context keeps it warm: the one given back after it, and the
+	/* While a context keeps it warm: the mapping given back after it, and the
 	   context's drain it was given back at (arena.c). */
 	struct zane_mapping *prev;
 	int64_t stamp;
@@ -348,7 +348,7 @@ typedef struct zane_island {
 	zane_mark mark;
 	zane_task *task;
 	/* Where the subject lived, where it lives while the call is out, and
-	   where a write-back goes, once the call asks for one. */
+	   where a write-back goes, once the call requests one. */
 	char *home, *value, *target;
 	int64_t size;
 	const zane_type *type;
@@ -444,7 +444,7 @@ int64_t zane_blocks(void);
 
 /* block.c */
 
-/* What is still to be done to a value's blocks, kept off the machine stack
+/* The work still left on a value's blocks, kept off the machine stack
    (memory.md §2.3 sets no depth limit). A job is a walk to run at depth 0,
    with its place and what it works with, or, with no walk, a block of
    `extra` bytes aligned to `align` to return. */

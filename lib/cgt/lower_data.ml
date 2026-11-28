@@ -189,7 +189,7 @@ let primitive w st ctx span spelling args (t : Tty.t) : Expr.t =
       in
       { Expr.node = Expr.Runtime { fn; args = [ value ] }; ty = Nodes.Ty.Handle }
   (* A scalar from another scalar (types.md §2.7): the plain constructors
-     widen, and the named ones wrap, truncate or round. *)
+     widen, and the named constructors wrap, truncate or round. *)
   | _, [ T.Arg.Value v ] when scalar v.T.Expr.ty ->
       { Expr.node = Expr.Convert (w.expr st ctx v); ty = ty st span t }
   | "String", [ T.Arg.Value v ] when interpolates (literal_of ctx v) -> text w st ctx span (literal_of ctx v)

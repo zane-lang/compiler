@@ -1,8 +1,8 @@
 /// The math functions of `@math$` (math.md §2): each on each type it takes,
 /// at the edges the spec settles -- shift counts at and past the width, the
 /// most negative integer, zero's leading and trailing zeros, NaNs and signed
-/// zeros -- in a build that folds the exact ones and one that does not. The
-/// approximate ones are held to within a tolerance of the true value, since
+/// zeros -- in a build that folds the exact functions and one that does
+/// not. The approximate functions are held to within a tolerance of the true value, since
 /// their last digit is the C math library's (math.md §2.6). Every check
 /// prints `yes` when it holds and `no` when it does not.
 package math;

@@ -85,8 +85,8 @@ let file_start path =
    anyway, so no order is more correct than another. *)
 (* [buffers] is the text an editor holds for a file, by path, which the
    language server reads instead of the file (docs/design/language-server.md).
-   A buffer whose file was never saved is a file of its directory all the
-   same. *)
+   A buffer whose file was never saved is still a file of its
+   directory. *)
 let source_files ?(buffers = []) dir =
   (* An entry that cannot be examined, such as a dangling link, is kept as a
      file: reading it is what fails, and that failure is reported against its
@@ -346,7 +346,7 @@ let assemble_requests ?buffers ?(root = true) ?(imports = []) requests =
                 ]
           | None -> load_package ?buffers ~is_root:(root && index = 0) request
         in
-        (* Only a directory that got the identity claims it, so a third
+        (* Only a directory that got the identity holds it, so a third
            duplicate is reported against the first directory, not the
            second. *)
         let earlier = if claimant = None then request :: earlier else earlier in

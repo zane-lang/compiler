@@ -49,7 +49,7 @@ let callable m =
    the module declares, each body it has only to inline, and each variable
    whose value changes while the program runs, a package constant's or a
    memo table's, so the program has one of each. Both tiers read it from
-   the module as emitted, so they list the same. *)
+   the module as emitted, so they list the same globals. *)
 let shared m =
   let fs =
     Llvm.fold_left_functions
@@ -294,9 +294,9 @@ let tier1_definitions m =
   (names, defs)
 
 (* Tier 1, after its pipeline: each of [names] it still uses read from its
-   import table, which the runtime fills with tier 0's, and the one record
+   import table, which the runtime fills with tier 0's, and the single record
    the runtime looks up, `__zane_tier1`. Error names a use that cannot be
-   read so. *)
+   read from the import table. *)
 let tier1_imports m ~hash (names, (count_defs, defs)) =
   let ctx = Llvm.module_context m in
   let p = ptr m in

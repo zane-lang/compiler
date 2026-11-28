@@ -13,13 +13,13 @@ step, and the next step's address is the miss's own value, so neither the
 processor nor a prefetch can start it early. Iterations of such a loop are
 often independent, and then W of them can be in progress at once: each
 takes one step, fetches what its next step will read, and gives way to the
-next. The model measured this as the largest gain of any form it tried:
+next. The model measured this as the largest gain of any form measured:
 ×3 to ×10 on data beyond the cache, never slower from 32 MiB up in any
 placement of the nodes, and about 25% slower on short chains that fit in
 cache ([`prefetch-reorder`](../experiments/prefetch-reorder/README.md),
-rounds 1 to 4). This document says which loops get the form, why each
-condition is what Zane's rules let the compiler prove, what the loop
-becomes, and where the gate on the data's size goes.
+rounds 1 to 4). This document lists the loops that get the form, shows that
+Zane's rules let the compiler prove each condition, gives the loop's
+interleaved form, and places the gate on the data's size.
 
 The form is the model's `amac` (rounds 1, 2 and 4): W walks in progress, a
 finished one's place taken at once by the next iteration. It is what is
@@ -30,9 +30,9 @@ order.
 ## I1. The loops that qualify
 
 A counted `repeat` (`Stat.Repeat`) qualifies when all of the following
-hold. The shape conditions are what the transformation needs; the effect
-conditions are what make the iterations independent, so that running them
-interleaved computes what running them in turn does.
+hold. The transformation needs the shape conditions; the effect
+conditions make the iterations independent, so that running them
+interleaved computes the same results as running them in turn.
 
 **Shape.**
 
@@ -69,12 +69,12 @@ first statement after the walk that writes a place outside the iteration
 (an outer local, a field, a list) or leaves the loop, and runs to the end
 of the body. The walk halves of W iterations interleave (I2); the retire
 halves run one at a time, strictly in iteration order (I4). So a loop
-whose iterations depend on each other only through what their retire
-halves do qualifies: a sum of any type, a push, a write to `out[i]`, a
+whose iterations depend on each other only through their retire
+halves qualifies: a sum of any type, a push, a write to `out[i]`, a
 running maximum that the next iteration's retire half reads, and an
-abort. What the interleaving reorders is the walk halves only,
-and the conditions below are what make that unobservable. The standard is
-the one the spec sets for the compiler's own parallelism: work the effect
+abort. The interleaving reorders only the walk halves,
+and the conditions below make that reordering unobservable. The standard is
+the standard the spec sets for the compiler's own parallelism: work the effect
 system proves non-conflicting may be rescheduled, and doing so "must not
 change output, only timing"
 ([`concurrency.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/concurrency.md)
@@ -97,7 +97,7 @@ before *j*'s retire half, so:
   running total. Each place the retire half writes is held apart from each
   place the walk half reads under the overlap rules below; a local is
   apart from every other place by its name.
-- *What a call in the walk half does.* A call there is to a function or a
+- *Calls in the walk half.* A call there is to a function or a
   method without `mut`, which writes nothing its caller can see
   ([`effects.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/effects.md)
   §3, §8.1), and whose body, and every body it calls, touches no
@@ -105,7 +105,7 @@ before *j*'s retire half, so:
   checks for a table (`docs/design/memoization.md` M1), whose analysis is
   reused rather than written again. A call with no body here, through a
   function value or into C rules the loop out.
-- *What the retire half does.* It runs in order, so it may read and write
+- *The retire half's effects.* It runs in order, so it may read and write
   anything the plain body could, with three limits. It writes only
   memory: an outer local, a field or element of a place the function owns
   or lends, a push or a removal on such a list, through assignments and
@@ -237,13 +237,13 @@ its expansion (a written-out verb's `return`). Either moves the slot to
 finish. A leave out of the loop itself happens only in a retire half
 (below), which runs in order, so no walk ends the whole loop early.
 
-**A failed index check.** The spec leaves what an index outside its list
-does to the implementation
+**A failed index check.** The spec leaves the behaviour of an index outside
+its list to the implementation
 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/cdbe5bb/spec/control-flow.md)
 §5.2); this compiler stops the program (`zane_out_of_range`, "index out of
-range", exit 1), and the interleaved loop does the same.
+range", exit 1), and the interleaved loop stops it the same way.
 Interleaved, iteration *k+3* may take a step before iteration *k* takes
-the step that fails, and so may be the one that stops the program instead.
+the step that fails, and so may be the iteration that stops the program instead.
 In a loop that cannot leave by an abort or a `return`, that is not
 observable: every write a walk half makes is to its own locals, every
 write a retire half makes is to memory (I1), the program reads none of it
@@ -256,7 +256,7 @@ count, so no iteration that the plain loop never reached can keep the
 loop from ending.
 
 In a loop that can leave, which iteration stops first is observable: the
-plain loop may return an error at iteration *k* where the interleaved one
+plain loop may return an error at iteration *k* where the interleaved loop
 would stop the program at *k+3*. There a failed check in a walk half is
 *staged*: instead of stopping, the check writes "stopped" as the
 iteration's outcome and ends its walk, and retiring that outcome, in its
@@ -318,7 +318,7 @@ Interleaving costs about 25% on short chains in cache (`chains` at
 (`tree`, `bsearch`) gain even in cache (×1.3 to ×2.0), because the
 interleaving overlaps their mispredicted branches as well as their misses.
 The gate is at run time, at the loop's entry, and the plain loop is
-emitted beside the interleaved one as a versioned loop's copies are:
+emitted beside the interleaved loop as a versioned loop's copies are:
 
 - the loop runs plain when its count is below 2W, since filling and
   draining W slots costs more than so few walks gain;
@@ -391,7 +391,7 @@ experimental passes beside it are turned off.
   retirement is one general mechanism, a ring of outcomes (I4), that
   carries integer and float sums, pushes, writes to `out[i]`, and aborts
   and returns, staged so the first failing iteration in source order is
-  the one that leaves (I3). Integer accumulators and stores to fresh
+  the iteration that leaves (I3). Integer accumulators and stores to fresh
   elements skip the ring by a syntactic rule, proved in I1. What still
   rules a loop out is listed under I1's independence conditions.
 - **Huge pages.** The model found them worth ×2 to ×2.7 on light loops by
@@ -411,7 +411,7 @@ it. Where it differs from I1 to I6:
 
 - **The slots are the ring (R = W).** Iteration *k* runs in slot *k* mod W,
   and a slot is given iteration *k* + W only once *k* has retired, so the
-  iterations in flight are always the W after the oldest unretired one and
+  iterations in flight are always the W after the oldest unretired iteration and
   retirement needs no separate ring. A slow walk holds its slot, and slots
   that finish after it wait. A retire half that skips the ring (I1) is
   applied as soon as its walk ends and frees its slot at once, which is
@@ -426,8 +426,8 @@ it. Where it differs from I1 to I6:
 - **What comes before the walk runs whole at start.** Round 3's per-miss
   stages (every load before the walk a step of its own) are not built:
   the statements before the walk run when the slot starts, and only the
-  walk's own reads are fetched ahead. `combo`'s shape gains less than it
-  would.
+  walk's own reads are fetched ahead. `combo`'s shape gains less than the
+  per-miss stages would give it.
 - **No leave of the loop yet.** A body that can `return` or leave the loop
   (an abort's handler that returns) is left alone, so the staged stop and
   the ordered abort of I3 are designed and not built. A failed index

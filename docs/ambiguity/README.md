@@ -36,18 +36,18 @@ question:
 - [**visible-proof.md**](visible-proof.md) — the complete exact proof and its
   certificate checker. Read this to reproduce the current unambiguity result.
 - [**formal-proof.md**](formal-proof.md) — the Lean theorems, how to run them,
-  and what they still assume. Read this to know exactly what is proven.
+  and the hypotheses they still rest on. Read this to learn exactly what is proven.
 - [**verification-roadmap.md**](verification-roadmap.md) — the formal proof
   obligations, their acceptance criteria and where each is discharged.
 - [**policy.md**](policy.md) — the smallest-grouping rule, and what
   the repository accepts. Read this to know which of two readings Zane means.
 - [**proof-obligations.md**](proof-obligations.md) — the obligation
-  every LR conflict state carries, what a semantic action is allowed to do
+  every LR conflict state carries, the effects a semantic action may have
   under GLR, and where the current conflicts come from. Read this before
   changing the grammar.
 - [**tooling.md**](tooling.md) — `ambiguity search`, `check`, `classes` and
   `prove-visible`, watching a run, the search profiles, and the local machine
-  configuration they need. Read this to run something.
+  configuration they need. Read this to run a search or a proof.
 - [**experiments.md**](experiments.md) — ambiguities that were found and
   resolved, and grammar restructurings that were measured and rejected. Read
   this before proposing one of them again.

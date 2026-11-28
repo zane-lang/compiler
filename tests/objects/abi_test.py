@@ -40,7 +40,7 @@ class AbiTests(unittest.TestCase):
         ir = zanec("--no-root", "--ll", "--package", LARGEPARAM)
         consume = signature(ir, "largeparam$consume(")
         # What it borrows may be a member at any byte of a packed value, so
-        # it claims no alignment (Emit.abi_attrs).
+        # its parameter declares no alignment (Emit.abi_attrs).
         self.assertIn("(ptr noalias readonly dereferenceable(524288) %0)", consume)
         self.assertNotIn("nocapture", consume)
         self.assertNotIn("[65536 x i64] %", ir)
@@ -85,8 +85,8 @@ class AbiTests(unittest.TestCase):
         self.assertRegex(signature(ir, "crossing$reversed("), r'^define \{ i64, i64 \} @"[^"]*"\(ptr noalias readonly')
 
     def test_packed_and_unpacked_objects_do_not_link(self):
-        # Packing changes how a call crosses, so a program built one way
-        # must not link against a library built the other way.
+        # Packing changes how a call crosses, so a program built packed must
+        # not link against a library built unpacked, nor the reverse.
         def build(temp, library, program):
             obj = Path(temp) / f"geometry{len(library)}.o"
             stamp = ["--stamp", "geometry=v1.0%0123456789abcdef%"]

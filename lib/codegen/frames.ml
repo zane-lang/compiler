@@ -26,7 +26,7 @@ type t = {
   handles : bool;
   (* Whether the scope spawns a call: only such a scope's drain may have a
      call to wait for, since a spawned call waits on the scope it is placed
-     in, the innermost open one where it starts (runtime/spawn.c). *)
+     in, the innermost open scope where it starts (runtime/spawn.c). *)
   spawns : bool;
 }
 

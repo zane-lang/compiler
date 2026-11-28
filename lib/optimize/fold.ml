@@ -1,14 +1,14 @@
 (* Folding one function from the leaves up (docs/design/optimization.md O6).
 
-   The walk goes through a body in the order it runs and keeps what it knows:
-   each local whose value is a constant here. An expression whose inputs are
+   The walk goes through a body in the order it runs and keeps the values it
+   has found: each local whose value is a constant here. An expression whose inputs are
    all known is evaluated and replaced by its value, with any output it made
    and any local it wrote put back in front of it. Its parent is tried next,
    with the replacement as an input. A control statement whose reads are all
    known is run as a whole, so a loop over known values leaves only what it
    wrote. Whatever does not fold stays as it was, and what it may write is
    no longer known after it. A run of statements that makes a list or a box,
-   changes it and is done with it, which no statement of it leaves known, is
+   changes it and is done with it, whose value no statement of it leaves known, is
    evaluated whole and replaced by what it left. *)
 
 open Cgt.Nodes
@@ -294,7 +294,7 @@ let known_value (e : Expr.t) =
   | None, _ -> None
 
 (* Whether an expression is what [attempt] replaces code with: outputs and
-   constants stored into locals, whose values the walk already knows. *)
+   constants stored into locals, whose values the walk already holds. *)
 let replayed (e : Expr.t) =
   match e.Expr.node with
   | Expr.Expand { label; body; _ } ->
@@ -310,8 +310,8 @@ let replayed (e : Expr.t) =
            body
   | _ -> false
 
-(* Whether an input of an expression is known: a constant, a local the walk
-   knows, or an address made from them. A replacement that stores into a
+(* Whether an input of an expression is known: a constant, a local whose
+   value the walk holds, or an address made from them. A replacement that stores into a
    local is not: the walk already counts the store as done, so evaluating
    it again inside its parent would find nothing to store, and the parent's
    replacement would leave the store out. *)
@@ -334,7 +334,7 @@ let rec known_input (env : known) (e : Expr.t) =
   | _ -> false
 
 (* Whether a run of statements still calls or loops after it was folded,
-   which is what makes evaluating it again cost more than a lookup. *)
+   so that evaluating it again costs more than a lookup. *)
 let costly stats =
   let found = ref false in
   iter_stats stats
@@ -405,7 +405,7 @@ let frame (env : known) =
 
 (* Where an expansion gives back the value a hold in it made, the hold's
    scope and layout: that scope ends the block, so whatever replaces the
-   expansion holds what it makes there too. *)
+   expansion holds the value it makes there too. *)
 let held_result (e : Expr.t) =
   match e.Expr.node with
   | Expr.Expand { body; result = Some r; _ } ->
@@ -428,7 +428,7 @@ let holds_any (e : Expr.t) =
 
 (* A value that owns a block, made again in place of [e]: held as [e] held
    it, or not made at all when a hold in [e] would end a block and the
-   replacement cannot tell which block. *)
+   replacement cannot name which block. *)
 let kept_held fn (e : Expr.t) c (value : Expr.t) =
   if not (V.owns_block c) then value
   else
@@ -529,7 +529,7 @@ let last_named stats =
   last
 
 (* Whether a type holds a handle or an address anywhere: a value of it
-   lives in part somewhere that a constant written as a [Let] cannot
+   lives in part in memory that a constant written as a [Let] cannot
    describe. *)
 let rec holds_ref (t : Ty.t) =
   match t with
@@ -608,17 +608,17 @@ let mark fn (env : known) (run : Eval.run) (fr : Eval.frame) ~named_after ~lengt
     | m -> Some m
     | exception V.Stop _ -> None
 
-(* Whether a statement can end somewhere other than after itself: it
+(* Whether a statement can end at a point other than after itself: it
    returns, or leaves an expansion it is not inside. A run stops before
    such a statement rather than evaluating it, since it cannot end after
    it. *)
 let exits s = Traverse.leaves [ s ]
 
-(* A run of a block's statements evaluated from the one at [from], as far as
+(* A run of a block's statements evaluated from the statement at [from], as far as
    it goes, with a mark after each statement that finished. [last] is the
    block's [last_named], made once for every run in it: a run's later
    statements are the block's. Gives the marks, longest first, and how many
-   statements the run went through before the one it stopped in, or all
+   statements the run went through before the statement it stopped in, or all
    that follow [from] when it finished. *)
 let evaluate_run fn (env : known) ~last ~from stats =
   let run = Eval.start fn.prog in
@@ -673,7 +673,7 @@ let replace_run fn (env : known) m =
     Some (outputs @ stores @ commit env (List.filter_map Fun.id lets))
 
 (* Whether evaluating an expression is worth trying: it is not a constant
-   already, and every input it has is known. *)
+   already, and every input it has is a known value. *)
 let candidate fn (env : known) (e : Expr.t) =
   e.Expr.ty <> Ty.Ptr
   && (not (Materialize.literal e))
@@ -693,14 +693,14 @@ let candidate fn (env : known) (e : Expr.t) =
       Intrinsics.classify f = Intrinsics.Computed && List.for_all (known_input env) (children e)
   | Expr.Math { fn = f; _ } ->
       Intrinsics.math f e.Expr.ty = Intrinsics.Computed && List.for_all (known_input env) (children e)
-  (* A value on its way out of arenas keeps its way out: what it is made
-     of folds inside it. *)
+  (* A value on its way out of arenas keeps its way out: its parts fold
+     inside it. *)
   | Expr.Address _ | Expr.Global _ | Expr.Layout _ | Expr.Function _ | Expr.Escape _ -> false
   | _ -> List.for_all (known_input env) (children e)
 
 (* An expression left in the tree that calls or moves: what it writes is
    not known after it, to the rest of the expression it is in or to what
-   runs next. An address taken writes nothing until something uses it, and
+   runs next. An address taken writes nothing until an expression uses it, and
    an expansion's body has already been walked statement by statement. *)
 let settle fn (env : known) (e : Expr.t) =
   let acts = ref false in
@@ -742,8 +742,8 @@ let rec expr fn (env : known) (e : Expr.t) : Expr.t =
       let e = map_children fn env e in
       if candidate fn env e then Option.value ~default:e (attempt fn env e) else e
 
-(* The children folded in the order they run, each one's writes forgotten
-   before the next is folded. *)
+(* The children folded in the order they run, the walk dropping each child's
+   writes before it folds the next. *)
 and map_children fn env (e : Expr.t) =
   let f x =
     let x = expr fn env x in
@@ -843,7 +843,7 @@ and stat fn (env : known) (s : Stat.t) : Stat.t list =
       match (place.Expr.deref, known_value value, Hashtbl.find_opt env id) with
       | false, Some c, Some (old, ty) -> (
           (* A member of a known local is stored into the value the walk
-             knows. *)
+             holds for it. *)
           match
             let base = { V.cell = V.cell ty (V.import old); path = []; owned = false } in
             let at = Eval.offset base ty place.Expr.path in

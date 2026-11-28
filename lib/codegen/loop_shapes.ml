@@ -36,7 +36,7 @@ let fresh_list (e : Expr.t) =
 (* Experimental (docs/experiments/goose-comparison): unless
    ZANE_LIGHT_SCOPES=0, a scope nothing can put a block in -- every slot it
    places holds scalars, and nothing in its body boxes, copies, makes a list
-   or a string, spawns, or calls a function or the runtime in a way that
+   or a string, spawns, or makes a call to a function or the runtime that
    could leave a block in the innermost region, or, with frame references,
    gives a call an address -- opens no region: its frame, when it is no
    larger than 4 KiB, is a slot on the machine stack. *)

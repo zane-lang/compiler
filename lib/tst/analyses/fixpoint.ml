@@ -1,5 +1,5 @@
 (* Per-verb summaries computed to a fixed point. Verbs may call each other in
-   a cycle, so an analysis that summarises what a verb does for its callers
+   a cycle, so an analysis that summarises a verb's effects for its callers
    walks the bodies until no summary grows, then walks every body once more
    to report. One [t] is made per run, so a run starts from nothing.
 

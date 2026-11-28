@@ -1,4 +1,4 @@
-/// A HEAVY CALL IN A LOOP: no recursion, but the loop asks for the same few dozen arguments over and over, and each call mixes two hundred times.
+/// A HEAVY CALL IN A LOOP: no recursion, but the loop passes the same few dozen arguments over and over, and each call mixes two hundred times.
 package loopleaf;
 
 alias Int = @primitives$I64;

@@ -1,4 +1,4 @@
-/// A LINEAR RECURSION THAT NEVER REPEATS: each call recurses once, on arguments no call asked for before.
+/// A LINEAR RECURSION THAT NEVER REPEATS: each call recurses once, on arguments no earlier call received.
 package euclid;
 
 alias Int = @primitives$I64;

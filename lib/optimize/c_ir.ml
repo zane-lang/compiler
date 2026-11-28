@@ -351,7 +351,7 @@ external global_text : Llvm.llmodule -> string -> string = "zane_c_ir_global"
 type fn = Body of func | Declared of { noreturn : bool } | Weak
 
 (* The program's C modules, which hold every package's C (and the
-   retained ones of stamped dependencies), each name read from the first
+   retained C of stamped dependencies), each name read from the first
    module that defines it and kept once read. *)
 type t = {
   modules : Llvm.llmodule list;

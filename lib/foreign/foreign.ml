@@ -119,8 +119,8 @@ let with_sources (dir, rows) =
 (* A section the linker gathers by its name into a range that C reaches,
    a linker set in its object format's form (Settings.is_linker_set, spec
    ffi.md §2.5). Its name is not renamed, so two versions
-   of a package would share it, and a module that places a global in one
-   is refused (docs/design/ffi.md F9). [file] is what the diagnostic
+   of a package would share it, and the compiler rejects a module that
+   places a global in one (docs/design/ffi.md F9). [file] is what the diagnostic
    names: the source, or the interface header a glue file includes. *)
 let linker_sets ~file (source : Compile.source) =
   match
@@ -144,7 +144,7 @@ let linker_sets ~file (source : Compile.source) =
 (* A glue module holding assembly, which can name a symbol no global value
    stands for (docs/design/ffi.md F9). The glue's module is linked into the
    package's, which is renamed by its global values, so assembly that
-   reaches it through an interface header would keep a name another
+   reaches it through an interface header would keep a symbol name another
    version of the package shares. *)
 let assembly ~header (source : Compile.source) =
   if Clang.has_assembly source.Compile.bitcode then
@@ -161,7 +161,7 @@ let assembly ~header (source : Compile.source) =
       }
   else Ok source
 
-(* The sections of an object whose names are linker sets, each refused as
+(* The sections of an object whose names are linker sets, each rejected as
    a module's are ([linker_sets]): [what] names the construct that places
    a section in the object, and [file] is the file the diagnostic names. *)
 let object_linker_sets ~file ~what (contents : Objects.contents) =
@@ -206,7 +206,7 @@ let unreachable_symbols ~file ~what (contents : Objects.contents) =
    holds names a symbol of [renamed], the C names the package renames,
    whichever of its modules or objects defines it: renaming rewrites an
    object's symbol table, not its directives, so a directive would still
-   ask the link for the old name. *)
+   request the old name from the link. *)
 let directed_renamed ~renamed assembled archives =
   let table = Hashtbl.create 64 in
   List.iter (fun n -> Hashtbl.replace table n ()) renamed;
@@ -260,7 +260,7 @@ let assemble ?cache ~triple ~cpu (source : Compile.source) =
 (* The static library an `archive` row of [dir]'s names, read member by
    member, each member's sections held to the linker-set test, its
    symbols to [unreachable_symbols] and its architecture to [triple]'s,
-   so a check refuses what the build's link would. *)
+   so this check rejects exactly the archives the build's link would. *)
 let archive ~triple dir (row : Settings.row) =
   let ( let* ) = Result.bind in
   let coda = Source.Files.in_directory dir Settings.file_name and path = Source.Files.in_directory dir row.value in
@@ -463,7 +463,7 @@ let compile_commands ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
   let* packages = combine (List.map (read_settings ~triple) dirs) in
   let* packages = combine (List.map with_sources packages) in
   let refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] } in
-  (* With no C, the database is empty, and no C compiler is asked. *)
+  (* With no C, the database is empty, and no C compiler runs. *)
   if List.for_all (fun (_, _, sources) -> sources = []) packages then Ok "[]\n"
   else
   let work = work_dir () in
@@ -504,7 +504,7 @@ let compile_commands ?(cache = Cache.dir ()) ~cc ~cpu ~target dirs =
       in
       Ok (if entries = [] then "[]\n" else "[\n" ^ String.concat ",\n" entries ^ "\n]\n")
 
-(* The glue refused, or not written, as a diagnostic. *)
+(* A glue file rejected, or not written, as a diagnostic. *)
 let glue_refused message = Error { diagnostics = [ Diagnostic.about_invocation message ]; sources = [] }
 let glue_unwritten message = glue_refused (Printf.sprintf "the glue could not be written: %s" message)
 
@@ -546,7 +546,7 @@ let glue_files p ~dir files =
    including source a copy of its own, so no single copy belongs to the
    header (docs/design/ffi.md F9). One source assembled apart that defines
    that state, or a private constant or function of the header's whose
-   address the program can see, is refused too, since its copy is in an
+   address the program can see, is rejected too, since its copy is in an
    object the glue's module cannot share, and so is an archive one of whose
    members holds a variable or function of its own of such a name, which
    an archive's object holds for a header it includes. *)
@@ -672,8 +672,8 @@ let directed_glue (p : package) compiled =
    their own, named `/zane/glue` in the module and the hash as the
    package's directory is named `/zane/pkg`, and each includes its header
    by the absolute path the package's directory map names; a path holding
-   a double quote or a line break cannot be a quoted header name, and is
-   refused. *)
+   a double quote or a line break cannot be a quoted header name, so this
+   function rejects it. *)
 let glue p (entries : Glue.entry list) =
   let dir = if Filename.is_relative p.dir then Source.Files.in_directory (Sys.getcwd ()) p.dir else p.dir in
   let files = Glue.files (List.map (fun (h, t) -> (Source.Files.in_directory dir h, t)) p.tables) entries in

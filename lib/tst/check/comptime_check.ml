@@ -1,6 +1,6 @@
 (* The checks of a call marked `comptime` (effects.md §5.6) that the tree
-   decides, made by [Check.comptime] on the call it typed. What the call
-   writes and reads is decided when it is evaluated
+   settles, made by [Check.comptime] on the call it typed. The evaluator
+   checks the call's writes and reads when it evaluates the call
    (docs/design/comptime.md). *)
 
 open Env
@@ -62,7 +62,7 @@ let rec iter f (e : T.Expr.t) =
     (Traverse.parts e)
 
 (* Every argument, and the callee of a call through a function value, can be
-   had at compile time. This compiler takes that to mean the marked
+   had at compile time. This compiler reads that rule as requiring that the marked
    expression names no local of the verb it is in: what it is given is
    built from literals, package constants, foreign variables, the
    program's console and runtime, and other calls, marked or not, on

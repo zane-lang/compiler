@@ -8,13 +8,13 @@ module Span = Source.Span
    [Diagnostic.render] indexes the source with [String.sub] and
    [String.length]. So does anything that reads the source a [Span.t] covers,
    which is now every node in the tree. [Sedlexing.lexing_positions] counts code
-   points instead, which agrees with the byte offset only while the input is
+   points instead, which matches the byte offset only while the input is
    ASCII and drifts one position per extra byte after that -- and Zane
    identifiers are Unicode ([Lexer]'s [alphabetic], [lowercase] and [uppercase]
    classes), so non-ASCII input is ordinary rather than exotic. *)
 let byte_positions lexbuf = Sedlexing.lexing_bytes_positions lexbuf
 
-(* The package, or the single diagnostic that refused it: the parse stops at
+(* The package, or the single diagnostic the parser reported: the parse stops at
    the first failure. [package_recovering], below, goes on past it. The caller
    decides how to show the diagnostic; [Diagnostic.render] gives the text for a
    terminal. *)
@@ -70,9 +70,9 @@ let package filename input =
    neither the `error` token nor the incremental API that recovery inside a
    parse would need. Ranges of the token stream are parsed as whole packages,
    and a failed parse is never continued. Under GLR one branch dying is how an
-   ambiguity resolves, so only a parse whose every branch died says the input
-   is wrong, and what follows such a failure is decided between parses, where
-   no action runs.
+   ambiguity resolves, so only a parse whose every branch died shows the input
+   is wrong, and this module handles the text after such a failure between
+   parses, where no action runs.
 
    Each range ends at an end of input rather than at the end of one
    declaration: a GLR parser stops as soon as one branch accepts, so a start
@@ -104,8 +104,8 @@ let lex_all lexbuf =
     | exception Lexer.Lexing_error -> (
         (* sedlex's [_] arm matches without consuming, so the offending code
            point is skipped here, and lexing resumes after it. The report
-           points where [package]'s does: at the lexer's position when it
-           refused. *)
+           points where [package]'s does: at the lexer's position when the
+           lexer failed. *)
         let start_pos, end_pos = byte_positions lexbuf in
         let bad = { lexed = Bad; start_pos; end_pos } :: acc in
         match Sedlexing.next lexbuf with

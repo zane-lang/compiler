@@ -10,8 +10,8 @@ import Ambiguity.Json
 
 `verify A ev` runs every check, from the LR automaton `A` to the counted
 model's certificate, on evidence `ev` that an unverified producer computed.
-`verify_sound` states what a `true` answer means: the automaton's accepted
-trees are determined by their yields.
+`verify_sound` states the guarantee of a `true` answer: the yields of the
+automaton's accepted trees determine those trees.
 -/
 
 namespace Ambiguity

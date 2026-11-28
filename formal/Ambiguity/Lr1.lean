@@ -10,8 +10,8 @@ resolved by the precedence declarations exactly as Menhir's manual (§6.3,
 "When is a conflict benign?") specifies:
 
 * one reduction against a shift: the higher level wins; at equal levels the
-  token's associativity decides (left: reduce, right: shift, nonassoc:
-  neither);
+  token's associativity determines the winner (left: reduce, right: shift,
+  nonassoc: neither);
 * several reductions against a shift: resolved only if every reduction,
   taken alone, resolves the same way in favour of shifting or of neither;
 * anything else is a severe conflict, whose resolution Menhir leaves

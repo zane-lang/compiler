@@ -1,0 +1,34 @@
+# prose-lint checks the prose of Markdown files and code comments:
+# https://github.com/zane-lang/prose-lint
+name: Prose
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  prose-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # A pinned commit and its lockfile give every run the same parser and
+      # rules, so a new prose-lint release cannot fail this job unannounced.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: zane-lang/prose-lint
+          ref: 58c23886b093aaa76d3f5281d8340813805f22c3
+          path: .prose-lint
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.13"
+      # actions/checkout writes only inside the workspace. Moving the clone
+      # out leaves `prose-lint .` with this repository's files alone.
+      - run: mv .prose-lint "$RUNNER_TEMP/prose-lint"
+      - run: uv run --frozen --project "$RUNNER_TEMP/prose-lint" prose-lint .

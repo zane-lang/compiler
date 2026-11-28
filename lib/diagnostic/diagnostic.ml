@@ -7,9 +7,9 @@ let render_in (files : Source.Files.t) diagnostic =
   let path, _ = position diagnostic in
   render ~source:(Option.value ~default:"" (Source.Files.find files path)) diagnostic
 
-(* A broken invariant: something an earlier stage guarantees did not hold.
+(* A broken invariant: a property an earlier stage guarantees did not hold.
    It is the compiler's fault, never the program's, so it is raised rather
-   than reported, and the binary that catches it says so (exit status 3). *)
+   than reported, and the binary that catches it exits with status 3. *)
 exception Internal of { span : Source.Span.t option; message : string }
 
 let bug ?span message = raise (Internal { span; message })
