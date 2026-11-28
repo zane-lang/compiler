@@ -2,7 +2,10 @@
    one runtime each, and calls their exports, on its own thread and on
    threads it starts itself. A library named without a directory is the
    file of that name beside the host, so the host finds its libraries
-   wherever dev/bin/check-programs runs it. */
+   wherever dev/bin/check-programs runs it. The test runs it with the
+   unoptimized library first and with the optimized one first, so the two
+   load in either order. */
+#define _POSIX_C_SOURCE 200809L
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,6 +14,7 @@
 #include <windows.h>
 #else
 #include <dlfcn.h>
+#include <signal.h>
 #endif
 
 typedef struct { double x, y; } point;
@@ -96,6 +100,9 @@ static void run(void *library, const char *which) {
 	snprintf(line, sizeof line, "squares: %lld %lld %lld %lld\n", (long long)totals[0], (long long)totals[1],
 	         (long long)totals[2], (long long)totals[3]);
 	say(line);
+	int64_t (*pair)(int64_t) = (int64_t (*)(int64_t))find(library, "tally_pair");
+	snprintf(line, sizeof line, "pair: %lld\n", (long long)pair(20));
+	say(line);
 	snprintf(line, sizeof line, "unused_nothing offered: %s\n", find(library, "unused_nothing") ? "yes" : "no");
 	say(line);
 	snprintf(line, sizeof line, "zane_output offered: %s\n", find(library, "zane_output") ? "yes" : "no");
@@ -103,6 +110,10 @@ static void run(void *library, const char *which) {
 }
 
 int main(int argc, char **argv) {
+#ifndef _WIN32
+	struct sigaction before;
+	sigaction(SIGSEGV, NULL, &before);
+#endif
 	void *libraries[2];
 	for (int i = 1; i < argc && i < 3; i++) {
 		libraries[i - 1] = open_library(argv[0], argv[i]);
@@ -111,9 +122,25 @@ int main(int argc, char **argv) {
 			return 1;
 		}
 	}
-	/* Both libraries loaded at once: each has a runtime, a console and C
-	   state of its own. */
-	run(libraries[0], "unoptimized");
-	run(libraries[1], "optimized");
+	/* Both libraries loaded at once, in the order given: each has a
+	   runtime, a console and C state of its own. */
+	run(libraries[0], "first library");
+	run(libraries[1], "second library");
+#ifndef _WIN32
+	/* Unloaded in the reverse order, each library puts back the fault
+	   handler that was there before it loaded and joins its pool's
+	   threads, so the process keeps nothing of either. */
+	dlclose(libraries[1]);
+	dlclose(libraries[0]);
+	struct sigaction now;
+	sigaction(SIGSEGV, NULL, &now);
+	say(now.sa_handler == before.sa_handler && (now.sa_flags & SA_SIGINFO) == (before.sa_flags & SA_SIGINFO)
+	        ? "unloaded: the fault handler is the one before\n"
+	        : "unloaded: another fault handler is left\n");
+#else
+	FreeLibrary((HMODULE)libraries[1]);
+	FreeLibrary((HMODULE)libraries[0]);
+	say("unloaded: the fault handler is the one before\n");
+#endif
 	return 0;
 }

@@ -370,6 +370,13 @@ let add_import_edge env edges (pkg : package) file (d : N.Decl.t) =
       match resolve_key env file key with
       | Found target -> Hashtbl.add edges pkg.name (target, span)
       | Own | Unknown | Not_given | Ambiguous _ -> ())
+  (* An export line makes the root depend on the library it names, as an
+     import does, so a library that imports the root closes a cycle. Only a
+     root carries one; any other package's is refused where it is read. *)
+  | N.Decl.ExportLine { package = p } when pkg.is_root -> (
+      match resolve_key env file (name_of p) with
+      | Found target -> Hashtbl.add edges pkg.name (target, d.N.Decl.span)
+      | Own | Unknown | Not_given | Ambiguous _ -> ())
   | _ -> ()
 
 (* The tail of [path] that starts at [target]. *)

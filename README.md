@@ -66,8 +66,10 @@ zanec --build hello --root --package hello=path/to/hello --package core=path/to/
 zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/std/lib/core
 ```
 
-A plugin package, a `bin/` package without `main`, builds into a dynamic
-library a host loads, `.so`, `.dylib` or `.dll` by the target:
+A plugin package, a `bin/` package without `main` that carries an export
+line or declares an exported lambda, builds into a dynamic library a host
+loads, at the path `--library` names; name it for the target, as `.so`,
+`.dylib` or `.dll`:
 
 ```sh
 zanec --library libsynth.so --root --package synth=path/to/project/bin/synth --package core=path/to/std/lib/core

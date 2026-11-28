@@ -1,0 +1,5 @@
+package synth;
+
+import plugin;
+
+alias I64 = @primitives$I64;

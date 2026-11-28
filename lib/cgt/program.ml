@@ -448,9 +448,10 @@ let prepare ?(plugin = false) ~library ~import_bodies ~fixed_region ~program_wri
   Hashtbl.reset List_pure.handles;
   Hashtbl.reset List_pure.pushers;
   List_pure.c_stays := false;
-  (* A dynamic library's host may call its exports from several threads at
-     once (concurrency.md §4.7). *)
-  let exclusive = (not library) && (not plugin) && calls = [] in
+  (* A host may call a build's exports from several threads at once
+     (concurrency.md §4.7): a dynamic library's host, or a test package's C
+     playing one. *)
+  let exclusive = (not library) && (not plugin) && calls = [] && p.T.Program.exports = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   st.places <- Some (Tst.States.of_program p);
   (match p.T.Program.packages with r :: _ -> st.package <- st.stamp r.T.Package.name ^ r.T.Package.name | [] -> ());
@@ -472,7 +473,7 @@ let prepare ?(plugin = false) ~library ~import_bodies ~fixed_region ~program_wri
               name_lambdas st
                 (Symbol.ty ~stamp:st.stamp enum ^ "." ^ property)
                 { T.Block.stats = List.map stat entries; span = d.T.Decl.span }
-          | T.Decl.Constant { name; value; ty } -> (
+          | T.Decl.Constant { name; value; ty; export = _ } -> (
               let owner = st.stamp pkg.T.Package.name ^ pkg.T.Package.name ^ "$" ^ name in
               Hashtbl.replace st.constants d.T.Decl.id
                 { symbol = owner; package = pkg.T.Package.name; ty; value };

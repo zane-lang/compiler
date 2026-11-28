@@ -1,6 +1,6 @@
 # The C interface: building, calling and folding C
 
-> **Status: built**, in the order of §7: compiling a
+> **Status: built**, in the order of §8: compiling a
 > package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
 > `lib/foreign/` and `lib/c_interface/`; foreign verbs, handles and
 > foreign variables in the grammar and semantics (F7); and calls of
@@ -23,7 +23,7 @@
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
-> (**F1**…), and §7 lists the order they are built in.
+> (**F1**…), and §8 lists the order they are built in.
 
 The two documents divide the C interface between them. The spec states
 everything a Zane program or a package's C code can rely on: what is

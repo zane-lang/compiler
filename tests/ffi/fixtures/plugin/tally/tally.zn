@@ -12,3 +12,18 @@ add I64(a I64, b I64) {
 } export "tally_add";
 
 square I64(x I64) => @operators$multiply(x, x) export "tally_square";
+
+I64 fib(n I64) {
+	@controlflow$branch(@operators$lessThan(n, I64(2)), {
+		return n;
+	});
+	return @operators$add(fib(@operators$add(n, @operators$negate(I64(1)))), fib(@operators$add(n, @operators$negate(I64(2)))));
+}
+
+/// Spawns two calls on the library's own pool, whose threads the library
+/// joins as the host unloads it.
+pair I64(n I64) {
+	a I64 = spawn fib(n);
+	b I64 = spawn fib(@operators$add(n, @operators$negate(I64(1))));
+	return @operators$add(a, b);
+} export "tally_pair";

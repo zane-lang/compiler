@@ -133,6 +133,7 @@ for golden in tests/ffi/golden/*.plugin.out; do
 	dir="$objects/ffi/$fixture"
 	packages=()
 	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
+	((${#packages[@]})) || packages=(--package "$dir")
 	"$ZANEC" --target "$TARGET" --library "$OUT/$name.plugin$LIB" "${packages[@]}"
 	"$ZANEC" --target "$TARGET" --optimize --library "$OUT/$name.plugin.optimized$LIB" "${packages[@]}"
 	"$ZANE_CC" --target="$TARGET" -std=c11 -O1 -pthread -o "$OUT/$name.host$EXE" "$dir/host.c"

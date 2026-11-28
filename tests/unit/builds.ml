@@ -321,7 +321,9 @@ let bundled_runtime () =
   in
   check "a build for the host links the bundled runtime" (found ~optimize:false ());
   check "as does one naming the host as its target" (found ~target:host ~optimize:false ());
-  check "a dynamic library links the library runtime bundled beside it" (found ~library:true ~optimize:false ());
+  check "a dynamic library links the library runtime bundled beside it"
+    (Cgt.Ref32.library := true;
+     Fun.protect ~finally:(fun () -> Cgt.Ref32.library := false) (found ~library:true ~optimize:false));
   check "and the cache is left alone" (not (Sys.file_exists cache));
   check "an optimized build compiles its own" (not (found ~optimize:true ()));
   check "as does a build for another triple" (not (found ~triple:"x86_64-unknown-linux-musl" ~optimize:false ()));
@@ -361,7 +363,9 @@ let bundled_runtime () =
        (List.fold_left Filename.concat bundled
           [
             "link";
-            Build.bundled_link_name ~triple:normal (level @ Build.library_link normal) (Build.library_system_libraries None);
+            Build.bundled_link_name ~triple:normal
+              (Build.library_level ~optimize:false @ Build.library_link normal)
+              (Build.library_system_libraries None);
           ]));
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
   check "a target the compiler does not build for is refused" (Result.is_error refused)

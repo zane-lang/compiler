@@ -69,13 +69,20 @@ cmp "$golden" "$out/hello-tiered.out"
 # the shell, since a backreference in an extended pattern is GNU's alone.
 said=$(sed -n 's/^zane: tier 1 runs \([0-9][0-9]*\) of \([0-9][0-9]*\) functions.*$/\1 \2/p' "$out/hello-tiered.log" | tr -d '\r')
 [[ -n "$said" && "${said% *}" == "${said#* }" ]] || { cat "$out/hello-tiered.log" >&2; false; }
-# A plugin package, built into a dynamic library plain and optimized with
-# the bundled library runtime and link (docs/design/ffi.md F21).
-cp -R "$source/tests/semantics/fixtures/project/bin/synth" "$out/synth"
-"$zanec" --library "$out/synth-plain$library" --package "$out/synth"
-"$zanec" --optimize --library "$out/synth-optimized$library" --package "$out/synth"
-test -s "$out/synth-plain$library" && test -s "$out/synth-optimized$library"
 unexpected=$(find "$ZANE_CACHE_DIR" -mindepth 1 -maxdepth 1 ! -name tier)
 [[ -z "$unexpected" ]] || { printf 'check-archive: the cache holds %s\n' "$unexpected" >&2; false; }
+# A plugin package, built into a dynamic library plain and optimized with
+# the bundled library runtime and link (docs/design/ffi.md F21), in a cache
+# of its own: its exports' C entries are C the compiler compiles and keeps
+# under `foreign`, which the check above keeps out of a program's cache. It
+# too keeps no runtime and no link command, which the bundle holds.
+plugin_cache="$out/plugin-cache"
+cp -R "$source/tests/semantics/fixtures/project/bin/synth" "$out/synth"
+ZANE_CACHE_DIR="$plugin_cache" "$zanec" --library "$out/synth-plain$library" --package "$out/synth"
+ZANE_CACHE_DIR="$plugin_cache" "$zanec" --optimize --library "$out/synth-optimized$library" --package "$out/synth"
+test -s "$out/synth-plain$library"
+test -s "$out/synth-optimized$library"
+unexpected=$(find "$plugin_cache" -mindepth 1 -maxdepth 1 ! -name foreign)
+[[ -z "$unexpected" ]] || { printf 'check-archive: the plugin cache holds %s\n' "$unexpected" >&2; false; }
 test ! -e "$out/zig-cache"
 echo "Relocated compiler built and ran plain, optimized and tiered programs, and built a plugin plain and optimized, with its bundled runtimes and links, running no C compiler"

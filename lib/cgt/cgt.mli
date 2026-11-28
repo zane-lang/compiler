@@ -30,7 +30,8 @@ module List_pure = List_pure
 type write_backs
 
 (** The program, lowered from the root package's `main`, from every
-    function of the root when the build is a [library], or from the
+    function, lambda constant and handle type of the project's own packages
+    when the build is a [library], or from the
     exported lambdas when the root is a [plugin] package, which declares no
     `main` (packages.md §8.1). Every build but a library's also lowers the
     exported lambdas it gives C symbols. A construct that

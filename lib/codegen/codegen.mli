@@ -31,7 +31,8 @@ type c_library = { name : string; row : string }
     (docs/design/ffi.md F15); with [labels], the package as its publisher's
     glue labels named it, it also has the sources' and glue modules an
     optimized build retains (F13). A package that [keeps_names] has its C
-    globals keep their C names (F9). *)
+    globals renamed as any package's are and also offered under their C
+    names (F9). *)
 type c_package = {
   prefix : string;
   sources : c_module list;
@@ -139,7 +140,8 @@ val shared_library : ?target:string -> Llvm.llmodule -> string -> (unit, string)
 (** A plugin package's dynamic library at the given path (packages.md
     §8.1): the module linked as a shared library with the runtime compiled
     for one and the objects in [link], offering its host the exports of the
-    program's C entries. *)
+    program's C entries. It changes [m] in place first: every definition of
+    its Zane code is hidden, and its "PIE Level" flag dropped. *)
 val dynamic_library :
   ?target:string -> ?optimize:bool -> ?link:string list -> Llvm.llmodule -> string -> (unit, string) result
 

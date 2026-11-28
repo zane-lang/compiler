@@ -710,7 +710,8 @@ let run env (tables : verbs) =
 (* ---------------------------------------------------------------------- *)
 
 (* A foreign variable's value (§5.1). The variable is declared only in the
-   root package and has a foreign capability's type. It names a global that
+   root package or in the body of an exported lambda, which [root] marks
+   (packages.md §8.4), and has a foreign capability's type. It names a global that
    is not thread-local, which the package declaring the type defines with
    external linkage and declares in an interface header with the type's C
    type. *)

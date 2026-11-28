@@ -46,7 +46,12 @@ static int64_t zane_blocked;
 
 /* How many threads the pool keeps now: one fewer than it has deques at
    most. */
+/* Whether the pool is stopping, as a dynamic library is unloaded: it then
+   wants no thread (zane_pool_stop). */
+static int zane_stopping;
+
 static int64_t zane_target(void) {
+	if (zane_stopping) return 0;
 	int64_t n = zane_wanted + zane_blocked;
 	return n < ZANE_DEQUES - 1 ? n : ZANE_DEQUES - 1;
 }
@@ -146,6 +151,9 @@ static void *zane_worker(void *deque) {
 		if (zane_threads > zane_target()) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
+			/* A thread the pool no longer wants leaves on its own; one a
+			   stopping pool sends away is joined there. */
+			if (!zane_stopping) pthread_detach(pthread_self());
 			pthread_mutex_unlock(&zane_pool);
 			zane_workers_thread_stop();
 			zane_thread_stop();
@@ -174,11 +182,9 @@ static void zane_fill(void) {
 	pthread_attr_init(&attributes);
 	pthread_attr_setstacksize(&attributes, (size_t)8 << 20);
 	for (; zane_threads < zane_target(); zane_threads++) {
-		pthread_t thread;
-		void *deque = (void *)(intptr_t)zane_keep();
-		if (pthread_create(&thread, &attributes, zane_worker, deque) != 0)
+		int64_t deque = zane_keep();
+		if (pthread_create(&zane_deques[deque].thread, &attributes, zane_worker, (void *)(intptr_t)deque) != 0)
 			zane_broken("no thread for the pool");
-		pthread_detach(thread);
 	}
 	pthread_attr_destroy(&attributes);
 	pthread_cond_broadcast(&zane_waiting);
@@ -189,6 +195,26 @@ static void zane_start(void) {
 	if (!zane_wanted) zane_wanted = zane_processors();
 	zane_started = 1;
 	zane_fill();
+}
+
+/* The pool's threads sent away and joined, as a dynamic library is
+   unloaded (main.c), so that no thread runs the library's code once its
+   host has unloaded it. A thread runs the call it is running to its end
+   first. */
+void zane_pool_stop(void) {
+	pthread_mutex_lock(&zane_pool);
+	if (!zane_started) {
+		pthread_mutex_unlock(&zane_pool);
+		return;
+	}
+	pthread_t leaving[ZANE_DEQUES];
+	int64_t n = 0;
+	for (int64_t i = 1; i < zane_slots; i++)
+		if (zane_deques[i].kept) leaving[n++] = zane_deques[i].thread;
+	zane_stopping = 1;
+	pthread_cond_broadcast(&zane_waiting);
+	pthread_mutex_unlock(&zane_pool);
+	for (int64_t i = 0; i < n; i++) pthread_join(leaving[i], NULL);
 }
 
 /* A worker pool's job queued, or a worker set waiting on a timer that may

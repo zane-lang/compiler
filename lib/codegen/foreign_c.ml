@@ -65,6 +65,7 @@ external rename : Llvm.llmodule -> string -> string -> string list -> string lis
 
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
 external offer_c_names : Llvm.llmodule -> string -> string list -> bool -> unit = "zane_offer_c_names"
+external drop_pie_level : Llvm.llmodule -> unit = "zane_drop_pie_level"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
 external drop_defined_apart : Llvm.llmodule -> string -> string list -> unit = "zane_drop_defined_apart"
 external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
@@ -272,14 +273,14 @@ let libraries packages = List.concat_map (fun p -> p.libraries) packages
    packages' prefixes, the hashes of their modules, objects and archives,
    and the names those objects and archives are renamed by, for [triple],
    from the compiler [compiler] names, whose renaming and passes made it. *)
-let key ~triple ~compiler packages =
+let key ?(library = false) ~triple ~compiler packages =
   Digest.to_hex
     (Digest.string
        (String.concat "\000"
-          ("c-object" :: triple :: compiler
+          ("c-object" :: triple :: compiler :: (if library then "dynamic library" else "program")
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 (p.prefix :: (if p.keeps_names then "keeps names" else "renames") :: List.map (fun c -> c.key) (p.sources @ p.glue))
                  @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
                  @ ("" :: List.sort_uniq compare p.defined)

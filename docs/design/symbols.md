@@ -153,11 +153,11 @@ program value such as `@program$console` holds (`zane.value.@program$console`).
   stamped dependency that reads them
   ([`separate-compilation.md`](separate-compilation.md) C4).
 - A program builds into one module ([`lowering.md`](lowering.md) L15), so
-  every verb but `zane_main` is local to it, and a plugin's dynamic library
-  hides every one, offering only its exports ([`ffi.md`](ffi.md) F21): its symbol is in the binary, for
-  a debugger or a profiler, but no other object links against it. A walk
-  table is private and has no symbol in the binary at all, and its walks are
-  local.
+  every verb but `zane_main` is local to it: a verb's symbol is in the
+  binary, for a debugger or a profiler, but no other object links against
+  it. A plugin's dynamic library hides every verb, and offers only its
+  exports ([`ffi.md`](ffi.md) F21). A walk table is private and has no
+  symbol in the binary at all, and its walks are local.
 - A library built into an object of its own carries the `!` placeholder
   before its package's name, in its verbs' names and in its types' names
   wherever a symbol names one: `!geometry$sum(this !geometry$Point)`. Its

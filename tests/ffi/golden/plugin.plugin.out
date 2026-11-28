@@ -1,4 +1,4 @@
--- unoptimized
+-- first library
 hello from the plugin
 hello from the plugin
 count: 1 then 2
@@ -12,9 +12,10 @@ tally adds
 tally adds
 entry: 15
 squares: 332833500 332833500 332833500 332833500
+pair: 10946
 unused_nothing offered: no
 zane_output offered: no
--- optimized
+-- second library
 hello from the plugin
 hello from the plugin
 count: 1 then 2
@@ -28,5 +29,7 @@ tally adds
 tally adds
 entry: 15
 squares: 332833500 332833500 332833500 332833500
+pair: 10946
 unused_nothing offered: no
 zane_output offered: no
+unloaded: the fault handler is the one before
