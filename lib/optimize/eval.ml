@@ -25,8 +25,22 @@ type output = Print of string | Set_threads of int64 | Set_threads_auto
    has made, and the package constants it has made, so that a call that
    made one is not remembered as a call that reads nothing. [read_arguments]
    becomes true once the run reads the runtime's `arguments`, so the build
-   can mark an object whose code depends on them. *)
-type explicit = { arguments : string list; mutable reads : int; mutable read_arguments : bool }
+   can mark an object whose code depends on them. [clock] gives the
+   readings of the monotonic clock. *)
+type explicit = {
+  arguments : string list;
+  mutable reads : int;
+  mutable read_arguments : bool;
+  clock : clock;
+}
+
+(* Where a `comptime` run's clock readings come from: the build machine's
+   clock ([Live]); that clock, with each reading kept in the list, newest
+   first, for tier 1 to replay ([Recorded], tier 0 of a tiered build); or
+   the readings tier 0 kept, which the function gives in order, and [None]
+   once they are used up ([Replayed], tier 1). Both tiers then fold the same
+   values, so they emit the same module (docs/design/tiers.md T3). *)
+and clock = Live | Recorded of int64 list ref | Replayed of (unit -> int64 option)
 
 (* A write of capability-backed state inside a `comptime` call, which no
    such call may make (spec effects.md §5.6): a description of the write. *)
@@ -341,6 +355,27 @@ let foreign_global run g =
 
 (* How many reads a `comptime` run has made. *)
 let reads run = match run.explicit with Some x -> x.reads | None -> 0
+
+external build_clock : unit -> int64 = "zane_optimize_monotonic_ns"
+
+(* The build machine's monotonic clock, which a `comptime` run reads as the
+   program reads its own (spec effects.md §5.6). A fold that is not marked
+   stops at it, since only the running program reads its own time. *)
+let monotonic_ns run =
+  match run.explicit with
+  | None -> stop "an input, which only the running program has"
+  | Some x -> (
+      x.reads <- x.reads + 1;
+      match x.clock with
+      | Live -> VInt (build_clock ())
+      | Recorded kept ->
+          let now = build_clock () in
+          kept := now :: !kept;
+          VInt now
+      | Replayed next -> (
+          match next () with
+          | Some now -> VInt now
+          | None -> stop "a clock reading that tier 0 of this build did not make"))
 
 (* The build's arguments as the runtime's `arguments` gives the program
    its own (spec effects.md §6.6): a new list of strings, each laid out as
@@ -1040,6 +1075,7 @@ and call run fn args =
 and runtime run (fn : Cgt.Runtime.fn) args =
   match (Intrinsics.classify fn, fn, args) with
   | _, Cgt.Runtime.Arguments, [] when Option.is_some run.explicit -> build_arguments run
+  | _, Cgt.Runtime.Monotonic_ns, [] when Option.is_some run.explicit -> monotonic_ns run
   | Intrinsics.Input, (Cgt.Runtime.Tick_start | Cgt.Runtime.Tick), _ when Option.is_some run.explicit ->
       stop "a worker's timer, which only the running program keeps"
   | ( Intrinsics.Input,

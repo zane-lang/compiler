@@ -666,14 +666,15 @@ there what it points at.
 
 The first draft left four questions open. These are the answers.
 
-**D12. A generic verb's body is checked once per instantiation, as a C++
-template is.** A parameter's only bound is `Type` or `@concepts$Int`
+**D12. A generic verb's body is checked once where it is declared and once
+per instantiation.** A parameter's only bound is `Type` or `@concepts$Int`
 (`generics.md` §3.3). So a body that writes `a + b` on a `T` has nothing to
 resolve `+` against until `T` is known. The signature is checked once. The body
 is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
-and the TST holds one body per instance. An error in a generic body is reported
-at the instantiation that exposed it, and names the call site that requested
-it.
+and the TST holds one body per instance. The declaration-site check, below,
+reports the errors that hold for every `T`. An error that only an instance exposes
+is reported at the origin of the instance's type arguments, with the chain of
+calls from there.
 
 An instance asked for while another is checked extends that one's chain of
 instantiations: `main` calling `f<Int>`, whose body calls `g<Pair<Int>>`, is
@@ -690,16 +691,43 @@ chain is followed to its end before the instances beside it: `f<T>` calling both
 the `2^64` its branches would need. Once reported, a declaration is given
 no more instances.
 
-A generic verb nothing instantiates is checked once more, where it is
-declared, so an unused one is not an unchecked one. Its type parameters stand
-for the type of an expression that failed to type, which every check accepts
-(D4): an error that depends on `T` waits for an instance, and an error
-independent of `T` -- a name that resolves nowhere, `Int(1) +
-String("a")` -- is reported, since it holds in every instance. Its number
-parameters stay symbolic. That check requests no instances, and nothing from it enters the tree. This fits the
-home-package instantiation plan in
-[`generics.md`](generics.md). When a body is checked is a property of this
-compiler, not of the language, so it stays out of the spec.
+Every generic verb is also checked once where it is declared, with each
+type parameter standing for a **veiled** type (`Ty.Veiled`). A veiled value is
+one whose type is a type parameter (`generics.md` §3.8). Every check accepts a
+veiled type as it accepts the error type (D4), except at the uses §3.8
+forbids: reading or writing a field, reading an enum map, naming an enum
+member through the parameter (`T.red`), a `match`, and calling the value as a
+function value. Each of those is reported where the body writes it, whether
+or not anything instantiates the body. `T(...)` and `T.name(...)` build a
+veiled value there and resolve in each instance. A method, function, operator
+or subscript on a veiled value resolves in each instance as well. A call
+with a veiled argument, whether of a method, a function, a constructor of
+either form, a case form, an operator, a subscript or a worker intrinsic, still resolves here when one
+overload takes it, and reports nothing when none does or several do. The
+call's result keeps the overload's result type. In `echoed(x).level`, with
+`T echoed(x T Type)`, the field read is therefore of a veiled value and is
+reported, and so is `(k + k).held.level` when `+` is declared on
+`Keeper<T Type>`. A subscript typed at a veiled argument is the check's own, and the program
+holds only the subscript's instances at real type arguments.
+
+What this check reports besides depends on whether anything instantiates the
+body:
+
+- A body nothing instantiates gets all of its errors here, so an unused body
+  is not an unchecked one. A mistake that does not depend on a parameter, such
+  as a name that resolves nowhere or `Int(1) + String("a")`, is wrong in every
+  instance.
+- An instantiated body keeps only its veiled-value errors from this check,
+  since its instances report the rest. An instance's error about the same
+  place is that use failing for one type argument, so pass 5 drops it.
+
+Number parameters stay symbolic. Pass 5 requests no instances during this
+check, records no uses for an instantiated body, and puts nothing into the tree. An error that
+only an instance exposes, such as a type argument with no constructor of the
+name `T.name(...)` calls, is reported at the origin of its type arguments
+(below). When a body is checked is a property of this compiler, not of the
+language, so it stays out of the spec. This fits the home-package
+instantiation plan in [`generics.md`](generics.md).
 
 **D13. A member read takes an abort handler.** `adt.md` §3 makes a variant
 member read "an **abortable** access (`?` / `??`)". Whether a read is of a
@@ -854,7 +882,7 @@ instead.
 `alias IntPick = Pick<Int>` and a type parameter bound in an instance each
 name a type with no argument left to infer. A generic constructor
 `Pick<T>(x T Type)` could still infer `T` from the call, so `IntPick(String("x"))`
-would build a `Pick<String>`. Pass 4 compares the result with the type the
+would build a `Pick<String>`. Pass 5 compares the result with the type the
 name builds and reports an error when the two differ, for a struct, an enum
 and a variant alike.
 
@@ -924,8 +952,15 @@ written. An inferred one is reported at the value argument it was read from,
 when the instance's own signature puts it in a value mould's field; that
 instance is then not made, so nothing inside a forwarding verb reports it
 again. A mistake that only a generic body's own code makes, and that its
-signature does not show, is reported inside the instance, which names the
-instance and the call that required it, from any analysis.
+signature does not show, is found in the instance. Pass 5 reports it at the
+origin of the instance's type arguments, the call outside every instance
+that began its chain, and the message names the path from there: each
+instance along the chain, where the previous instance calls it, and the place in
+the body (`generics.md` §3.8). A generic subscript's instance, which pass 5
+types where a call first reaches it instead of from the queue, extends the
+chain and reports at its origin the same way. The analyses after pass 5 report such a
+mistake inside the instance, with a note that names the instance and the
+call that required it.
 
 **Where `^` is written, beyond what the spec shows.**
 - A function type's `^T` result over a type parameter is filled by a value

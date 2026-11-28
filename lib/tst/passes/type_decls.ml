@@ -116,7 +116,7 @@ let check_marker env span (marked : Ty.t) =
   | Some deferred -> Queue.push (marked, span) deferred.marks
   | None -> (
       match marked with
-      | Ty.Reference (Ty.Param _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Error) -> ()
+      | Ty.Reference (Ty.Param _ | Ty.Veiled _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Veiled _ | Ty.Error) -> ()
       | Ty.Reference inner when not (is_reference env inner) ->
           error env span
             (Printf.sprintf
@@ -178,7 +178,7 @@ type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 (* A value type under `&`, which `&` cannot mark (memory.md §2.4). *)
 let is_value env (t : Ty.t) =
   match t with
-  | Ty.Param _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
+  | Ty.Param _ | Ty.Veiled _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
   | t -> not (is_reference env t)
 
 (* The value types [inst] puts where [raw] writes `&` over a type parameter,
@@ -218,7 +218,7 @@ and verb_parts (v : Ty.verb) =
 let rec modes_agree env (expected : Ty.t) (actual : Ty.t) =
   let rec erase (t : Ty.t) : Ty.t =
     match t with
-    | Ty.Roaming v when Ty.free_params v = [] && v <> Ty.Error && not (is_reference env v) -> erase v
+    | Ty.Roaming v when Ty.free_params v = [] && not (Ty.unknown v) && not (is_reference env v) -> erase v
     | Ty.Roaming v -> Ty.Roaming (erase v)
     | Ty.Reference v -> Ty.Reference (erase v)
     | Ty.Verb v ->

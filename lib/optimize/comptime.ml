@@ -31,10 +31,11 @@ let why_not span = function
       failed span "this `comptime` call nests calls deeper than the compiler can evaluate"
   | e -> raise e
 
-(* The value [symbol] gives, run with the build's [arguments], and whether
-   the run read them. *)
-let evaluate prog ~arguments (symbol, span) =
-  let explicit = { Eval.arguments; reads = 0; read_arguments = false } in
+(* The value [symbol] gives, run with the build's [arguments] and reading
+   the monotonic clock through [clock], and whether the run read the
+   arguments. *)
+let evaluate prog ~arguments ~clock (symbol, span) =
+  let explicit = { Eval.arguments; reads = 0; read_arguments = false; clock } in
   let run = Eval.start ~explicit prog in
   match Eval.call run symbol [] with
   | exception ((V.Stop _ | Eval.Writes _ | Stack_overflow) as e) -> Error (why_not span e)
@@ -69,7 +70,7 @@ let replace values (f : Func.t) =
   in
   { f with Func.body = Cgt.Traverse.map_stats value (fun _ -> None) f.Func.body }
 
-let run ?(c = []) ~arguments (p : Program.t) =
+let run ?(c = []) ?(clock = Eval.Live) ~arguments (p : Program.t) =
   if p.Program.comptime = [] then Ok (p, false)
   else
     let prog = Eval.program_of ~c p in
@@ -81,7 +82,7 @@ let run ?(c = []) ~arguments (p : Program.t) =
     let errors =
       List.filter_map
         (fun ((symbol, span) as marked) ->
-          match evaluate prog ~arguments marked with
+          match evaluate prog ~arguments ~clock marked with
           | Error d -> Some d
           | Ok (c, read) ->
               if read then read_arguments := true;

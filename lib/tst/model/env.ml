@@ -195,6 +195,13 @@ type pending = {
   p_subst : Ty.subst;
   p_at : Span.t;
   p_chain : int list;
+  (* The call outside every instance that began this instance's chain: the
+     origin of its type arguments, where an error the instance exposes is
+     reported (generics.md §3.6, §3.8). *)
+  p_origin : Span.t;
+  (* The path from [p_origin] to this instance: each instance along the
+     chain, with its arguments and where the previous instance calls it. *)
+  p_path : string list;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -262,6 +269,9 @@ type requests = {
   runaway : (int, unit) Hashtbl.t;
   pending : pending Stack.t;
   current_chain : int list ref;
+  (* The origin and path of the instance being checked, which an instance it
+     requests extends. *)
+  current_path : (Span.t * string list) option ref;
 }
 
 (* Pass 5 ([Program] and [Check]): the instance requests, while instances may
@@ -379,6 +389,19 @@ end
    is [()]. *)
 type ('names, 'types, 'verbs, 'instances) t = {
   diagnostics : Diagnostic.t list ref;
+  (* Set while a generic instance's body is typed: the origin of its type
+     arguments, where its errors are reported, each naming the path from
+     there to the place in the body it is about (generics.md §3.8). *)
+  origin : Span.t option ref;
+  (* Each error reported at an origin, with the place in the body it is
+     about. *)
+  relocated : (Diagnostic.t * Span.t) list ref;
+  (* The forbidden uses of veiled values (generics.md §3.8), kept apart from
+     [diagnostics] until the check a generic body gets where it is declared
+     has run: that check keeps only these for an instantiated body, whose
+     instances report every other error, and an instance's error at the
+     span of one of these is the same mistake (Program). *)
+  veiled_diagnostics : Diagnostic.t list ref;
   note : string option ref;
   counters : counters;
   (* The declarations and definitions in each package's C code, by package
@@ -406,6 +429,9 @@ let start ?(uses = Uses.create false) () =
   {
     uses;
     diagnostics = ref [];
+    origin = ref None;
+    relocated = ref [];
+    veiled_diagnostics = ref [];
     note = ref None;
     counters = { next_decl = ref 0; next_param = ref intrinsic_params; next_local = ref 0 };
     interfaces = Hashtbl.create 4;
@@ -453,6 +479,7 @@ let requests () =
     runaway = Hashtbl.create 4;
     pending = Stack.create ();
     current_chain = ref [];
+    current_path = ref None;
   }
 
 let instances () =
@@ -491,10 +518,46 @@ let in_instance env (i : Nodes.Instance.t) f =
   match i.Nodes.Instance.note with Some n -> with_note env n f | None -> f ()
 
 let error env span message =
+  match (!(env.origin), !(env.note)) with
+  | Some origin, Some n ->
+      let d = Diagnostic.error origin (message ^ " (" ^ n ^ ", at " ^ where span ^ ")") in
+      env.relocated := (d, span) :: !(env.relocated);
+      env.diagnostics := d :: !(env.diagnostics)
+  | _ ->
+      let message = match !(env.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")" in
+      env.diagnostics := Diagnostic.error span message :: !(env.diagnostics)
+
+(* An error reported where [span] is even inside an instance: one about
+   the chain of instantiations itself (D12). *)
+let error_here env span message =
+  let saved = !(env.origin) in
+  env.origin := None;
+  Fun.protect ~finally:(fun () -> env.origin := saved) (fun () -> error env span message)
+
+(* A path of instances as a note: its first links and its last, when it is
+   long. *)
+let describe_path links =
+  let shown =
+    match List.length links with
+    | n when n > 4 -> List.filteri (fun i _ -> i < 3) links @ [ "..."; List.nth links (n - 1) ]
+    | _ -> links
+  in
+  String.concat "; " shown
+
+(* Runs [f] while an instance whose type arguments come from [origin] is
+   typed, so its errors are reported there. *)
+let at_origin env origin f =
+  let saved = !(env.origin) in
+  env.origin := Some origin;
+  Fun.protect ~finally:(fun () -> env.origin := saved) f
+
+(* A use of a veiled value that generics.md §3.8 forbids: reported where
+   the generic body writes it, whether or not anything instantiates it. *)
+let veiled_error env span message =
   let message =
     match !(env.note) with None -> message | Some n -> message ^ " (" ^ n ^ ")"
   in
-  env.diagnostics := Diagnostic.error span message :: !(env.diagnostics)
+  env.veiled_diagnostics := Diagnostic.error span message :: !(env.veiled_diagnostics)
 
 (* A new type or number parameter of this check. *)
 let fresh_param env ~name ~kind =
