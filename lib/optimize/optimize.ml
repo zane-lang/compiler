@@ -42,4 +42,6 @@ let run ?(c = []) (p : Program.t) =
   Literal_locals.program @@ Strip.program @@ Loop_pushes.program
     { p with Program.funcs = List.map (fun (f : Func.t) -> Hashtbl.find folded f.Func.symbol) p.Program.funcs }
 
+type clock = Eval.clock = Live | Recorded of int64 list ref | Replayed of (unit -> int64 option)
+
 let comptime = Comptime.run

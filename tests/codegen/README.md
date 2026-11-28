@@ -57,6 +57,11 @@ then run it again, read the golden diff and promote that.
   borrow passed on to another borrow, and a spawned call. Every build runs
   with the `arguments` file's lines, and every check prints `yes` when it
   holds.
+- `monotonicClock` is the monotonic clock, `@runtime$monotonicNanoseconds`,
+  read in `main` and through a runtime passed to a verb: a later reading is
+  never smaller than an earlier one. `monotonicClock.optimized.cgt` shows
+  that every reading stays for the running program. Every check prints
+  `yes` when it holds.
 - `expressions` is verbs whose body is one expression, written out where they
   are called (docs/design/lowering.md L11): a generic one's instance, a chain
   of them, and one whose arguments print in the order they are written, each
