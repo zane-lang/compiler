@@ -51,12 +51,25 @@ type analysis = {
 
 val analyze : ?c:Foreign.package list -> ?placeholder:string -> Tst.Assembly.package list -> analysis
 
-(** Checks that the root declares a `main`. This is the only check for
-    `main`; lowering assumes it. *)
-val require_main : Tst.Nodes.Program.t -> (unit, failure) result
+(** What a build's root is (packages.md §8.1): a program package, which
+    declares `main`, or a plugin package, which declares none and is built
+    into a dynamic library a host calls through its exports. *)
+type root_kind = Program | Plugin
+
+(** Whether the root is a program's or a plugin's: a root without `main` is
+    a plugin's when it carries an export line or declares an exported lambda,
+    and an error otherwise.
+    This is the only check for `main`; lowering assumes it. *)
+val root_kind : Tst.Nodes.Program.t -> (root_kind, failure) result
+
+(** Checks that the root builds into the output the view requests: a
+    program's root into an executable or an object, a plugin's into a
+    dynamic library. *)
+val built_as : root_kind -> [ `Executable | `Library | `Other ] -> (unit, failure) result
 
 (** Checks that a build with [root], as `--root` or `--no-root` sets it, may
-    be built into an executable: a build without a root may not. *)
+    be built into an executable or a dynamic library: a build without a root
+    may not. *)
 val buildable : bool option -> (unit, failure) result
 
 (** The size in bytes of the range each context reserves for its frames:
@@ -66,7 +79,8 @@ type regions = Build_flags.regions = { fixed : int option; spawned : int option 
 
 (** Stage 4, with the bodies of stamped dependencies' functions taken in
     for LLVM to inline. Without [root], lowering starts from every function
-    the build declares rather than from the root's `main`. A type that the
+    the build declares rather than from the root's `main`, and with
+    [plugin] from the root's exports, since a plugin has no `main`. A type that the
     main context's range in [regions] could not hold is refused where the
     type is named.
     With [compare_glue], every thunk of a stamped dependency's glue is
@@ -79,6 +93,7 @@ val lower :
   ?regions:regions ->
   ?compare_glue:bool ->
   ?program_write_backs:string ->
+  ?plugin:bool ->
   root:bool ->
   Tst.Assembly.package list ->
   Tst.Nodes.Program.t ->
@@ -95,13 +110,15 @@ val write_backs : Tst.Assembly.package list -> Tst.Nodes.Program.t -> output:str
     build without [root] builds a library, whose C globals are renamed for
     fetching to stamp. A stamped dependency's archives are renamed after
     the C names that [link]'s objects define with the dependency's prefix
-    (docs/design/ffi.md F15). The modules of the dependency's C whose hashes
+    (docs/design/ffi.md F15). The root of a [plugin] build, or of a test
+    build, keeps its C globals' C names (F9). The modules of the dependency's C whose hashes
     match [hashes], the rows its release published, are retained for an
     optimized build to inline (F13). *)
 val c_modules :
   ?target:string ->
   ?link:string list ->
   ?hashes:Foreign.Hashes.row list ->
+  ?plugin:bool ->
   root:bool ->
   Tst.Assembly.package list ->
   Foreign.package list ->
@@ -166,6 +183,21 @@ val executable :
   ?c:Codegen.c_package list ->
   ?regions:regions ->
   ?tiered:bool ->
+  optimize:bool ->
+  link:string list ->
+  Cgt.Nodes.Program.t ->
+  string ->
+  (unit, failure) result
+
+(** A plugin package's dynamic library (`--library`, packages.md §8.1):
+    the program linked as a shared library with the runtime's start-up for
+    one, and each export a C function the library offers its host. *)
+val library :
+  ?target:string ->
+  ?pack:bool ->
+  ?memoize:bool ->
+  ?c:Codegen.c_package list ->
+  ?regions:regions ->
   optimize:bool ->
   link:string list ->
   Cgt.Nodes.Program.t ->

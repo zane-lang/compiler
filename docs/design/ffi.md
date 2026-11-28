@@ -1,6 +1,6 @@
 # The C interface: building, calling and folding C
 
-> **Status: built**, in the order of §7: compiling a
+> **Status: built**, in the order of §8: compiling a
 > package's C (F1, F2, F3, F5) and reading its interface headers (F6), in
 > `lib/foreign/` and `lib/c_interface/`; foreign verbs, handles and
 > foreign variables in the grammar and semantics (F7); and calls of
@@ -15,14 +15,15 @@
 > release (F15); release archives' hashes of their C modules, with
 > a dependency's C retained for an optimized build to inline where the
 > hashes match (F13, F15); and C folded at compile time, in `lib/optimize/`
-> (F16–F19); the fixtures of §6 and the entries of
+> (F16–F19); exported lambdas and dynamic libraries (F20, F21); the
+> fixtures of §7 and the entries of
 > [`optimizations.md`](../optimizations.md) for F13 and F16 are in place
-> too, so every step of §7 is built. This page describes how the compiler implements the spec's C
+> too, so every step of §8 is built. This page describes how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
 > it, and evaluating it at compile time. Each decision is numbered
-> (**F1**…), and §7 lists the order they are built in.
+> (**F1**…), and §8 lists the order they are built in.
 
 The two documents divide the C interface between them. The spec states
 everything a Zane program or a package's C code can rely on: what is
@@ -638,6 +639,29 @@ So is a Mach-O global symbol without the `_` every C name takes there,
 which an `__asm__` label or assembly can define: it has no C name to
 rename it by, so two versions of the package would both define it.
 
+The root package of a dynamic-library build or of a test build also
+offers its C globals under their C names (`Driver.keeps_c_names`). Its
+module is renamed as any package's is, so its own Zane code and C reach
+the renamed definitions, and then `zane_offer_c_names`
+(`lib/codegen/c_stubs.cpp`) gives each renamed definition an alias under
+its C name, thread-local when the definition is, of default visibility
+and, on COFF, marked for the DLL to export, and hides the renamed
+definition. A DLL cannot export a thread-local variable, whose address
+differs on each thread while `GetProcAddress` gives one, so on COFF a
+thread-local definition gets no alias. A host finds a symbol it
+looks up by a fixed name, such as CLAP's `clap_entry`, and the C that
+defines it calls exported lambdas by their C names (`packages.md` §8.1).
+A build holds one copy of its root, so the C names of no two copies can
+meet. The rule lives in that one predicate: `ffi.md` §2.5 renames every
+package's C, and the spec does not yet fix which C names a dynamic
+library offers, so the predicate is where a later rule would change it.
+Only the definitions of the root's sources and glue get an alias; its archives'
+members and the objects assembled from its sources holding assembly keep
+the renamed names only. On COFF a root's C does not mark a definition
+`__declspec(dllexport)` itself: the directive it writes names the C name
+the build renames, which the check below refuses, and the alias is
+exported in its place.
+
 **F10. A foreign call is one CGT node, with its arguments laid out for C.**
 Lowering gives each foreign verb a Zane function whose body is one
 `Foreign_call { thunk; args }`, and the program's list of thunks records
@@ -1158,7 +1182,95 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 
 ---
 
-## 6. How it is tested
+## 6. Exports and dynamic libraries
+
+**F20. An exported lambda is a C entry under its C name.** A package-scope
+lambda-variable followed by `export "cName";` (`packages.md` §8.2) is a
+lambda constant like any other in the TST, whose `Constant` records the
+C name. Pass 5 checks its signature against the function values C may
+call (`Tst.Check.Exports.check_lambda`, using the same tests of
+parameter and result types as `ffi.md` §3.6, `Foreign_decls.function_param`
+and `function_result`): no abort type, no subject (a subject borrows a
+C-held object, `packages.md` §8.5, which zanec does not build yet), and
+a C identifier for the exported symbol, the string after `export`. The program's `exports` lists the exported
+lambdas the build gives C symbols: the root's own and those of the
+libraries its export lines name, each C name once (§8.3), and none in a
+build without a root, where an exported lambda stays an ordinary lambda
+constant.
+
+Lowering lifts each listed lambda, which roots it whether or not any code
+calls it, and so gives it F11's adapter and C entry; the CGT's `exports`
+pairs the lifted symbol with the C name. The object's callbacks glue then
+defines one more C function per export, under its C name, with the C
+entry's body: it calls the lambda's adapter, which makes a context for a
+thread that has none (F11). The glue keeps those names when the package is
+renamed (F9), as it keeps its thunks'. The entries the program calls
+itself are hidden; an export is of default visibility, or `dllexport` on
+COFF. An exported lambda of a stamped dependency is defined in that
+dependency's object, whose adapter the root's glue calls, so the export
+works whether the library was compiled from source or linked as a
+release.
+
+An exported lambda has root-package rights in every build (`packages.md`
+§8.4): pass 5 checks its body with the context of root code, so it may
+reach `@program$` and declare foreign variables
+(`Foreign_decls.global ~root`). A name that resolves to an exported
+lambda in a package that is not the root is an error where it is
+resolved (`Check.constant_ref`), so a library calls none, its own
+included, and passes none on as a function value.
+
+**F21. A plugin package builds into a dynamic library.** A root without
+`main` is a plugin's when it carries an export line or declares an
+exported lambda (`Driver.root_kind`), and `--library OUT` builds it into
+the dynamic library at the path `OUT`, whose extension (`.so`, `.dylib` or
+`.dll`) the caller chooses; a
+program's root builds with `--build`, and each refuses the other's root.
+Lowering a plugin starts from its exports and has no entry, so no start
+function makes the package constants first: each constant's function
+makes it at its first read (`lowering.md` L16), on whatever thread the
+host calls from. A plugin's program is never `exclusive`, since a host may
+call its exports from several threads at once (`concurrency.md` §4.7).
+
+`Build.dynamic_library` links the module as a shared library with the
+runtime compiled with `-DZANE_LIBRARY` (`Build.library_flags`). That
+runtime has no C `main`: `runtime/main.c`'s constructor runs as the host
+loads the file, once per loaded file, and makes the console, the regions,
+the program's own scope and the constants' region in a context no thread
+runs, with `arguments` empty, since a host passes no command line
+(`packages.md` §8.1). Each host call runs in a context the adapter makes
+for it, as F11's call on a thread C started does, and writes out what it
+printed before it returns (`zane_callback_detach`), so everything a call
+printed has reached the library's output when the host gets the call's
+result. That flush covers only this library's buffer: the order against
+the host's own buffered output, or another library's, is the host's to
+keep. The constructor keeps the library loaded until the process ends,
+whatever the host unloads: Windows pins the module, and the other systems
+mark it `RTLD_NODELETE` (macOS never unloads a library with thread-local
+variables in any case). A pool thread may still run the library's code,
+other code may have saved the library's fault handler as the previous
+handler it passes faults on to, and the runtime's regions and buffers stay with it,
+so none of them outlives the code. A later load of the same file reaches
+the same runtime. As the process ends, a destructor joins the pool's
+threads, except on Windows, which has ended them already and holds the
+loader lock that a thread needs to end, and then writes out the rest of
+the output.
+
+Two Zane libraries in one host each have a runtime of their own, and
+share no runtime state. So nothing of either is reached from outside it
+but its exports and its root's C: the runtime is compiled with
+`-fvisibility=hidden`, codegen hides every definition of the Zane code
+before the C is linked in (`Build.hide_definitions`), and an ELF library
+links with `-Bsymbolic`, so its references to its own definitions bind to
+them even when another library offers the same name, as two copies of
+one release do. Mach-O's two-level namespace and a DLL's imports bind
+them so already. On ELF the runtime is position-independent and takes
+its thread's variables in the initial-exec model, which a library that
+`dlopen` loads may use where a program's local-exec model may not; the
+program's code reads the runtime's as it always does (`Walks.zane_open`).
+A release bundles the library runtime beside the program's
+(`Build.bundle_runtime`).
+
+## 7. How it is tested
 
 - `tests/ffi/` holds packages with C code, built for every target the
   codegen fixtures run on, plain and optimized, each held to one golden
@@ -1224,10 +1336,22 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   member defines, one defining a Mach-O symbol no C name
   renames, and a `system` row naming a library the
   linker cannot find.
+- `fixtures/plugin`, a plugin package (F20, F21), is built into a dynamic
+  library unoptimized and optimized, and its C host `host.c` loads both at
+  once and calls their exports, from its own thread and from four it
+  starts (`golden/plugin.plugin.out`): each library prints through its
+  own console, counts in its own C state, reads a constant made at the
+  first call, gets no arguments, and offers its root's C function
+  `plugin_entry` under that name, which calls an export of the library
+  its export line names, but no export of a library no line names and no
+  symbol of the runtime. `fixtures/testHost` is a test package whose C
+  calls the exports of a library its export line names and its own.
+  `tests/semantics/` holds the rules (`typing.exports.err`,
+  `project.plugin*`, `project.program-library.err`).
 
 ---
 
-## 7. The order it is built in
+## 8. The order it is built in
 
 1. Reading `c.coda` and filtering its rows by target (F5), then the clang
    front end in process, with the C compiler's include directories kept in
@@ -1245,6 +1369,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
 9. `c_eval.ml`, its classes in stage 5, and the crossing between the two
    evaluators (F16–F19).
-10. The fixtures of §6 for each step as it lands, and an entry in
+10. Exported lambdas, export lines and dynamic libraries (F20, F21).
+11. The fixtures of §7 for each step as it lands, and an entry in
     [`optimizations.md`](../optimizations.md) for the cross-language
     inlining (F13) and the folding through C (F16).

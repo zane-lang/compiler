@@ -1,5 +1,10 @@
-39 conflict states
+44 conflict states
 
+  1  reduce/reduce  [EXPORT]  body -> block_body ; body_braced -> block_body
+  1  reduce/reduce  [EXPORT]  expr -> COMPTIME braced_verb_call ; expr_braced -> COMPTIME braced_verb_call
+  1  reduce/reduce  [EXPORT]  expr -> SPAWN braced_verb_call ; expr_braced -> SPAWN braced_verb_call
+  1  reduce/reduce  [EXPORT]  expr -> app_braced ; expr_braced -> app_braced
+  1  reduce/reduce  [EXPORT]  expr -> block_call ; expr_braced -> block_call
  18  shift/reduce  [LESS]  loption(generics) ->
   3  shift/reduce  [LPAREN]  list(verb_type_suffix) ->
   9  shift/reduce  [LPAREN]  loption(generics) ->

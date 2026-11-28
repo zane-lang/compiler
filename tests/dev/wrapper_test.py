@@ -155,7 +155,7 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(out, ["--lsp", "--zane", "/usr/bin/zane"])
 
     def test_output_options_expand_their_file(self):
-        for option in ("--object", "--tier-up", "--compile-commands"):
+        for option in ("--object", "--library", "--tier-up", "--compile-commands"):
             caller, out = self.run_wrapper(option, "out/file", "--package", "p")
             self.assertEqual(out, [option, f"{caller}/out/file", "--package", f"{caller}/p"])
 

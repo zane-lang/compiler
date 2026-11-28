@@ -35,7 +35,12 @@ type c_module = { key : string; bitcode : string; files : string list }
    labels name it, which is how its publisher named it, `!` before a
    library's own package, so that the glue compiles to the publisher's
    module. Its thunks take the package's stamped names back before the
-   module is linked, and every body in it is retained, never emitted. *)
+   module is linked, and every body in it is retained, never emitted.
+
+   A package that [keeps_names] has its C globals offered under their C
+   names too, as the root of a dynamic-library or test build does, so that
+   a host finds a symbol its C sources define by its name; its own code
+   reaches the renamed definitions (docs/design/ffi.md F9). *)
 type package = {
   prefix : string;
   sources : c_module list;
@@ -46,6 +51,7 @@ type package = {
   defined : string list;
   libraries : library list;
   labels : string option;
+  keeps_names : bool;
 }
 
 (* What reaches the link beside the C module: the objects and archives of
@@ -58,6 +64,8 @@ external rename : Llvm.llmodule -> string -> string -> string list -> string lis
   = "zane_rename_c_globals"
 
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
+external offer_c_names : Llvm.llmodule -> string -> string list -> bool -> unit = "zane_offer_c_names"
+external drop_pie_level : Llvm.llmodule -> unit = "zane_drop_pie_level"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
 external drop_defined_apart : Llvm.llmodule -> string -> string list -> unit = "zane_drop_defined_apart"
 external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
@@ -214,7 +222,9 @@ let package_module ctx ~triple ~data_layout p =
     match m with
     | Some m ->
         localize_shared m;
-        rename m p.prefix global_prefix p.thunks p.defined
+        let names = rename m p.prefix global_prefix p.thunks p.defined in
+        if p.keeps_names then offer_c_names m p.prefix names (List.mem "windows" (String.split_on_char '-' triple));
+        names
     | None -> []
   in
   let m =
@@ -259,18 +269,22 @@ let program_module ctx ~triple ~data_layout packages =
    rows come. *)
 let libraries packages = List.concat_map (fun p -> p.libraries) packages
 
-(* What the object an unoptimized build emits for the C is kept under: the
-   packages' prefixes, the hashes of their modules, objects and archives,
-   and the names those objects and archives are renamed by, for [triple],
-   from the compiler [compiler] names, whose renaming and passes made it. *)
-let key ~triple ~compiler packages =
+(* What the object an unoptimized build emits for the C is kept under:
+   whether the object is for a dynamic library ([library]) or a program,
+   the packages' prefixes, whether each package keeps its C names
+   ([keeps_names]), the hashes of their modules, objects and archives, and
+   the names those objects and archives are renamed by, for [triple], from
+   the compiler [compiler] names, whose renaming and passes made it. *)
+let key ?(library = false) ~triple ~compiler packages =
   Digest.to_hex
     (Digest.string
        (String.concat "\000"
-          ("c-object" :: triple :: compiler
+          ("c-object" :: triple :: compiler :: (if library then "dynamic library" else "program")
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 (p.prefix
+                  :: (if p.keeps_names then "keeps names" else "renames")
+                  :: List.map (fun c -> c.key) (p.sources @ p.glue))
                  @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
                  @ ("" :: List.sort_uniq compare p.defined)

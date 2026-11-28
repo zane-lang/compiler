@@ -461,7 +461,7 @@ let repeated_builds () =
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Record []; ty = C.Ty.Struct [] } ];
       values = [] }
   in
-  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; comptime = []; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true } in
+  let p = { C.Program.funcs = empty :: List.init 2000 f; entry = None; comptime = []; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true; exports = []; plugin = false } in
   let built = ref 0 in
   for _ = 1 to 60 do
     match Driver.ir ~optimize:false p with Ok _ -> incr built | Error _ -> ()
@@ -477,7 +477,7 @@ let disposed_modules () =
     { C.Func.symbol = "f"; linkage = C.Linkage.Exported; params = []; places = []; ret = C.Ty.I64;
       body = [ C.Stat.Return { C.Expr.node = C.Expr.Int 1L; ty = C.Ty.I64 } ]; values = [] }
   in
-  let p = { C.Program.funcs = [ f ]; entry = None; comptime = []; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true } in
+  let p = { C.Program.funcs = [ f ]; entry = None; comptime = []; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true; exports = []; plugin = false } in
   let dir = Filename.temp_dir "zane-unit" "" in
   let none () = Codegen.live_contexts () = 0 in
   check "a built object leaves no context"
@@ -1013,12 +1013,15 @@ let sixty_four_bit () =
 let runtime_tuning () =
   let unhardened = [ "-fzero-call-used-regs=skip"; "-fno-stack-protector"; "-fno-stack-clash-protection"; "-fno-wrapv" ] in
   check "a Linux runtime keeps no frame pointers, is not hardened, and reads its threads' variables directly"
-    (Codegen__Build.tuning ~triple:"x86_64-unknown-linux-gnu"
+    (Codegen__Build.tuning ~triple:"x86_64-unknown-linux-gnu" []
     = unhardened @ [ "-fomit-frame-pointer"; "-ftls-model=local-exec" ]);
+  check "a Linux dynamic library's runtime keeps the initial-exec model its library flags give"
+    (Codegen__Build.tuning ~triple:"x86_64-unknown-linux-gnu" (Codegen__Build.library_flags ~triple:"x86_64-unknown-linux-gnu")
+    = unhardened @ [ "-fomit-frame-pointer" ]);
   check "an Apple runtime keeps its frame pointers"
-    (Codegen__Build.tuning ~triple:"arm64-apple-macosx14.0.0" = unhardened);
+    (Codegen__Build.tuning ~triple:"arm64-apple-macosx14.0.0" [] = unhardened);
   check "a Windows one keeps its threads' variables as COFF has them"
-    (Codegen__Build.tuning ~triple:"x86_64-pc-windows-gnu" = unhardened @ [ "-fomit-frame-pointer" ]);
+    (Codegen__Build.tuning ~triple:"x86_64-pc-windows-gnu" [] = unhardened @ [ "-fomit-frame-pointer" ]);
   if not Sys.win32 then begin
     let dir = Filename.temp_dir "zane-tuning" "" in
     let cc = Filename.concat dir "cc" and output = Filename.concat dir "zane.o" in

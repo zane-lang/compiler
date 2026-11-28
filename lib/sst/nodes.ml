@@ -578,6 +578,11 @@ and Decl : sig
         entries : (Name.t * Expr.t) list;
       }
     | Verb of Verb_decl.t
+    (* An exported lambda (packages.md §8.2): the lambda-variable [value],
+       which a build exporting it gives the C symbol [symbol]. *)
+    | ExportedVar of { name : Name.t; type_ : Type_expr.t; value : Expr.t; symbol : Name.t }
+    (* An export line (packages.md §8.3): the library [package]. *)
+    | ExportLine of { package : Name.t }
 end = Decl
 
 module Package = struct

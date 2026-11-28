@@ -182,8 +182,11 @@ type shape =
   | View of { unit : int; narrow : bool }
   | Pointer
 
-(* A lambda's C entry, under [label], calling its adapter [adapter]. *)
-type callback = { label : string; adapter : string; params : shape list; result : shape }
+(* A lambda's C entry, under [label], calling its adapter [adapter]. An
+   [export] is an exported lambda's C function (packages.md §8.2), which a
+   dynamic library offers its host; every other entry is the program's
+   own. *)
+type callback = { label : string; adapter : string; params : shape list; result : shape; export : bool }
 
 (* The file of the C entries [callbacks]: it includes nothing, so it needs
    no C library's headers, and declares a struct for each record shape. *)
@@ -222,15 +225,26 @@ let callbacks_file (callbacks : callback list) =
             Buffer.add_string structs (Printf.sprintf "%s { %s };\n" n (String.concat " " fields));
             n)
   in
+  (* A DLL offers the functions it marks `dllexport`, and an ELF or Mach-O
+     library those of default visibility; the program's own entries are
+     hidden where the object format has visibility. *)
+  line "#if defined(_WIN32)";
+  line "#define __ZANE_EXPORT __declspec(dllexport)";
+  line "#define __ZANE_OWN";
+  line "#else";
+  line "#define __ZANE_EXPORT __attribute__((visibility(\"default\")))";
+  line "#define __ZANE_OWN __attribute__((visibility(\"hidden\")))";
+  line "#endif";
   List.iteri
     (fun n (c : callback) ->
       let name = Printf.sprintf "__zane_entry_%d" n and adapter = Printf.sprintf "__zane_adapter_%d" n in
       let params = List.mapi (fun i p -> Printf.sprintf "%s __zane_a%d" (c_type p) i) c.params in
       let params = if params = [] then "void" else String.concat ", " params in
       let result = c_type c.result in
+      let offered = if c.export then "__ZANE_EXPORT" else "__ZANE_OWN" in
       line "void %s(void *const *__zane_args, void *__zane_result) __asm__(\"%s\");" adapter (escaped c.adapter);
-      line "%s %s(%s) __asm__(\"%s\");" result name params (escaped c.label);
-      line "__attribute__((no_stack_protector)) %s %s(%s) {" result name params;
+      line "%s %s %s(%s) __asm__(\"%s\");" offered result name params (escaped c.label);
+      line "__attribute__((no_stack_protector)) %s %s %s(%s) {" offered result name params;
       List.iteri
         (fun i p ->
           match p with

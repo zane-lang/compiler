@@ -1,0 +1,6 @@
+/// A library package of the build that no export line names, so its
+/// exported lambda stays an ordinary lambda constant and the library
+/// offers no C symbol for it (packages.md §8.3).
+package unused;
+
+nothing @primitives$I64() => @primitives$I64(0) export "unused_nothing";

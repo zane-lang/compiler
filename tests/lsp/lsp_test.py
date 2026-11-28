@@ -530,6 +530,20 @@ class CompletionTest(ServerTest):
         self.assertIn("runtime", found)
         self.assertNotIn("program", found)
 
+    def test_an_exported_lambda_of_a_library_is_offered_the_program_namespace(self):
+        # An exported lambda has root rights in any package (packages.md §8.4),
+        # so its body is offered `@program$`, and the rest of its file is not.
+        saved = self.geo.read_text() + (
+            "\nhello @primitives$Unit() {\n\treturn @primitives$Unit();\n} export \"geo_hello\";\n"
+        )
+        self.geo.write_text(saved)
+        self.client.open(self.geo)
+        text = saved.replace("{\n\treturn @primitives$Unit();", "{\n\t@|\n\treturn @primitives$Unit();")
+        found = self.complete(self.geo, text)
+        self.assertIn("program", found)
+        found = self.complete(self.geo, text.replace("\t@|\n", "\t\n").replace("return copy;", "@|\n\treturn copy;"))
+        self.assertNotIn("program", found)
+
     def test_the_names_of_a_namespace_with_their_signatures_and_descriptions(self):
         found = self.items(self.main, self.text.replace("return Unit();", "x = @math$sq|\n\treturn Unit();"))
         self.assertEqual(set(found), {"sqrt"})

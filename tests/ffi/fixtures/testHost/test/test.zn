@@ -1,0 +1,25 @@
+/// A test package that plays a host (packages.md §7.2): its export line
+/// gives `widget`'s exported lambdas C symbols in this test build, and its
+/// own C calls them by their C names, as it calls its own exported lambda,
+/// which its `main` also calls directly, as root-package code may (§8.4).
+package test;
+
+import widget;
+
+export widget;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+I64 callWidgets(base I64) foreign "call_widgets";
+
+triple I64(x I64) => @operators$multiply(x, I64(3)) export "test_triple";
+
+Unit main() {
+	@program$console!print(String(callWidgets(I64(4))));
+	@program$console!print(String.escaped("\n"));
+	@program$console!print(String(triple(I64(5))));
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}

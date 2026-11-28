@@ -2713,6 +2713,128 @@
   (diff golden/selfInclude.out selfInclude.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/testHost))
+ (targets testHost.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build testHost.exe --package fixtures/testHost/test --package fixtures/testHost/widget)))
+
+(rule
+ (deps (source_tree fixtures/testHost))
+ (targets testHost.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build testHost.optimized.exe --optimize --package fixtures/testHost/test --package fixtures/testHost/widget)))
+
+(rule
+ (deps (source_tree fixtures/testHost))
+ (targets testHost.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build testHost.tiered.exe --tiered --package fixtures/testHost/test --package fixtures/testHost/widget)))
+
+(rule
+ (deps (source_tree fixtures/testHost))
+ (targets testHost.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up testHost.tier1 --package fixtures/testHost/test --package fixtures/testHost/widget)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    testHost.checked.out.actual
+    (run ./testHost.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/testHost.out testHost.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    testHost.unchecked.out.actual
+    (run ./testHost.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/testHost.out testHost.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    testHost.optimized.checked.out.actual
+    (run ./testHost.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/testHost.out testHost.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    testHost.optimized.unchecked.out.actual
+    (run ./testHost.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/testHost.out testHost.optimized.unchecked.out.actual)))
+
+(rule
+ (deps testHost.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./testHost.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    testHost.tiered.checked.out.actual
+    (run ./testHost.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/testHost.out testHost.tiered.checked.out.actual)))
+
+(rule
+ (deps testHost.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./testHost.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    testHost.tiered.unchecked.out.actual
+    (run ./testHost.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/testHost.out testHost.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/archives) fixtures/archives/one/tally.a fixtures/archives/two/tally.a)
  (action
   (with-stdout-to
@@ -2747,6 +2869,54 @@
  (alias runtest)
  (action
   (diff golden/declarations.tst declarations.tst.actual)))
+
+(rule
+ (deps (source_tree fixtures/plugin))
+ (targets plugin.plugin.library)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --library plugin.plugin.library --package fixtures/plugin/plugin --package fixtures/plugin/tally --package fixtures/plugin/unused)))
+
+(rule
+ (deps (source_tree fixtures/plugin))
+ (targets plugin.plugin.optimized.library)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --library plugin.plugin.optimized.library --optimize --package fixtures/plugin/plugin --package fixtures/plugin/tally --package fixtures/plugin/unused)))
+
+(rule
+ (deps fixtures/plugin/host.c)
+ (targets plugin.host.exe)
+ (action
+  (run %{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o plugin.host.exe fixtures/plugin/host.c)))
+
+(rule
+ (deps plugin.plugin.library plugin.plugin.optimized.library)
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    plugin.plugin.checked.out.actual
+    (run ./plugin.host.exe plugin.plugin.library plugin.plugin.optimized.library)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/plugin.plugin.out plugin.plugin.checked.out.actual)))
+
+(rule
+ (deps plugin.plugin.library plugin.plugin.optimized.library)
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    plugin.plugin.unchecked.out.actual
+    (run ./plugin.host.exe plugin.plugin.optimized.library plugin.plugin.library)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/plugin.plugin.out plugin.plugin.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/reject/absolute))

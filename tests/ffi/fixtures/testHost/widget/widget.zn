@@ -1,0 +1,10 @@
+/// A library package under test whose exported lambda the test package's
+/// export line gives a C symbol (packages.md §8.3).
+package widget;
+
+alias I64 = @primitives$I64;
+
+scale I64(x I64) {
+	@program$console!print(@primitives$String.escaped("widget scales\n"));
+	return @operators$multiply(x, I64(10));
+} export "widget_scale";

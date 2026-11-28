@@ -1,0 +1,35 @@
+/// An exported lambda's signature: no abort type, no subject outside a
+/// C-held object, parameters and a result that a function value passed to C
+/// may have, and a C identifier for its name (packages.md §8.2). A library
+/// carries no export line, and its code names no exported lambda, its own
+/// included (§8.4).
+package lib;
+
+export app;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias String = @primitives$String;
+
+type Box = #struct { value I64; }
+
+twice I64(x I64) => @operators$add(x, x) export "lib_twice";
+
+aborts I64?Unit(x I64) => x export "lib_aborts";
+
+subject I64(this Box) => this.value export "lib_subject";
+
+lent I64(x &Box) => I64(1) export "lib_lent";
+
+text String() => String.escaped("no") export "lib_text";
+
+named I64() => I64(1) export "not a C name";
+
+calls I64() => twice(I64(1));
+
+held I64[I64] = twice;
+
+rights Unit() {
+	@program$console!print(String.escaped("allowed\n"));
+	return Unit();
+} export "lib_rights";

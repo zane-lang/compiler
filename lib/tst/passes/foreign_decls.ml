@@ -506,25 +506,32 @@ and handle_corresponds env iface v position tid (h : Nodes.Handle.t) c =
             (Printf.sprintf "%s crosses as a pointer to its C type %s, and C declares %s"
                (quote tid.Ty.name) (quote h.Nodes.Handle.c_type) (quote (C.to_string c))))
 
-(* A function value crosses as a C function pointer (§3.6) when it has no
-   subject and no abort type, its parameters are scalars, `Bool`s,
-   C-compatible value types, strings, lists and arrays of scalars, and data
-   handles, borrowed or roaming owners, and its result a scalar, `Bool`, a
-   C-compatible value type or `Unit`. *)
-and function_corresponds env iface v (f : Ty.verb) c =
+(* Whether C may pass a value of [t] to a function value (§3.6): a scalar,
+   a `Bool`, a C-compatible value type, a string, a list or array of
+   scalars, or a data handle, borrowed or as a roaming owner. *)
+and function_param env (t : Ty.t) =
   let data_handle tid = Verbs.handle_kind env.verbs tid = Some Nodes.Decl.Data in
-  let param (t : Ty.t) =
-    match (t, crossing env t) with
-    | Ty.Reference _, _ -> false
-    | Ty.Roaming _, Some (Handle (tid, _)) -> data_handle tid
-    | Ty.Roaming _, _ -> false
-    | _, Some (Scalar _ | Bool | Value _ | Bytes | Array _ | Span _) -> true
-    | _, Some (Handle (tid, _)) -> data_handle tid
-    | _ -> false
-  in
-  let plain t = match crossing env t with Some (Scalar _ | Bool | Value _) -> true | _ -> false in
-  let result t = plain t || crossing env t = Some Unit in
-  if f.Ty.this_ <> None || f.Ty.abort <> None || not (List.for_all param f.Ty.params && result f.Ty.ret) then
+  match (t, crossing env t) with
+  | Ty.Reference _, _ -> false
+  | Ty.Roaming _, Some (Handle (tid, _)) -> data_handle tid
+  | Ty.Roaming _, _ -> false
+  | _, Some (Scalar _ | Bool | Value _ | Bytes | Array _ | Span _) -> true
+  | _, Some (Handle (tid, _)) -> data_handle tid
+  | _ -> false
+
+(* Whether a function value may give C a value of [t] (§3.6): a scalar, a
+   `Bool`, a C-compatible value type, or `Unit`. *)
+and function_result env (t : Ty.t) =
+  match crossing env t with Some (Scalar _ | Bool | Value _ | Unit) -> true | _ -> false
+
+(* A function value crosses as a C function pointer (§3.6) when it has no
+   subject and no abort type, and C may pass each of its parameters and
+   take its result. *)
+and function_corresponds env iface v (f : Ty.verb) c =
+  if
+    f.Ty.this_ <> None || f.Ty.abort <> None
+    || not (List.for_all (function_param env) f.Ty.params && function_result env f.Ty.ret)
+  then
     Error
       "a function value crosses into C when it has no subject and no abort type, takes scalars, `@primitives$Bool`, C-compatible value types, strings, lists and arrays of scalars, and data handles, borrowed or as a roaming owner `^`, and gives a scalar, `@primitives$Bool`, a C-compatible value type or `@primitives$Unit` (ffi.md §3.6)"
   else
@@ -703,19 +710,20 @@ let run env (tables : verbs) =
 (* ---------------------------------------------------------------------- *)
 
 (* A foreign variable's value (§5.1). The variable is declared only in the
-   root package and has a foreign capability's type. It names a global that
+   root package or in the body of an exported lambda, which [root] marks
+   (packages.md §8.4), and has a foreign capability's type. It names a global that
    is not thread-local, which the package declaring the type defines with
    external linkage and declares in an interface header with the type's C
    type. *)
-let global env ~package ~span ~declared (symbol : N.Name.t) : Nodes.Expr.t =
+let global env ~root ~span ~declared (symbol : N.Name.t) : Nodes.Expr.t =
   let name = symbol.N.Name.text in
   let fail message =
     error env span message;
     { Nodes.Expr.node = Nodes.Expr.Invalid; ty = Ty.Error; span }
   in
-  if not (Env.package env package).is_root then
+  if not root then
     fail
-      "only the root package declares a foreign variable; every other package reaches a foreign capability through one passed to it (ffi.md §5.1)"
+      "only the root package and the body of an exported lambda declare a foreign variable; every other package reaches a foreign capability through one passed to it (ffi.md §5.1)"
   else
     match handle_of env declared with
     | None ->

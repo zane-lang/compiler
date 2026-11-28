@@ -725,6 +725,10 @@ and declaration (x : C.Decl.t) : S.Decl.t =
     | C.Decl.ForeignVar { name = n; type_; symbol } ->
         let value = { S.Expr.node = S.Expr.Foreign_global (name symbol); span = symbol.C.Name.span } in
         S.Decl.Var { name = name n; type_ = type_expr type_; value }
+    | C.Decl.ExportedVar { name = n; type_; value; symbol } ->
+        S.Decl.ExportedVar
+          { name = name n; type_ = type_expr type_; value = expression value; symbol = name symbol }
+    | C.Decl.ExportLine { package } -> S.Decl.ExportLine { package = name package }
   in
   { S.Decl.node; span }
 

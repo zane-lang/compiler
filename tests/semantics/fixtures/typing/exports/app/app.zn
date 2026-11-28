@@ -1,0 +1,25 @@
+/// The rules of exported lambdas and export lines (packages.md §8): a
+/// program package, which declares `main`, carries no export lines; an
+/// export line names a library package once, never its own package; and two
+/// exports of one C name in a build are an error. Neither an exported
+/// lambda nor an export line is written in a body.
+package app;
+
+import lib;
+
+export lib;
+export lib;
+export app;
+export missing;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+
+twice I64(x I64) => @operators$add(x, x) export "lib_twice";
+
+Unit main() {
+	inner I64(x I64) => x export "app_inner";
+	export lib;
+	n I64 = twice(I64(2));
+	return Unit();
+}

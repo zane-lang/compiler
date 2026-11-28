@@ -1,5 +1,10 @@
-46 conflict states
+51 conflict states
 
+  1  reduce/reduce  [EXPORT]  body -> block_body ; body_braced -> block_body
+  1  reduce/reduce  [EXPORT]  expr -> COMPTIME braced_verb_call ; expr_braced -> COMPTIME braced_verb_call
+  1  reduce/reduce  [EXPORT]  expr -> SPAWN braced_verb_call ; expr_braced -> SPAWN braced_verb_call
+  1  reduce/reduce  [EXPORT]  expr -> app_braced ; expr_braced -> app_braced
+  1  reduce/reduce  [EXPORT]  expr -> block_call ; expr_braced -> block_call
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND AT LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND LIDENT DOLLAR UIDENT
   1  shift/reduce  [LESS]  abort_ret_type -> type_expr QSTNMARK AMPERSAND UIDENT

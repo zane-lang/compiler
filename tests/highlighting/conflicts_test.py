@@ -103,8 +103,11 @@ class DiscoveryTests(unittest.TestCase):
         # unbraced_verb_call conflict from the original flattened editor tree,
         # and closing every package-scope declaration with `;` or its brace
         # removes the forks between a declaration's value and a following `(`.
-        self.assertEqual(len(report['conflicts']), 13)
-        self.assertEqual(len({tuple(c['rules']) for c in report['conflicts']}), 13)
+        # An exported lambda's `export` after a block body adds one: the body
+        # closes a braced declaration, before an export line, or takes the
+        # suffix (docs/ambiguity/proof-obligations.md).
+        self.assertEqual(len(report['conflicts']), 14)
+        self.assertEqual(len({tuple(c['rules']) for c in report['conflicts']}), 14)
         # No generated file or authored conflict list is read by discovery.
         self.assertIn('conflicts: $ => [', result['editors/tree-sitter-zane/grammar.js'])
 

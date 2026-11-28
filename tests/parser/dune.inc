@@ -42,6 +42,46 @@
 
 (rule
  (with-stdout-to
+  exports.cst.spans.actual
+  (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/exports.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/exports.cst.spans exports.cst.spans.actual)))
+
+(rule
+ (with-stdout-to
+  exports.cst.tree.actual
+  (run %{exe:../../bin/zanec/zanec.exe} --cst %{dep:fixtures/exports.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/exports.cst.tree exports.cst.tree.actual)))
+
+(rule
+ (with-stdout-to
+  exports.sst.spans.actual
+  (run %{exe:../../tools/inspect/span_dump.exe} --sst %{dep:fixtures/exports.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/exports.sst.spans exports.sst.spans.actual)))
+
+(rule
+ (with-stdout-to
+  exports.sst.tree.actual
+  (run %{exe:../../bin/zanec/zanec.exe} --sst %{dep:fixtures/exports.zn})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/exports.sst.tree exports.sst.tree.actual)))
+
+(rule
+ (with-stdout-to
   foreign.cst.spans.actual
   (run %{exe:../../tools/inspect/span_dump.exe} --cst %{dep:fixtures/foreign.zn})))
 
@@ -183,6 +223,18 @@
  (alias runtest)
  (action
   (diff golden/reject.control-escape.err reject.control-escape.err.actual)))
+
+(rule
+ (with-stderr-to
+  reject.exportTerminator.err.actual
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/zanec/zanec.exe} %{dep:fixtures/reject/exportTerminator.zn}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/reject.exportTerminator.err reject.exportTerminator.err.actual)))
 
 (rule
  (with-stderr-to

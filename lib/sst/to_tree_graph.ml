@@ -409,6 +409,16 @@ and decl_to_node (x : Nodes.Decl.t) =
              ("entries", map_seq enum_map_entry_to_node x.entries);
            ])
   | Verb x -> verb_decl_to_node x
+  | ExportedVar x ->
+      group "exported_var_decl"
+        (fields
+           [
+             ("name", Leaf (text x.name));
+             ("type", type_to_node x.type_);
+             ("value", expr_to_node x.value);
+             ("symbol", Leaf (text x.symbol));
+           ])
+  | ExportLine x -> group "export_line" (Leaf (text x.package))
 
 (* A foreign verb's C symbol, which only a foreign verb shows. *)
 and foreign_field = function Some symbol -> [ ("foreign", Leaf (text symbol)) ] | None -> []
