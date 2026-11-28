@@ -4,7 +4,7 @@ package bad;
 type Hue = enum [ amber, teal ];
 type Ledger = variant { none Unit; some Int; }
 
-// A named constructor takes a name no member or case of its type has.
+// A named constructor's identifier differs from every member and case of its type.
 Hue.amber() => Hue.teal;
 Ledger.some(n Int) => Ledger.some(n);
 
@@ -18,8 +18,8 @@ Hue.blank() => init{}
 Ledger.blank() => init{}
 Hue.tinted() => init{ level = unlit; }
 
-// A name that fixes every type argument builds that type, so a generic
-// constructor that would infer another from the call is refused.
+// A type name that fixes every type argument builds that type, so the
+// checker reports a generic constructor that would infer another from the call.
 type Pouch<T Type> = struct { held T; }
 Pouch<T>(x T Type) => init{ held = x; }
 alias IntPouch = Pouch<Int>;

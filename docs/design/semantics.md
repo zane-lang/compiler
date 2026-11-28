@@ -865,10 +865,11 @@ it there too (`types.md` §4.1, §4.5): `@primitives$String(text)` reaches
 a verb named after the type, like a struct's (`types.md` §3.1, `adt.md` §2.2,
 §3.3). Its body returns a member or a case, so `init{ }` there is an error
 that names the form the body returns instead. An enum or a variant has no
-fields, so its constructors are positional, and pass 4 refuses a field list on
-one. Pass 4 also refuses a named constructor whose name is a member or a case
-of its type (`types.md` §3.4). `Type.name` therefore names exactly one thing,
-and a call resolves it in a fixed order: a variant case, then an enum member,
+fields, so every constructor it declares is positional. Pass 4 reports an
+error for a field list on an enum's or a variant's constructor, and for a
+named constructor whose name is a member or a case of its type (`types.md`
+§3.4). `Type.name` therefore names one member, one case or one set of named
+constructors, and a call resolves it in a fixed order: a variant case, then an enum member,
 then the named constructors. `Countdown()` with no name always reaches the
 constructors. When a variant declares none, the error suggests naming a case
 instead.
@@ -877,8 +878,8 @@ instead.
 `alias IntPick = Pick<Int>` and a type parameter bound in an instance each
 name a type with no argument left to infer. A generic constructor
 `Pick<T>(x T Type)` could still infer `T` from the call, so `IntPick(String("x"))`
-would build a `Pick<String>`. The check compares the result with the type the
-name builds and refuses the call when the two differ, for a struct, an enum
+would build a `Pick<String>`. Pass 4 compares the result with the type the
+name builds and reports an error when the two differ, for a struct, an enum
 and a variant alike.
 
 **A field constructor and a positional one are separate overload sets.** They
