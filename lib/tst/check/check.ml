@@ -248,18 +248,8 @@ and map_literal env ctx span entries =
         rest;
       mk (T.Expr.Map_lit entries) (Ty.Concept (Ty.Map_lit (k0.T.Expr.ty, v0.T.Expr.ty))) span
 
-(* Only root-package code names an exported lambda, and so calls one; a
-   library's code names none, its own package's included (packages.md
-   §8.4). An exported lambda's body has root rights, but is code of the
-   package that declares it. *)
 and constant_ref env ctx (d : decl) span =
-  (match d.kind with
-  | Constant { export = Some _; name; _ } when not (package env ctx.package).is_root ->
-      error env span
-        (Printf.sprintf
-           "%s is an exported lambda, an entry point a host calls, and only the root package's code calls one; %s is a library package (packages.md §8.4)"
-           (quote name.N.Name.text) (quote ctx.package))
-  | _ -> ());
+  Exports.check_name env ~package:ctx.package d span;
   let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
   mk (T.Expr.Var (T.Name_ref.Global { decl = d.id; name = decl_name d })) ty span
 
@@ -1760,12 +1750,8 @@ and local_declaration env ctx (d : N.Decl.t) =
              (quote (Ty.to_string v.T.Expr.ty)));
       let local = declare env ctx Symbol name declared in
       T.Stat.Let { local; value = v }
-  | N.Decl.ExportedVar _ ->
-      error env d.N.Decl.span
-        "an exported lambda is a package-scope lambda-variable, never one in a body: a host calls it as a C function (packages.md §8.2)";
-      T.Stat.Expr (invalid d.N.Decl.span)
-  | N.Decl.ExportLine _ ->
-      error env d.N.Decl.span "an export line is written at package scope, beside the imports (syntax.md §8.3)";
+  | (N.Decl.ExportedVar _ | N.Decl.ExportLine _) as kind ->
+      Exports.in_body env d.N.Decl.span kind;
       T.Stat.Expr (invalid d.N.Decl.span)
   | _ ->
       error env d.N.Decl.span "only a symbol is declared in a body; every other declaration is at package scope";

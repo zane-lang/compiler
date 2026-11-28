@@ -3,11 +3,34 @@
 
    Entry-point rights (§8.4) are given where a body is checked
    ([Program.package_context]), and the rule that only root-package code
-   names an exported lambda where an identifier is resolved ([Check]). *)
+   names an exported lambda where [Check] resolves an identifier
+   ([check_name]). *)
 
 open Env
 module N = Sst.Nodes
 module T = Nodes
+
+(* Only root-package code names an exported lambda, and so calls one; a
+   library's code names none, its own package's included (packages.md
+   §8.4). An exported lambda's body has root rights, but is code of the
+   package that declares it. [package] is the package whose code names
+   the declaration [d] at [span]. *)
+let check_name env ~package:name (d : decl) span =
+  match d.kind with
+  | Constant { export = Some _; name = constant; _ } when not (package env name).is_root ->
+      error env span
+        (Printf.sprintf
+           "%s is an exported lambda, an entry point a host calls, and only the root package's code calls one; %s is a library package (packages.md §8.4)"
+           (quote constant.N.Name.text) (quote name))
+  | _ -> ()
+
+(* An exported lambda, or an export line, that a body declares at [span]:
+   both belong at package scope. *)
+let in_body env span = function
+  | N.Decl.ExportedVar _ ->
+      error env span
+        "an exported lambda is a package-scope lambda-variable, never one in a body: a host calls it as a C function (packages.md §8.2)"
+  | _ -> error env span "an export line is written at package scope, beside the imports (syntax.md §8.3)"
 
 (* A C identifier: a letter or `_`, then letters, digits and `_`. *)
 let is_c_identifier s =
