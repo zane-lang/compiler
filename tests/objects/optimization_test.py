@@ -23,7 +23,7 @@ def run(*args):
 def run_program(exe, *args):
     """What a program wrote, run with its drains checked and unchecked
     (`ZANE_CHECK` 1 and 0), as every program in this directory is run. The
-    two runs must agree, and a failure names the mode it came from."""
+    two runs must print the same output, and a failure names the mode it came from."""
     outputs = {}
     for check in ("1", "0"):
         command = [str(exe), *map(str, args)]
@@ -60,7 +60,7 @@ class OptimizationTests(unittest.TestCase):
     def test_folding_and_inlining(self):
         plain = run(ZANEC, "--cgt", *self.flags())
         folded = run(ZANEC, "--cgt", "--optimize", *self.flags())
-        # Both builds take in the bodies; only the optimized one folds them.
+        # Both builds take in the bodies; only the optimized build folds them.
         self.assertIn("linkage: available", plain)
         self.assertIn("linkage: available", folded)
         # Lowering writes a dependency's expression verbs out where they are
@@ -130,7 +130,7 @@ class OptimizationTests(unittest.TestCase):
             self.assertEqual(run_program(exe, 10), "385")
 
     def test_unoptimized_inlining_stays_bounded(self):
-        # Each level calls the one below twice: writing out or inlining every
+        # Each level calls the level below twice: writing out or inlining every
         # level would make 2^24 copies, so the upper levels stay calls.
         flags = ["--package", FIXTURES / "doubling"]
         self.assertRegex(run(ZANEC, "--ll", *flags), r'call .*doubling\$level23\(')

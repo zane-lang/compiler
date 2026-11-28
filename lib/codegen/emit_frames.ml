@@ -108,7 +108,7 @@ let weigh env br trips =
   in
   Llvm.set_metadata br (Llvm.mdkind_id env.ctx "prof") weights
 
-(* The `llvm.loop` node that asks for a loop unrolled twice. *)
+(* The `llvm.loop` node that requests a loop unrolled twice. *)
 let unroll_twice env =
   let i32 = Llvm.i32_type env.ctx in
   Llvm_extra.loop_id env.ctx [| Llvm.mdnode env.ctx [| Llvm.mdstring env.ctx "llvm.loop.unroll.count"; Llvm.const_int i32 2 |] |]
@@ -129,7 +129,7 @@ and context_limit = Abi.context_limit
 (* A scope opens with a frame of [size] bytes (Frames), and its record's
    address names it. Only this thread changes its context's scopes, so the
    code places the frame itself: the record goes at the frontier, which
-   moves past the frame, and links to the scope around it and to the one it
+   moves past the frame, and links to the scope around it and to the scope it
    skips to (runtime/zane_internal.h). A frame larger than the guard after
    the range is checked against the range's end first; a smaller one that
    does not fit faults in the guard. A thread that runs no context yet has
@@ -140,7 +140,7 @@ and context_limit = Abi.context_limit
    stops the program, which a frame that does not fit requires at
    whichever of its slots is touched first. The frame is on a 16-byte
    boundary, since every frame is a multiple of 16 bytes (Frames) placed
-   where the one before it ended. LLVM is given both facts about the open
+   where the frame before it ended. LLVM is given both facts about the open
    scope, so it may read a slot ahead of a branch, as it hoists a list's
    count out of a loop that checks its indices (docs/optimizations.md). *)
 let enter env fr b size =
@@ -279,7 +279,7 @@ let hold env fr b slot l =
   end
 
 (* Every local is a stack slot in the entry block (L3); LLVM's `mem2reg`
-   promotes the ones that can live in registers. *)
+   promotes the slots that can live in registers. *)
 let alloca env fr t =
   let top = Llvm.builder_at env.ctx (Llvm.instr_begin (Llvm.entry_block fr.fn)) in
   Llvm.build_alloca t "" top
@@ -295,7 +295,7 @@ let slot env fr id t =
 let place env b t p v l =
   (match t with
   (* Experimental (Loop_pushes, unless ZANE_LOOP_PUSHES=0): a struct of scalars is stored member
-     by member, each tagged as a scalar, so that LLVM knows the stores never
+     by member, each tagged as a scalar, so that LLVM can prove the stores never
      touch a list's handle and can keep its count in a register through a
      loop of pushes. *)
   | (Ty.Struct ts | Ty.Packed (Ty.Struct ts))
@@ -332,7 +332,7 @@ let rec store_fields env b (t : Ty.t) v p =
 let has_terminator b =
   match Llvm.block_terminator (Llvm.insertion_block b) with Some _ -> true | None -> false
 
-(* How a snapshot of a value of type [t] is read (§9). An 8-byte value
+(* The read of a snapshot of a value of type [t] (§9). An 8-byte value
    aligned to 8 is one load: a write-back stores those 8 bytes in a single
    store of the same 8 bytes (runtime/snapshot.c), since its pieces are
    aligned blocks of at most 8 and no smaller place lies inside such a value

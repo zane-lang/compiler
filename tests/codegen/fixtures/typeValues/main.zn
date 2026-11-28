@@ -52,7 +52,7 @@ T run(this Hooks<T Type>, value T) {
 }
 
 /// `n` is written only inside the type passed, which makes it a number
-/// parameter all the same.
+/// parameter nonetheless.
 Unit sized(n @concepts$Int) {
 	made Tally(@primitives$Array<Int, n>, Int(7));
 	check(@operators$equal(made.count, Int(7)));

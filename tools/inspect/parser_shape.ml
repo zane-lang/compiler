@@ -33,7 +33,7 @@ and verb_call_shape (call : Cst.Nodes.Verb_call.t) =
       parts "meth" (expr_shape this :: expr_shape callee :: List.map arg_shape args)
   (* A constructor call renders its arguments for the same reason a function
      call does: a trailing block is the last of them, and the shape is what
-     shows it joined this call rather than something inside it. *)
+     shows it joined this call rather than an expression inside it. *)
   | Cst.Nodes.Verb_call.Constructor { name; args; _ } ->
       let tag =
         match name.Cst.Nodes.Constructor_name.member with

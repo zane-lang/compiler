@@ -1,7 +1,7 @@
 # The Python here is tooling and its tests -- the grammar generator, the
 # ambiguity front end, the parser acceptance suite -- run from the repository
-# root and never published. This file says what they need and how they are
-# checked.
+# root and never published. This file lists their dependencies and the
+# linters and test runner that check them.
 
 [project]
 name = "zane-compiler-tools"
@@ -17,6 +17,11 @@ line-length = 100
 
 [tool.pytest.ini_options]
 # The suites are unittest modules named `*_test.py`, which `just` runs with
-# `python3 -m unittest`; pytest finds the same ones.
+# `python3 -m unittest`; pytest finds the same modules.
 testpaths = ["tests"]
 python_files = ["*_test.py"]
+
+[tool.prose-lint]
+# vendor/ holds third-party sources copied from upstream projects, such as
+# LLVM's OCaml bindings, which this repository keeps verbatim.
+exclude = ["vendor/**"]

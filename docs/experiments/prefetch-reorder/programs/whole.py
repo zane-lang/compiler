@@ -18,7 +18,7 @@ other's freeing of 2 GiB.
 WHOLE_FRAGMENT names a build of fragment.c beside this: before each run,
 the page cache is dropped and that program is started and left holding its
 scattered pages until the run has ended, so every run, with the switch and
-without, starts on free memory with few free 2 MiB blocks (fragment.c says
+without, starts on free memory with few free 2 MiB blocks (fragment.c sets
 how few).
 TIME_SIZES (log2 bytes, by commas), TIME_RUNS,
 and WHOLE_PASSES (the program's passes argument, default 1) change what is

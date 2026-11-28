@@ -5,7 +5,7 @@
    exhaustive on purpose: a function added to the runtime does not compile
    until this match gives the function's class.
 
-   [Computed] runs at compile time. [Output] runs too, and what it did is
+   [Computed] runs at compile time. [Output] runs too, and its output is
    replayed where the folded code was. [Input] gives a value only the
    running program has, such as its arguments, and stops a fold. *)
 

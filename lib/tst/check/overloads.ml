@@ -254,7 +254,7 @@ let has_literal actuals =
       || match a.aty with Ty.Concept (Ty.Array_lit (t, _)) -> Ty.is_bare_literal t | _ -> false)
     actuals
 
-(* Whether a bare literal sits where some generic candidate would have to
+(* Tests whether a bare literal sits where some generic candidate would have to
    infer a parameter from it -- the only mistake generics.md §5.4's hint is
    for. A literal that fills an explicit `n @concepts$Int` is not such a
    literal, and for a call with the wrong number of arguments the message

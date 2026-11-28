@@ -73,7 +73,7 @@ let current : t option ref = ref None
 
 let held x = match !current with Some c -> List.mem x c.ids | None -> false
 
-(* Whether a call or a runtime function is handed the pool. *)
+(* Tests whether a call or a runtime function is handed the pool. *)
 let handed (args : Expr.t list) = List.exists (fun (a : Expr.t) -> match a.Expr.node with Expr.Local x -> held x | _ -> false) args
 
 (* The slots read from the pool, as the function starts and after anything

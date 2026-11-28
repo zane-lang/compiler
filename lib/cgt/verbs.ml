@@ -184,7 +184,7 @@ let inlines st ctx (v : verb) =
 let most_walked = 120
 
 (* Whether [v] reaches a call to itself through the declared verbs its body
-   calls, those they call, and so on. *)
+   calls, those they call, and every verb reachable further down. *)
 let recursive st (v : verb) =
   let seen = Hashtbl.create 16 in
   let rec visit (c : verb) =
@@ -233,7 +233,7 @@ let rec holds_address (t : Nodes.Ty.t) =
    M1), which a copy written out would not consult. *)
 let reads_through st (v : verb) =
   (* A walk takes no owner: a callee given an owner it may drop keeps its
-     function, whose arena Regions decides (lowering.md §9). *)
+     function, whose arena Regions settles (lowering.md §9). *)
   (not (List.exists (fun (p : T.Local.t) -> roaming st p.T.Local.ty) v.params))
   && List.exists
     (fun (p : T.Local.t) ->

@@ -46,7 +46,7 @@ List<Float> zeros() {
 	return made;
 }
 
-/// How many of `list`'s elements are true.
+/// The count of `list`'s true elements.
 Int trues(list List<Bool>) {
 	total Int = Int(0);
 	i Int = Int(1);

@@ -1,4 +1,4 @@
-/// Twenty-four verbs, each calling the one below it twice, so that
+/// Twenty-four verbs, each calling the verb below it twice, so that
 /// inlining all of them into `main` would make 2^24 copies of the first.
 /// An unoptimized build inlines a verb only while it stays short with its
 /// callees inlined (docs/design/optimization.md O12), so the chain stops

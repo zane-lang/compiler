@@ -1,15 +1,15 @@
 # `comptime`: calls evaluated at compile time on request
 
-> **Status: built.** This page says how the compiler implements a call
+> **Status: built.** This page describes how the compiler implements a call
 > marked `comptime`
 > ([`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
 > §5.6, [`syntax.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/syntax.md)
 > §4.10). Each decision is numbered (**K1**…). Where the compiler accepts less
 > than the spec, [`spec-divergences.md`](../spec-divergences.md) §15 and §16
-> say so.
+> record the difference.
 
-Stage 5 ([`optimization.md`](optimization.md)) evaluates at compile time
-what it can, within budgets, and only in an optimized build: an implicit
+Stage 5 ([`optimization.md`](optimization.md)) evaluates every expression
+it can at compile time, within budgets, and only in an optimized build: an implicit
 fold is optional, so it may give up. A call marked `comptime` is not
 optional. Every build evaluates it, unoptimized and tiered builds included,
 runs it to completion, and fails the build when it cannot. The marked call
@@ -47,7 +47,7 @@ written inside the parentheses is refused by the checker.
 argument depend on any computation §5.3 permits to be evaluated at compile
 time, a local of the verb bound to a literal among them. The compiler
 evaluates a marked call in every build, and an unoptimized build has no
-fold that knows what a local holds at a given point, so it accepts only what
+fold that tracks the value a local holds at a given point, so it accepts only what
 can be evaluated without one: literals, package constants, foreign
 variables, the program's console and runtime, and calls, marked or not, on
 those. A local bound inside the marked expression is its own: a lambda's

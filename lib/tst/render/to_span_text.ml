@@ -1,8 +1,8 @@
 (* Every node of the typed tree, with the source text its span covers.
 
    This is [Sst.To_span_text] over the TST. As in [Sst.To_span_text], each line
-   carries the node's variant, so the expectation shows what resolution
-   decided and not just that spans survived it:
+   carries the node's variant, so the expectation shows each resolution
+   result and not just that spans survived it:
 
      expr Coerce Point       | 3
        expr Integer_lit      | 3
@@ -13,9 +13,9 @@
    `<INVALID SPAN>`, and a node that pointed at the wrong syntax would print
    the wrong text.
 
-   One thing is new. A tree of the SST comes from one file; the TST comes
+   One detail is new. A tree of the SST comes from one file; the TST comes
    from every file of the build. So each line reads its text out of the file
-   its own span names, which also means a node that took its span from the
+   its own span names, so a node that took its span from the
    wrong file shows the wrong text rather than going unnoticed.
 
    [render] makes the printer, and every function below is handed it with the

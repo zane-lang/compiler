@@ -70,7 +70,7 @@ let assemble ?buffers ?(root = true) ?(imports = []) ?(stamps = []) requests =
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Prints the warnings the C compiler gave about a package's own C files.
-   A warning refuses nothing. Only a package being worked on gets its
+   A warning stops no build. Only a package being worked on gets its
    warnings printed: a dependency's id carries its stamp, and the warnings
    in a dependency's files are for its author to fix. *)
 let show_warnings (p : Assembly.package) f =

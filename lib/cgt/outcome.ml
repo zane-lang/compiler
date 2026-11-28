@@ -1,5 +1,5 @@
 (* How a call can end (docs/design/lowering.md L12), and the sum that a
-   function that can end in more than one way returns. *)
+   function that can abort or exit returns. *)
 
 module T = Tst.Nodes
 module S = Tst.Signature
@@ -20,7 +20,7 @@ let outcome st span (v : verb) =
     exit_ = Tst.Exits.block v.body;
   }
 
-(* A function that can end in more than one way returns a sum of the three
+(* A function that can abort or exit returns a sum of the three
    endings: done with its result, aborted with its abort value, or exited
    (docs/design/lowering.md §9). A function that can only finish returns its
    result. *)
@@ -37,8 +37,8 @@ let exited = 2
 let outcome_case o index (payload : Expr.t) =
   { Expr.node = Expr.Case { index; payload }; ty = returned o }
 
-(* Where the blocks of a call's outcome are, when the call can end in more
-   than one way: the result's blocks under the done tag, and the abort
+(* Where the blocks of a call's outcome are, when the call can abort or
+   exit: the result's blocks under the done tag, and the abort
    value's blocks under the aborted tag. *)
 let outcome_layout st span (v : verb) =
   let s = v.signature in

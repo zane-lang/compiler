@@ -1,5 +1,5 @@
 /// An array of 2^32 `I64`s takes 32 GiB, more than the main context's range
-/// of frames holds, so lowering refuses its type where it is named rather
+/// of frames holds, so the compiler refuses its type where it is named rather
 /// than leaving the program to stop when it runs.
 package hugeArray;
 

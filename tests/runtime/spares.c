@@ -43,7 +43,7 @@ static int64_t fill(int64_t chunks) {
 }
 
 /* A spawned call that fills its chunks and drains them `cooling` times
-   more, a chunk at a time, then spawns the next deeper one, so that
+   more, a chunk at a time, then spawns the next deeper call, so that
    `depth` contexts hold their warm spares at once and then go idle one
    after another. */
 static void filling(char *frame) {
@@ -83,7 +83,7 @@ void zane_main(void) {
 	check(test_resident() - before <= slack);
 	check(zane_warm_spares == ZANE_POOL_WARM && zane_cold_spares == 128 - ZANE_POOL_WARM);
 
-	/* 128 again: the warm ones first, then the cold ones, each reused and
+	/* 128 again: the warm chunks first, then the cold chunks, each reused and
 	   reading as zero past its first page. */
 	int64_t reuses = zane_cold_reuses;
 	check(spawn_fill(128, 0, 0) == 128 - ZANE_POOL_WARM);

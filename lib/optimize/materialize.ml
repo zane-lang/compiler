@@ -99,7 +99,7 @@ and members ?fresh t ts a =
   else None
 
 (* The value an expression that [expr] could have made stands for, which is
-   what the fold knows a local holds once one is stored in it. *)
+   the value the fold records for a local once one is stored in it. *)
 let rec const (e : Expr.t) : V.const option =
   match e.Expr.node with
   | Expr.Int i -> Some (V.Int (V.int e.Expr.ty i))
@@ -165,7 +165,7 @@ let rec const (e : Expr.t) : V.const option =
 let literal e = Option.is_some (const e)
 
 (* An output made again where the folded code was. A count given to
-   `setThreads` resizes the pool or aborts; which one it did is already part
+   `setThreads` resizes the pool or aborts; which of the two happened is already part
    of what the fold computed. *)
 let output (o : Eval.output) =
   let call fn args ty = Stat.Eval { Expr.node = Expr.Runtime { fn; args }; ty } in

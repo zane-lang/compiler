@@ -13,10 +13,10 @@
 (* The passes an unoptimized build runs (docs/design/optimization.md O12):
    inlining the functions [Wrappers.mark] picks, which takes the call out of
    each of `core`'s one-line wrappers over an intrinsic, then putting the
-   wrappers' scalars back in registers, folding what that makes constant and
-   merging the blocks left behind, with no branch made a select yet, then
-   jump threading and merging again. Each takes time in proportion to the
-   instructions it reads. Jump threading before the first merge copies
+   wrappers' scalars back in registers, folding the values that step makes
+   constant and merging the blocks left behind, with no branch made a select
+   yet, then jump threading and merging again. Each takes time in proportion
+   to the instructions it reads. Jump threading before the first merge copies
    blocks the merge would have joined. Scalar replacement of aggregates and
    instruction combining are left out: on a value array of thousands of
    elements they take longer than the whole `-O2` pipeline. *)
@@ -81,16 +81,16 @@ let nontrivial triple pipeline =
    member, so a packed sum read whole is read as its tag and its room, and
    with sinking on it moves the room's load into the case that reads the
    payload. LLVM is given nothing that shows that load is safe to make before
-   the tag is tested, so the case stays a branch, one the predictor cannot
-   learn when which case a value holds follows no pattern. Left beside the
+   the tag is tested, so the case stays a branch, one the branch predictor
+   mispredicts when the case a value holds follows no pattern. Left beside the
    tag's load, the room is read either way and the case's work becomes a
    select (docs/optimizations.md, "A sum's case picked without a branch").
 
    Loops are unrolled further than LLVM's -O2 budgets allow. The full-unroll
    budget (-unroll-threshold) is 250, not 150: a loop of a few constant
    iterations whose body tests the counter, as in `d!to(Int(4))` over four
-   `branch(d == k, ...)`, becomes straight-line code with each test decided,
-   where at 150 it stays a loop around a `switch` the predictor cannot learn
+   `branch(d == k, ...)`, becomes straight-line code with each test folded,
+   where at 150 it stays a loop around a `switch` the branch predictor mispredicts
    (tests/perf: paths -43%, returns -10%). The partial-unroll budget
    (-unroll-partial-threshold) is 100: a counted loop over a list, such as
    the sum of `ys[j]` where `xs[j] < wall`, is unrolled by a factor that

@@ -11,8 +11,8 @@ memory model it ended with, and how that differs from v0.20.
 - **Goose** v2026.3 (<https://github.com/aardappel/goose>), compiled to C and
   built with `goose build -O2 --cc clang`. It has data stacks, no heap,
   reusable pools, 4-byte self-relative links, and threads that share nothing.
-- **Tests**: the spec repo's `langbench/` (16 tests, `tests.py` gives the
-  sizes and expected outputs), with Goose ports in `programs/`
+- **Tests**: the spec repo's `langbench/` (16 tests, `tests.py` sets the
+  sizes and the outputs each port must print), with Goose ports in `programs/`
   (`*.goose`). Every port matches the expected output at both the check size
   and the full size. treecopy's port copies with a recursive `copy_tree` into
   a fresh pool, because Goose's `copy()` does not support an array of
@@ -136,7 +136,7 @@ faults: fewer faults and warm pages.
 ## Goose's enums against its struct ports
 
 The binarytrees and treecopy ports model the tree as a struct with nullable
-4-byte self-relative links: null links mean a leaf. Zane's programs use a
+4-byte self-relative links: null links mark a leaf. Zane's programs use a
 variant. To check how much that choice matters, each test was also ported
 with a fixed-mode Goose `enum`, with its links written two ways:
 
@@ -183,7 +183,7 @@ What this shows:
   bytes/node) and nearly Zane's time, while running fewer instructions.
   Narrowing the links to 4 bytes is what takes Goose from Zane's time to
   well below it.
-- **On binarytrees, something besides link width matters.** Every Goose
+- **On binarytrees, a cost besides link width matters.** Every Goose
   form stays at about half Zane's time, the 8-byte form included. Its peak
   RSS barely rises above the process baseline, while Zane's measured
   108 bytes/node. So the gap there sits in how Zane holds the many
@@ -192,7 +192,7 @@ What this shows:
 ## Pooled variants (prototype, behind `ZANE_POOLED_VARIANTS=1`)
 
 The Goose enum ports showed that most of treecopy's gap is link width and
-node placement. This step tries Goose's representation in Zane: a recursive
+node placement. This step measures Goose's representation in Zane: a recursive
 variant's whole tree in one pool, with 32-bit links.
 
 ### Design
@@ -207,7 +207,7 @@ variant's whole tree in one pool, with 32-bit links.
 - **A node** is the variant's sum with its payload inline. Each member of the
   variant's own type is an `i32` offset from the link to the node it names.
   The offset is self-relative, so moving or copying a pool with `memcpy`
-  keeps every link valid. This is the thing Goose rejects in a fixed-mode
+  keeps every link valid. Goose rejects exactly this layout in a fixed-mode
   enum, and Zane can allow it because a variant's nodes are roaming: nothing
   outside the pool references them (memory.md §2.1, §2.8.1).
 - **Building into a destination.** This extends lowering's rule L7 (a
@@ -247,10 +247,10 @@ variant's whole tree in one pool, with 32-bit links.
 - **Oversized held blocks** come from a warm span reservation
   (`zane_alloc_held` → `zane_alloc_growable`), which also applies outside
   the experiment. Before this change, a 12 MB copy made every round mapped
-  fresh pages and faulted them in. `tests/runtime/growth.c` now expects a
-  copy's oversized block to grow in place.
+  fresh pages and faulted them in. `tests/runtime/growth.c` now checks that
+  a copy's oversized block grows in place.
 
-Limits, refused with a diagnostic where they apply:
+Limits, each rejected with a diagnostic where it applies:
 
 - at most four links per node, in the first four cases;
 - nodes of at most 64 bytes (256 before packed nodes, below);
@@ -427,7 +427,7 @@ What this shows:
 - **Without pools, nothing changes.** Plain Zane's leaf is a boxed value
   made in the callee's scope and escaped to the caller. The copy may not
   allocate or escape, so `make` is not peeled, and `check`'s gain is lost
-  in noise. Building into the caller's destination is what makes the base
+  in noise. Building into the caller's destination makes the base
   case cheap enough to copy. The same would hold for any value that owns a
   block.
 - **treecopy barely moves,** since its time is in the copy and the walk,
@@ -435,7 +435,7 @@ What this shows:
 
 ## Packed nodes and the room check
 
-The partial inlining results left three things between pooled binarytrees
+The partial inlining results left three costs between pooled binarytrees
 and Goose: 16-byte nodes against Goose's 9, a room check on every push, and
 the pool's count kept in memory. This step takes on the first two.
 
@@ -528,8 +528,7 @@ steps had not caught: four fixtures (`folding`, `keeping`, `replayed`,
 
 With both fixed, the 5 fixtures the switches change and still compile
 match the plain build, under all three switches together too, 20 runs
-each for the four that failed. `arrays`, `boxes` and `walks` stay refused,
-as before. `just test-compiler` passes with the switches off.
+each for the four that failed. `arrays`, `boxes` and `walks` stay rejected. `just test-compiler` passes with the switches off.
 
 ### Results
 
@@ -572,18 +571,18 @@ What this shows:
   misses (2.2 M first-level against Goose's 1.9 M). Yet it takes 1.6
   times Goose's time.
 - **How pools are made looked like the rest.** The replay reuses one pool
-  for every tree, and Goose's data stack does the same. Zane makes a fresh
+  for every tree, and Goose's data stack also reuses one. Zane makes a fresh
   pool for each `check(make(d))`, starting at 64 bytes and doubling as the
   tree grows. The replay's `FRESH=64` switch does that with `malloc` and
   `realloc`, and its time goes from 0.032–0.037 s to 0.040–0.049 s at
   depth 16, against Zane's 0.045–0.053 s in the same runs. The next step
-  tried it in Zane and found otherwise: see "Pool reuse".
+  measured it in Zane and found otherwise: see "Pool reuse".
 
 ## Pool reuse (prototype, behind `ZANE_POOL_REUSE=1` at run time)
 
 The packed nodes step put binarytrees' remaining gap on Zane making a fresh
 pool for each tree and growing it by doubling, where the replay and Goose
-reuse one. This step tries reuse in Zane.
+reuse one. This step measures reuse in Zane.
 
 ### Design
 
@@ -650,16 +649,16 @@ Sampling with gdb at depth 22 (`sample.sh`) puts the gap in `make`:
 | replay | 42 (68%) | 20 (32%) |
 
 With Zane's total 1.4 times the replay's, its `make` takes about 1.6 times
-as long, and its `check` the same. The two `make`s are the same
+as long, and its `check` about 1.6 times too. The two `make`s are the same
 instructions in the same order. The samples in Zane's cluster just after
 its stores into the pool, and around the loads of the pool handle's count
-and items that follow. What makes those slower in Zane is something the
-simulator does not model, such as store forwarding, memory disambiguation
+and items that follow. Those instructions are slower in Zane because of an
+effect the simulator does not model, such as store forwarding, memory disambiguation
 or the TLB. Telling which needs hardware counters, which this container
 does not have. `perf stat -e cycles,instructions,dTLB-load-misses,ld_blocks.store_forward`
 on both binaries, on a machine that has them, is the next measurement.
 
-## What Goose's documentation says
+## Goose's documentation
 
 Goose's release ships its specification (`docs/goose_spec.md`) and its
 compiler's implementation notes (`docs/implementation.md`). Read against
@@ -669,13 +668,14 @@ ways, and two techniques Zane already has or does not need.
 ### The push
 
 - **No capacity check, by construction.** Each data stack holds at most one
-  growable value, always the topmost one, and "growth is a pointer bump; no
+  growable value, always the topmost value, and "growth is a pointer bump; no
   capacity checks are emitted (address space is pre-reserved; guard pages
   catch pathological overflow and abort safely)" (spec §1.3). A stack is a
   2 GB reservation, writable with overcommit on POSIX, with an unmapped gap
   after it (implementation §7, "Data stacks"; spec C.4). A push is
   `*(T*)S.top = e; S.top += size; h.len++` (spec C.1).
-- **The top in a register.** "A stack the function can name keeps its top
+- **The top in a register.** <!-- prose-lint: ignore placeholder-noun -->
+  "A stack the function can name keeps its top
   in a local where the function grows it, synchronized with memory only
   where something else can observe it: flushed before and reloaded after
   calls that can reach the stack, and flushed at every exit"
@@ -699,7 +699,7 @@ the items pointer and a store of the count.
   links add to the link's own address. The notes measure no difference on
   a structure built once and walked (§9.5), and neither does the replay
   below.
-- **Base-case inlining** (§9.6) is what partial inlining does here.
+- **Base-case inlining** (§9.6) is the job partial inlining does here.
 - **`1 + f(l) + f(r)` loses its right spine** (§9.6): Goose's `check` loops
   over right children. The replay's `CHECK_LOOP=1` showed no gain from it.
 
@@ -723,7 +723,7 @@ link. Zane's push costs the replay 10–20% against it. That is what the
 documentation's push accounts for.
 
 It does not account for Zane being slower than the replay of its own push.
-Two more things were tried for that, and neither settles it:
+Two more changes were measured for that, and neither settles it:
 
 - **The memory.** `pooled_emulation.c` with `MAP=1` puts its pools in an
   `mmap` reservation that is writable from the start, at `OFFSET` bytes
@@ -819,7 +819,7 @@ median of 9):
   store; dropping the check removes 18% of the instructions. Zane now runs
   fewer instructions than either Goose port, by a quarter.
 - **It is still 1.2–1.3× Goose** where the replay of the same push shape
-  matched Goose. What the replay does not do is the per-tree work below.
+  matched Goose. The replay skips the per-tree work below.
 - **treecopy does not move**, within noise: its pools are made once and
   copied whole, so it pushes little.
 
@@ -856,7 +856,7 @@ each short-lived tree, over a depth-18 run:
 
 The gap is in `make`, and at every depth alike, about 1.6×: at depth 4,
 where a tree is 279 bytes and never leaves L1, as at depth 18. So it is not
-memory. Callgrind's simulated caches agree (the same D1 misses), neither
+memory. Callgrind's simulated caches show the same (the same D1 misses), neither
 program makes a system call per tree, neither has huge pages, and both
 reuse the same memory for each tree.
 
@@ -915,7 +915,7 @@ after. User time at depth 18, least / median of 11, interleaved:
 | Zane, `make`'s pool in a global | 0.155 / 0.192 s |
 | Goose | 0.156 / 0.186 s |
 
-That closes the gap. What Goose does differently in binarytrees is that its
+That closes the gap. In binarytrees, Goose differs in one respect: its
 pool's address is a constant. The per-tree runtime work named in the step
 before costs little next to it.
 
@@ -1099,7 +1099,7 @@ as the second member of `{i32, [n x i32]}`. binarytrees' `Tree` is then 8
 bytes instead of 16, and a `Pair` 16 instead of 32. treecopy's `Tree`
 holds an `Int` in its leaf, so it stays 16.
 
-One thing broke on the way. The region pass (`regions.ml`) follows an owner
+One pass broke on the way. The region pass (`regions.ml`) follows an owner
 through a `Case` and a `Box` to where it is returned; it read the new
 `Convert` as an ordinary read, so it could no longer see that `make`'s
 subtrees end up in its result. It then held them in a scope of `make`'s
@@ -1122,7 +1122,7 @@ decode itself is free: the shift by 3 folds into the address computation
 build compares against `room` and adds `items` straight from memory
 (`cmp 0xf0(%rdi)`, `add 0xe0(%rdi)`); a 32-bit field has to be
 zero-extended first, which x86 does only in a separate `mov`. A memory
-operand is a load micro-op anyway, so the work is nearly the same.
+operand is a load micro-op anyway, so the work is nearly equal.
 
 Every fixture still gives the same output with the switch, and the test
 suite passes without it.
@@ -1450,7 +1450,7 @@ as without it under `ZANE_CHECK=1` (`fixtures.sh ZANE_ONE_BOX=1`), and
 A box's block came from the innermost region by popping its size class's
 stack of returned blocks, or else bumping the frontier, and every block
 taken added one to the region's `live` count, which only a checked drain
-reads (`snapshot.c`). Strict scopes mean a block returned before its scope
+reads (`snapshot.c`). Under strict scopes a block returned before its scope
 drains is the exception, so with the switch emitted code takes a box's
 block at the frontier alone (`Walks.take ~bump_only`): load the frontier and
 its end, compare, store. No `live` count is kept, and the runtime skips the
@@ -1525,8 +1525,8 @@ does not move the time. Every fixture gives the same output with
 ### The suite with the best build
 
 `run.py` over every test with `ZANE_ONE_BOX=1 ZANE_REF32=1
-ZANE_NICHE_SUMS=1` (RUNS=7, median wall time, the patched sources as
-above). No pooling switch is set.
+ZANE_NICHE_SUMS=1` (RUNS=7, median wall time, the patched sources of the
+previous step). No pooling switch is set.
 
 | test | Zane | Goose | Zane ÷ Goose |
 | --- | --- | --- | --- |
@@ -1578,8 +1578,8 @@ the suite's ntree prints, and passes under `ZANE_CHECK=1`.
 the `ArrayRef` port is level with Goose; with the best build it is 1.5×
 faster and takes 40% of Goose's memory. One box per cycle changes nothing
 here, since `inner`'s payload is the only member on the cycle. So the ntree
-gap was the port's container, not the language: what Goose's `[..4]` does,
-Zane's `ArrayRef` under a variant case does, given a constructor in `core`
+gap was the port's container, not the language: Zane's `ArrayRef` under a
+variant case does the job of Goose's `[..4]`, given a constructor in `core`
 that moves owners in.
 
 ## listgrowth: where the push's instructions go
@@ -1613,8 +1613,8 @@ one push of its second parameter onto the list its first names, and writes
 each call to one among a loop's statements out as that push: the value
 bound first, as a statement of its own, then the push. (Bound inside the
 push's expansion, the constructor it inlines carries a `leave` of its own,
-and the run planner's `push_of` takes any `leave` before a push as a way
-out.) The emitter (`looped_pushes`, at `Stat.Repeat`) then takes a loop
+and the run planner's `push_of` takes any `leave` before a push as an
+exit.) The emitter (`looped_pushes`, at `Stat.Repeat`) then takes a loop
 whose body pushes once, unconditionally, onto a list no other statement of
 the body names: it calls `zane_list_room(list, stride, n)` with the loop's
 count before the loop, which grows the block once to hold every push, and
@@ -1669,7 +1669,7 @@ loop's own pushes; the prototype does not look for one.
 Whether Zane's loop shape costs anything shows best in a loop that does
 almost nothing else: `programs/sumloop/` sums a list of N `Int`s 200000 times, writing
 the total into the first element after each round so that no round repeats
-the one before (the same program in Zane, Goose and C).
+the round before (the same program in Zane, Goose and C).
 
 **With N a constant (2000) the gap is 2×** (0.061 / 0.066 s against 0.030 /
 0.034 s, 11 interleaved runs): clang, for C and for Goose's C, proves the
@@ -1686,7 +1686,7 @@ slower (0.062 / 0.066 s against 0.054 / 0.059 s). That is where the loop
 lies: C's runs from 0x1220 to 0x123b, inside one 32-byte line, and Zane's
 from 0x3a30 to 0x3a4d, across the line at 0x3a40, so the decoded-instruction
 cache delivers it in two lookups a pass. C's own loop shifted by padding
-before it shows the same:
+before it shows the same effect:
 
 | C loop | crosses a 32-byte line | sumloop 2000 (least / median) |
 | --- | --- | --- |
@@ -1704,7 +1704,7 @@ attempt was not kept.
 ## What a lead hides: per-mechanism checks
 
 With Zane level or ahead on every test, a whole program's time no longer
-shows what Goose or C still does better: a lead in one part of a program
+shows where Goose or C is still faster: a lead in one part of a program
 hides a loss in another. Two checks look below the totals: each test that
 is more than ~10% behind C, profiled against C (Callgrind, plain build),
 and Goose's own optimization report, printed on every build, read for the
@@ -1732,12 +1732,12 @@ pursued.
 
 **fannkuch** (Goose 106 M instructions, C 104 M, Zane 169 M, at the same
 time). Zane's port keeps three heap `List<Int>`s where Goose's and C's keep
-fixed arrays of 32 on the stack. Two things cost:
+fixed arrays of 32 on the stack. Two costs follow:
 
 - The copy `state.perm[i] = state.perm1[i]` takes 12 instructions an
   element: two index checks, and both lists' item pointers and one's count
-  reloaded from memory every element. Their type tags already say an
-  element's store cannot touch a handle; the loads stay because they come
+  reloaded from memory every element. Their type tags already mark an
+  element's store as unable to touch a handle; the loads stay because they come
   after the checks, whose failure leaves the loop, and IRCE, which would
   take the checks out of the loop, does not fire here.
 - The flip's swap checks both indices, 12 instructions a swap to C's 8;
@@ -1762,7 +1762,7 @@ only return the empty case, 15 instructions of saved registers each.
 
 That is the base-case inlining `ZANE_PARTIAL_INLINE=1` makes, which did
 nothing to `make` under one box: the leaf is returned as `escape(case 0)`,
-and the copy refused any `Escape`. A constant, a value that names no local,
+and the copy rejected any `Escape`. A constant, a value that names no local,
 owns no blocks, so its escape moves nothing: the copy now keeps one and
 drops it where it is written out (`Peel.constant`).
 
@@ -1879,14 +1879,14 @@ vectorised, and `advance`'s shift becomes a `memmove`.
 
 All four are level in time: the program is bound by its short flips, and
 the extra instructions run beside them. No other test changes by more than
-0.5% (`mechanisms-hoist.md`), and every test prints the same.
+0.5% (`mechanisms-hoist.md`), and every test prints the same output.
 
 Each swap of the flip still checks both indices: 12 instructions a swap to
 C's 9. Goose checks only `j`, because its fixed arrays of 32 let it prove
 `i < j <= 31`. The flips run 1 to 4 times round, far below IRCE's 64.
 Lowering IRCE's floor to 1 or 4 made `main` 160 M instructions.
 
-A second switch, `ZANE_LOOP_RANGES=1` (Emit, `ranged`), tried the check
+A second switch, `ZANE_LOOP_RANGES=1` (Emit, `ranged`), put the check
 outside the loop for any length. An index that moves by -1, 0 or 1 each
 time round is in range on every pass when it is at the first and the last,
 so the loop checks both ends before it starts and runs an unchecked copy
@@ -1931,7 +1931,7 @@ it runs the same instructions both ways. Peak memory falls on the trees
 moves nowhere else.
 
 **The first five never cost instructions** on any test, and every test's
-output is the same. All fixtures give the same output with all seven
+output is unchanged. All fixtures give the same output with all seven
 switches (`ALL=1`). `just test-compiler` passes with the five, and with the
 seven fails only three IR-shape tests (`tests/objects/facts_test.py`) that
 state the 64-bit layout: a two-handle struct `dereferenceable(48)` is 24
@@ -2022,7 +2022,7 @@ under frame references are not the room's; they are not examined yet.
 Every test prints the same, every fixture gives the same output with
 `ZANE_FRAME_REFS=1 ZANE_FRAME_REFS_CHECK=1` (`ALL=1`), `just test-compiler`
 passes without the switch, and with it fails only the three layout tests,
-the first-block one now seeing a room of `i32 4`, four elements.
+the first-block test now seeing a room of `i32 4`, four elements.
 
 ### nbody's and particles' instructions under frame references
 
@@ -2035,12 +2035,12 @@ prove one from the other. A count or room is never negative, so a
 `Convert` of a 32-bit handle's member 1 or 2 now widens with zeros (Emit,
 `Expr.Convert`): 121.6 M, and allocfree's 2 M with it.
 
-**particles** (150.0 M against 136.0 M) was two things:
+**particles** (150.0 M against 136.0 M) had two causes:
 
 - 1.2 M was not frame references at all: the five-switch build it was
   compared with predates the loop-push guard (All switches together), which
-  refused any loop holding a call, and the burst loop calls `rng!below`
-  sixty times a frame. The guard now refuses only a call of a function that
+  rejected any loop holding a call, and the burst loop calls `rng!below`
+  sixty times a frame. The guard now rejects only a call of a function that
   may change a list's count: Loop_pushes computes, over the whole program,
   the functions that push to, make room in and remove from no list, spawn
   nothing, call nothing through a value, and call only such functions
@@ -2151,7 +2151,7 @@ where the six loads a pointer; the cage pays the same kind of cost (`check`
 25.4 M six, 29.4 M cage, 33.6 M ib). Neither shows in time.
 
 So image boxes give binarytrees the cage's 8 MB and speed, position
-independent and with no fixed range. What the cage still has is ntree's
+independent and with no fixed range. The cage still keeps ntree's
 18 MB against 23: that saving is the list handle's items in 32 bits (a
 12-byte handle), not boxes, and items live in growable spans outside the
 window. Reaching it means carving spans from the window as well, which
@@ -2221,7 +2221,7 @@ the pool switches stay opt-in.
 The layout depends on the target: frame references need the ELF linker's
 `__ehdr_start` and Linux's `MAP_FIXED_NOREPLACE`, so on any other target
 (`--target`, or a host that is not Linux) the last three are off and the
-layout is the 64-bit one. `zanec` sets `Cgt.Ref32.target` from `--target`
+layout is the 64-bit layout. `zanec` sets `Cgt.Ref32.target` from `--target`
 before lowering, and from `--bundle-runtime`'s target.
 
 The cage is gone: `ZANE_REF32`, the 12-byte `Handle32`, compact sums, the
@@ -2230,7 +2230,7 @@ cage allocator in `runtime/region.c`, `ZANE_HEADROOM_CAGED`, and the
 
 Tests: the codegen goldens are promoted to the new layout (`handle16`,
 `box32`, the 32-bit count's `convert`); the three `facts_test` layout
-assertions now expect a 16-byte handle and a room of 4 elements on Linux,
+assertions now require a 16-byte handle and a room of 4 elements on Linux,
 and the old values elsewhere. Validated: `test-compiler` passes; the 63
 fixtures (`ALL=1`) give the same output with the defaults (with
 `ZANE_FRAME_REFS_CHECK=1`) and with all eight set to `0`; all 15 suite
@@ -2333,7 +2333,7 @@ image.
 | test | Zane ÷ Goose (wall) | what accounts for it |
 | --- | --- | --- |
 | binarytrees | level with one box per cycle alone; ahead at depth 20 with 32-bit boxes, at two thirds of Goose's memory with the niche (all now default) | Closed: one box per cycle, nodes bumped from the scope region, and an 8-byte node. |
-| ntree | ~1.6× with 24-byte handles; ~1.3× with the default 16-byte one, in less memory than Goose (23.5 MB against 24.7) | The list handle was the gap: 24 bytes against Goose's 17-byte node. The removed cage's 12-byte handle reached 18 MB. |
+| ntree | ~1.6× with 24-byte handles; ~1.3× with the default 16-byte handle, in less memory than Goose (23.5 MB against 24.7) | The list handle was the gap: 24 bytes against Goose's 17-byte node. The removed cage's 12-byte handle reached 18 MB. |
 | treecopy | ~0.5× with the defaults (it was ~1.2×; pooled and packed: 0.6×) | Pooled, Zane is ahead: a whole-tree copy is one `memcpy`, and packed, its nodes are Goose's 17 bytes. |
 | allocfree | ~0.4× with `ZANE_LIGHT_SCOPES=1` | Closed: no region opened for a pass of a loop that boxes nothing, and the `ListRef` push loop's room made once. |
 | fannkuch | level; 1.4× Goose's instructions with `ZANE_HOIST_HANDLES=1` | The copy runs unchecked; each swap of the short flips still checks both indices. `programs/fannkucharray/` matches Goose's layout. |

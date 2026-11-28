@@ -1,4 +1,4 @@
-# Memoization: calls remembered while the program runs
+# Memoization: calls memoized while the program runs
 
 Every build gives some functions a table of the results of their calls, and
 a call whose arguments are in the table returns the remembered result
@@ -36,7 +36,7 @@ A function gets a table when:
 - **Its arguments and result are fixed-size values.** These are scalars, and
   structs, enums, variants and arrays of them, with no handle or address
   anywhere inside. A value of one of these types is its bytes, so equal bytes
-  mean equal values. A string or a list owns a block, and a reference names
+  are equal values. A string or a list owns a block, and a reference names
   an object whose owner can change it between calls, so neither is its
   bytes. The arguments may take at most eight words, and so may the result.
   A value of scalars only takes one word for each scalar, and any other
@@ -44,7 +44,7 @@ A function gets a table when:
 - **It calls back into its own cycle of calls, or it is heavy and called in
   a loop.** A recursion's table pays when its arguments repeat, within one
   call, as a search reaches a position twice, or across calls, as a loop
-  asks for the same depth again. A function outside any cycle gets a table
+  passes the same depth again. A function outside any cycle gets a table
   when a loop in another function calls it and one call runs at least twice
   the operations of a lookup (M3), so a hit saves more than its lookup
   costs. A call's operations estimate what an optimized build runs: one for
@@ -56,7 +56,7 @@ A function gets a table when:
   heavy one called outside any loop, whose arguments repeat only if the
   program calls it again.
 
-The choice reads the tree alone, never what LLVM makes of the program. So
+The choice reads the tree alone, never the code LLVM makes of the program. So
 the two tiers of a tiered build, which lower the same tree, plan the same
 tables and emit the same module ([`tiers.md`](tiers.md) T3).
 
@@ -70,7 +70,7 @@ the entry and even again after. A lookup reads the meta word, then the entry, th
 again after an acquire fence, and takes the entry for a hit only when both
 reads are the same word with an even version. Every write changes the
 version, whichever arguments it is for, so a lookup never returns an entry
-written while it read. A miss claims the entry by swapping its meta word
+written while it read. A miss takes the entry by swapping its meta word
 for one with an odd version, writes it only when no other miss held it,
 and publishes it by storing the meta word with the version even again and
 its work; a miss that finds it held leaves it, which costs at most a later
@@ -115,7 +115,7 @@ whose repeats are all recent, in 3.4 ms against 2.9 and 4.3, a bigger table
 costing it the first write to each page (wall clock, the least of 40 runs,
 process start of about 2.5 ms included). The other layouts measured, and
 why each lost, are in [`memo-tables.md`](memo-tables.md). The table starts on a
-cache line, so where it lands in the binary does not decide which entries
+cache line, so where it lands in the binary does not determine which entries
 straddle two: on `tests/perf` `depths`, a table that landed 16 bytes past
 one missed the first-level cache 72% more often.
 
@@ -174,7 +174,7 @@ A `preserve_most` lookup and a tier-0 gate that calls through a route
 instead of reading the score were measured against it and removed
 ([`docs/experiments/memo-gates`](../experiments/memo-gates/README.md)).
 
-## M4. A loop decides once
+## M4. A loop picks its version once
 
 A loop that calls a function with a table from outside that function's cycle
 runs in one of two versions, chosen before its first round:
@@ -195,7 +195,7 @@ numbering covers a function's locals, scopes and labels.
 ## M5. What a remembered call changes
 
 A hit returns what the body would have returned for the same arguments, so
-the program computes and outputs the same. What can change is how far its
+the program computes and outputs the same values. What can change is how far its
 calls nest. A hit skips the calls the body would have made, so a program
 that would have stopped because its calls nested too deep may finish
 instead. How deep calls may nest is the implementation's limit, not the

@@ -68,7 +68,7 @@ Int picked(this Graph, v Int, idx List<Int>) {
 
 /// The same through an element of an element, `cube[a][b]`, and through a
 /// member of an element, `rows[a].items`: neither is read before the loop
-/// in a way that stops the program when `a` is out of range.
+/// by a read that stops the program when `a` is out of range.
 Int deep(cube List<List<List<Int>>>, rows List<Row>, a Int, idx List<Int>) {
 	sums List<Int> = @primitives$List(Int);
 	total Int(0);

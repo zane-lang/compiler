@@ -83,10 +83,10 @@ let read bytes =
 
 (* The module [bitcode] holds optimized and emitted as an object for
    [triple] and [cpu], kept in [cache]'s `foreign/assembled/` under a hash
-   of what made it: how the object is emitted, the module's own key, the
+   of its inputs: how the object is emitted, the module's own key, the
    target and the processor. *)
 let emit ?cache ~triple ~cpu ~key bitcode =
-  (* Named anew whenever the emitter changes what it makes, so an object
+  (* Named anew whenever the emitter changes its output, so an object
      an earlier one made is not taken from the cache: `init_array` since
      constructors go there. *)
   let emitter = "assembled.init_array" in

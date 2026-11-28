@@ -9,7 +9,7 @@ structures" extension measures, per function, the deepest chain of `if`,
 the token stream rather than on indentation. As in the OCaml count:
 
 - A function's own body is level zero, and a function defined inside another
-  is measured on its own, so naming an inner step flattens the outer one.
+  is measured on its own, so naming an inner step flattens the outer function.
 - A Python `elif` chain is one level, and so is a `case` under its `match`.
 
 One difference: lizard charges each C `else if` as a level of its own, so a

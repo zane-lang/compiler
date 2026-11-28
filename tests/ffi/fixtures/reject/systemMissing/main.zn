@@ -1,5 +1,5 @@
 /// A `system` row naming a library the linker cannot find for the
-/// build's target, refused at the link by the row that names it.
+/// build's target, which the compiler refuses at the link, naming the row.
 package systemMissing;
 
 alias Unit = @primitives$Unit;

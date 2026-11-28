@@ -10,7 +10,7 @@ loading with profile inheritance, the coercion and validation of each value,
 where a profile's report is written, and how a profile is printed back to the
 caller.
 
-What it does not own is running anything. Building the engine's command line
+This module runs nothing. Building the engine's command line
 and streaming its output is `runner.py`; deciding what the caller asked for is
 `cli.py`.
 """
@@ -126,7 +126,7 @@ class Setting:
     #              purely a wrapper concern, forwarded to the engine.
     #   "toggle" - a boolean switch (--flag / `flag = true`) that rewrites a
     #              field rather than carrying its own value.
-    #   "mode"   - a boolean switch that changes what the CLI does, never a
+    #   "mode"   - a boolean switch that changes the CLI's behaviour, never a
     #              profile setting.
     key: str
     kind: str
@@ -202,7 +202,7 @@ def _coerce_breadth_first(raw: Any, name: str) -> dict[str, Any]:
     # Scheduling is a single slot with two spellings: `nodes-per-depth = N` or
     # `breadth-first = true`. This toggle rewrites the nodes_per_depth field to
     # None; the two keys are mutually exclusive within a table (enforced in
-    # _profile_tables) and a child overrides whichever the parent chose.
+    # _profile_tables) and a child overrides whichever key the parent set.
     if raw is not True:
         raise ConfigurationError(
             f"profile {name!r}: breadth-first must be true "
@@ -431,7 +431,7 @@ def load_profiles(path: Path = DEFAULT_PROFILES) -> dict[str, SearchProfile]:
             raise ConfigurationError(f"profile {name!r}: extends must be a string")
         merged = dict(resolve(parent)) if parent else {}
         child_items = {key: value for key, value in table.items() if key != "extends"}
-        # Scheduling is one slot: if the child chooses either spelling, drop
+        # Scheduling is one slot: if the child sets either spelling, drop
         # whichever the parent set so the child's choice wins in both directions.
         if any(key in child_items for key in SCHEDULING_KEYS):
             for key in SCHEDULING_KEYS:

@@ -2,9 +2,9 @@
 
 An open-ended experiment: take the `zane-perf` port (76bc235) and push its
 time against the C reference down as far as it goes, by port changes that
-make it do what C does and, where the compiler is the reason, by prototype
+make it match the C code and, where the compiler is the reason, by prototype
 compiler changes behind environment switches. Spec rules do not bind the
-prototypes; where one departs from the spec, the step says so.
+prototypes; where one departs from the spec, its step records the departure.
 
 Earlier work and the issue list (R1–R8, B1–B3) are on LangArena's
 `zane-perf-issues` branch, `zane/perf-issues/README.md`.
@@ -34,7 +34,7 @@ reproduce one, change `v0.37` to `v0.36` throughout `build.sh` and install
 that release.
 
 The paths in the steps below (`/home/user/…`, `docs/experiments/zane-vs-c/`)
-are where things were when each step ran.
+are the locations the files had when each step ran.
 
 ## How to build and measure
 
@@ -78,7 +78,7 @@ instruction counts.
 
 ## Step 1: port changes toward C (dropped)
 
-Three changes that make the port do what C does, measured with `ab.py`, 4
+Three changes that make the port match the C code, measured with `ab.py`, 4
 rounds, against the unchanged port:
 
 | change | test | B / A |
@@ -95,7 +95,7 @@ issues (R8, R7) and were dropped in favour of fixing the compiler.
 ## Step 2: one call site for a loop's callee (R8), `ZANE_VERSION_CALLS=0`
 
 **Design.** `Emit.versioned` emits a loop that indexes a list twice, a
-long and a short copy, so IRCE can drop the long one's checks. A call in
+long and a short copy, so IRCE can drop the long copy's checks. A call in
 its body then has two call sites, and LLVM's inliner, which gives a
 function with one caller a large bonus, leaves a mid-sized callee out of
 line (Brainfuck's `command`: cost 315, threshold 225). With the switch, a
@@ -245,10 +245,10 @@ More ports to `U8`, each against the build before it (`ab.py`, 4 rounds):
 
 The decode's inner loop is the same instructions in both builds and
 Cachegrind's branch and cache simulation shows no difference (13.3% vs
-12.1% mispredicted), so the 31% is something the simulator does not model;
+12.1% mispredicted), so the 31% is an effect the simulator does not model;
 without hardware counters it stays unexplained. Huffman's decode keeps its
 `Buffer`; its encode uses U8. The Brainfuck tape stays `List<U8>`, which
-is what C does (a `uint8_t` array).
+matches C (a `uint8_t` array).
 
 ## Step 10: frame slots and alias analysis (two switches, little effect)
 
@@ -275,7 +275,7 @@ local whose address escapes only to inlined code.
   It did not keep Huffman decode's `tree.root` in a register (the reload
   there is register pressure, not aliasing).
 
-## Step 11: what the remaining slow tests do differently
+## Step 11: the remaining slow tests' differences
 
 `hotasm.py TEST BIN` profiles one test in both languages with Callgrind
 and prints each side's hottest functions and their hot instructions beside
@@ -337,7 +337,7 @@ Same work, Zane / C:
   stores it, and the next push or pop loads it again, a chain through
   memory each step; C's `stack_top` is a register.
 - **Binarytrees::Arena.** `build` and `sum` are instruction for
-  instruction what C's are (Zane's count field is 32-bit, its `sum` turns
+  instruction the same as C's (Zane's count field is 32-bit, its `sum` turns
   the right call into a loop), 562M against 687M, with fewer simulated
   misses; 0.64 s against 0.55 s is not explained by the code.
 - **Brainfuck::Array / Recursion** (steps 9–10): the tape's block, count
@@ -405,7 +405,7 @@ build's five times do not overlap:
   Etc::GameOfLife each come out at one of two levels, about 30% apart, in
   both builds (Template::Regex: 1.07 s or 1.72 s). Their medians differ by
   23–30% between the builds, but the ranges overlap almost fully, so this
-  run says nothing about them. Etc::Sieve and Graph::BFS also jump, C
+  run shows nothing about them. Etc::Sieve and Graph::BFS also jump, C
   included (C's Graph::BFS ran 0.81–1.38 s).
 ## Step 13: the three compiler fixes of step 11, timed
 
@@ -442,7 +442,7 @@ each on.
   round, so LLVM cannot prove it. Proving it is not needed: a failed check
   flushes output and exits, so a later check of the same index on the
   same straight path, with no call between, can be folded into the
-  earlier one, which then compares with the smaller bound
+  earlier check, which then compares with the smaller bound
   (`llvm.umin`). In BWTEncode's ranking loop `prior` is now checked once
   where it was checked three times; `index` keeps three checks, and two
   of the merged bounds are spilled and reloaded each time round.
@@ -634,7 +634,7 @@ measured in Zane.
   are no faster than either.
 
 What is left in `runArray`'s loop with both: a `+` is 20 instructions
-against C's 12. The extra ones are the exit test `pc > count` followed by
+against C's 12. The extra instructions are the exit test `pc > count` followed by
 the check `pc - 1 <u count` (two compares of nearly one bound), the tape
 check `position - 1 <u count`, and a `mov` that zero-extends the 32-bit
 list count before each compare.
@@ -694,7 +694,7 @@ the reason is not known. `root` is written by the tree's build, through
 the frame's address, and `decode` never stores it: the copy holds a value
 in a register across the loop that the loop reads only once per symbol.
 
-**Two rules tried, neither a fix.** `ZANE_FRAME_SHADOW_DEBUG` now prints
+**Two rules measured, neither a fix.** `ZANE_FRAME_SHADOW_DEBUG` now prints
 each slot's store count; 121 of the program's 275 copied slots have no
 store in their function, 105 one.
 
@@ -730,11 +730,11 @@ the callee's region, freed when the callee returns. So "plain values" can
 only be a copy the function works on, written to the slot before calls
 that read it and reloaded after calls that may write it (what is handed
 on with `!`, and the runtime's own scope, spawn and move calls). That is
-what `FRAME_SHADOW` does after `-O2`; codegen would only make it more
+the work `FRAME_SHADOW` does after `-O2`; codegen would only make it more
 precise (stores only before calls that read, a reload only after calls
 given that slot).
 
-**What that could still buy is small.** With `ZANE_FRAME_SHADOW_DEBUG`,
+**That change could still buy little.** With `ZANE_FRAME_SHADOW_DEBUG`,
 51 functions have frames with slots to copy, and the shadow gives up on
 62 frames (a frame base merged by a `phi` or `select`): 56 in `zane$main`,
 the rest in `template$step`, `matmul$step` and `arithmetic$Table`. On the
@@ -859,8 +859,8 @@ LogParser 2.4, SHA256 2.4, HuffDecode 2.3.
   (`slice`), and the Interpreter's lookups hash them again.
 
 - `FRAME_SHADOW`'s HuffDecode loss (step 16) is one register copy of a
-  value read once per symbol; a store count does not tell such a slot
-  from the ones worth copying. Next: a rule on where the slot is read
+  value read once per symbol; a store count does not separate such a slot
+  from the slots worth copying. Next: a rule on where the slot is read
   (only off the loop's hot path), or hardware counters on another
   machine to learn why the register copy is slower.
 
@@ -872,7 +872,7 @@ LogParser 2.4, SHA256 2.4, HuffDecode 2.3.
   count: `>` pushes when position passes the count, `<` stops at 1, the
   list never shrinks). Cheaper: fold `runArray`'s exit test `pc > count`
   and the check of `commands[pc]` into one unsigned compare, with the exit
-  and the stop told apart off the hot path. A conditional loop in core
+  and the stop separated off the hot path. A conditional loop in core
   would replace `ENDLESS`.
 - Placement: a 25% swing on HuffDecode from code layout alone makes small
   gains unmeasurable one test at a time.

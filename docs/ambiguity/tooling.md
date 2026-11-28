@@ -60,7 +60,7 @@
   the same acceptance — are interchangeable, so swapping one for another is an
   automorphism of the recognition relation. The search explores a single
   representative per class instead of every interchangeable token, which cuts
-  the branching factor wherever a construct admits several equivalent terminals
+  the branching factor wherever a construct accepts several equivalent terminals
   (for the current grammar, the value atoms `DECIMAL`/`FALSE`/`STRING`/`TRUE`
   collapse to one class, as do same-precedence operator groups such as
   `+`/`-` and `*`/`/`). Precedence and associativity are already resolved in
@@ -72,7 +72,7 @@
   exists with one member iff it exists with every member, so no obligation is
   lost. Witnesses render with the representative terminal.
   A search exits 0 whether or not it found witnesses, since a bounded finding
-  is not a verdict; exit 2 means the run itself failed.
+  is not a verdict; exit 2 signals that the run itself failed.
 - `ambiguity check TOKEN...` — runs the exact GLR recognizer on one token
   sequence, `EOF` included, and prints how many accepting derivations it has,
   capped at two. Token names can be passed separately or as one quoted string.

@@ -1,6 +1,6 @@
 /// An array of 2^60 `I64`s takes 2^63 bytes, which would wrap to 0 in the
 /// arithmetic of its size, and past the 2^48 bytes any value is limited to,
-/// so lowering refuses its type where it is named.
+/// so the compiler refuses its type where it is named.
 package beyondLimit;
 
 alias Int = @primitives$I64;

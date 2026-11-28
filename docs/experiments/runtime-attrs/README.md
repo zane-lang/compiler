@@ -1,6 +1,6 @@
 # Runtime declarations' attributes: measurements
 
-What the runtime's declarations tell LLVM (`lib/codegen/runtime_facts.ml`;
+The facts the runtime's declarations give LLVM (`lib/codegen/runtime_facts.ml`;
 [`design/lowering.md`](../../design/lowering.md) §9, "What LLVM is told", and
 [`optimizations.md`](../../optimizations.md)): `main`'s attributes
 (`zane_out_of_range` and `zane_too_deep` `noreturn cold nounwind`,
@@ -45,7 +45,7 @@ describe are cold or rare.
 ## Langbench (the 10 of 16 programs the current compiler builds)
 
 No program moves by 0.3% (`results/lb-before.tsv`, `results/lb-after.tsv`). Under Callgrind
-`concscan`, the one that spawns threads, sometimes stops on Valgrind's own
+`concscan`, the program that spawns threads, sometimes stops on Valgrind's own
 assertion (`vgCallgrind_post_signal`), in either build: `results/lb-after.tsv` has
 no `concscan` optimized row for that reason, and runs of the larger set
 (`results/lb-all-attrs.tsv`) measured it unchanged.
@@ -76,7 +76,7 @@ With all of them, `texts` tiered rose 1.3% at the same instruction count:
 tier 1's `texts$main` was byte for byte the same, but its library's sections
 started 0x380 bytes earlier, and Callgrind's address-indexed predictor for
 indirect branches (tier 1 calls the runtime through tier 0's table) gave 40 k
-more mispredicts. `nounwind` alone did the same.
+more mispredicts. `nounwind` alone had the same effect.
 
 Not given because the C does not keep them, or would not after a likely
 change: `allocsize` (a list's block grows in place past the size it was

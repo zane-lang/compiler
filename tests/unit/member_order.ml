@@ -78,7 +78,7 @@ let layouts () =
   check "members already in order stay where they are"
     (N.order [ N.I64; N.I32; N.I32; N.I1 ] = [| 0; 1; 2; 3 |] && not (N.reordered [ N.I64; N.I32; N.I1 ]));
   (* The C conversion lays a C-compatible type out from its shape alone,
-     so it must agree with lowering, an array of none included. *)
+     so its layout must match lowering's, an array of none included. *)
   Hashtbl.replace st.State.types ("app", "Gap")
     ( [],
       T.Decl.Struct

@@ -129,8 +129,8 @@ Int stored(nodes ListRef<Node>, root Int, keys ListRef<Int>, reach Int) {
 	return sum;
 }
 
-/// A search bounded by a running total: each iteration's key is what the
-/// ones before it found, so the iterations are not independent.
+/// A search bounded by a running total: each iteration's key is the value
+/// the iterations before it found, so the iterations are not independent.
 Int chained(nodes ListRef<Node>, root Int, reach Int) {
 	sum Int(1);
 	i Int(1);

@@ -1,4 +1,4 @@
-(* The CST's job is to represent what was parsed, not what's valid. *)
+(* The CST represents the parsed source, valid or not. *)
 
 (* The span type lives below the stages, in [Source], because a source
    location is not CST-specific: SST and everything after it point at the same
@@ -17,13 +17,13 @@ module Span = Source.Span
    This is the shape OCaml's own Parsetree uses, for the same reason.
 
    [Statement_defect] is the one type here that is not a node: it is a note
-   about a statement rather than something written in the source, and it is
+   about a statement rather than a construct written in the source, and it is
    already paired with the position it points at. It stays bare. *)
 
 (* An identifier as it was written, and its span.
 
    Every identifier in the tree is one of these rather than a bare [string],
-   because a name is the thing a diagnostic most often has to point at and it
+   because an identifier is the text a diagnostic most often has to point at and it
    is usually smaller than the node holding it: "no field `foo`" wants the
    `foo` in `target.foo`, and "case not covered" wants the one case name inside
    `[a, b, c]`, not the whole selector. A [string] cannot carry that, and the
@@ -31,7 +31,7 @@ module Span = Source.Span
 
    Where a node's span is already exactly the name -- [Name_type.Ident], say --
    the two spans coincide. That is not worth a special case: a consumer that
-   wants a name's position reads it off the name, whichever variant it came
+   wants an identifier's position reads it off the identifier, whichever variant it came
    from, rather than case-splitting on whether this one happens to be
    redundant.
 
@@ -80,15 +80,15 @@ module Type_axis = struct
   and node = Value | Reference
 end
 
-(* How a statement disagreed with the rules about where it ends.
+(* How a statement broke the rules about where it ends.
 
    The grammar requires every statement to be closed by a `;` or by a `}`, so a
-   missing terminator is a parse error and has no defect here. What it still
-   admits are the two spellings below, each with a single parse, so they are
+   missing terminator is a parse error and has no defect here. The grammar
+   still accepts the two spellings below, each with a single parse, so they are
    recorded on the statement and read back afterwards rather than rejected in
    an action.
 
-   Not a node: it records something about a statement rather than something
+   Not a node: it records a fact about a statement rather than a construct
    written, and it already travels with the position it points at. *)
 module Statement_defect = struct
   type t =
@@ -126,7 +126,7 @@ end
 (* What a parameter is declared with when it is not a value's type: `Type`,
    the concept of a type parameter, or -- in a type's `<>` header only -- the
    named concept a number parameter is declared with, `n @concepts$Int`
-   (generics.md §3.3). The header takes a name rather than a keyword because
+   (generics.md §3.3). The header takes a qualified name rather than a keyword because
    the spec spells the number concept as an ordinary intrinsic type; which
    names a header may hold is semantics' question, not the grammar's. *)
 module Concept = struct
@@ -231,8 +231,8 @@ module rec Expr : sig
        variant "is **partial**: the case may not be the live one", so it is
        "an **abortable** access (`?` / `??`)" (adt.md §3). Whether a read is of
        a variant is a question about [target]'s type, which this tree does not
-       know, so every member read may carry one and typing decides whether it
-       must. *)
+       hold, so every member read may carry one and the typing pass checks
+       whether it must. *)
     | DotAccess of {
         target : t;
         field : Name.t;
@@ -274,7 +274,7 @@ end = Field_arg
 
 (* An argument written at a call site. A block argument is a run of statements
    the callee runs, and it is spelled here rather than in [Expr.t] because it is
-   never a value: the grammar admits one only in an argument position. *)
+   never a value: the grammar accepts one only in an argument position. *)
 and Call_arg : sig
   type t = {
     node : node;
@@ -301,7 +301,7 @@ end = Constructor_args
    verb-call node, so that their abort handling can be unified.
 
    [trailing] records whether the call's last argument was written after the
-   `)` rather than inside it. The two spellings mean the same call, so nothing
+   `)` rather than inside it. The two spellings write the same call, so nothing
    downstream of the parser reads [trailing], but they do not end the same way:
    a trailing argument's `}` closes the statement, so no `;` follows it and no
    abort handler may come after it. That is surface information, and a CST
@@ -491,9 +491,9 @@ end = Stat
 
 (* A statement together with any defect in how it ends.
 
-   The grammar closes every statement with a `;` or its own `}`, so what can
-   still be wrong is a `;` after that brace, or a trailing argument's `}` with
-   something written after it. Either is recorded here rather than raised.
+   The grammar closes every statement with a `;` or its own `}`, so the only
+   remaining defects are a `;` after that brace, or a trailing argument's `}`
+   with more code written after it. Either is recorded here rather than raised.
 
    Recorded, because the parser is GLR and a semantic action runs on every
    live branch -- including the branch that reads `ran Bool = if(ready)` as a
@@ -665,7 +665,7 @@ end = Decl
 module Package = struct
   type t = {
     decls : Decl.t list;
-    (* How each package-scope declaration disagrees with the rules about where
+    (* How each package-scope declaration breaks the rules about where
        it ends, in written order. A declaration there ends the way a statement
        does, so these are the defects a [Statement] records, kept beside the
        declarations rather than wrapping each one. *)

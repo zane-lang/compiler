@@ -7,7 +7,7 @@
    production from quietly dropping the position it was reduced from.
 
    They live beside the grammar rather than inside it because they are record
-   boilerplate, not syntax design: nothing here decides what Zane accepts. *)
+   boilerplate, not syntax design: no code here changes the set of programs Zane accepts. *)
 
 (* The span type lives below the stages, in [Source], because a source
    location is not CST-specific: SST and everything after it point at the same

@@ -90,10 +90,10 @@ then run it again, read the golden diff and promote that.
   trailing zeros, `abs` of the most negative integer, `sqrt` below zero,
   rounding ties and signed zeros, an `fma` that a multiply and an add would
   round differently, `copySign` with a NaN, and `min` and `max` with a NaN
-  and with both zeros, in a build that folds the exact ones and one that
+  and with both zeros, in a build that folds the exact functions and one that
   does not. The approximate functions are held to within a tolerance of the
   true value, since their last digit is the C math library's.
-  `math.optimized.cgt` shows the exact ones folded and the approximate ones
+  `math.optimized.cgt` shows the exact functions folded and the approximate functions
   left as calls. Every check prints `yes` when it holds.
 - `operators` is the derived operators of operators.md §2.3 on declared
   operators, written over `@operators$`: each gives its value, and a `a b`
@@ -111,7 +111,7 @@ then run it again, read the golden diff and promote that.
   check it makes prints `yes` when it holds and `no` when it does not.
 - `outcomes` is step 4: aborts, `?` and `??` handlers, `resolve`, `match`
   handlers, case reads and `guard`. Every check prints `yes` when it holds and
-  `no` when it does not; the one after a `guard` in the same block is never
+  `no` when it does not; the check after a `guard` in the same block is never
   reached.
 - `hosts` is step 5: reference types hosted in their scope's arena, moved and
   written in place, with every way out of a hosting block draining its arena.
@@ -280,7 +280,7 @@ then run it again, read the golden diff and promote that.
   value built and measured inside a call, a list and a boxed value a call
   gives and the program then changes, recursion, a `mut` call, a function
   value and spawned calls. Every check prints `yes` when it holds, so the
-  unoptimized build, which folds nothing, shows the folded one is right.
+  unoptimized build, which folds nothing, shows the folded build is right.
 - `comptimeCalls` is calls marked `comptime` (docs/design/comptime.md),
   evaluated in every build: a result of each kind of value, package
   constants made by marked calls, a marked call in another's arguments,
@@ -300,7 +300,7 @@ then run it again, read the golden diff and promote that.
 - `replayed` is what stage 5 keeps: output made while a value is computed,
   replayed in order; calls past the step budget, the depth and the size cap,
   left to run; a slot read when the program runs, after a store made by
-  code that folded; and what stays known past a call left to run: a value
+  code that folded; and the values the optimizer still knows past a call left to run: a value
   it is given no address of, a string a `mut` call changed among them, but
   not an owner it reaches through a reference stored in another.
 - `doubling` is output replayed from a remembered call, charged and capped
@@ -375,7 +375,7 @@ makes of them.
   at once and runs once, one that returns `@primitives$Bool` itself, one
   whose subject owns a block, `register` waiting a millisecond for its timer
   between steps and not at all for an interval below one, a subject's own `work`
-  preferred to the one for every type, and a spawned worker, which its
+  preferred to the `work` for every type, and a spawned worker, which its
   scope waits for before the subject is read, spawned through a method and
   as the intrinsic itself. A worker used as a value is its `Unit`.
 - `workerPools` runs worker pools (concurrency.md §6). Ten counters

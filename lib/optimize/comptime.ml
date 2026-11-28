@@ -19,7 +19,7 @@ let site (e : Expr.t) =
 
 let failed span message = Diagnostic.error span message
 
-(* What a run that could not finish tells the program's author. *)
+(* The message a run that could not finish gives the program's author. *)
 let why_not span = function
   | V.Stop why ->
       failed span

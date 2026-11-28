@@ -1,8 +1,8 @@
 package bad;
 
 /// Nothing calls these, so each is checked once where it is declared, with
-/// its type parameter unknown. What depends on `T` waits for an instance;
-/// what does not is wrong in every instance, and is reported here.
+/// its type parameter unknown. An error that depends on `T` waits for an instance;
+/// an error independent of `T` holds in every instance, and is reported here.
 T neverCalled(value T Type) {
 	total Int = @operators$add(Int(1), String("a"));
 	missing Int = nowhere;

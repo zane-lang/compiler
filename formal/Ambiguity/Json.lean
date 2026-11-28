@@ -2,8 +2,8 @@ import Lean.Data.Json
 import Ambiguity.Vpa
 
 /-! Reading the Python prover's `certificate.json`. Parsing is not part of the
-trusted argument for a model the checker builds itself; for a supplied model it
-only decides which model and certificate are checked. -/
+trusted argument for a model the checker builds itself; for a supplied model,
+the parsed file only selects the model and certificate the checker checks. -/
 
 namespace Ambiguity
 open Lean

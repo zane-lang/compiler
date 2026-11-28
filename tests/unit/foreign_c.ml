@@ -215,7 +215,7 @@ let compiled () =
       | Ok [ { Foreign.sources = [ _ ]; _ } ] -> ()
       | _ -> check "a dangling symlink and an unwritable cache leave the build alone" false);
       Sys.remove (Filename.concat linked ".#a.c");
-      (* A warning refuses nothing, and a module taken from the cache warns
+      (* A warning stops no build, and a module taken from the cache warns
          as the compile that made it did. *)
       let warning_source = "int f(void) {\n  int x;\n  return x;\n}\n" in
       let warned = package "warned" warning_source in
@@ -522,7 +522,8 @@ let c_processor () =
    the declaration's linkage, internal for a `static` one, and a
    thread-local variable's is thread-local. A mark is
    refused where it is written unless it is on a declaration of a function
-   or variable the source does not define, naming one of the same kind it
+   or variable the source does not define, naming a function or variable
+   respectively that it
    defines with external linkage, neither has an `__asm__` label, and the
    declaration is not weak. *)
 let zane_aliases () =
@@ -713,7 +714,7 @@ let glue_prototypes () =
    a leading \1 and the target's `_` spelled out, read as the label an
    object's reader names it by: a header's definitions and private state
    name it so, and the glue's copy of one an object assembled apart
-   defines is made a declaration. A Mach-O link is the only one that spells the prefix out,
+   defines is made a declaration. Only a Mach-O link spells the prefix out,
    and no test links one. *)
 let asm_labels () =
   let ctx = Llvm.create_context () in

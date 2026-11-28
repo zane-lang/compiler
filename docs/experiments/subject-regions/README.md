@@ -184,7 +184,8 @@ runtime; `tsan.sh` builds a package so and counts reports. Results in
 `constantCycle`, `constants`, `expressions`, `folding`, `interpolation`,
 `keeping`, `lambdas`, `spawnSubjects`, `spawned`, `spawnedFrames`,
 `spawns`, `walks`), for `race 3000` and for `reader 2000`.
-`constantCycle` and `spawnedFrames` fail on purpose, as their goldens say
+`constantCycle` and `spawnedFrames` fail on purpose, as their
+`expected-status` files record
 (`spawnedFrames` without its `--spawned-fixed-region` flag reports 8 MiB
 for 2). `tests/ffi`'s `handles` and `tests/objects`' `memolibraryuser`,
 which need packages `tsan.sh` does not pass, were not run. That TSan sees these programs' races at
@@ -221,9 +222,9 @@ while its scope lives: its chunks are listed on that scope, which gives
 them back when it drains (`zane_islands_drained`, from both drains), and
 the next call spawned on the local takes the same region. While no other
 call the context spawned is out, nothing can be reading the subject, so it
-moves in, and only what is not already there moves; in steady state
-nothing does, and what a call returns in the region is what the next one
-takes. Otherwise it is copied in, as step 3 has it, and at the join the
+moves in, and only the blocks not already there move; in steady state
+no block does, and the value a call returns in the region is the value
+the next call takes. Otherwise it is copied in, as step 3 has it, and at the join the
 old value is ended at once when no other call is still out, and kept as
 before when one is. A subject whose home is in no scope's frame (a list's
 element, or a subject's own subject in a nested call) keeps step 3's
@@ -298,7 +299,7 @@ checked, still stops on the check.
 
 ## Outcome
 
-Subject regions are the only design, and the locked one is deleted. So
+Subject regions are the only design, and the locked design is deleted. So
 are the switch and both control knobs: nothing reads
 `ZANE_SUBJECT_REGIONS`, `ZANE_SUBJECT_REGIONS_NO_ISLANDS` or
 `ZANE_SUBJECT_REGIONS_UNCHECKED` any more.
@@ -312,7 +313,7 @@ checks. `ZANE_TSAN=1` stays as a development build for ThreadSanitizer
 it is an implementation detail concurrency.md §4.4 already allows.
 
 `fixtures.sh` and `tsan.sh` build the one design. `measure.sh` compares
-it with the locked one built by `BASE_ZANEC`, a zanec built at a commit
+it with the locked design built by `BASE_ZANEC`, a zanec built at a commit
 that has it, such as this branch's base. The commands the steps above give
 with the switch are as they were run, on commit 3e08f23 or before.
 

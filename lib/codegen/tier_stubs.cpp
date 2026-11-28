@@ -6,7 +6,7 @@
    function holds, such as another variable's initial value, cannot load
    anything, and the import fails. A thread-local variable has an address
    only on some thread, so for one the table holds a function of tier 0's
-   that gives it, and each place the code asks for the variable's address
+   that gives it, and each place the code takes the variable's address
    on the thread it runs on calls that function instead. */
 
 #include "llvm/IR/Constants.h"

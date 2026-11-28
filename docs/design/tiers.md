@@ -1,6 +1,6 @@
 # Tiered builds: start plain, finish optimized
 
-> **Status: built.** This page says how a program starts as soon as its
+> **Status: built.** This page describes how a program starts as soon as its
 > fastest build is made and moves to optimized code while it runs, which is
 > how `zane run` and `zane test` build. Each decision is numbered (**T1**…).
 
@@ -8,7 +8,7 @@ An unoptimized build is made in a fraction of the time an optimized one
 takes, and runs several times slower ([`optimization.md`](optimization.md)
 O12). Which of the two gives a program's result sooner depends on how long
 the program runs, which no build can know. A tiered build does not choose. It
-makes both at once, starts the program as soon as the fast one, **tier 0**,
+makes both at once, starts the program as soon as the fast build, **tier 0**,
 is linked, and moves each of its functions to the optimized build, **tier
 1**, once that is built. A program that ends before tier 1 is ready has lost
 nothing to the optimizer, and one that runs longer finishes on optimized
@@ -31,7 +31,7 @@ stage 5, runs the optimized build's passes ([`lowering.md`](lowering.md)
 is started with for that build (`Passes.llvm_options`), and generates
 optimized machine code (`Passes.tier1`). The one exception is a short loop
 codegen marks to be unrolled twice (`Emit.unrolled`): it holds no call, so
-it is small, and unrolling it costs little time. Runtime unrolling is what made `-O2` take 16 s
+it is small, and unrolling it costs little time. Runtime unrolling made `-O2` take 16 s
 of a 400-function program's 25 s build, against 2 s without it, for code
 about 5% slower; stage 5 takes seconds on programs that compute much ahead of
 time. A tier 1 that arrives late gains the program nothing, so it is built
@@ -39,8 +39,8 @@ for its arrival rather than for the last few percent: on that program it
 gave a result in 10.6 s, against 18.3 s plain and 31.8 s optimized.
 
 **T3. Both tiers emit the same module, and each carries its fingerprint.**
-Tier 1 lowers the tree tier 0 does, since it skips stage 5, and plans what
-it remembers from that tree alone ([`memoization.md`](memoization.md) M1).
+Tier 1 lowers the tree tier 0 does, since it skips stage 5, and plans which
+functions' calls it memoizes from that tree alone ([`memoization.md`](memoization.md) M1).
 So the two emit the same LLVM module, and each takes a hash of it before
 anything changes it (`Tiers.fingerprint`). The runtime loads tier 1 only
 into the program whose fingerprint it carries, so a library left from
@@ -84,8 +84,8 @@ ELF, Mach-O and COFF, where a DLL may not leave a symbol undefined.
 
 A use of an import that is a constant no function holds, such as another
 variable's initial value, cannot be a load, and tier 1's build fails with
-the name of the import. The program then runs in tier 0, as it means the
-same.
+the name of the import. The program then runs in tier 0, whose behaviour
+is identical.
 
 Since tier 1 calls tier 0's runtime, tier 0 links the runtime an optimized
 build does, compiled with `-O2` (`Build.executable`), so its allocation,
@@ -98,7 +98,7 @@ cache, and a release bundles it already compiled.
 
 Tier 1 also takes the runtime's bodies for LLVM to inline when the
 runtime's bitcode is one this LLVM reads (`lowering.md` §7), and tier 0
-takes the same ones before it makes its table (T6), so it exports every
+takes the same bodies before it makes its table (T6), so it exports every
 runtime function and variable they reach. Neither tier takes a body that
 calls outside the runtime, so the table gains no C library function, each
 of which would be a symbol for the loader to look up as every run starts.
@@ -126,7 +126,7 @@ optimized executable reads it at its offset.
 a table of every name tier 1 may take, with its address
 (`zane.tier.exports`): each function and variable the module declares, each
 body it has only to inline, and each changing variable. Both tiers read that
-list from the same module (T3), so it holds every name tier 1 asks for. The
+list from the same module (T3), so it holds every name tier 1 imports. The
 table also keeps each of them through tier 0's passes.
 
 ---
@@ -215,8 +215,8 @@ refuses tier 1. The flag is refused on any other build.
 tier 0, and run it with `ZANE_TIER_UP` naming tier 1's file beside it. Both
 builds take the same `--comptime-readings` file (T12). A
 tier-1 build still going when the program ends is stopped. A compiler
-release older than the first one with tiers builds the program unoptimized,
-as before.
+release older than the first release with tiers builds the program
+unoptimized.
 
 ---
 

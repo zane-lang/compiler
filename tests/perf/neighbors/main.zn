@@ -69,7 +69,7 @@ Maze(width Int) => init{
 	width;
 }
 
-/// How many of the eight cells around `at` are open.
+/// The count of open cells among the eight around `at`.
 Int open(this Maze, at Int) {
 	w Int = this.width;
 	side Int = plus(plus(this.grid[minus(at, Int(1))], this.grid[plus(at, Int(1))]), plus(this.grid[minus(at, w)], this.grid[plus(at, w)]));

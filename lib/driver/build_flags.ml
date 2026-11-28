@@ -1,7 +1,7 @@
 (* The flags of a package build, as `zanec` reads them from its command line
    and as the language server reads them from `zane builds`
-   (docs/design/language-server.md): one parser, so the two always agree on
-   what a build is. *)
+   (docs/design/language-server.md): one parser, so the compiler and the
+   language server always read the same build from the same flags. *)
 
 (* The flags form no build. *)
 exception Usage
@@ -171,7 +171,7 @@ let import_request argument =
 let parse arguments =
   (* A package build takes its options in any order, each at most once, and at
      least one `--package`. A tree flag or a single source next to these options
-     would ask for two different runs at once. *)
+     would request two different runs at once. *)
   (* A value never starts with `-`, so a value left out cannot swallow the
      next flag: `--build --package d` is a usage error, not an executable
      named `--package`. *)
