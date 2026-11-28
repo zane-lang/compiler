@@ -1,8 +1,12 @@
 /// An exported lambda's signature: no abort type, no subject outside a
 /// C-held object, parameters and a result that a function value passed to C
-/// may have, and a C identifier for its name (packages.md §8.2). A library
-/// carries no export line, and its code names no exported lambda, its own
-/// included (§8.4).
+/// may have or C-held objects, and a C identifier for its name
+/// (packages.md §8.2). A result whose lists C reads as views needs a
+/// `this T mut` subject, a `this T mut` subject's lambda takes no second
+/// path to a `T` (concurrency.md §4.7), and a `^T` parameter that ends a
+/// C-held object is never moved (packages.md §8.5). A library carries no
+/// export line, and its code names no exported lambda, its own included
+/// (§8.4).
 package lib;
 
 export app;
@@ -13,11 +17,37 @@ alias String = @primitives$String;
 
 type Box = #struct { value I64; }
 
+type Plain = struct { value I64; }
+
+type Pair = #struct { left Box; right I64; }
+
 twice I64(x I64) => @operators$add(x, x) export "lib_twice";
 
 aborts I64?Unit(x I64) => x export "lib_aborts";
 
 subject I64(this Box) => this.value export "lib_subject";
+
+plain I64(this Plain) => this.value export "lib_plain";
+
+twoPaths Unit(this Box, other Box) mut {
+	this.value = other.value;
+	return Unit();
+} export "lib_two_paths";
+
+inside Unit(this Box, pair Pair) mut {
+	this.value = pair.right;
+	return Unit();
+} export "lib_inside";
+
+reads Unit(this Box, other Box) {
+	return Unit();
+} export "lib_reads";
+
+listed @primitives$List<I64>(this Box) => @primitives$List(I64) export "lib_listed";
+
+kept ^Box(box ^Box) {
+	return box;
+} export "lib_kept";
 
 lent I64(x &Box) => I64(1) export "lib_lent";
 

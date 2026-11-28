@@ -399,6 +399,11 @@ value replaces the call ([`comptime.md`](comptime.md) K3). A lambda's body does 
 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b1fcaba/spec/control-flow.md)
 §4.2), so a call through a function value finishes or aborts, and a spawned
 one carries the function's address in its frame, ahead of its arguments.
+An exported lambda is lifted the same way, and its adapter, which a host
+calls, passes each C-held object as the address of the object's bytes in
+the object's own top-level scope, which is the place L6 passes for a
+borrowed `T` or a subject; the adapter makes, settles and drains those
+scopes around the call ([`ffi.md`](ffi.md) F22).
 
 ---
 

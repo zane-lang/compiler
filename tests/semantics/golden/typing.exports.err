@@ -26,39 +26,55 @@ File "fixtures/typing/exports/app/second.zn", line 3, characters 1-11:
 3 | export lib;
   | ^^^^^^^^^^
 Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:10
-File "fixtures/typing/exports/lib/lib.zn", line 8, characters 1-11:
-8 | export app;
-  | ^^^^^^^^^^
+File "fixtures/typing/exports/lib/lib.zn", line 12, characters 1-11:
+12 | export app;
+   | ^^^^^^^^^^
 Error: only a plugin or test package carries export lines, and `lib` is a library package of this build (packages.md §8.3)
-File "fixtures/typing/exports/lib/lib.zn", line 16, characters 49-60:
-16 | twice I64(x I64) => @operators$add(x, x) export "lib_twice";
+File "fixtures/typing/exports/lib/lib.zn", line 24, characters 49-60:
+24 | twice I64(x I64) => @operators$add(x, x) export "lib_twice";
    |                                                 ^^^^^^^^^^^
 Error: this build already exports a C function `lib_twice`, at fixtures/typing/exports/app/app.zn:18; each C name occurs once in a build (packages.md §8.2)
-File "fixtures/typing/exports/lib/lib.zn", line 18, characters 36-48:
-18 | aborts I64?Unit(x I64) => x export "lib_aborts";
+File "fixtures/typing/exports/lib/lib.zn", line 26, characters 36-48:
+26 | aborts I64?Unit(x I64) => x export "lib_aborts";
    |                                    ^^^^^^^^^^^^
 Error: an exported lambda declares no abort type: a host calls it, and no Zane caller handles its abort (packages.md §8.2)
-File "fixtures/typing/exports/lib/lib.zn", line 20, characters 44-57:
-20 | subject I64(this Box) => this.value export "lib_subject";
-   |                                            ^^^^^^^^^^^^^
-Error: an exported lambda with a subject borrows a C-held object, which zanec does not support yet (packages.md §8.5)
-File "fixtures/typing/exports/lib/lib.zn", line 22, characters 35-45:
-22 | lent I64(x &Box) => I64(1) export "lib_lent";
+File "fixtures/typing/exports/lib/lib.zn", line 30, characters 44-55:
+30 | plain I64(this Plain) => this.value export "lib_plain";
+   |                                            ^^^^^^^^^^^
+Error: an exported lambda's subject is a C-held object, of a reference type that is no foreign handle, and `lib$Plain` is not one (packages.md §8.5)
+File "fixtures/typing/exports/lib/lib.zn", line 35, characters 10-25:
+35 | } export "lib_two_paths";
+   |          ^^^^^^^^^^^^^^^
+Error: an exported lambda whose subject is `this lib$Box mut` takes no other parameter through which a `lib$Box` is reachable, and its parameter of type `lib$Box` is or holds one: C may pass the same pointer twice (concurrency.md §4.7)
+File "fixtures/typing/exports/lib/lib.zn", line 40, characters 10-22:
+40 | } export "lib_inside";
+   |          ^^^^^^^^^^^^
+Error: an exported lambda whose subject is `this lib$Box mut` takes no other parameter through which a `lib$Box` is reachable, and its parameter of type `lib$Pair` is or holds one: C may pass the same pointer twice (concurrency.md §4.7)
+File "fixtures/typing/exports/lib/lib.zn", line 46, characters 72-84:
+46 | listed @primitives$List<I64>(this Box) => @primitives$List(I64) export "lib_listed";
+   |                                                                        ^^^^^^^^^^^^
+Error: an exported lambda returns a value whose lists cross as views only when its subject is `this T mut`, whose top-level scope the value lives in (packages.md §8.2, §8.5)
+File "fixtures/typing/exports/lib/lib.zn", line 49, characters 12-15:
+49 |     return box;
+   |            ^^^
+Error: `box` ends a C-held object, which the body reads and never moves: the object dies when the call's scope drains (packages.md §8.5)
+File "fixtures/typing/exports/lib/lib.zn", line 52, characters 35-45:
+52 | lent I64(x &Box) => I64(1) export "lib_lent";
    |                                   ^^^^^^^^^^
-Error: an exported lambda takes what C passes a function value, and C passes no `&lib$Box`: a scalar, `@primitives$Bool`, a C-compatible value type, a string, a list or array of scalars, or a data handle, borrowed or as a roaming owner `^` (packages.md §8.2, ffi.md §3.6)
-File "fixtures/typing/exports/lib/lib.zn", line 24, characters 46-56:
-24 | text String() => String.escaped("no") export "lib_text";
+Error: an exported lambda takes what C passes a function value or a C-held object, and C passes no `&lib$Box`: a scalar, `@primitives$Bool`, a C-compatible value type, a string, a list or array of scalars, a data handle, borrowed or as a roaming owner `^`, or a C-held object, borrowed as `T` or ended as `^T` (packages.md §8.2, §8.5, ffi.md §3.6)
+File "fixtures/typing/exports/lib/lib.zn", line 54, characters 46-56:
+54 | text String() => String.escaped("no") export "lib_text";
    |                                              ^^^^^^^^^^
-Error: an exported lambda gives what a function value gives C, and C takes no `@primitives$String`: a scalar, `@primitives$Bool`, a C-compatible value type, or `@primitives$Unit` (packages.md §8.2, ffi.md §3.6)
-File "fixtures/typing/exports/lib/lib.zn", line 26, characters 30-44:
-26 | named I64() => I64(1) export "not a C name";
+Error: an exported lambda gives what a function value gives C, an owner `^T` of a new C-held object, or, with a subject `this T mut`, a list C reads as a view, and C takes no `@primitives$String`: a scalar, `@primitives$Bool`, a C-compatible value type, `@primitives$Unit`, `^T`, or a list (packages.md §8.2, §8.5, ffi.md §3.6)
+File "fixtures/typing/exports/lib/lib.zn", line 56, characters 30-44:
+56 | named I64() => I64(1) export "not a C name";
    |                              ^^^^^^^^^^^^^^
 Error: `not a C name` is not a C identifier, and an exported lambda becomes the C function it names (packages.md §8.2)
-File "fixtures/typing/exports/lib/lib.zn", line 28, characters 16-21:
-28 | calls I64() => twice(I64(1));
+File "fixtures/typing/exports/lib/lib.zn", line 58, characters 16-21:
+58 | calls I64() => twice(I64(1));
    |                ^^^^^
 Error: `twice` is an exported lambda, an entry point a host calls, and only the root package's code calls one; `lib` is a library package (packages.md §8.4)
-File "fixtures/typing/exports/lib/lib.zn", line 30, characters 17-22:
-30 | held I64[I64] = twice;
+File "fixtures/typing/exports/lib/lib.zn", line 60, characters 17-22:
+60 | held I64[I64] = twice;
    |                 ^^^^^
 Error: `twice` is an exported lambda, an entry point a host calls, and only the root package's code calls one; `lib` is a library package (packages.md §8.4)

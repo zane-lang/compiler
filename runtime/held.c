@@ -92,7 +92,8 @@ static void zane_c_held_return(zane_c_held *h) {
 void zane_c_held_renew(char *object) { zane_c_held_return(zane_c_held_of(object)); }
 
 /* The object at `object` ended, by an exported lambda that took its owner,
-   whose scope ended its value: its top-level scope drains, and its memory
+   whose scope ended its value: the lists it lent C end, its top-level
+   scope drains, and its memory
    goes back whole (memory.md §3.1). When drains are checked, a block the
    object's value did not give back stops the program, as a scope's does. */
 void zane_c_held_end(char *object) {

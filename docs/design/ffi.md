@@ -15,7 +15,8 @@
 > release (F15); release archives' hashes of their C modules, with
 > a dependency's C retained for an optimized build to inline where the
 > hashes match (F13, F15); and C folded at compile time, in `lib/optimize/`
-> (F16–F19); exported lambdas and dynamic libraries (F20, F21); the
+> (F16–F19); exported lambdas and dynamic libraries (F20, F21), with the
+> objects C holds (F22); the
 > fixtures of §7 and the entries of
 > [`optimizations.md`](../optimizations.md) for F13 and F16 are in place
 > too, so every step of §8 is built. This page describes how the compiler implements the spec's C
@@ -1190,16 +1191,17 @@ lambda constant like any other in the TST, whose `Constant` records the
 C name. Pass 5 checks its signature against the function values C may
 call (`Tst.Check.Exports.check_lambda`, using the same tests of
 parameter and result types as `ffi.md` §3.6, `Foreign_decls.function_param`
-and `function_result`): no abort type, no subject (a subject borrows a
-C-held object, `packages.md` §8.5, which zanec does not build yet), and
-a C identifier for the exported symbol, the string after `export`. The program's `exports` lists the exported
+and `function_result`, or the C-held objects of F22): no abort type, a
+subject only of a type whose objects C may hold, and a C identifier for
+the exported symbol, the string after `export`. The program's `exports` lists the exported
 lambdas the build gives C symbols: the root's own and those of the
 libraries its export lines name, each C name once (§8.3), and none in a
 build without a root, where an exported lambda stays an ordinary lambda
 constant.
 
 Lowering lifts each listed lambda, which roots it whether or not any code
-calls it, and so gives it F11's adapter and C entry; the CGT's `exports`
+calls it, and so gives it F11's adapter and C entry, with F22's shapes
+for C-held objects (`Lower_foreign.export_signature`); the CGT's `exports`
 pairs the lifted symbol with the C name. The object's callbacks glue then
 defines one more C function per export, under its C name, with the C
 entry's body: it calls the lambda's adapter, which makes a context for a
@@ -1239,7 +1241,12 @@ the program's own scope and the constants' region in a context no thread
 runs, with `arguments` empty, since a host passes no command line
 (`packages.md` §8.1). Each host call runs in a context the adapter makes
 for it, as F11's call on a thread C started does, and writes out what it
-printed before it returns (`zane_callback_detach`), so everything a call
+printed before it returns (`zane_callback_detach`). An export's C function
+sets `zane_host_call` around its call of the adapter, so the runtime takes
+that context from a pool of host contexts whose range is `fixed-region`,
+the main context's size, rather than `spawned-fixed-region` (`memory.md`
+§3.7, `zane_host_context_new`); a host call that nests too deep stops the
+program, and with it the host's process. Everything a call
 printed has reached the library's output when the host gets the call's
 result. That flush covers only this library's buffer: the order against
 the host's own buffered output, or another library's, is the host's to
@@ -1269,6 +1276,58 @@ its thread's variables in the initial-exec model, which a library that
 program's code reads the runtime's as it always does (`Walks.zane_open`).
 A release bundles the library runtime beside the program's
 (`Build.bundle_runtime`).
+
+**F22. C holds an object in a top-level scope of its own.** An exported
+lambda may pass C-held objects (`packages.md` §8.5): objects of a
+reference type that is no foreign handle (`Foreign_decls.c_held`). Pass 5
+checks the signature rules (`Exports.check_lambda`): a `^T` result makes
+an object, a `T` parameter or a `this T` subject borrows one, a
+`this T mut` subject borrows one mutably, and a `^T` parameter ends one.
+A lambda whose subject is `this T mut` takes no other parameter through
+which a `T` is reachable (`concurrency.md` §4.7), since C may pass one
+pointer twice, and only such a lambda returns a list, which C reads as a
+`zane_span` view. The moves analysis keeps a body from moving a `^T`
+parameter that ends an object (`Moves.move_roaming`), so the object always
+dies with the lambda's scope.
+
+C holds each object as a pointer to the object's bytes, and the export's
+C function passes that pointer to the adapter, which F11 builds with one
+more shape, `Callback.Held`, and `runtime/held.c` keeps the object's
+scope:
+
+- For a `^T` result, the adapter calls the lambda, asks
+  `zane_c_held_new` for a block of the result's size in a new top-level
+  scope, writes the result there, and moves the blocks the result owns
+  into that scope (`zane_c_held_settle`). C gets the block's address. The
+  scope nests in no other, since a host makes and ends objects in any
+  order, and is a subject region's kind (`ZANE_ISLAND_DEPTH`) with a
+  context of its own that has no range. The block is the scope's first,
+  so the chunk map finds the scope from C's pointer.
+- For a borrowed `T` parameter or a subject, the adapter passes C's
+  pointer on: a borrowed reference type passes the address of its place
+  (`lowering.md` L6), and the object's bytes are that place. A write
+  through a `this T mut` subject is an ordinary `mut` method's write, and
+  the blocks it makes arrive in the object's scope, which is the region
+  of the slot they are written to.
+- For a `^T` parameter, the adapter passes the value read through C's
+  pointer, which the lambda holds in its body's arena as any `^T`
+  parameter, so the body's drain ends it. Once the adapter's scope has
+  drained, `zane_c_held_end` drains the object's scope and gives its
+  memory back whole. With checked drains, a block the object's value did
+  not give back stops the program.
+- A list that a `this T mut` subject's lambda returns moves into the
+  subject's scope (`zane_c_held_lend`), which keeps the list's handle,
+  and C gets the handle's first two words as its view: the glue reads the
+  handle the adapter writes and returns a `struct __zane_view`. The next
+  call that borrows that object mutably as its subject, or that ends it,
+  first ends every list the calls before it lent (`zane_c_held_renew`),
+  so a view stays valid until then.
+
+The one writer the host rule allows (`concurrency.md` §4.7) is the only
+call that allocates in or frees into an object's scope, so no lock guards
+it. A fold stops at an adapter with a C-held shape (`C_cross.shape_ty`),
+since the object's scope lives across the host's calls, which only the
+running program makes.
 
 ## 7. How it is tested
 
@@ -1344,7 +1403,13 @@ A release bundles the library runtime beside the program's
   first call, gets no arguments, and offers its root's C function
   `plugin_entry` under that name, which calls an export of the library
   its export line names, but no export of a library no line names and no
-  symbol of the runtime. `fixtures/testHost` is a test package whose C
+  symbol of the runtime. `fixtures/pluginHeld`'s host makes two C-held
+  objects (F22), writes and reads them through subjects and parameters,
+  reads the list one of them lends as a view across a later write, and
+  ends both, the second-made first, in both libraries, with drains checked
+  and not. `fixtures/pluginDepth`'s host nests one call's frames past
+  `spawned-fixed-region` and then past `fixed-region`, which stops the
+  host (F21). `fixtures/testHost` is a test package whose C
   calls the exports of a library its export line names and its own.
   `tests/semantics/` holds the rules (`typing.exports.err`,
   `project.plugin*`, `project.program-library.err`).
@@ -1369,7 +1434,8 @@ A release bundles the library runtime beside the program's
 8. Release archives and dependencies' C, retained for inlining (F13, F15).
 9. `c_eval.ml`, its classes in stage 5, and the crossing between the two
    evaluators (F16–F19).
-10. Exported lambdas, export lines and dynamic libraries (F20, F21).
+10. Exported lambdas, export lines and dynamic libraries (F20, F21), then
+    the objects C holds (F22).
 11. The fixtures of §7 for each step as it lands, and an entry in
     [`optimizations.md`](../optimizations.md) for the cross-language
     inlining (F13) and the folding through C (F16).

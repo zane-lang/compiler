@@ -128,7 +128,7 @@ let check_lambda env (ty : Ty.t) (symbol : N.Name.t) =
               if param env p <> Refused && reaches env ~target:subject p then
                 error env at
                   (Printf.sprintf
-                     "an exported lambda whose subject is `this %s mut` takes no other parameter through which a %s is reachable, and %s reaches one: C may pass the same pointer twice (concurrency.md §4.7)"
+                     "an exported lambda whose subject is `this %s mut` takes no other parameter through which a %s is reachable, and its parameter of type %s is or holds one: C may pass the same pointer twice (concurrency.md §4.7)"
                      (Ty.to_string subject) (quote (Ty.to_string subject)) (quote (Ty.to_string p))))
             f.Ty.params)
         mut_subject
