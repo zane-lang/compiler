@@ -1243,8 +1243,8 @@ keep. The constructor keeps the library loaded until the process ends,
 whatever the host unloads: Windows pins the module, and the other systems
 mark it `RTLD_NODELETE` (macOS never unloads a library with thread-local
 variables in any case). A pool thread may still run the library's code,
-other code may have saved the library's fault handler as the one it
-passes faults on to, and the runtime's regions and buffers stay with it,
+other code may have saved the library's fault handler as the previous
+handler it passes faults on to, and the runtime's regions and buffers stay with it,
 so none of them outlives the code. A later load of the same file reaches
 the same runtime. As the process ends, a destructor joins the pool's
 threads, except on Windows, which has ended them already and holds the

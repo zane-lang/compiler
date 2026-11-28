@@ -253,7 +253,7 @@ static char *zane_no_arguments[1];
 
 /* The library stays loaded until the process ends, whatever the host
    unloads: a pool thread may still be running its code, other code may
-   have saved its fault handler as the one to pass faults on to, and its
+   have saved its fault handler as the previous handler for faults, and its
    runtime holds the regions and buffers it made. A later load of the same
    file reaches this runtime again. macOS never unloads a library with
    thread-local variables, as the runtime has, and the other systems are
