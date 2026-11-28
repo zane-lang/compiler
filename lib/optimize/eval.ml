@@ -23,9 +23,16 @@ type output = Print of string | Set_threads of int64 | Set_threads_auto
    machine's own. [arguments] is what the runtime's `arguments` gives: the
    arguments the build was started with. [reads] counts the reads the run
    has made, and the package constants it has made, so that a call that
-   made one is not remembered as a call that reads nothing. [clock] gives
-   the readings of the monotonic clock. *)
-type explicit = { arguments : string list; mutable reads : int; clock : clock }
+   made one is not remembered as a call that reads nothing. [read_arguments]
+   becomes true once the run reads the runtime's `arguments`, so the build
+   can mark an object whose code depends on them. [clock] gives the
+   readings of the monotonic clock. *)
+type explicit = {
+  arguments : string list;
+  mutable reads : int;
+  mutable read_arguments : bool;
+  clock : clock;
+}
 
 (* Where a `comptime` run's clock readings come from: the build machine's
    clock ([Live]); that clock, with each reading kept in the list, newest
@@ -379,6 +386,7 @@ let build_arguments run =
   | None -> stop "an input, which only the running program has"
   | Some x ->
       x.reads <- x.reads + 1;
+      x.read_arguments <- true;
       let layout =
         if Hashtbl.mem run.prog.layouts "%primitives$String" then Some "%primitives$String"
         else

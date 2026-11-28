@@ -31,15 +31,17 @@ let why_not span = function
       failed span "this `comptime` call nests calls deeper than the compiler can evaluate"
   | e -> raise e
 
-(* The value [symbol] gives, run with the build's [arguments], reading the
-   monotonic clock through [clock]. *)
+(* The value [symbol] gives, run with the build's [arguments] and reading
+   the monotonic clock through [clock], and whether the run read the
+   arguments. *)
 let evaluate prog ~arguments ~clock (symbol, span) =
-  let run = Eval.start ~explicit:{ Eval.arguments; reads = 0; clock } prog in
+  let explicit = { Eval.arguments; reads = 0; read_arguments = false; clock } in
+  let run = Eval.start ~explicit prog in
   match Eval.call run symbol [] with
   | exception ((V.Stop _ | Eval.Writes _ | Stack_overflow) as e) -> Error (why_not span e)
   | v -> (
       match V.export v with
-      | Some c -> Ok c
+      | Some c -> Ok (c, explicit.Eval.read_arguments)
       | None ->
           Error
             (failed span
@@ -69,19 +71,21 @@ let replace values (f : Func.t) =
   { f with Func.body = Cgt.Traverse.map_stats value (fun _ -> None) f.Func.body }
 
 let run ?(c = []) ?(clock = Eval.Live) ~arguments (p : Program.t) =
-  if p.Program.comptime = [] then Ok p
+  if p.Program.comptime = [] then Ok (p, false)
   else
     let prog = Eval.program_of ~c p in
     ignore (Constants.register prog p.Program.funcs);
     (* In the order lowering reached them. Once one is evaluated, its
        function gives its value at once, to a later one that calls it. *)
     let values = Hashtbl.create 16 in
+    let read_arguments = ref false in
     let errors =
       List.filter_map
         (fun ((symbol, span) as marked) ->
           match evaluate prog ~arguments ~clock marked with
           | Error d -> Some d
-          | Ok c ->
+          | Ok (c, read) ->
+              if read then read_arguments := true;
               Hashtbl.replace values symbol (c, span);
               (match Eval.Funcs.find_opt prog.Eval.funcs symbol with
               | Some e ->
@@ -101,7 +105,7 @@ let run ?(c = []) ?(clock = Eval.Live) ~arguments (p : Program.t) =
     else
       let lifted = Hashtbl.create 16 in
       List.iter (fun (s, _) -> Hashtbl.replace lifted s ()) p.Program.comptime;
-      Ok
+      let evaluated =
         {
           p with
           Program.funcs =
@@ -111,3 +115,5 @@ let run ?(c = []) ?(clock = Eval.Live) ~arguments (p : Program.t) =
               p.Program.funcs;
           comptime = [];
         }
+      in
+      Ok (evaluated, !read_arguments)

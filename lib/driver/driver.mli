@@ -119,9 +119,11 @@ type readings = Record of string | Replay of string
     place, which every build does before stage 5 (docs/design/comptime.md).
     Inside such a call the runtime's `arguments` gives [arguments], the
     arguments the build was started with, and a call into C runs [c], as in
-    [optimize]. A call that cannot be evaluated is a diagnostic pointing
-    into [packages]' sources. With [readings], the calls' clock readings are
-    recorded or replayed. *)
+    [optimize]. The boolean beside the program is true when some marked
+    call read the runtime's `arguments`; `--object` records that with
+    [write_arguments_marker]. A call that cannot be evaluated is a
+    diagnostic pointing into [packages]' sources. With [readings], the
+    calls' clock readings are recorded or replayed. *)
 val comptime :
   ?target:string ->
   ?c:Codegen.c_package list ->
@@ -129,7 +131,7 @@ val comptime :
   arguments:string list ->
   Tst.Assembly.package list ->
   Cgt.Nodes.Program.t ->
-  (Cgt.Nodes.Program.t, failure) result
+  (Cgt.Nodes.Program.t * bool, failure) result
 
 (** Stage 5 when [optimize] is true; otherwise the tree unchanged. A call
     into C is folded by running [c], the packages' C code for [target]
@@ -195,6 +197,18 @@ val hashes_of : Tst.Assembly.package list -> Foreign.package list -> Codegen.c_p
     removing any such file an earlier build wrote there. No file is written
     when [rows] is empty. *)
 val write_hashes : output:string -> Foreign.Hashes.row list -> (unit, failure) result
+
+(** Writes an empty `STEM.arguments` beside the object [output] when [read]
+    is true, after removing any such file an earlier build wrote there. The
+    file marks an object whose `comptime` calls read the runtime's
+    `arguments` (docs/design/comptime.md), so a package manager that caches
+    the object keys it on the build's arguments as well. *)
+val write_arguments_marker : output:string -> read:bool -> (unit, failure) result
+
+(** A usage error when [output] ends in `.arguments`, so that the object
+    would be the path of its own marker; otherwise nothing. `--object`
+    checks [output] before it builds anything. *)
+val check_object_output : string -> (unit, failure) result
 
 val object_file :
   ?target:string ->

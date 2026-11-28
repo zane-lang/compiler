@@ -197,6 +197,14 @@ well-formed stamp, and a malformed one is a usage error that writes no
 object. Its packages are written to a temporary directory, so no file name
 in the repository is Unicode.
 
+`arguments_test.py` checks the empty `STEM.arguments` marker that
+`--object` writes beside an object when a `comptime` call read the
+runtime's `arguments` (`docs/design/comptime.md` K6). A root whose marked
+call reads them, directly or through a library's verb, gets the marker,
+also when the build was given no arguments; a root whose marked call reads
+nothing gets none; and a second build that reads nothing removes the marker
+the first build wrote.
+
 `memo_test.py` checks calls memoized while the program runs
 (docs/design/memoization.md). Its `memo` fixtures are programs, each built
 plain, optimized and tiered (tier 1 loaded before `main`), with and without
