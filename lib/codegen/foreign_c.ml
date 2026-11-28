@@ -37,9 +37,10 @@ type c_module = { key : string; bitcode : string; files : string list }
    module. Its thunks take the package's stamped names back before the
    module is linked, and every body in it is retained, never emitted.
 
-   A package that [keeps_names] has its C globals keep their C names, as
-   the root of a dynamic-library or test build does, so that a host finds
-   a symbol its C defines by its name (docs/design/ffi.md F9). *)
+   A package that [keeps_names] has its C globals offered under their C
+   names too, as the root of a dynamic-library or test build does, so that
+   a host finds a symbol its C sources define by its name; its own code
+   reaches the renamed definitions (docs/design/ffi.md F9). *)
 type package = {
   prefix : string;
   sources : c_module list;
@@ -63,6 +64,7 @@ external rename : Llvm.llmodule -> string -> string -> string list -> string lis
   = "zane_rename_c_globals"
 
 external constructors : Llvm.llmodule -> string list = "zane_c_constructors"
+external offer_c_names : Llvm.llmodule -> string -> string list -> bool -> unit = "zane_offer_c_names"
 external drop_defined : Llvm.llmodule -> Llvm.llmodule -> string list -> unit = "zane_drop_defined"
 external drop_defined_apart : Llvm.llmodule -> string -> string list -> unit = "zane_drop_defined_apart"
 external share_state : Llvm.llmodule -> Llvm.llmodule -> string -> unit = "zane_share_state"
@@ -219,7 +221,9 @@ let package_module ctx ~triple ~data_layout p =
     match m with
     | Some m ->
         localize_shared m;
-        if p.keeps_names then [] else rename m p.prefix global_prefix p.thunks p.defined
+        let names = rename m p.prefix global_prefix p.thunks p.defined in
+        if p.keeps_names then offer_c_names m p.prefix names (List.mem "windows" (String.split_on_char '-' triple));
+        names
     | None -> []
   in
   let m =

@@ -29,4 +29,4 @@ Error: `io_constant` is a `const` `struct io_t`, and `Io`'s objects are `io_t`, 
 File "fixtures/reject/variables/lib/lib.zn", line 16, characters 19-30:
 16 |     io Io foreign "io_global";
    |                   ^^^^^^^^^^^
-Error: only the root package declares a foreign variable; every other package reaches a foreign capability through one passed to it (ffi.md §5.1)
+Error: only the root package and the body of an exported lambda declare a foreign variable; every other package reaches a foreign capability through one passed to it (ffi.md §5.1)

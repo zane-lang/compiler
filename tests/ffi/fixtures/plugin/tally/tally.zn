@@ -1,0 +1,14 @@
+/// A library package whose exported lambdas the plugin's export line gives
+/// C symbols (packages.md §8.3). An exported lambda has root rights in any
+/// package, so `add` writes the console (§8.4); `square` writes nothing, and
+/// the host calls it from several threads at once (concurrency.md §4.7).
+package tally;
+
+alias I64 = @primitives$I64;
+
+add I64(a I64, b I64) {
+	@program$console!print(@primitives$String.escaped("tally adds\n"));
+	return @operators$add(a, b);
+} export "tally_add";
+
+square I64(x I64) => @operators$multiply(x, x) export "tally_square";

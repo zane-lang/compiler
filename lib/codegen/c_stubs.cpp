@@ -102,6 +102,29 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
   CAMLreturn(names);
 }
 
+/* The root package's C globals offered under their C names as well
+   (docs/design/ffi.md F9): for each of [labels], the C names
+   [zane_rename_c_globals] renamed, that the module defines, an alias named
+   by the C name of the renamed definition, with default visibility, and
+   on COFF marked for a DLL to export, so that a host finds the symbol by
+   the name it looks it up by. The renamed definition stays the one the
+   program's own code reaches. */
+extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value coff) {
+  CAMLparam4(mod, prefix, labels, coff);
+  llvm::Module *m = module_of(mod);
+  std::string p = String_val(prefix);
+  for (value l = labels; l != Val_emptylist; l = Field(l, 1)) {
+    std::string label = String_val(Field(l, 0));
+    llvm::GlobalValue *g = m->getNamedValue(p + label);
+    if (!g || g->isDeclarationForLinker() || g->hasLocalLinkage() || m->getNamedValue(label)) continue;
+    auto *a = llvm::GlobalAlias::create(g->getValueType(), g->getAddressSpace(), llvm::GlobalValue::ExternalLinkage,
+                                        label, g, m);
+    a->setVisibility(llvm::GlobalValue::DefaultVisibility);
+    if (Bool_val(coff)) a->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+  }
+  CAMLreturn(Val_unit);
+}
+
 /* A name without the `.N` the linker adds to a local one it renames. */
 static llvm::StringRef unnumbered(llvm::StringRef name) {
   size_t dot = name.rfind('.');

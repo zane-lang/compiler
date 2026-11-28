@@ -40,7 +40,11 @@
      root prints linked against releases of its other packages, which
      `released` builds, and `golden/NAME.released.calls` what of those
      packages the optimized build still calls, having inlined the rest
-     of what it retained of their C. A fixture holding `.zn` files is one package; any
+     of what it retained of their C, and `golden/NAME.plugin.out` what
+     the C host `fixtures/NAME/host.c` prints, given the fixture built into
+     a dynamic library twice, unoptimized and optimized, which it loads
+     both of (packages.md §8.1), run with its drains checked and
+     unchecked. A fixture holding `.zn` files is one package; any
      other is a build of its subdirectories, in name order, so the first
      is the root. Its `flags` file, one per line, is what it is built with
      besides. A directory `NAME.archive` anywhere in a fixture holds the C
@@ -283,6 +287,24 @@ let ffi () =
             "(rule\n (deps %s)\n (action\n  (with-stdout-to\n   %s.actual\n   (run sh %%{dep:released}%s %s %s))))\n\n"
             (fixture_deps dir) golden mode zanec dir;
           diff golden (golden ^ ".actual")
+      | [ name; "plugin"; "out" ] ->
+          let dir = "fixtures/" ^ name in
+          List.iter
+            (fun (library, optimize) ->
+              Printf.printf "(rule\n (deps %s)\n (targets %s)\n (action\n  (run %s --library %s%s%s%s)))\n\n"
+                (fixture_deps dir) library zanec library optimize (flags_of dir) (packages dir))
+            [ (name ^ ".plugin.library", ""); (name ^ ".plugin.optimized.library", " --optimize") ];
+          Printf.printf
+            "(rule\n (deps %s/host.c)\n (targets %s.host.exe)\n (action\n  (run %%{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o %s.host.exe %s/host.c)))\n\n"
+            dir name name dir;
+          List.iter
+            (fun (mode, check) ->
+              let actual = Printf.sprintf "%s.plugin.%s.out.actual" name mode in
+              Printf.printf
+                "(rule\n (deps %s.plugin.library %s.plugin.optimized.library)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.host.exe ./%s.plugin.library ./%s.plugin.optimized.library)))))\n\n"
+                name name check actual name name name;
+              diff golden actual)
+            [ ("checked", "1"); ("unchecked", "0") ]
       | [ "reject"; name; "ll"; "err" ] ->
           let dir = "fixtures/reject/" ^ name in
           Printf.printf
