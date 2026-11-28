@@ -88,10 +88,10 @@ class ArgumentsMarkerTests(unittest.TestCase):
         self.build(READS_NOTHING, "alpha")
         self.assertFalse(self.marker.exists())
 
-    def test_an_object_named_like_its_marker_is_refused(self):
-        # `app.arguments` would be its own marker, which the build removes.
+    def refuse(self, name):
+        """Runs `--object` on the object path `name` and checks that zanec refuses it."""
         (self.root / "app/app.zn").write_text(ROOT.format(call=READS_IN_ROOT), encoding="utf-8")
-        output = self.root / "app.arguments"
+        output = self.root / name
         result = subprocess.run(
             [ZANEC, "--object", output, "--package", self.root / "app", "--package", self.root / "counts",
              "--build-argument", "alpha"],
@@ -99,6 +99,14 @@ class ArgumentsMarkerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("`.arguments`", result.stderr)
         self.assertFalse(output.exists())
+
+    def test_an_object_named_like_its_marker_is_refused(self):
+        # `app.arguments` would be its own marker, which the build removes.
+        self.refuse("app.arguments")
+
+    def test_an_object_named_like_its_marker_in_another_case_is_refused(self):
+        # On a file system that ignores case, `app.ARGUMENTS` is the marker.
+        self.refuse("app.ARGUMENTS")
 
     def test_a_build_without_the_read_removes_an_earlier_marker(self):
         self.build(READS_IN_ROOT, "alpha")

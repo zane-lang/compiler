@@ -124,6 +124,8 @@ extension, and when none did, it removes such a file an earlier build left
 there ([`separate-compilation.md`](separate-compilation.md) C3). The marker
 records the read, not the values: `zane` keys its cache of a marked object
 on the arguments it passed, and of an unmarked object on nothing else.
+Only the root package reaches `@program$runtime`, so a library's build,
+given `--no-root`, never writes the marker.
 `Eval.explicit`'s `read_arguments` records the read, and `Comptime.run`
 returns it beside the program.
 

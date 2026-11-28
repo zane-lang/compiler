@@ -369,15 +369,17 @@ let write_hashes ~output rows =
 let arguments_marker output = Filename.remove_extension output ^ ".arguments"
 
 (* An object path that is its own marker's path would be removed or emptied
-   by [write_arguments_marker], so `--object` refuses it before it builds. *)
+   by [write_arguments_marker], so `--object` refuses it before it builds.
+   The comparison ignores letter case, since on a file system that ignores
+   case, `app.ARGUMENTS` and `app.arguments` are one file. *)
 let check_object_output output =
-  if arguments_marker output = output then
+  if String.lowercase_ascii (arguments_marker output) = String.lowercase_ascii output then
     fail
       [
         Diagnostic.about_invocation
           (Printf.sprintf
              "the object `%s` is the path of the marker zanec writes beside it; give the object \
-              another extension than `.arguments`"
+              another extension than `.arguments`, in any letter case"
              output);
       ]
   else Ok ()
