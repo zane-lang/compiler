@@ -24,7 +24,12 @@ root built against them given those hashes, unoptimized and optimized, its
 drains checked and unchecked. `golden/NAME.released.calls` holds what of
 those packages the optimized build still calls, their thunks and their C
 functions, having inlined the rest of the C it retained (docs/design/ffi.md
-F13), and the same for hashes none of which agree. A fixture's `flags` file, one per line, is what it is
+F13), and the same for hashes none of which agree. `golden/NAME.plugin.out`
+holds what the C host `fixtures/NAME/host.c` prints given the fixture, a
+plugin package and the libraries it reaches, built by `--library` into a
+dynamic library unoptimized and optimized (docs/design/ffi.md F21): the
+host loads both and calls their exports, run with drains checked and
+unchecked. A fixture's `flags` file, one per line, is what it is
 built with besides. A directory `NAME.archive` anywhere in a fixture
 holds the C sources of the static library `NAME.a` beside it, which an
 `archive` row names: the rules build it for the host with `archive`,
@@ -57,6 +62,8 @@ relocation needs, by `llvm-strip` (`STRIP` when set).
 | `keptStrings` | Conversions to `@primitives$String` that stay copies because something may write the source while the call reads the string: a later argument, the call's own `mut` subject, a block argument, a spawned call, and a later argument read from a spawned call whose abort handler, run at the read, writes the source, each reading the text as it was converted. A plain build that lent the first two or the last would read the overwritten bytes; an optimized one folds the calls at compile time |
 | `allocated` | Strings C returns in bytes `zane_bytes_alloc` gave it, which the string takes without a copy: all of them, a prefix of them, and none of them, each checked by C comparing the string's address with the block's; bytes of C's own, and a view starting inside the block, which are copied and the block returned; the last of two blocks one call asks for, the first returned; and a capability-free call, which the optimized build folds |
 | `callbackValues` | Function values C calls with strings, lists, arrays and data handles: each word of a string as a `zane_bytes`, a list and an array in C's own frame, a borrowed data handle, and a data handle C makes and gives, which the lambda's roaming owner releases when it ends, seen through a capability's count of releases |
+| `plugin` | A plugin package (packages.md §8.1) built into a dynamic library twice, both of which `host.c` loads into one process: each prints through its own console, writing what one call printed before it returns, reads a package constant made at the first call that reads it, counts through a foreign variable declared in an exported lambda in C state of its own, takes a value type, `Bool`s and a string from C, gives a `Bool`, gets no arguments, and offers its root's C function `plugin_entry` by that name, which calls an export of `tally`, a library its export line names, whose exported lambdas write the console and are called from four threads the host starts; `unused`, which no export line names, offers no export, and the runtime no symbol |
+| `testHost` | A test package whose export line names `widget` (packages.md §7.2): its C calls `widget`'s exported lambda and its own by their C names, and `main` calls its own directly |
 | `warnings` | A C warning in a source of the package's own directory, which `--check` shows, and the same in a vendored source below it, which it does not |
 | `noObject` | A null result from a foreign verb that declares no abort, which stops the program |
 | `callbackNull` | A null pointer C passes a function value for a data handle, which stops the program before the lambda runs |

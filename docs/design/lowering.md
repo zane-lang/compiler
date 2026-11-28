@@ -440,6 +440,13 @@ each other while they are made" and status 1, the program's error as an
 index out of range is. A maker reading its own constant again is the
 one-step case of the same test.
 
+A plugin package's dynamic library has no entry and no start function
+([`ffi.md`](ffi.md) F21): its host calls exports, never `main`, so each
+constant is made by its function at its first read, on the thread of the
+host call that reads it, and moved into the constants' region as any is.
+The runtime's start-up for a library makes the program's own scope and
+the constants' region as the library is loaded (`runtime/main.c`).
+
 A program's entry is always a start function, `zane.start`, that calls each
 constant's function, the packages a package depends on first, and then
 `main`, discarding what `main` returns. A `main` that declares its abort
@@ -680,7 +687,9 @@ none compiles for the processor it runs on. A build for any other target, or
 with another C compiler or Zig, compiles its runtime and keeps it in the
 cache, and asks for its linker command as above.
 
-Lowering starts at the root package's `main` and lowers each verb the first
+Lowering starts at the root package's `main`, a plugin's from its exported
+lambdas, and every build's but a library's from the exported lambdas it
+gives C symbols too ([`ffi.md`](ffi.md) F20), and lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to
 lower. Whatever it cannot handle yet it refuses with a diagnostic at that
 node, never by lowering it wrongly.

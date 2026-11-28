@@ -124,6 +124,10 @@ The runtime is C, and it finds what it calls by a C name. These keep one:
 
 - the program's entry, `zane_main`, whatever its `main` is called
   ([`lowering.md`](lowering.md) L16);
+- an exported lambda's C function, under the C name its `export` gives
+  it, which a dynamic library offers its host and a test package's C
+  calls ([`ffi.md`](ffi.md) F20); a `$` in every Zane symbol keeps the two
+  apart;
 - the runtime's own functions, all `zane_*`. No symbol above can clash with
   them, since every one contains a `$`.
 
@@ -149,7 +153,8 @@ program value such as `@program$console` holds (`zane.value.@program$console`).
   stamped dependency that reads them
   ([`separate-compilation.md`](separate-compilation.md) C4).
 - A program builds into one module ([`lowering.md`](lowering.md) L15), so
-  every verb but `zane_main` is local to it: its symbol is in the binary, for
+  every verb but `zane_main` is local to it, and a plugin's dynamic library
+  hides every one, offering only its exports ([`ffi.md`](ffi.md) F21): its symbol is in the binary, for
   a debugger or a profiler, but no other object links against it. A walk
   table is private and has no symbol in the binary at all, and its walks are
   local.

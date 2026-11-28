@@ -66,6 +66,13 @@ zanec --build hello --root --package hello=path/to/hello --package core=path/to/
 zanec --target x86_64-windows-gnu --build hello.exe --root --package hello=path/to/hello --package core=path/to/std/lib/core
 ```
 
+A plugin package, a `bin/` package without `main`, builds into a dynamic
+library a host loads, `.so`, `.dylib` or `.dll` by the target:
+
+```sh
+zanec --library libsynth.so --root --package synth=path/to/project/bin/synth --package core=path/to/std/lib/core
+```
+
 A released compiler is in `~/.zane/toolchains/<version>/bin/zanec`, where
 `zane toolchain install` puts it. In a development checkout, `pixi shell`
 provides a `zanec` that takes the same arguments

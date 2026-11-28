@@ -33,9 +33,14 @@ dependency bodies for inlining and folding alone (C12); their ordinary definitio
 still belong to the dependency objects. With no stamps at all, that is the whole
 program in one module.
 
-In a program's build the first package is the root, which alone reaches
-`@program$`. A library's build, given `--no-root`, has no root at all
-(`packages.md` §6.1), so none of its packages reaches `@program$`.
+In a program's or a plugin's build the first package is the root, which
+alone reaches `@program$`, apart from the bodies of exported lambdas,
+which do in any package (`packages.md` §8.4). A library's build, given
+`--no-root`, has no root at all (`packages.md` §6.1), so none of its
+packages reaches `@program$` outside an exported lambda, and none of its
+exported lambdas gets a C symbol: the build that names the library in an
+export line defines that symbol, calling the adapter the library's object
+defines ([`ffi.md`](ffi.md) F20).
 
 **C2. A dependency is read from source.** The compiler type-checks against a
 dependency's source, the same `.zn` files its objects were built from at the
