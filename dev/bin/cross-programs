@@ -133,10 +133,16 @@ for golden in tests/ffi/golden/*.plugin.out; do
 	dir="$objects/ffi/$fixture"
 	packages=()
 	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
-	"$ZANEC" --target "$TARGET" --library "$OUT/$name.plugin$LIB" "${packages[@]}"
-	"$ZANEC" --target "$TARGET" --optimize --library "$OUT/$name.plugin.optimized$LIB" "${packages[@]}"
+	flags=()
+	if [[ -f "$dir/flags" ]]; then
+		while IFS= read -r flag || [[ -n "$flag" ]]; do flags+=("$flag"); done <"$dir/flags"
+	fi
+	status=0
+	[[ -f "$dir/expected-status" ]] && status="$(tr -d '[:space:]' <"$dir/expected-status")"
+	"$ZANEC" --target "$TARGET" --library "$OUT/$name.plugin$LIB" ${flags[@]+"${flags[@]}"} "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --optimize --library "$OUT/$name.plugin.optimized$LIB" ${flags[@]+"${flags[@]}"} "${packages[@]}"
 	"$ZANE_CC" --target="$TARGET" -std=c11 -O1 -pthread -o "$OUT/$name.host$EXE" "$dir/host.c"
-	expect "$name.host" "$golden" 0
+	expect "$name.host" "$golden" "$status"
 	printf '%s\n' "$name.plugin$LIB" "$name.plugin.optimized$LIB" >"$OUT/$name.host.args"
 done
 

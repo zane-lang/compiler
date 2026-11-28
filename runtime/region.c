@@ -486,9 +486,11 @@ _Noreturn static void zane_stack_full(void) {
    the range that is full and the manifest field that sets its size. */
 _Noreturn void zane_too_deep_in(zane_context *c) {
 	char text[256], digits[24], *at = text;
-	int main_context = c->id == 0;
+	/* A host's call of an exported lambda is bounded by `fixed-region`, as
+	   the main context is (memory.md §3.7). */
+	int main_context = c->id == 0 || c->host;
 	at = zane_append(at, "scopes nested too deep: ");
-	at = zane_append(at, main_context ? "the main context's" : "a spawned call's");
+	at = zane_append(at, c->host ? "a host call's" : main_context ? "the main context's" : "a spawned call's");
 	at = zane_append(at, " fixed-size region of ");
 	int64_t mib = c->size / ZANE_CHUNK;
 	int n = 0;

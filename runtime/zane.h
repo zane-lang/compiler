@@ -197,6 +197,11 @@ void zane_handle_set(char *at, char *with, zane_thunk set_thunk);
 void zane_callback_attach(void);
 void zane_callback_detach(void);
 
+/* held.c: the top-level scope of an object a host holds (packages.md §8.5). */
+char *zane_c_held_new(int64_t size, int64_t align);
+void zane_c_held_settle(char *object, const zane_type *type);
+void zane_c_held_end(char *object);
+
 /* region.c */
 void zane_too_deep(void);
 

@@ -100,6 +100,12 @@ let fixture_deps dir =
 
 (* codegen *)
 
+let status_of dir =
+  let file = dir // "expected-status" in
+  if Sys.file_exists file then
+    int_of_string (String.trim (In_channel.with_open_text file In_channel.input_all))
+  else 0
+
 let status name =
   let file = "fixtures" // name // "expected-status" in
   if Sys.file_exists file then
@@ -297,12 +303,23 @@ let ffi () =
           Printf.printf
             "(rule\n (deps %s/host.c)\n (targets %s.host.exe)\n (action\n  (run %%{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o %s.host.exe %s/host.c)))\n\n"
             dir name name dir;
+          (* A host that a stop ends, as one in a library ends its whole
+             process (packages.md §8.1), is held to both its streams and
+             the status of its `expected-status` file. *)
+          let run =
+            Printf.sprintf "(run ./%s.host.exe %s.plugin.library %s.plugin.optimized.library)" name name name
+          in
+          let run actual =
+            match status_of dir with
+            | 0 -> Printf.sprintf "(with-stdout-to\n    %s\n    %s)" actual run
+            | n -> Printf.sprintf "(with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     %s))" actual n run
+          in
           List.iter
             (fun (mode, check) ->
               let actual = Printf.sprintf "%s.plugin.%s.out.actual" name mode in
               Printf.printf
-                "(rule\n (deps %s.plugin.library %s.plugin.optimized.library)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.host.exe %s.plugin.library %s.plugin.optimized.library)))))\n\n"
-                name name check actual name name name;
+                "(rule\n (deps %s.plugin.library %s.plugin.optimized.library)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   %s)))\n\n"
+                name name check (run actual);
               diff golden actual)
             [ ("checked", "1"); ("unchecked", "0") ]
       | [ "reject"; name; "ll"; "err" ] ->
@@ -368,7 +385,7 @@ let semantics () =
 
 (* runtime *)
 
-let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "handle"; "spawn"; "workers"; "snapshot"; "tier" ]
+let parts = [ "main"; "arena"; "region"; "block"; "value"; "list"; "slot"; "handle"; "spawn"; "workers"; "snapshot"; "held"; "tier" ]
 
 let runtime () =
   let sources = String.concat " " (List.map (Printf.sprintf "../../runtime/%s.c") parts) in

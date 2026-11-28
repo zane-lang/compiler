@@ -46,6 +46,9 @@ type walk = {
   (* Where an `abort` hands its value: the enclosing verb's abort type. *)
   mutable abort : Ty.t;
   mutable resolve : Ty.t list;
+  (* The `^T` parameters of exported lambdas that end a C-held object, which
+     the body reads and never moves (packages.md §8.5). *)
+  kept : (int, unit) Hashtbl.t;
 }
 
 (* Whether storage of type [t] owns the value stored in it. A reference names
@@ -79,7 +82,12 @@ let overlaps a b =
    moved. *)
 let move_roaming env w (v : T.Expr.t) (l : T.Local.t) path =
   let name = Env.quote l.T.Local.name in
-  if Hashtbl.find_opt w.declared l.T.Local.id <> Some w.block then
+  if Hashtbl.mem w.kept l.T.Local.id then
+    Env.error env v.T.Expr.span
+      (Printf.sprintf
+         "%s ends a C-held object, which the body reads and never moves: the object dies when the call's scope drains (packages.md §8.5)"
+         name)
+  else if Hashtbl.find_opt w.declared l.T.Local.id <> Some w.block then
     Env.error env v.T.Expr.span
       (Printf.sprintf
          "%s is declared in an enclosing block, and a roaming owner is moved only in the block \
@@ -436,6 +444,7 @@ let fresh ?(abort = Ty.Error) projections blocks ret =
     ret;
     abort;
     resolve = [];
+    kept = Hashtbl.create 1;
   }
 
 let verb env projections blocks (sg : S.t) (ps : T.Local.t list) body =
@@ -459,8 +468,16 @@ let run env (p : T.Program.t) =
              over (functions.md §2.9): the body is read, and moves nothing
              out. *)
           | T.Decl.Subscript { value = Some v; _ } -> expr env (fresh Ty.Error) v
-          | T.Decl.Constant { ty; value; _ } ->
+          | T.Decl.Constant { ty; value; export } ->
               let w = fresh ty in
+              (match (export, value.T.Expr.node) with
+              | Some _, T.Expr.Lambda l ->
+                  List.iter
+                    (fun (p : T.Local.t) ->
+                      if Ty.is_roaming p.T.Local.ty && Foreign_decls.c_held env p.T.Local.ty then
+                        Hashtbl.replace w.kept p.T.Local.id ())
+                    l.T.Lambda.params
+              | _ -> ());
               expr env w value;
               store env w ty value
           | T.Decl.Enum_map { ty; entries; _ } ->

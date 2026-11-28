@@ -2919,6 +2919,58 @@
   (diff golden/plugin.plugin.out plugin.plugin.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/pluginDepth))
+ (targets pluginDepth.plugin.library)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --library pluginDepth.plugin.library "--fixed-region" "4194304" "--spawned-fixed-region" "1048576" --package fixtures/pluginDepth/depth)))
+
+(rule
+ (deps (source_tree fixtures/pluginDepth))
+ (targets pluginDepth.plugin.optimized.library)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --library pluginDepth.plugin.optimized.library --optimize "--fixed-region" "4194304" "--spawned-fixed-region" "1048576" --package fixtures/pluginDepth/depth)))
+
+(rule
+ (deps fixtures/pluginDepth/host.c)
+ (targets pluginDepth.host.exe)
+ (action
+  (run %{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o pluginDepth.host.exe fixtures/pluginDepth/host.c)))
+
+(rule
+ (deps pluginDepth.plugin.library pluginDepth.plugin.optimized.library)
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-outputs-to
+    pluginDepth.plugin.checked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./pluginDepth.host.exe pluginDepth.plugin.library pluginDepth.plugin.optimized.library))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pluginDepth.plugin.out pluginDepth.plugin.checked.out.actual)))
+
+(rule
+ (deps pluginDepth.plugin.library pluginDepth.plugin.optimized.library)
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-outputs-to
+    pluginDepth.plugin.unchecked.out.actual
+    (with-accepted-exit-codes
+     1
+     (run ./pluginDepth.host.exe pluginDepth.plugin.library pluginDepth.plugin.optimized.library))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pluginDepth.plugin.out pluginDepth.plugin.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/absolute))
  (action
   (with-stderr-to

@@ -288,6 +288,9 @@ struct zane_context {
 	   a call spawned from one, so that a publish reaches that pool
 	   (workers.c); null for any other. */
 	struct zane_workers *workers;
+	/* Whether it runs a host's calls of exported lambdas, with a range of
+	   the main context's size (arena.c). */
+	int host;
 };
 
 _Static_assert(offsetof(zane_context, frontier) == ZANE_CONTEXT_FRONTIER, "a context starts with its frontier");
@@ -419,12 +422,13 @@ extern pthread_mutex_t zane_memory;
 extern uintptr_t *zane_pages[];
 extern zane_context *zane_contexts[];
 extern int32_t zane_context_count;
-extern zane_context *zane_idle;
+extern zane_context *zane_idle, *zane_idle_hosts;
 extern _Thread_local zane_context *zane_self;
 extern zane_mark *zane_program;
 void zane_reopen(void);
 zane_context *zane_context_at(int32_t id);
 zane_context *zane_context_new(void);
+zane_context *zane_host_context_new(void);
 uintptr_t *zane_page(const void *at, int make);
 uintptr_t zane_page_entry(const void *at);
 void zane_set_page(const void *at, uintptr_t entry);

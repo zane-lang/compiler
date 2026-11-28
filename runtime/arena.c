@@ -111,7 +111,7 @@ static void zane_ids_drop(char *at, size_t bytes) {
    reserved. */
 zane_context *zane_contexts[ZANE_CONTEXTS];
 int32_t zane_context_count;
-zane_context *zane_idle;
+zane_context *zane_idle, *zane_idle_hosts;
 
 /* The context running on this thread, and the program's own region. */
 _Thread_local zane_context *zane_self;
@@ -151,11 +151,11 @@ void zane_region_checked(zane_mark *r) {
 /* A context for the program's `main`, the first one made, or for a
    spawned call, with the range its frames go in. A context a call is over
    with keeps its range for the next. */
-zane_context *zane_context_new(void) {
+static zane_context *zane_context_from(zane_context **idle, int host) {
 	pthread_mutex_lock(&zane_memory);
-	zane_context *c = zane_idle;
+	zane_context *c = *idle;
 	if (c) {
-		zane_idle = c->next;
+		*idle = c->next;
 		pthread_mutex_unlock(&zane_memory);
 		return c;
 	}
@@ -163,14 +163,23 @@ zane_context *zane_context_new(void) {
 	c = calloc(1, sizeof *c);
 	if (!c) zane_broken("out of memory for a context");
 	c->id = zane_context_count++;
+	c->host = host;
 	pthread_mutex_unlock(&zane_memory);
-	zane_reserve(c, c->id == 0 ? zane_fixed_region : zane_spawned_fixed_region);
+	zane_reserve(c, c->id == 0 || host ? zane_fixed_region : zane_spawned_fixed_region);
 	zane_ids_add(c->base, (size_t)(c->limit - c->base));
 	for (char *at = c->base; at < c->limit + ZANE_GUARD; at += ZANE_CHUNK)
 		zane_set_page(at, (uintptr_t)c | 1);
 	__atomic_store_n(&zane_contexts[c->id], c, __ATOMIC_RELEASE);
 	return c;
 }
+
+zane_context *zane_context_new(void) { return zane_context_from(&zane_idle, 0); }
+
+/* A context for a host's call of an exported lambda, whose range is the
+   main context's size, `fixed-region` (memory.md §3.7, dependencies.md
+   §2.1), and which goes back to a pool of its own, apart from spawned
+   calls'. */
+zane_context *zane_host_context_new(void) { return zane_context_from(&zane_idle_hosts, 1); }
 
 /* The scope a new one skips to (`zane_mark`): the scope around it, or that
    scope's skip's skip when the two spans below it are equal. */

@@ -167,8 +167,9 @@ void zane_context_release(zane_context *c) {
 	c->frontier = c->base;
 	zane_give_spares(c);
 	pthread_mutex_lock(&zane_memory);
-	c->next = zane_idle;
-	zane_idle = c;
+	zane_context **idle = c->host ? &zane_idle_hosts : &zane_idle;
+	c->next = *idle;
+	*idle = c;
 	pthread_mutex_unlock(&zane_memory);
 }
 
@@ -178,9 +179,14 @@ void zane_context_release(zane_context *c) {
    when the call comes in and back in the pool once it returns: the result
    C takes holds no block. The adapter calls these only when the thread
    has no context, so they stay out of it, cold. */
+/* Set by an exported lambda's C function while it calls the lambda's
+   adapter (docs/design/ffi.md F20): a host's call gets a context whose
+   range is `fixed-region`, which bounds each host call (memory.md §3.7). */
+_Thread_local int zane_host_call;
+
 __attribute__((cold, noinline)) void zane_callback_attach(void) {
 	zane_thread_start();
-	zane_self = zane_context_new();
+	zane_self = zane_host_call ? zane_host_context_new() : zane_context_new();
 	zane_self->workers = NULL;
 	zane_scope_enter(0);
 }

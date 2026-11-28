@@ -1,0 +1,28 @@
+/// A host call's frames are bounded by `fixed-region`, as the main
+/// context's are (memory.md §3.7), not by `spawned-fixed-region`: built
+/// with 4 MiB for the first and 1 MiB for the second, a host call nests
+/// frames of 512 KiB 3 deep, past what a spawned call's range holds, and
+/// then 100 deep, which stops the program, and with it the host's whole
+/// process, which never prints that it returned (packages.md §8.1, §6.3).
+package depth;
+
+alias Int = @primitives$I64;
+alias Bool = @primitives$Bool;
+alias Unit = @primitives$Unit;
+alias Wide = @primitives$ArrayRef<Int, 65536>;
+
+Bool if(condition Bool, body @concepts$Block) {
+	@controlflow$branch(condition, body);
+	return condition;
+}
+
+/// A frame of 512 KiB, `n` deep.
+Int sink(n Int) {
+	a Wide = @primitives$ArrayRef.fill(65536, Int(i Int) => i);
+	if(@operators$equal(n, Int(0))) {
+		return a[Int(1)];
+	}
+	return @operators$add(sink(@operators$add(n, @operators$negate(Int(1)))), a[Int(1)]);
+}
+
+nest Int(n Int) => sink(n) export "depth_nest";

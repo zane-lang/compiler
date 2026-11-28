@@ -35,6 +35,14 @@ let handle_of env (t : Ty.t) =
 
 let is_capability (h : Nodes.Handle.t) = h.Nodes.Handle.free = None
 
+(* Whether [t], its mode looked through, is a type whose objects C may hold
+   (packages.md §8.5): a reference type that is no foreign handle. An
+   exported lambda gives C an owner of one, borrows one C passes, and ends
+   one C gives back. *)
+let c_held env (t : Ty.t) =
+  let t = Ty.strip_mode t in
+  (match t with Ty.Named _ -> true | _ -> false) && Type_decls.is_reference env t && handle_of env t = None
+
 (* The struct a handle's `cType` names in [iface], by its identity: a typedef
    of a struct, or the tag of a struct, that an interface header declares,
    completely or not, or that a header included by an interface header

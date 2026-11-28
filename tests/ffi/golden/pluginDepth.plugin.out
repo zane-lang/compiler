@@ -1,0 +1,2 @@
+2 deep: 3
+scopes nested too deep: a host call's fixed-size region of 4 MiB is full; raise `fixed-region` in zane.coda

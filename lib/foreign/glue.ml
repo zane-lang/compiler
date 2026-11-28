@@ -235,6 +235,9 @@ let callbacks_file (callbacks : callback list) =
   line "#define __ZANE_EXPORT __attribute__((visibility(\"default\")))";
   line "#define __ZANE_OWN __attribute__((visibility(\"hidden\")))";
   line "#endif";
+  (* An export's call of its adapter is a host's call, whose context's range
+     is `fixed-region` (runtime/snapshot.c). *)
+  if List.exists (fun (c : callback) -> c.export) callbacks then line "extern _Thread_local int zane_host_call;";
   List.iteri
     (fun n (c : callback) ->
       let name = Printf.sprintf "__zane_entry_%d" n and adapter = Printf.sprintf "__zane_adapter_%d" n in
@@ -263,16 +266,25 @@ let callbacks_file (callbacks : callback list) =
       (match c.params with
       | [] -> line "  void *__zane_args[1] = { 0 };"
       | ps -> line "  void *__zane_args[] = { %s };" (String.concat ", " (List.mapi slot ps)));
+      let call slot =
+        if c.export then begin
+          line "  int __zane_host = zane_host_call;";
+          line "  zane_host_call = 1;";
+          line "  %s(__zane_args, %s);" adapter slot;
+          line "  zane_host_call = __zane_host;"
+        end
+        else line "  %s(__zane_args, %s);" adapter slot
+      in
       (match c.result with
-      | Nothing -> line "  %s(__zane_args, 0);" adapter
+      | Nothing -> call "0"
       | Truth ->
           line "  unsigned char __zane_r = 0;";
-          line "  %s(__zane_args, &__zane_r);" adapter;
+          call "&__zane_r";
           line "  return __zane_r != 0;"
       | _ ->
           line "  %s __zane_r;" result;
           line "  __builtin_memset(&__zane_r, 0, sizeof __zane_r);";
-          line "  %s(__zane_args, &__zane_r);" adapter;
+          call "&__zane_r";
           line "  return __zane_r;");
       line "}")
     callbacks;

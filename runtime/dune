@@ -13,7 +13,7 @@
 
 (rule
  (target zane.c)
- (deps main.c arena.c region.c block.c value.c list.c slot.c handle.c spawn.c workers.c snapshot.c tier.c)
+ (deps main.c arena.c region.c block.c value.c list.c slot.c handle.c spawn.c workers.c snapshot.c held.c tier.c)
  (action
   (with-stdout-to
    %{target}
@@ -29,6 +29,7 @@
     (cat spawn.c)
     (cat workers.c)
     (cat snapshot.c)
+    (cat held.c)
     (cat tier.c)))))
 
 (rule
