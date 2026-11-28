@@ -1,0 +1,25 @@
+/// Reads the build machine's monotonic clock in a call marked `comptime`, so
+/// each build folds another value into its module, and then prints a result
+/// that does not depend on the reading (docs/design/tiers.md T12).
+package clocked;
+
+alias Int = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias String = @primitives$String;
+
+Int reading(runtime &@runtime$Runtime) => runtime:monotonicNanoseconds();
+
+/// A sum that a call of its own makes, so tier 1 has a function to take.
+Int counted(stamp Int) {
+	total Int(0);
+	@controlflow$repeat(Int(1000), {
+		total = @operators$add(total, Int(3));
+	});
+	return @operators$add(total, @math$bitAnd(stamp, Int(0)));
+}
+
+Unit main() {
+	stamp Int = comptime reading(@program$runtime);
+	@program$console!print(@operators$concat(String(counted(stamp)), String.escaped("\n")));
+	return Unit();
+}

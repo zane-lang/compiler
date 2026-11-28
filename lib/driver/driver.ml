@@ -568,20 +568,80 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       | Ok cs -> Ok (List.filter_map Fun.id cs)
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* What a tiered build does with the clock readings of its `comptime`
+   calls (docs/design/tiers.md T12): tier 0 records them in a file, and
+   tier 1 replays that file. *)
+type readings = Record of string | Replay of string
+
+(* [readings] in the file, whole: tier 0 writes it beside its name and
+   renames it into place, so tier 1 never reads half of it. *)
+let write_readings file readings =
+  let partial = file ^ ".partial" in
+  match
+    Out_channel.with_open_text partial (fun oc ->
+        List.iter (fun r -> Printf.fprintf oc "%Ld\n" r) readings);
+    Sys.rename partial file
+  with
+  | () -> Ok ()
+  | exception Sys_error message -> Error (Printf.sprintf "cannot write the clock readings to %s: %s" file message)
+
+(* The readings in [file], in order, given one at a time. Tier 1 is built
+   while tier 0 is, so the first reading waits until tier 0 has put the
+   file in place; a program whose `comptime` calls never read the clock
+   never waits. A line that is not a reading ends them. *)
+let replayed file =
+  let left = ref None in
+  let rec parsed = function
+    | line :: rest -> (match Int64.of_string_opt line with Some r -> r :: parsed rest | None -> [])
+    | [] -> []
+  in
+  let rec arrived () =
+    if Sys.file_exists file then parsed (In_channel.with_open_text file In_channel.input_lines)
+    else begin
+      Unix.sleepf 0.01;
+      arrived ()
+    end
+  in
+  fun () ->
+    let readings = match !left with Some r -> r | None -> arrived () in
+    match readings with
+    | [] ->
+        left := Some [];
+        None
+    | r :: rest ->
+        left := Some rest;
+        Some r
+
 (* The calls marked `comptime` (docs/design/comptime.md), which every build
-   evaluates. *)
-let comptime ?target ?(c = []) ~arguments packages cgt =
+   evaluates. Tier 0 writes its readings even when a call fails, so tier 1
+   reaches the same failure instead of waiting. *)
+let comptime ?target ?(c = []) ?readings ~arguments packages cgt =
+  let kept = ref [] in
+  let clock =
+    match readings with
+    | None -> Optimize.Live
+    | Some (Record _) -> Optimize.Recorded kept
+    | Some (Replay file) -> Optimize.Replayed (replayed file)
+  in
   let evaluated modules =
-    match Optimize.comptime ~c:modules ~arguments cgt with
+    match Optimize.comptime ~c:modules ~clock ~arguments cgt with
     | Ok cgt -> Ok cgt
     | Error ds -> fail ~sources:(Assembly.sources packages) ds
   in
-  if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
-  else if c = [] then evaluated []
-  else
-    match Codegen.with_c_modules ?target c evaluated with
-    | Ok result -> result
-    | Error message -> fail [ Diagnostic.about_invocation message ]
+  let result =
+    if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
+    else if c = [] then evaluated []
+    else
+      match Codegen.with_c_modules ?target c evaluated with
+      | Ok result -> result
+      | Error message -> fail [ Diagnostic.about_invocation message ]
+  in
+  match readings with
+  | Some (Record file) -> (
+      match write_readings file (List.rev !kept) with
+      | Ok () -> result
+      | Error message -> fail [ Diagnostic.about_invocation message ])
+  | None | Some (Replay _) -> result
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
    runs. A call into C is folded by running [c], the packages' C code

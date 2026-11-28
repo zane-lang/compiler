@@ -31,7 +31,9 @@ type regions = { fixed : int option; spawned : int option }
    hashes match (docs/design/ffi.md F13, F15). A tiered
    build (docs/design/tiers.md) takes two runs: `--build OUT --tiered` makes
    tier 0, and `--tier-up OUT` makes tier 1, the shared library that tier 0
-   loads while it runs. `--check`
+   loads while it runs. `--comptime-readings FILE`, given to both runs,
+   names the file in which tier 0 records the clock readings of its
+   `comptime` calls and from which tier 1 replays them (T12). `--check`
    runs semantics and prints only diagnostics, including the C compiler's
    warnings (docs/design/ffi.md F3), so the exit status and the diagnostics
    are the whole result. `--compile-commands OUT` writes the compilation
@@ -97,6 +99,10 @@ type t = {
      the arguments the build was started with, which `zane` passes on with
      `--build-argument`, in order (docs/design/comptime.md). *)
   build_arguments : string list;
+  (* The file of the clock readings that the calls marked `comptime` make:
+     tier 0 of a tiered build writes it, and `--tier-up` replays it
+     (docs/design/tiers.md T12). *)
+  comptime_readings : string option;
 }
 
 (* A package name as lexical.md §3 spells one: camelCase, so a lowercase
@@ -181,6 +187,10 @@ let parse arguments =
            tier 1 does its own optimization (docs/design/tiers.md). *)
         else if build.tiered && ((match view with Build _ -> false | _ -> true) || build.optimize) then usage ()
         else if (match view with Tier_up _ -> true | _ -> false) && build.optimize then usage ()
+        else if
+          build.comptime_readings <> None
+          && not (build.tiered || match view with Tier_up _ -> true | _ -> false)
+        then usage ()
         (* A program's write-back places belong to its root; a library built
            for a program has none, and only code from that library reads
            them. *)
@@ -242,6 +252,8 @@ let parse arguments =
         packages view
           { build with regions = { build.regions with spawned = Some (region_size bytes) } }
           rest
+    | "--comptime-readings" :: file :: rest when build.comptime_readings = None && is_value file ->
+        packages view { build with comptime_readings = Some file } rest
     | "--build-argument" :: argument :: rest ->
         packages view { build with build_arguments = build.build_arguments @ [ argument ] } rest
     | "--import" :: import :: rest when is_value import -> (
@@ -273,6 +285,7 @@ let parse arguments =
       pack = false;
       memoize = true;
       build_arguments = [];
+      comptime_readings = None;
       tiered = false;
       program_write_backs = None;
     }
@@ -284,6 +297,6 @@ let starts = function
   | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
     | "--link" | "--c-hashes" | "--import" | "--build-argument" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
     | "--compile-commands" | "--write-backs" | "--program-write-backs"
-    | "--tiered" | "--tier-up"
+    | "--tiered" | "--tier-up" | "--comptime-readings"
     | "--decls" | "--tst" | "--cgt" | "--ll" ) -> true
   | _ -> false

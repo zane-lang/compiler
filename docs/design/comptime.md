@@ -112,7 +112,7 @@ its counterpart where the build runs:
 | Read | At compile time |
 |---|---|
 | The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)) |
-| The runtime's `monotonicNanoseconds` | The build machine's monotonic clock, which `lib/optimize/clock_stubs.c` reads as `zane_monotonic_ns` reads the program's |
+| The runtime's `monotonicNanoseconds` | The build machine's monotonic clock, which `lib/optimize/clock_stubs.c` reads as `zane_monotonic_ns` reads the program's; tier 1 of a tiered build replays tier 0's readings instead ([`tiers.md`](tiers.md) T12) |
 | A method without `mut` on a foreign capability | Its C, run by the C evaluator against the build's own C memory, where the capability's C global holds its first value, as each run's C memory starts (F16) |
 | An approximate `@math$` function | The build machine's C math library, through OCaml's, in double precision and rounded once for an `F32` |
 
@@ -177,10 +177,3 @@ them all. A value that holds an address is refused too, which a value type
 - **Callees left behind.** A function only a lifted function called stays
   in the program after the lifted function is dropped. An optimized build
   leaves it to LLVM; an unoptimized build emits it.
-- **Reads that change between builds.** Both tiers of a tiered build are two
-  processes given the same arguments, and every read K6 lists but the clock
-  gives them the same value. Each tier reads the clock at its own moment, so
-  a marked call that reads it builds different constants into the two
-  modules, their fingerprints differ (tiers.md T3), and the program stays
-  in tier 0. Tier 1 would have to take tier 0's readings, as it would a
-  file's.

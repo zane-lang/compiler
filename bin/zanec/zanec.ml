@@ -49,7 +49,7 @@ let print_usage () =
   prerr_endline
     "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT|--compile-commands OUT";
   prerr_endline "              |--write-backs OUT]";
-  prerr_endline "             [--root|--no-root] [--program-write-backs FILE]";
+  prerr_endline "             [--root|--no-root] [--program-write-backs FILE] [--comptime-readings FILE]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...] [--c-hashes FILE ...]";
   prerr_endline "             [--fixed-region BYTES] [--spawned-fixed-region BYTES] [--pack-aggregates] [--no-memoize]";
@@ -135,7 +135,12 @@ let generate packages c_code build program =
      a build with one makes the C before evaluating it. *)
   let marked = cgt.Cgt.Nodes.Program.comptime <> [] in
   let* made = if optimize || marked then Result.map Option.some (c_of cgt) else Ok None in
-  let* cgt = Driver.comptime ?target ?c:made ~arguments:build.build_arguments packages cgt in
+  let readings =
+    Option.map
+      (fun file -> match build.view with Tier_up _ -> Driver.Replay file | _ -> Driver.Record file)
+      build.comptime_readings
+  in
+  let* cgt = Driver.comptime ?target ?c:made ?readings ~arguments:build.build_arguments packages cgt in
   let* cgt = Driver.optimize ?target ?c:(if optimize then made else None) ~optimize cgt in
   let c () = match made with Some c -> Ok c | None -> c_of cgt in
   match build.view with

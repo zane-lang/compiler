@@ -108,15 +108,24 @@ val c_modules :
   Cgt.Nodes.Program.t ->
   (Codegen.c_package list, failure) result
 
+(** What a tiered build does with the readings its `comptime` calls make of
+    the monotonic clock (docs/design/tiers.md T12): [Record file], for tier
+    0, writes them to [file], in order, once every call is evaluated;
+    [Replay file], for tier 1, gives the calls the readings in [file],
+    waiting for tier 0 to put it in place at the first reading. *)
+type readings = Record of string | Replay of string
+
 (** Every call marked `comptime` evaluated and its value written in its
     place, which every build does before stage 5 (docs/design/comptime.md).
     Inside such a call the runtime's `arguments` gives [arguments], the
     arguments the build was started with, and a call into C runs [c], as in
     [optimize]. A call that cannot be evaluated is a diagnostic pointing
-    into [packages]' sources. *)
+    into [packages]' sources. With [readings], the calls' clock readings are
+    recorded or replayed. *)
 val comptime :
   ?target:string ->
   ?c:Codegen.c_package list ->
+  ?readings:readings ->
   arguments:string list ->
   Tst.Assembly.package list ->
   Cgt.Nodes.Program.t ->

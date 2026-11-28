@@ -22,8 +22,17 @@ type output = Print of string | Set_threads of int64 | Set_threads_auto
    machine's own. [arguments] is what the runtime's `arguments` gives: the
    arguments the build was started with. [reads] counts the reads the run
    has made, and the package constants it has made, so that a call that
-   made one is not remembered as a call that reads nothing. *)
-type explicit = { arguments : string list; mutable reads : int }
+   made one is not remembered as a call that reads nothing. [clock] gives
+   the readings of the monotonic clock. *)
+type explicit = { arguments : string list; mutable reads : int; clock : clock }
+
+(* Where a `comptime` run's clock readings come from: the build machine's
+   clock ([Live]); that clock, with each reading kept in the list, newest
+   first, for tier 1 to replay ([Recorded], tier 0 of a tiered build); or
+   the readings tier 0 kept, which the function gives in order, and [None]
+   once they are used up ([Replayed], tier 1). Both tiers then fold the same
+   values, so they emit the same module (docs/design/tiers.md T3). *)
+and clock = Live | Recorded of int64 list ref | Replayed of (unit -> int64 option)
 
 (* A write of capability-backed state inside a `comptime` call, which no
    such call may make (spec effects.md §5.6): what the write was. *)
@@ -347,9 +356,18 @@ external build_clock : unit -> int64 = "zane_optimize_monotonic_ns"
 let monotonic_ns run =
   match run.explicit with
   | None -> stop "an input, which only the running program has"
-  | Some x ->
+  | Some x -> (
       x.reads <- x.reads + 1;
-      VInt (build_clock ())
+      match x.clock with
+      | Live -> VInt (build_clock ())
+      | Recorded kept ->
+          let now = build_clock () in
+          kept := now :: !kept;
+          VInt now
+      | Replayed next -> (
+          match next () with
+          | Some now -> VInt now
+          | None -> stop "a clock reading that tier 0 of this build did not make"))
 
 (* The build's arguments as the runtime's `arguments` gives the program
    its own (spec effects.md §6.6): a new list of strings, each laid out as
