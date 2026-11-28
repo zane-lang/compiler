@@ -22,8 +22,10 @@ type output = Print of string | Set_threads of int64 | Set_threads_auto
    machine's own. [arguments] is what the runtime's `arguments` gives: the
    arguments the build was started with. [reads] counts the reads the run
    has made, and the package constants it has made, so that a call that
-   made one is not remembered as a call that reads nothing. *)
-type explicit = { arguments : string list; mutable reads : int }
+   made one is not remembered as a call that reads nothing. [read_arguments]
+   becomes true once the run reads the runtime's `arguments`, so the build
+   can mark an object whose code depends on them. *)
+type explicit = { arguments : string list; mutable reads : int; mutable read_arguments : bool }
 
 (* A write of capability-backed state inside a `comptime` call, which no
    such call may make (spec effects.md §5.6): what the write was. *)
@@ -348,6 +350,7 @@ let build_arguments run =
   | None -> stop "an input, which only the running program has"
   | Some x ->
       x.reads <- x.reads + 1;
+      x.read_arguments <- true;
       let layout =
         if Hashtbl.mem run.prog.layouts "%primitives$String" then Some "%primitives$String"
         else

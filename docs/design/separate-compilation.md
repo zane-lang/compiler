@@ -50,7 +50,14 @@ packages included (`dependencies.md` §3.1). It is the library's counterpart
 to `--build`: no runtime and no link, only the object, and beside it the
 objects of the packages' C sources holding assembly, which cannot be
 renamed inside it, and the file of its C modules' hashes
-([`ffi.md`](ffi.md) F15).
+([`ffi.md`](ffi.md) F15). When a `comptime` call of the build read the
+runtime's `arguments`, `--object` also writes an empty `STEM.arguments`
+beside the object, `STEM` being `OUT` without its extension, and when none
+did, it removes such a file an earlier build wrote there
+([`comptime.md`](comptime.md) K6). `zane` reads the marker to key its
+cache of the object on the build's arguments. A release whose objects
+carry the marker is one `zane` compiles from source, so `--rewrite` (C9)
+is never given the marker.
 `--build OUT` keeps its meaning, a linked executable, and for a root with
 dependencies it compiles the root's object and links it with theirs (C7).
 

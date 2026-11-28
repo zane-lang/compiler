@@ -365,6 +365,18 @@ let write_hashes ~output rows =
   | () -> Ok ()
   | exception Sys_error why -> fail [ Diagnostic.about_invocation ("cannot write the C modules' hashes: " ^ why) ]
 
+(* Writes an empty `STEM.arguments` beside the object [output] when [read],
+   after removing any such file an earlier build wrote there. *)
+let write_arguments_marker ~output ~read =
+  let path = Filename.remove_extension output ^ ".arguments" in
+  match
+    if Sys.file_exists path then Sys.remove path;
+    if read then Out_channel.with_open_bin path ignore
+  with
+  | () -> Ok ()
+  | exception Sys_error why ->
+      fail [ Diagnostic.about_invocation ("cannot write the marker of the build's arguments: " ^ why) ]
+
 (* The C code each package of the build compiles into this object, for
    codegen to link (docs/design/ffi.md F8, F9): the modules of the package's
    C sources, and of its glue, made for the thunks that [cgt]'s foreign
@@ -576,7 +588,7 @@ let comptime ?target ?(c = []) ~arguments packages cgt =
     | Ok cgt -> Ok cgt
     | Error ds -> fail ~sources:(Assembly.sources packages) ds
   in
-  if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
+  if cgt.Cgt.Nodes.Program.comptime = [] then Ok (cgt, false)
   else if c = [] then evaluated []
   else
     match Codegen.with_c_modules ?target c evaluated with

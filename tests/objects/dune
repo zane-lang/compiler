@@ -748,6 +748,15 @@
  (action
   (run python3 %{dep:options_test.py} %{exe:../../bin/zanec/zanec.exe})))
 
+; The empty `STEM.arguments` marker beside an object whose `comptime` calls
+; read the runtime's `arguments`, and its removal when a later build reads
+; none (docs/design/comptime.md).
+(rule
+ (alias runtest)
+ (deps arguments_test.py)
+ (action
+  (run python3 %{dep:arguments_test.py} %{exe:../../bin/zanec/zanec.exe})))
+
 ; A library whose verbs take and return an array of 65,536 I64s, which
 ; crosses each call by address (docs/design/lowering.md §9): its object is
 ; written, and defines both. Before, LLVM crashed writing it.

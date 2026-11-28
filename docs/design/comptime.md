@@ -111,9 +111,21 @@ its counterpart where the build runs:
 
 | Read | At compile time |
 |---|---|
-| The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)) |
+| The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)). When a marked call reads them, `--object OUT` writes an empty `STEM.arguments` beside the object (below) |
 | A method without `mut` on a foreign capability | Its C, run by the C evaluator against the build's own C memory, where the capability's C global holds its first value, as each run's C memory starts (F16) |
 | An approximate `@math$` function | The build machine's C math library, through OCaml's, in double precision and rounded once for an `F32` |
+
+An object built from code whose marked calls read the arguments depends on
+them, while any other object is the same whatever arguments the build was
+given. So `--object OUT` marks a dependent object: when any marked call of the
+build read the runtime's `arguments`, `zanec` writes an empty file
+`STEM.arguments` beside the object, `STEM` being `OUT` without its
+extension, and when none did, it removes such a file an earlier build left
+there ([`separate-compilation.md`](separate-compilation.md) C3). The marker
+records the read, not the values: `zane` keys its cache of a marked object
+on the arguments it passed, and of an unmarked object on nothing else.
+`Eval.explicit`'s `read_arguments` records the read, and `Comptime.run`
+returns it beside the program.
 
 A package constant the run reads is made in the run, as the program makes
 one the first time it is read (L16), whether or not stage 5 could fold it.
