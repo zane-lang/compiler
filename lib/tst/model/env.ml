@@ -196,7 +196,7 @@ type pending = {
      reported (generics.md §3.6, §3.8). *)
   p_origin : Span.t;
   (* The path from [p_origin] to this instance: each instance along the
-     chain, with its arguments and where the one before it calls it. *)
+     chain, with its arguments and where the previous instance calls it. *)
   p_path : string list;
 }
 

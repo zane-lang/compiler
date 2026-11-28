@@ -670,7 +670,7 @@ per instantiation.** A parameter's only bound is `Type` or `@concepts$Int`
 resolve `+` against until `T` is known. The signature is checked once. The body
 is checked once per distinct set of arguments, memoized by `(Decl_id, args)`,
 and the TST holds one body per instance. The declaration-site check, below,
-reports what is wrong whatever `T` is. An error that only an instance exposes
+reports the errors that hold for every `T`. An error that only an instance exposes
 is reported at the origin of the instance's type arguments, with the chain of
 calls from there.
 
@@ -717,8 +717,8 @@ body:
   since its instances report the rest. An instance's error about the same
   place is that use failing for one type argument, so pass 5 drops it.
 
-Number parameters stay symbolic. The check asks for no instances, records no
-uses for an instantiated body, and puts nothing into the tree. An error that
+Number parameters stay symbolic. Pass 5 requests no instances during this
+check, records no uses for an instantiated body, and puts nothing into the tree. An error that
 only an instance exposes, such as a type argument with no constructor of the
 name `T.name(...)` calls, is reported at the origin of its type arguments
 (below). When a body is checked is a property of this compiler, not of the
@@ -951,7 +951,7 @@ again. A mistake that only a generic body's own code makes, and that its
 signature does not show, is found in the instance. Pass 5 reports it at the
 origin of the instance's type arguments, the call outside every instance
 that began its chain, and the message names the path from there: each
-instance along the chain, where the one before it calls it, and the place in
+instance along the chain, where the previous instance calls it, and the place in
 the body (`generics.md` §3.8). A generic subscript's instance, which pass 5
 types where a call first reaches it instead of from the queue, extends the
 chain and reports at its origin the same way. The analyses after pass 5 report such a

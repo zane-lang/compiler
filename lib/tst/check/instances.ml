@@ -56,8 +56,8 @@ let origin_and_path requests (s : S.t) subst at =
 (* Runs [f], which types an instance at once instead of from the queue, as a
    generic subscript's body is typed where a call reaches it: the instance
    extends the chain it is asked for in, and reports its errors at that
-   chain's origin. The declaration-site check asks for no instances, so
-   there it notes the instance only. *)
+   chain's origin. The declaration-site check runs without requests, so
+   there the checker notes the instance only. *)
 let in_instance env (s : S.t) subst at f =
   match env.instances.requests with
   | None -> with_note env (describe_instance s subst at) f
