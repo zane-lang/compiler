@@ -1,0 +1,8 @@
+/// An export line makes the root depend on the library it names, as an
+/// import does, so a library that imports the root closes a cycle
+/// (packages.md §8.3, dependencies.md §10).
+package plugin;
+
+export synth;
+
+rate @primitives$I64() => @primitives$I64(48000) export "plugin_rate";

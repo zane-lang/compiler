@@ -133,6 +133,7 @@ for golden in tests/ffi/golden/*.plugin.out; do
 	dir="$objects/ffi/$fixture"
 	packages=()
 	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
+	((${#packages[@]})) || packages=(--package "$dir")
 	flags=()
 	if [[ -f "$dir/flags" ]]; then
 		while IFS= read -r flag || [[ -n "$flag" ]]; do flags+=("$flag"); done <"$dir/flags"

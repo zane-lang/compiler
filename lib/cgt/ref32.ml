@@ -42,26 +42,26 @@ let image () =
   | None -> Lazy.force host_image
 
 (* Whether the build is a plugin package's dynamic library (packages.md
-   §8.1), whose image is not the program's executable. *)
+   §8.1). A host loads several into one process, each a runtime of its own,
+   and each would reserve the addresses near its own image that frame
+   references and image boxes need, so the second could find none: a
+   dynamic library takes none of the parts below that place memory near
+   the image, and its frames and chunks lie anywhere. *)
 let library = ref false
 
-(* The symbol the target's linker defines at the image's start, which a
-   frame reference counts from (runtime/region.c): the PE image's base on
-   Windows, the Mach-O header on macOS (LLVM adds its `_`), the executable's
-   or, in a dynamic library, the library's own, and the ELF header
-   elsewhere, which in a shared library is the library's. *)
+(* The symbol the target's linker defines at the program image's start,
+   which a frame reference counts from (runtime/region.c): the PE image's
+   base on Windows, the Mach-O header on macOS (LLVM adds its `_`), the ELF
+   header elsewhere. *)
 let image_symbol () =
-  match image () with
-  | Pe -> "__ImageBase"
-  | Mach_o -> if !library then "__dso_handle" else "_mh_execute_header"
-  | Elf -> "__ehdr_start"
+  match image () with Pe -> "__ImageBase" | Mach_o -> "_mh_execute_header" | Elf -> "__ehdr_start"
 
 (* `ZANE_FRAME_REFS`: every context's frames are in the 2 GiB right below
    the program's image (runtime/region.c), so a stored reference, which
    names a frame's slot or a global, is its signed 32-bit distance from the
    image's start; and a list's handle is 16 bytes, its count and room 32
    bits each, the room counted in elements. *)
-let frames () = switch "ZANE_FRAME_REFS"
+let frames () = switch "ZANE_FRAME_REFS" && not !library
 
 (* `ZANE_CHUNK_BOXES`: a boxed member's block is stored in 32 bits as its
    MiB's number, which the runtime gives each MiB of a context's frames and

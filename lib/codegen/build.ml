@@ -211,7 +211,8 @@ let write_runtime dir =
 let sources = List.concat_map (fun (name, text) -> [ name; text ]) runtime_files
 
 (* The flags besides the target's that the runtime is compiled and the
-   program linked with, optimizing or not. *)
+   program linked with, optimizing or not; [library_level] gives a
+   dynamic library's. *)
 let level ~optimize =
   [ (if optimize then "-O2" else "-O0"); "-pthread" ]
   @ (if Cgt.Ref32.frames () then [ "-DZANE_FRAME_REFS" ] else [])
@@ -219,6 +220,11 @@ let level ~optimize =
      else if Cgt.Ref32.image_boxes () then [ "-DZANE_IMAGE_BOXES" ]
      else [])
   @ if Cgt.Ref32.bump () then [ "-DZANE_BUMP_REGIONS" ] else []
+
+let library_level ~optimize =
+  let was = !Cgt.Ref32.library in
+  Cgt.Ref32.library := true;
+  Fun.protect ~finally:(fun () -> Cgt.Ref32.library := was) (fun () -> level ~optimize)
 
 (* The C compiler links for the target as it was written: `zig cc` reads
    its own short triples, and not every normal form. *)
@@ -1146,11 +1152,11 @@ let bundle_library_link ~cc ~target ~triple ~tm level dir work runtime =
    plugin's dynamic library with the library runtime at [library]
    ([bundle_library_link]), and for an optimized build also a shared
    library ([bundle_shared_link]). *)
-let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime library =
+let bundle_links ~cc ~target ~triple ~tm ~optimize ~library_level level dir work runtime library =
   let ( let* ) = Result.bind in
   match
     let* () = bundle_link ~cc ~target ~triple ~tm level dir work runtime in
-    let* () = bundle_library_link ~cc ~target ~triple ~tm level dir work library in
+    let* () = bundle_library_link ~cc ~target ~triple ~tm library_level dir work library in
     if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ()
   with
   | result -> result
@@ -1177,16 +1183,20 @@ let bundle_runtime ~target ~optimize dir =
   | () -> (
       let level = level ~optimize and cc = cc () in
       let runtime = Filename.concat dir (bundled_name ~triple level) in
-      let library_level = level @ library_flags ~triple in
-      let library = Filename.concat dir (bundled_name ~triple library_level) in
+      (* A dynamic library's runtime is compiled as a library build
+         compiles it, without the parts of the layout that place memory
+         near the image (Cgt.Ref32.library). *)
+      let library_level = library_level ~optimize in
+      let library_runtime = library_level @ library_flags ~triple in
+      let library = Filename.concat dir (bundled_name ~triple library_runtime) in
       match
         Result.bind (compile ~cc ~triple (target_flag (Some target) @ level) work runtime) (fun _ ->
-            compile ~cc ~triple (target_flag (Some target) @ library_level) work library)
+            compile ~cc ~triple (target_flag (Some target) @ library_runtime) work library)
       with
       | Error _ as error -> error
       | Ok _ ->
           if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
-          bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime library)
+          bundle_links ~cc ~target ~triple ~tm ~optimize ~library_level level dir work runtime library)
 
 (* The path of the [i]th object [object_file] writes beside [output] for
    the package's C sources holding assembly: `STEM.c.I.o`, [output]'s name
@@ -1326,14 +1336,14 @@ let kept_c_files stem =
    reach the link apart from it, kept in [cache]'s `foreign/object/` under
    [Foreign_c.key], or written to [dir] when there is no cache. None when
    [m] has no C apart. *)
-let c_object ?target ?cache m dir =
+let c_object ?target ?cache ?(library = false) m dir =
   match attached_c m with
   | None -> Ok no_c_files
   | Some packages -> (
       detach m;
       let packages = Foreign_c.unretained packages in
       let triple = Llvm.target_triple m in
-      let key = Foreign_c.key ~triple ~compiler:(compiler_identity ()) packages in
+      let key = Foreign_c.key ~library ~triple ~compiler:(compiler_identity ()) packages in
       let stem =
         Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; key ]) cache
       in
@@ -1344,7 +1354,11 @@ let c_object ?target ?cache m dir =
           let* _, tm = target_machine ?target ~optimize:true () in
           let* c, _, apart = c_module tm m packages in
           let* c =
-            match c with None -> Ok [] | Some c -> Result.map (fun o -> [ o ]) (emit_c tm c dir)
+            match c with
+            | None -> Ok []
+            | Some c ->
+                if library then Foreign_c.drop_pie_level c;
+                Result.map (fun o -> [ o ]) (emit_c tm c dir)
           in
           let* apart = write_apart dir apart in
           let files = joined { no_c_files with objects = c } apart in
@@ -1433,6 +1447,7 @@ let dynamic_library ?target ?(optimize = false) ?(link = []) ?(bundled = bundled
   match prepare_whole ?target ~optimize ~separate_c:true m with
   | Error _ as error -> error
   | Ok (triple, tm, _, apart) -> (
+      Foreign_c.drop_pie_level m;
       let cc = cc () in
       let level = level ~optimize and system = library_system_libraries target in
       let flags = target_flag target @ level @ library_link triple in
@@ -1455,7 +1470,8 @@ let dynamic_library ?target ?(optimize = false) ?(link = []) ?(bundled = bundled
       | () -> (
           let runtime = runtime_object ?bundled ?cache ~library:true ~cc ~triple ?target ~optimize dir in
           let c =
-            Result.bind (c_object ?target ?cache m dir) (fun files -> Result.map (joined files) (write_apart dir apart))
+            Result.bind (c_object ?target ?cache ~library:true m dir) (fun files ->
+                Result.map (joined files) (write_apart dir apart))
           in
           match (runtime, c) with
           | (Error _ as error), _ | _, (Error _ as error) -> error

@@ -43,8 +43,8 @@
      of what it retained of their C, and `golden/NAME.plugin.out` what
      the C host `fixtures/NAME/host.c` prints, given the fixture built into
      a dynamic library twice, unoptimized and optimized, which it loads
-     both of (packages.md §8.1), run with its drains checked and
-     unchecked. A fixture holding `.zn` files is one package; any
+     both of (packages.md §8.1): with its drains checked, the unoptimized
+     library first, and unchecked, the optimized one first. A fixture holding `.zn` files is one package; any
      other is a build of its subdirectories, in name order, so the first
      is the root. Its `flags` file, one per line, is what it is built with
      besides. A directory `NAME.archive` anywhere in a fixture holds the C
@@ -303,13 +303,15 @@ let ffi () =
           Printf.printf
             "(rule\n (deps %s/host.c)\n (targets %s.host.exe)\n (action\n  (run %%{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o %s.host.exe %s/host.c)))\n\n"
             dir name name dir;
-          (* A host that a stop ends, as one in a library ends its whole
-             process (packages.md §8.1), is held to both its streams and
-             the status of its `expected-status` file. *)
-          let run =
-            Printf.sprintf "(run ./%s.host.exe %s.plugin.library %s.plugin.optimized.library)" name name name
-          in
-          let run actual =
+          (* The checked run loads the unoptimized library first, and the
+             unchecked run the optimized one, so two libraries load into one
+             host in either order. A host that a stop ends, as one in a
+             library ends its whole process (packages.md §8.1), is held to
+             both its streams and the status of its `expected-status`
+             file. *)
+          let plain = name ^ ".plugin.library" and optimized = name ^ ".plugin.optimized.library" in
+          let run first second actual =
+            let run = Printf.sprintf "(run ./%s.host.exe %s %s)" name first second in
             match status_of dir with
             | 0 -> Printf.sprintf "(with-stdout-to\n    %s\n    %s)" actual run
             | n -> Printf.sprintf "(with-outputs-to\n    %s\n    (with-accepted-exit-codes\n     %d\n     %s))" actual n run
@@ -317,9 +319,10 @@ let ffi () =
           List.iter
             (fun (mode, check) ->
               let actual = Printf.sprintf "%s.plugin.%s.out.actual" name mode in
+              let first, second = if mode = "checked" then (plain, optimized) else (optimized, plain) in
               Printf.printf
-                "(rule\n (deps %s.plugin.library %s.plugin.optimized.library)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   %s)))\n\n"
-                name name check (run actual);
+                "(rule\n (deps %s %s)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   %s)))\n\n"
+                plain optimized check (run first second actual);
               diff golden actual)
             [ ("checked", "1"); ("unchecked", "0") ]
       | [ "reject"; name; "ll"; "err" ] ->

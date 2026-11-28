@@ -6,7 +6,7 @@
    in share/ of its releases, holds both. */
 
 /* The Zane runtime's ABI (docs/design/lowering.md L17): what emitted code
-   calls, and the one function it defines. A program's `main` is `zane_main`,
+   calls, and what a program defines for it. A program's `main` is `zane_main`,
    which the runtime's C `main` calls once the runtime is ready. A plugin
    package's dynamic library defines no `zane_main`: compiled with
    ZANE_LIBRARY, the runtime has no C `main` and starts as the library is

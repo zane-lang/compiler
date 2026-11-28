@@ -384,6 +384,7 @@ void zane_context_release(zane_context *c);
 extern int64_t zane_jobs, zane_sleepers;
 /* spawn.c: a stand-in thread for a pool thread while it waits (§3.4). */
 int zane_block_begin(void);
+void zane_pool_stop(void);
 void zane_block_end(int began);
 /* spawn.c: the calling thread suspended, which zane_tick waits with. */
 void zane_sleep(int64_t nanoseconds);
@@ -406,6 +407,8 @@ typedef struct {
 	pthread_mutex_t lock;
 	zane_task *first, *last;
 	int kept;
+	/* The pool thread that keeps it, while one does (spawn.c). */
+	pthread_t thread;
 } zane_deque;
 
 enum { ZANE_DEQUES = 1 << 12 };
@@ -511,6 +514,7 @@ void zane_handle_jobs_drop(zane_handle_jobs *rs);
 /* region.c */
 extern size_t zane_system_page;
 void zane_regions_start(void);
+void zane_regions_stop(void);
 void zane_thread_start(void);
 void zane_thread_stop(void);
 char *zane_reserve_aligned(size_t bytes, char **raw);

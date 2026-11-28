@@ -689,9 +689,10 @@ none compiles for the processor it runs on. A build for any other target, or
 with another C compiler or Zig, compiles its runtime and keeps it in the
 cache, and asks for its linker command as above.
 
-Lowering starts at the root package's `main`, a plugin's from its exported
-lambdas, and every build's but a library's from the exported lambdas it
-gives C symbols too ([`ffi.md`](ffi.md) F20), and lowers each verb the first
+Lowering starts at the root package's `main`, or, for a plugin package,
+which declares none, at its exported lambdas. Every build but one with
+`--no-root` also starts at the exported lambdas it gives C symbols
+([`ffi.md`](ffi.md) F20). Lowering lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to
 lower. Whatever it cannot handle yet it refuses with a diagnostic at that
 node, never by lowering it wrongly.

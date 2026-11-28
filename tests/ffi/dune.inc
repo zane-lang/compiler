@@ -2911,7 +2911,7 @@
    0
    (with-stdout-to
     plugin.plugin.unchecked.out.actual
-    (run ./plugin.host.exe plugin.plugin.library plugin.plugin.optimized.library)))))
+    (run ./plugin.host.exe plugin.plugin.optimized.library plugin.plugin.library)))))
 
 (rule
  (alias runtest)
@@ -2963,7 +2963,7 @@
     pluginDepth.plugin.unchecked.out.actual
     (with-accepted-exit-codes
      1
-     (run ./pluginDepth.host.exe pluginDepth.plugin.library pluginDepth.plugin.optimized.library))))))
+     (run ./pluginDepth.host.exe pluginDepth.plugin.optimized.library pluginDepth.plugin.library))))))
 
 (rule
  (alias runtest)

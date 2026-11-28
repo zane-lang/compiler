@@ -26,6 +26,7 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/Metadata.h"
 
 #include <map>
 #include <set>
@@ -123,6 +124,27 @@ extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value
     a->setVisibility(llvm::GlobalValue::DefaultVisibility);
     if (Bool_val(coff)) a->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
     g->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  }
+  CAMLreturn(Val_unit);
+}
+
+/* The module's "PIE Level" flag dropped, which the C compiler sets as it
+   compiles C for an executable and which a link into the module carries
+   over: with it, LLVM takes the module for an executable's and reads a
+   thread's variable it defines at a fixed offset from the thread's pointer,
+   which a shared library may not do. A dynamic library's module is emitted
+   without it (docs/design/ffi.md F21). */
+extern "C" value zane_drop_pie_level(value mod) {
+  CAMLparam1(mod);
+  llvm::Module *m = module_of(mod);
+  if (llvm::NamedMDNode *flags = m->getModuleFlagsMetadata()) {
+    std::vector<llvm::MDNode *> kept;
+    for (llvm::MDNode *f : flags->operands()) {
+      auto *key = f->getNumOperands() > 1 ? llvm::dyn_cast<llvm::MDString>(f->getOperand(1)) : nullptr;
+      if (!key || key->getString() != "PIE Level") kept.push_back(f);
+    }
+    flags->clearOperands();
+    for (llvm::MDNode *f : kept) flags->addOperand(f);
   }
   CAMLreturn(Val_unit);
 }

@@ -1,0 +1,4 @@
+File "fixtures/typing/exportCycle/synth/synth.zn", line 3, characters 1-14:
+3 | import plugin;
+  | ^^^^^^^^^^^^^
+Error: this import closes a cycle of packages, `plugin` -> `synth` -> `plugin`; the packages of a build import one another without a cycle (dependencies.md §10)
