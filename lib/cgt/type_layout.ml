@@ -87,19 +87,22 @@ let pool_args = function
 let pool_free = Runtime.workers_free
 
 (* `@runtime$Console` and `@runtime$Runtime`, the types of the program's
-   console and runtime (effects.md §6.6). Both are reference types, and their
-   only instances are `@program$console` and `@program$runtime`, which hold
-   nothing a program reads (lower.ml). *)
+   console and runtime (effects.md §6.6). Their only instances are
+   `@program$console` and `@program$runtime`, which hold nothing a program
+   reads (lower.ml), so [shape] gives each one word. *)
 let is_runtime = function
   | Tty.Intrinsic { namespace = "runtime"; name = "Console" | "Runtime"; _ } -> true
   | _ -> false
 
-(* A reference type: a `#` type, a `ListRef`, an `ArrayRef`, a worker pool,
-   or the console's or runtime's type, whose instances are owned
-   (memory.md §2.1). A roaming owner has the reference type it owns. *)
+(* A reference type, whose instances are owned (memory.md §2.1): a `#` type,
+   or an intrinsic type that the intrinsics table marks as a reference type,
+   such as `ListRef`, a worker pool or the console's type. A roaming owner
+   has the reference type it owns. *)
 let reference st t =
-  let t = match t with Tty.Roaming t -> t | t -> t in
-  is_list_ref t || is_array_ref t || is_pool t || is_runtime t || match definition st t with Some (_, true) -> true | _ -> false
+  match (match t with Tty.Roaming t -> t | t -> t) with
+  | Tty.Intrinsic { namespace; name; _ } -> (
+      match Tst.Intrinsics.find_type namespace name with Some i -> i.reference | None -> false)
+  | t -> ( match definition st t with Some (_, true) -> true | _ -> false)
 
 (* The types a type holds inline: its members and payloads, the type a
    distinct type wraps, and an array's elements. A reference holds an
