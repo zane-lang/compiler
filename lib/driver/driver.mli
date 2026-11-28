@@ -56,14 +56,15 @@ val analyze : ?c:Foreign.package list -> ?placeholder:string -> Tst.Assembly.pac
     into a dynamic library a host calls through its exports. *)
 type root_kind = Program | Plugin
 
-(** The root's kind: a root without `main` is a plugin's when it carries
-    an export line or declares an exported lambda, and an error otherwise.
+(** Whether the root is a program's or a plugin's: a root without `main` is
+    a plugin's when it carries an export line or declares an exported lambda,
+    and an error otherwise.
     This is the only check for `main`; lowering assumes it. *)
 val root_kind : Tst.Nodes.Program.t -> (root_kind, failure) result
 
-(** Checks that a root of the kind given builds into what the view asks
-    for: a program's root into an executable or an object, a plugin's into
-    a dynamic library. *)
+(** Checks that the root builds into the output the view requests: a
+    program's root into an executable or an object, a plugin's into a
+    dynamic library. *)
 val built_as : root_kind -> [ `Executable | `Library | `Other ] -> (unit, failure) result
 
 (** Checks that a build with [root], as `--root` or `--no-root` sets it, may
@@ -124,19 +125,30 @@ val c_modules :
   Cgt.Nodes.Program.t ->
   (Codegen.c_package list, failure) result
 
+(** The handling of the monotonic-clock readings that a tiered build's
+    `comptime` calls make (docs/design/tiers.md T12): [Record file], for tier
+    0, writes them to [file], in order, once every call is evaluated;
+    [Replay file], for tier 1, gives the calls the readings in [file],
+    waiting for tier 0 to put it in place at the first reading. *)
+type readings = Record of string | Replay of string
+
 (** Every call marked `comptime` evaluated and its value written in its
     place, which every build does before stage 5 (docs/design/comptime.md).
     Inside such a call the runtime's `arguments` gives [arguments], the
     arguments the build was started with, and a call into C runs [c], as in
-    [optimize]. A call that cannot be evaluated is a diagnostic pointing
-    into [packages]' sources. *)
+    [optimize]. The boolean beside the program is true when some marked
+    call read the runtime's `arguments`; `--object` records that with
+    [write_arguments_marker]. A call that cannot be evaluated is a
+    diagnostic pointing into [packages]' sources. With [readings], the
+    calls' clock readings are recorded or replayed. *)
 val comptime :
   ?target:string ->
   ?c:Codegen.c_package list ->
+  ?readings:readings ->
   arguments:string list ->
   Tst.Assembly.package list ->
   Cgt.Nodes.Program.t ->
-  (Cgt.Nodes.Program.t, failure) result
+  (Cgt.Nodes.Program.t * bool, failure) result
 
 (** Stage 5 when [optimize] is true; otherwise the tree unchanged. A call
     into C is folded by running [c], the packages' C code for [target]
@@ -217,6 +229,18 @@ val hashes_of : Tst.Assembly.package list -> Foreign.package list -> Codegen.c_p
     removing any such file an earlier build wrote there. No file is written
     when [rows] is empty. *)
 val write_hashes : output:string -> Foreign.Hashes.row list -> (unit, failure) result
+
+(** Writes an empty `STEM.arguments` beside the object [output] when [read]
+    is true, after removing any such file an earlier build wrote there. The
+    file marks an object whose `comptime` calls read the runtime's
+    `arguments` (docs/design/comptime.md), so a package manager that caches
+    the object keys it on the build's arguments as well. *)
+val write_arguments_marker : output:string -> read:bool -> (unit, failure) result
+
+(** A usage error when [output] ends in `.arguments`, so that the object
+    would be the path of its own marker; otherwise nothing. `--object`
+    checks [output] before it builds anything. *)
+val check_object_output : string -> (unit, failure) result
 
 val object_file :
   ?target:string ->

@@ -32,7 +32,7 @@ source → CST → SST → TST → CGT → (optimized CGT) → binary
 proven unambiguous; [`docs/ambiguity/`](docs/ambiguity/README.md) describes the proof.
 
 The compiler follows the [language specification](https://github.com/zane-lang/spec).
-Where it deliberately does something else, or settles what the spec leaves
+Where it deliberately departs from the spec, or settles what the spec leaves
 open, [`docs/spec-divergences.md`](docs/spec-divergences.md) lists the difference.
 
 ## Building it
@@ -89,7 +89,7 @@ for Linux, Windows and macOS from any of those systems. To install a release
 archive by hand, and for how releases are published, see
 [`docs/releasing.md`](docs/releasing.md).
 
-## Where things are
+## Where the code lives
 
 | Path | What it holds |
 |---|---|
@@ -108,7 +108,7 @@ archive by hand, and for how releases are published, see
 ## Contributing
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) describes how code here is written and
-what has to change with it: tests and design documents go in the same pull
+which files change with the code: tests and design documents go in the same pull
 request, and CI checks nesting depth and file size.
 
 ## License

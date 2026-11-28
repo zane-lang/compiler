@@ -144,7 +144,7 @@ let rec field_path (e : T.Expr.t) =
   | _ -> None
 
 (* Every body's subjects, parameters and match binders at once, for a pass
-   after semantics that asks a place's state: lowering asks for the state of
+   after semantics that looks up a place's state: lowering looks up the state of
    an overwritten place holding a foreign handle (docs/design/ffi.md F12).
    Each local's id is unique in the program, so the locals of two bodies
    never collide. *)

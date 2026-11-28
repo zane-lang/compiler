@@ -329,7 +329,7 @@ let zero_handle c h =
 (* ---------------------------------------------------------------------- *)
 
 (* The program's layouts that list a position, and the walks made of them
-   so far: each layout's walks are made the first time something needs
+   so far: each layout's walks are made the first time a caller needs
    them, a call or another walk, and built once the program's functions
    are, since a walk may need another, or itself. *)
 type known = {
@@ -519,7 +519,7 @@ let end_at known c base (p : Layout.position) =
   ()
 
 (* Move: each block the value owns that must move into the region the move
-   works with goes into an equal block there, and the old one is returned
+   works with goes into an equal block there, and the old block is returned
    (runtime/value.c, `zane_leaves`); what lives in it moves in turn. *)
 let move known c (p : Layout.position) =
   let env = c.env in
@@ -608,8 +608,8 @@ let move known c (p : Layout.position) =
    a foreign handle there that is no variant's payload is replaced through
    its set thunk instead, and the place keeps its pointer and stamp, which
    the runtime writes over the replacement's before its bytes are written
-   (runtime/handle.c). What it reaches through a box or an array that is no
-   payload is overwritten as settled too. *)
+   (runtime/handle.c). A handle it reaches through a box or an array that
+   is no payload is overwritten as settled too. *)
 let overwrite known self ~settled c (ps : Layout.position list) =
   let env = c.env in
   let replace (p : Layout.position) w = if settled && p.tags = [] then w.set else w.overwrite in
@@ -856,7 +856,7 @@ let rec vacater known l =
       Hashtbl.replace known.vacates l f;
       Some f
 
-(* Every walk made and not yet built, built, with the ones they make. *)
+(* Every walk made and not yet built, built, with the walks they make. *)
 let rec finish known =
   match known.unbuilt with
   | [] -> ()

@@ -1,6 +1,6 @@
 (* Stage 5's evaluator (docs/design/optimization.md): its literals and
-   arithmetic, which are codegen's, what it folds, what it makes back into
-   code, and the bounds it keeps to. *)
+   arithmetic, which are codegen's, the calls it folds, the values it turns
+   back into code, and the bounds it keeps to. *)
 
 module Value = Optimize__Value
 module Eval = Optimize__Eval
@@ -71,9 +71,9 @@ let intrinsic_classes () =
   check "print and the thread count are the outputs"
     (List.sort compare outputs
     = List.sort compare Cgt.Runtime.[ Print; Set_threads; Set_threads_auto ]);
-  check "the program's arguments, a worker's wait, an abort of `main`, a null foreign handle, a callback's context, a worker pool's operations, the experimental pooled variants and the experimental byte and range list operations are the inputs"
+  check "the program's arguments, the clock, a worker's wait, an abort of `main`, a null foreign handle, a callback's context, a worker pool's operations, the experimental pooled variants and the experimental byte and range list operations are the inputs"
     (List.filter (fun fn -> Intrinsics.classify fn = Intrinsics.Input) Cgt.Runtime.all
-    = Cgt.Runtime.[ Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Main_aborted; Tick_start; Tick; Arguments; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ])
+    = Cgt.Runtime.[ Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Main_aborted; Tick_start; Tick; Arguments; Monotonic_ns; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; No_object; Callback_attach; Callback_detach; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ])
 
 (* The math functions of `@math$` as the evaluator folds them (math.md §2),
    which the math codegen fixture holds both builds to as well, and which
@@ -496,7 +496,7 @@ let global_member () =
   Value.store { Value.cell = c; path = [ Value.Member 0 ]; owned = false } C.Ty.I64 (Value.VInt 1L);
   check "a member of a program variable written is a write" (Eval.wrote_globals run)
 
-(* A call remembered for a zero is not the call for its negative, in
+(* A call memoized for a zero is not the call for its negative, in
    either order. *)
 let signed_zero () =
   let inverse =

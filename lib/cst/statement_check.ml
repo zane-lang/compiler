@@ -1,10 +1,10 @@
-(* Whether every statement agrees with the rules about where it ends.
+(* Whether every statement keeps the rules about where it ends.
 
    The rule is that a `;` ends a statement, unless the statement ends in a `}`
    -- then that brace ends it and a `;` would terminate nothing (lexical.md
    §6.3). The grammar enforces the first half: every statement is closed by a
-   `;` or a `}`, so a missing `;` never reaches here. The grammar still admits
-   a `;` after a closing brace, and a trailing argument's `}` with something
+   `;` or a `}`, so a missing `;` never reaches here. The grammar still accepts
+   a `;` after a closing brace, and a trailing argument's `}` with more code
    written after it; each of those has a single parse, so [Parser] records it
    on the statement and this walk reports it.
 

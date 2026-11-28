@@ -2,7 +2,7 @@
    (docs/design/memoization.md): which functions get a table (M1), how each
    such function is split into a body copy and a plain copy beside the
    dispatcher that codegen emits (M2), what a lookup is charged and a hit
-   credited (M3), and the loops that decide once whether their calls look
+   credited (M3), and the loops that pick once whether their calls look
    up their results (M4). *)
 
 open Nodes
@@ -62,13 +62,14 @@ let fits (f : Func.t) =
   | _ -> false
 
 (* A runtime function a memoized body may call: one that computes or makes
-   a package constant, and neither outputs, reads the program's arguments,
+   a package constant, and neither outputs, reads the program's arguments
+   or the clock,
    spawns, nor ends the program. A constant is made by its first read, so the
    miss that computes a result has made every constant the result depends
    on. *)
 let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Tick_start | Runtime.Tick | Runtime.Arguments
-  | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
+  | Runtime.Monotonic_ns  | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
   | Runtime.Main_aborted | Runtime.Workers_new | Runtime.Workers_start | Runtime.Workers_publish
   | Runtime.Workers_state | Runtime.Workers_elements ->
       false

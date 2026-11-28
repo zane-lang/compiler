@@ -5,8 +5,8 @@
 The grammar's unambiguity is a theorem checked by Lean. `just verify-grammar`
 proves it for the current `lib/cst/parser.mly`, and the `Grammar verification`
 workflow runs that recipe on every relevant change.
-[formal-proof.md](formal-proof.md) states the theorems and what they still
-assume:
+[formal-proof.md](formal-proof.md) states the theorems and the hypotheses
+they still rest on:
 
 - Lean's kernel, plus its code generator for the executable check.
 - The Lean definitions of Menhir's preprocessing and precedence resolution,
@@ -115,7 +115,7 @@ that can account for the retained actions and the actual GLR rewrite; checking
 only a final automaton's internal consistency would leave the source gap open.
 
 **Completion evidence:** the formal theorem starts with the exact source
-grammar and precedence declarations. It no longer assumes that an arbitrary
+grammar and precedence declarations. It no longer takes as a hypothesis that an arbitrary
 Menhir dump faithfully represents them. Stock and GLR results have explicit
 source correspondences rather than relying on agreement between two runs.
 
@@ -168,7 +168,7 @@ Until the source connection is complete, report results as a complete
 unambiguity certificate **conditional on the documented trusted components**.
 Afterward, report the formal theorem and its remaining foundational assumptions
 (the proof assistant kernel and the environment used to run it). Formal
-verification reduces implementation trust; it does not mean that all software,
+verification reduces implementation trust; it does not show that all software,
 hardware, or foundations become assumption-free.
 
 Additional testing remains useful for finding defects and protecting practical

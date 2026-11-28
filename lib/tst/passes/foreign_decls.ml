@@ -1,13 +1,13 @@
 (* The C interface's declarations, checked once every signature is known
    (spec ffi.md §3, §4, docs/design/ffi.md F7): each foreign handle's C type
-   and C functions, each handle type's kind, and each foreign verb against
+   and C functions, each handle type's [handle_kind], and each foreign verb against
    the declaration of its C function in its package's interface headers, as
    the build's target sees them.
 
-   Pass 4 runs this last, since a handle's kind is read from the foreign
-   verbs that return it, and a verb's handles are checked against their
-   kinds. The results go into pass 4's tables: each handle type's kind, and
-   each foreign verb's C function and the state outside the program it reads
+   Pass 4 runs this last, since a handle's [handle_kind] is read from the
+   foreign verbs that return it, and a verb's handles are checked against
+   their [handle_kind]s. The results go into pass 4's tables: each handle
+   type's [handle_kind], and each foreign verb's C function and the state outside the program it reads
    and writes (§5.2). A foreign variable, which is a value, is checked in
    pass 5 through [global]. *)
 
@@ -119,11 +119,11 @@ let on_capability env v =
 (* Kinds                                                                  *)
 (* ---------------------------------------------------------------------- *)
 
-(* Each handle type's kind (§4.1, §4.2): a capability when it has no free
+(* Each handle type's [handle_kind] (§4.1, §4.2): a capability when it has no free
    function; otherwise outside state when the foreign verbs that make it
    are methods on a foreign capability, and program state when none of them
    are. A type made both by methods on a foreign capability and by other
-   foreign verbs would be both kinds, and is refused. *)
+   foreign verbs would be both, and is rejected. *)
 let kinds env (tables : verbs) verbs =
   Types.fold_type_infos
     (fun _ (info : type_info) () ->
@@ -203,7 +203,7 @@ let check_handle env (info : type_info) (h : Nodes.Handle.t) =
 
 (* The primitives that cross as numbers (§3.3): the scalar primitives and
    [U8], the byte primitive, whose full-width C types are the 8-bit
-   ones. *)
+   integer types. *)
 type scalar = U8 | I32 | I64 | F32 | F64
 
 (* The C form a Zane type takes when it is passed to C (§3.3). *)

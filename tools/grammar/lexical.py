@@ -8,8 +8,8 @@ def quoted(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-# Escape only what is special somewhere in the regex dialects the editors use
-# (Rust regex, Oniguruma, fancy-regex): `&`, `-` and `~` start set operations
+# Escape only the characters special in at least one regex dialect the
+# editors use (Rust regex, Oniguruma, fancy-regex): `&`, `-` and `~` start set operations
 # inside Rust classes. Control characters get their named escapes rather than
 # a backslash before the raw character, which not every dialect accepts.
 REGEX_SPECIAL = set("\\^$.|?*+()[]{}&-~")
@@ -115,7 +115,7 @@ def lexer(spec: dict) -> str:
         "  | _ -> false",
         "  | exception (Lexing_error | MalFormed) -> false",
     ]
-    # The reserved words, which an editor offers when completing a name
+    # The reserved words, which an editor offers when completing an identifier
     # (docs/design/language-server.md).
     words = [t["literal"] for t in spec["tokens"] if "literal" in t and t["literal"].isalpha()]
     lines += [

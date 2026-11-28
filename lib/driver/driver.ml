@@ -70,7 +70,7 @@ let assemble ?buffers ?(root = true) ?(imports = []) ?(stamps = []) requests =
       | Error { Assembly.diagnostics; sources } -> fail ~sources diagnostics)
 
 (* Prints the warnings the C compiler gave about a package's own C files.
-   A warning refuses nothing. Only a package being worked on gets its
+   A warning stops no build. Only a package being worked on gets its
    warnings printed: a dependency's id carries its stamp, and the warnings
    in a dependency's files are for its author to fix. *)
 let show_warnings (p : Assembly.package) f =
@@ -390,6 +390,37 @@ let write_hashes ~output rows =
   | () -> Ok ()
   | exception Sys_error why -> fail [ Diagnostic.about_invocation ("cannot write the C modules' hashes: " ^ why) ]
 
+(* The path of the marker beside the object [output]: `STEM.arguments`. *)
+let arguments_marker output = Filename.remove_extension output ^ ".arguments"
+
+(* An object path that is its own marker's path would be removed or emptied
+   by [write_arguments_marker], so `--object` refuses it before it builds.
+   The comparison ignores letter case, since on a file system that ignores
+   case, `app.ARGUMENTS` and `app.arguments` are one file. *)
+let check_object_output output =
+  if String.lowercase_ascii (arguments_marker output) = String.lowercase_ascii output then
+    fail
+      [
+        Diagnostic.about_invocation
+          (Printf.sprintf
+             "the object `%s` is the path of the marker zanec writes beside it; give the object \
+              another extension than `.arguments`, in any letter case"
+             output);
+      ]
+  else Ok ()
+
+(* Writes an empty `STEM.arguments` beside the object [output] when [read],
+   after removing any such file an earlier build wrote there. *)
+let write_arguments_marker ~output ~read =
+  let path = arguments_marker output in
+  match
+    if Sys.file_exists path then Sys.remove path;
+    if read then Out_channel.with_open_bin path ignore
+  with
+  | () -> Ok ()
+  | exception Sys_error why ->
+      fail [ Diagnostic.about_invocation ("cannot write the marker of the build's arguments: " ^ why) ]
+
 (* The C code each package of the build compiles into this object, for
    codegen to link (docs/design/ffi.md F8, F9): the modules of the package's
    C sources, and of its glue, made for the thunks that [cgt]'s foreign
@@ -627,20 +658,102 @@ let c_modules ?target ?(link = []) ?(hashes = []) ?(plugin = false) ~root packag
       | Ok cs -> Ok (List.filter_map Fun.id cs)
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
+(* The handling of the clock readings that a tiered build's `comptime`
+   calls make (docs/design/tiers.md T12): tier 0 records them in a file,
+   and tier 1 replays that file. *)
+type readings = Record of string | Replay of string
+
+(* [readings] in the file, whole: tier 0 writes a file it creates afresh
+   beside [file], never one already there, and renames it into place, so
+   tier 1 never reads half of it. *)
+let write_readings file readings =
+  match
+    let partial, oc =
+      Filename.open_temp_file ~temp_dir:(Filename.dirname file) (Filename.basename file) ".partial"
+    in
+    let renamed = ref false in
+    Fun.protect
+      ~finally:(fun () ->
+        close_out_noerr oc;
+        if not !renamed then try Sys.remove partial with Sys_error _ -> ())
+      (fun () ->
+        List.iter (fun r -> Printf.fprintf oc "%Ld\n" r) readings;
+        close_out oc;
+        Sys.rename partial file;
+        renamed := true)
+  with
+  | () -> Ok ()
+  | exception Sys_error message -> Error (Printf.sprintf "cannot write the clock readings to %s: %s" file message)
+
+(* The readings in [file], in order, given one at a time. Tier 1 is built
+   while tier 0 is, so the first reading waits until tier 0 has put the
+   file in place; a program whose `comptime` calls never read the clock
+   never waits. A line that is not a reading ends them. A file that cannot
+   be read raises [Unreadable], which [comptime] reports. *)
+exception Unreadable of string
+
+let replayed file =
+  let left = ref None in
+  let[@tail_mod_cons] rec parsed = function
+    | line :: rest -> (match Int64.of_string_opt line with Some r -> r :: parsed rest | None -> [])
+    | [] -> []
+  in
+  let unreadable message = raise (Unreadable (Printf.sprintf "cannot read the clock readings in %s: %s" file message)) in
+  (* Only a file that does not exist yet is waited for: one that [stat]
+     cannot reach for another reason is reported at once. *)
+  let rec arrived () =
+    match Unix.stat file with
+    | exception Unix.Unix_error (Unix.ENOENT, _, _) ->
+        Unix.sleepf 0.01;
+        arrived ()
+    | exception Unix.Unix_error (error, _, _) -> unreadable (Unix.error_message error)
+    | _ -> (
+        match In_channel.with_open_text file In_channel.input_lines with
+        | lines -> parsed lines
+        | exception Sys_error message -> unreadable message)
+  in
+  fun () ->
+    let readings = match !left with Some r -> r | None -> arrived () in
+    match readings with
+    | [] ->
+        left := Some [];
+        None
+    | r :: rest ->
+        left := Some rest;
+        Some r
+
 (* The calls marked `comptime` (docs/design/comptime.md), which every build
-   evaluates. *)
-let comptime ?target ?(c = []) ~arguments packages cgt =
+   evaluates. Tier 0 writes its readings even when a call fails, so tier 1
+   reaches the same failure instead of waiting. *)
+let comptime ?target ?(c = []) ?readings ~arguments packages cgt =
+  let kept = ref [] in
+  let clock =
+    match readings with
+    | None -> Optimize.Live
+    | Some (Record _) -> Optimize.Recorded kept
+    | Some (Replay file) -> Optimize.Replayed (replayed file)
+  in
   let evaluated modules =
-    match Optimize.comptime ~c:modules ~arguments cgt with
+    match Optimize.comptime ~c:modules ~clock ~arguments cgt with
     | Ok cgt -> Ok cgt
     | Error ds -> fail ~sources:(Assembly.sources packages) ds
   in
-  if cgt.Cgt.Nodes.Program.comptime = [] then Ok cgt
-  else if c = [] then evaluated []
-  else
-    match Codegen.with_c_modules ?target c evaluated with
-    | Ok result -> result
-    | Error message -> fail [ Diagnostic.about_invocation message ]
+  let result =
+    try
+      if cgt.Cgt.Nodes.Program.comptime = [] then Ok (cgt, false)
+      else if c = [] then evaluated []
+      else
+        match Codegen.with_c_modules ?target c evaluated with
+        | Ok result -> result
+        | Error message -> fail [ Diagnostic.about_invocation message ]
+    with Unreadable message -> fail [ Diagnostic.about_invocation message ]
+  in
+  match readings with
+  | Some (Record file) -> (
+      match write_readings file (List.rev !kept) with
+      | Ok () -> result
+      | Error message -> fail [ Diagnostic.about_invocation message ])
+  | None | Some (Replay _) -> result
 
 (* Stage 5 (docs/design/optimization.md), which only an optimized build
    runs. A call into C is folded by running [c], the packages' C code

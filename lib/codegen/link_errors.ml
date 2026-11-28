@@ -1,5 +1,5 @@
-(* What a linker's errors say, read so that a failed link is reported in
-   the program's terms: a library a `system` row asks for that the linker
+(* A linker's error messages, read so that a failed link is reported in
+   the program's terms: a library a `system` row names that the linker
    cannot find, the undefined symbols and the foreign verbs they belong to,
    and whether anything else went wrong. Build includes it. *)
 
@@ -173,9 +173,9 @@ let other_link_errors text =
     (String.split_on_char '\n' text)
 
 (* Whether [text], what `ld64.lld` wrote, reports only that it cannot read
-   text stubs of the macOS SDK because they list an architecture its LLVM
-   does not know. The macOS 27.2 SDK's stubs list `arm64e.x1`, which LLVM 21
-   does not know, and LLD rejects each such stub whole (#419). LLD then
+   text stubs of the macOS SDK because they list an architecture unknown to
+   its LLVM. The macOS 27.2 SDK's stubs list `arm64e.x1`, which LLVM 21
+   does not recognize, and LLD rejects each such stub whole (#419). LLD then
    cannot find the libraries those stubs re-export, and it stops after
    enough errors. Any other error makes the failure LLD's own. *)
 let unreadable_stubs text =
@@ -192,7 +192,7 @@ let unreadable_stubs text =
 (* [text], what `ld64.lld` wrote on a link it finished, without its warnings
    that a system library, one installed under `/usr/lib/` or
    `/System/Library/`, is newer than the oldest macOS the program runs on.
-   The oldest macOS is the oldest one the toolchain builds for on the
+   The oldest macOS is the oldest version the toolchain builds for on the
    target's architecture, 13.0 on arm64, so a program runs on every Mac
    that version supports, while the SDK's stubs give each system library
    the SDK's own version, 27.2 on macOS 27.2 (#419). The program uses the

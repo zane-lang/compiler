@@ -6,8 +6,8 @@
   run.py --show LABEL           print the summary of a saved run
 
 Columns: kernel, log2 bytes of data, huge pages, variant, parameter,
-ns per operation (best of 3), checksum. Variants of one kernel must agree
-on the checksum; the run stops if they do not.
+ns per operation (best of 3), checksum. Variants of one kernel must print
+the same checksum; the run stops if they do not.
 """
 import os, subprocess, sys, tempfile, collections
 

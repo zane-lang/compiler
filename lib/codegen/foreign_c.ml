@@ -269,10 +269,12 @@ let program_module ctx ~triple ~data_layout packages =
    rows come. *)
 let libraries packages = List.concat_map (fun p -> p.libraries) packages
 
-(* What the object an unoptimized build emits for the C is kept under: the
-   packages' prefixes, the hashes of their modules, objects and archives,
-   and the names those objects and archives are renamed by, for [triple],
-   from the compiler [compiler] names, whose renaming and passes made it. *)
+(* What the object an unoptimized build emits for the C is kept under:
+   whether the object is for a dynamic library ([library]) or a program,
+   the packages' prefixes, whether each package keeps its C names
+   ([keeps_names]), the hashes of their modules, objects and archives, and
+   the names those objects and archives are renamed by, for [triple], from
+   the compiler [compiler] names, whose renaming and passes made it. *)
 let key ?(library = false) ~triple ~compiler packages =
   Digest.to_hex
     (Digest.string
@@ -280,7 +282,9 @@ let key ?(library = false) ~triple ~compiler packages =
           ("c-object" :: triple :: compiler :: (if library then "dynamic library" else "program")
           :: List.concat_map
                (fun p ->
-                 (p.prefix :: (if p.keeps_names then "keeps names" else "renames") :: List.map (fun c -> c.key) (p.sources @ p.glue))
+                 (p.prefix
+                  :: (if p.keeps_names then "keeps names" else "renames")
+                  :: List.map (fun c -> c.key) (p.sources @ p.glue))
                  @ List.map (fun (c, _) -> c.key) p.objects
                  @ List.map (fun (a : archive) -> a.digest) p.archives
                  @ ("" :: List.sort_uniq compare p.defined)

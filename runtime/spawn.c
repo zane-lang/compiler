@@ -46,8 +46,8 @@ static int64_t zane_blocked;
 
 /* How many threads the pool keeps now: one fewer than it has deques at
    most. */
-/* Whether the pool is stopping, as a dynamic library is unloaded: it then
-   wants no thread (zane_pool_stop). */
+/* Whether the pool is stopping, as a process that loaded a dynamic
+   library ends: it then keeps no thread (zane_pool_stop). */
 static int zane_stopping;
 
 static int64_t zane_target(void) {
@@ -114,6 +114,10 @@ void zane_run(zane_task *t) {
 static int64_t zane_keep(void) {
 	for (int64_t i = 1; i < zane_slots; i++)
 		if (!zane_deques[i].kept) {
+			/* The thread that kept it last has left, and no longer takes the
+			   pool's lock, so the join ends without waiting on this one. */
+			if (zane_deques[i].departed) pthread_join(zane_deques[i].thread, NULL);
+			zane_deques[i].departed = 0;
 			zane_deques[i].kept = 1;
 			return i;
 		}
@@ -151,9 +155,11 @@ static void *zane_worker(void *deque) {
 		if (zane_threads > zane_target()) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
-			/* A thread the pool no longer wants leaves on its own; one a
-			   stopping pool sends away is joined there. */
-			if (!zane_stopping) pthread_detach(pthread_self());
+			/* No thread is detached: the next thread that takes over this
+			   deque joins this one, or zane_pool_stop does, so a stopped
+			   pool has waited for every thread it ran. A stopping pool
+			   joins the threads it sends away itself. */
+			if (!zane_stopping) zane_deques[zane_mine].departed = 1;
 			pthread_mutex_unlock(&zane_pool);
 			zane_workers_thread_stop();
 			zane_thread_stop();
@@ -173,9 +179,9 @@ int64_t zane_processors(void) {
 	return n < 1 ? 1 : n;
 }
 
-/* Threads started until the pool has as many as it wants, and those over
+/* Threads started until the pool reaches its target, and those over
    it woken to leave; the pool's lock is held. Each has 8 MiB of machine
-   stack, what the program's own thread has, where systems give a thread
+   stack, as much as the program's own thread has, where systems give a thread
    they start anything from 512 KiB to 8 MiB (docs/design/platforms.md). */
 static void zane_fill(void) {
 	pthread_attr_t attributes;
@@ -197,10 +203,9 @@ static void zane_start(void) {
 	zane_fill();
 }
 
-/* The pool's threads sent away and joined, as a dynamic library is
-   unloaded (main.c), so that no thread runs the library's code once its
-   host has unloaded it. A thread runs the call it is running to its end
-   first. */
+/* The pool's threads sent away and joined, as a process that loaded a
+   dynamic library ends (main.c), so that what they print as they stop is
+   written. A thread runs the call it is running to its end first. */
 void zane_pool_stop(void) {
 	pthread_mutex_lock(&zane_pool);
 	if (!zane_started) {
@@ -210,7 +215,10 @@ void zane_pool_stop(void) {
 	pthread_t leaving[ZANE_DEQUES];
 	int64_t n = 0;
 	for (int64_t i = 1; i < zane_slots; i++)
-		if (zane_deques[i].kept) leaving[n++] = zane_deques[i].thread;
+		if (zane_deques[i].kept || zane_deques[i].departed) {
+			leaving[n++] = zane_deques[i].thread;
+			zane_deques[i].departed = 0;
+		}
 	zane_stopping = 1;
 	pthread_cond_broadcast(&zane_waiting);
 	pthread_mutex_unlock(&zane_pool);
@@ -261,7 +269,7 @@ void zane_block_end(int began) {
 	pthread_mutex_lock(&zane_pool);
 	zane_blocked--;
 	/* An idle stand-in sleeps on zane_waiting, so it rechecks the target
-	   and leaves only once something wakes it. */
+	   and leaves only once a broadcast wakes it. */
 	if (zane_threads > zane_target()) pthread_cond_broadcast(&zane_waiting);
 	pthread_mutex_unlock(&zane_pool);
 }
@@ -311,8 +319,8 @@ static _Thread_local zane_island *zane_pending_island;
 /* The subject at `*field`, `size` bytes of `type`, goes into a region of
    its own for the call about to be spawned, and `*field` names it there. A
    local takes the region it had for the last call spawned on it, if its
-   scope still holds one, so what is already there stays. While no other
-   call this context spawned is out, nothing else can be reading the
+   scope still holds one, so the blocks already in that region stay. While
+   no other call this context spawned is out, nothing else can be reading the
    subject, so it moves in; otherwise it is copied there whole, since a
    call spawned before may still read it where it is, so its blocks stay
    as they are until the join. A copy made for this call alone (`copied`)

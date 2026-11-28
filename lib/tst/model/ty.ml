@@ -33,6 +33,11 @@ type t =
   | Concept of concept
   | Verb of verb
   | Param of param
+  (* The type of a veiled value (generics.md §3.8) in the check a generic
+     body gets where it is declared: what a type parameter stands for there.
+     Every check accepts it as it accepts [Error], except the uses of a
+     veiled value that §3.8 forbids, which report it. No instance has it. *)
+  | Veiled of param
   (* The type of an expression that failed to type. Every check accepts it
      silently, so one mistake is one diagnostic (D4). *)
   | Error
@@ -82,26 +87,41 @@ let bool_primitive = Intrinsic { namespace = "primitives"; name = "Bool"; args =
 let i64_primitive = Intrinsic { namespace = "primitives"; name = "I64"; args = [] }
 let string_primitive = Intrinsic { namespace = "primitives"; name = "String"; args = [] }
 
-let rec contains_error = function
+(* Whether every check accepts a value of [t] silently: the type of an
+   expression that failed to type, or of a veiled value where a generic body
+   is declared. *)
+let unknown t = match t with Error | Veiled _ | Reference (Error | Veiled _) | Roaming (Error | Veiled _) -> true | _ -> false
+
+(* Whether [t] holds an [Error] anywhere, and with [veiled] a [Veiled]
+   parameter too. *)
+let rec contains ~veiled = function
   | Error -> true
-  | Named (_, args) | Intrinsic { args; _ } -> List.exists arg_contains_error args
-  | Reference t | Roaming t -> contains_error t
-  | Concept c -> concept_contains_error c
+  | Veiled _ -> veiled
+  | Named (_, args) | Intrinsic { args; _ } -> List.exists (arg_contains ~veiled) args
+  | Reference t | Roaming t -> contains ~veiled t
+  | Concept c -> concept_contains ~veiled c
   | Verb v ->
-      Option.fold ~none:false ~some:contains_error v.this_
-      || List.exists contains_error v.params
-      || contains_error v.ret
-      || Option.fold ~none:false ~some:contains_error v.abort
+      Option.fold ~none:false ~some:(contains ~veiled) v.this_
+      || List.exists (contains ~veiled) v.params
+      || contains ~veiled v.ret
+      || Option.fold ~none:false ~some:(contains ~veiled) v.abort
   | Param _ -> false
 
-and arg_contains_error = function
-  | Type t -> contains_error t
+and arg_contains ~veiled = function
+  | Type t -> contains ~veiled t
   | Number _ -> false
 
-and concept_contains_error = function
-  | Array_lit (t, _) | Mixed_lit (t, _) -> contains_error t
-  | Map_lit (k, v) -> contains_error k || contains_error v
+and concept_contains ~veiled = function
+  | Array_lit (t, _) | Mixed_lit (t, _) -> contains ~veiled t
+  | Map_lit (k, v) -> contains ~veiled k || contains ~veiled v
   | _ -> false
+
+let contains_error = contains ~veiled:true
+let arg_contains_error = arg_contains ~veiled:true
+
+(* Whether [t] holds the type of an expression that failed to type. A veiled
+   parameter is not such a failure: a call can still resolve with it. *)
+let contains_failure = contains ~veiled:false
 
 (* ---------------------------------------------------------------------- *)
 (* Printing                                                               *)
@@ -115,7 +135,7 @@ let rec to_string = function
   | Roaming t -> "^" ^ to_string t
   | Concept c -> concept_to_string c
   | Verb v -> verb_to_string v
-  | Param p -> p.name
+  | Param p | Veiled p -> p.name
   | Error -> "<error>"
 
 and args_to_string = function
@@ -186,7 +206,7 @@ let rec subst (s : subst) t =
             ret = subst s v.ret;
             abort = Option.map (subst s) v.abort;
           }
-    | Error -> Error
+    | Veiled _ | Error -> t
 
 and subst_arg s = function
   | Type t -> Type (subst s t)
@@ -205,7 +225,7 @@ and subst_concept s = function
 
 (* The type or number each of a generic's [params] stands for, given its
    [args]. The counts
-   always agree: [Type_decls.apply_args] reports a wrong count in the program
+   always match: [Type_decls.apply_args] reports a wrong count in the program
    and builds no type from it, so a [Named] type with the wrong number of
    arguments is a compiler bug. *)
 let bindings (params : param list) (args : arg list) : subst =
@@ -232,7 +252,7 @@ let free_params t =
         List.iter go v.params;
         go v.ret;
         Option.iter go v.abort
-    | Error -> ()
+    | Veiled _ | Error -> ()
   and go_arg = function Type t -> go t | Number n -> go_number n
   and go_number = function Known _ -> () | Number_param p -> add p
   and go_concept = function
@@ -243,7 +263,7 @@ let free_params t =
   go t;
   List.rev !seen
 
-(* How many type constructors a type is built from. *)
+(* The number of type constructors a type is built from. *)
 let rec size = function
   | Named (_, args) | Intrinsic { args; _ } -> 1 + args_size args
   | Reference t | Roaming t -> 1 + size t
@@ -252,7 +272,7 @@ let rec size = function
       1 + opt v.this_ + List.fold_left (fun n t -> n + size t) 0 v.params + size v.ret + opt v.abort
   | Concept (Array_lit (t, _) | Mixed_lit (t, _)) -> 2 + size t
   | Concept (Map_lit (k, v)) -> 1 + size k + size v
-  | Concept _ | Param _ | Error -> 1
+  | Concept _ | Param _ | Veiled _ | Error -> 1
 
 and args_size args = List.fold_left (fun n a -> n + match a with Type t -> size t | Number _ -> 1) 0 args
 
@@ -297,7 +317,7 @@ end
 
 (* The passing mode is not part of a value's type: a `&T` value, a `^T` value
    and a `T` value carry the same type, and the lifetime analysis, not typing,
-   decides which mode a position may take (docs/design/semantics.md D1). So the
+   settles which mode a position may take (docs/design/semantics.md D1). So the
    comparisons below look through a mode marker, `&` or `^`, at the top of either side. *)
 let strip_mode = function Reference t | Roaming t -> t | t -> t
 let is_ref = function Reference _ -> true | _ -> false
@@ -305,7 +325,7 @@ let is_roaming = function Roaming _ -> true | _ -> false
 
 let rec equal a b =
   match (a, b) with
-  | Error, _ | _, Error -> true
+  | (Error | Veiled _), _ | _, (Error | Veiled _) -> true
   | Named (x, xs), Named (y, ys) -> x = y && args_equal xs ys
   | Intrinsic x, Intrinsic y ->
       x.namespace = y.namespace && x.name = y.name && args_equal x.args y.args
@@ -383,7 +403,7 @@ let is_bare_literal = function
 let rec unify ~open_ (s : subst) pattern actual : subst option =
   let is_open p = List.exists (fun q -> q.id = p.id) open_ in
   match (pattern, actual) with
-  | Error, _ -> Some s
+  | (Error | Veiled _), _ -> Some s
   (* An open parameter binds even to [Error], so a type that failed to
      resolve -- or a generic body checked with its parameters unknown -- still
      fixes the parameter, and code that depends on the parameter is accepted
@@ -398,12 +418,12 @@ let rec unify ~open_ (s : subst) pattern actual : subst option =
              literal whose element type only a named `&T` determines. *)
           | Concept (Mixed_lit _) -> None
           | _ -> if is_bare_literal actual then None else Some ((p.id, Type actual) :: s)))
-  | _, Error -> Some s
+  | _, (Error | Veiled _) -> Some s
   (* `^T` over a type parameter takes an owner when it is filled with a
      reference type and borrows a value otherwise (memory.md §2.9), so a
      function type's `^T` is filled from a value type's result written bare.
-     Only a value type may fill `^T` that way, and the kinds of the types
-     decide whether it is one: the caller checks the filled type
+     Only a value type may fill `^T` that way, and whether a type is a
+     value type depends on its definition: the caller checks the filled type
      ([Type_decls.modes_agree]). *)
   | Roaming (Param p), actual when is_open p && not (is_roaming actual) ->
       unify ~open_ s (Param p) actual
@@ -490,6 +510,7 @@ let canonical ts =
         ^ "->" ^ go v.ret
         ^ (match v.abort with Some a -> "?" ^ go a | None -> "")
         ^ if v.is_mut then " mut" else ""
+    | Veiled p -> "<veiled " ^ p.name ^ ">"
     | Error -> "<error>"
   and go_args = function
     | [] -> ""

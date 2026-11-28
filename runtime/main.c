@@ -16,6 +16,9 @@
 #else
 #include <fcntl.h>
 #include <sys/socket.h>
+#ifdef ZANE_LIBRARY
+#include <dlfcn.h>
+#endif
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -28,9 +31,10 @@
    or BUFSIZ. It is flushed when it fills and when the program ends, and,
    when stdout is a terminal, at every print that writes a newline, as
    stdio flushes a terminal's lines. Writers take the mutex, and touch the
-   buffer only once they have claimed `busy`, from 0 (free) to 1. The fault
-   path claims it from 0 to 2 without the mutex, so a writer that holds the
-   mutex and has not claimed it yet has not touched the buffer; a writer
+   buffer only once they have claimed `busy`, from 0 (free) to 1. On the
+   fault path, `zane_flush_output_in_fault` claims it from 0 to 2 without the
+   mutex, so a writer that holds the mutex and has not claimed it yet has not
+   touched the buffer; a writer
    that finds 2 waits for the program to end. A write that fails drops what
    it held and marks the output failed. */
 static char *zane_out;
@@ -247,7 +251,30 @@ static void zane_keep_arguments(int argc, char **argv) {
    host passes no command line, so `arguments` gives an empty list. */
 static char *zane_no_arguments[1];
 
+/* The library stays loaded until the process ends, whatever the host
+   unloads: a pool thread may still be running its code, other code may
+   have saved its fault handler as the previous handler for faults, and its
+   runtime holds the regions and buffers it made. A later load of the same
+   file reaches this runtime again. macOS never unloads a library with
+   thread-local variables, as the runtime has, and the other systems are
+   told to keep it: Windows by pinning the module, the others with
+   `RTLD_NODELETE`. */
+static void zane_library_pin(void) {
+#ifdef _WIN32
+	HMODULE self;
+	if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+	                        (LPCWSTR)(void *)&zane_library_pin, &self))
+		zane_broken("keeping the library loaded");
+#else
+	Dl_info info;
+	if (!dladdr((void *)&zane_library_pin, &info) || !info.dli_fname ||
+	    !dlopen(info.dli_fname, RTLD_LAZY | RTLD_NOLOAD | RTLD_NODELETE))
+		zane_broken("keeping the library loaded");
+#endif
+}
+
 __attribute__((constructor)) static void zane_library_start(void) {
+	zane_library_pin();
 	zane_argc = 0;
 	zane_argv = zane_no_arguments;
 	const char *check = getenv("ZANE_CHECK");
@@ -261,14 +288,18 @@ __attribute__((constructor)) static void zane_library_start(void) {
 	zane_reopen();
 }
 
-/* As the host unloads the library or ends: what the library printed and
-   has not written yet is written, its pool's threads are joined, and the
-   fault handlers that were there before it loaded are back, so that
-   nothing the process keeps runs the library's code once it is gone. */
+/* As the process ends, what the library printed and has not written yet
+   is written. Elsewhere than on Windows the pool's threads are joined
+   first, so what they print as they stop is written too. Windows ends
+   every other thread before it runs a library's destructor, and runs that
+   destructor holding the loader lock, which a thread needs to end, so
+   there the destructor joins nothing. The fault handlers stay, since the
+   library's code stays loaded until the process is gone. */
 __attribute__((destructor)) static void zane_library_stop(void) {
-	zane_flush_output();
+#ifndef _WIN32
 	zane_pool_stop();
-	zane_regions_stop();
+#endif
+	zane_flush_output();
 }
 
 #else

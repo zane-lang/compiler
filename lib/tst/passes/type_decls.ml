@@ -116,7 +116,7 @@ let check_marker env span (marked : Ty.t) =
   | Some deferred -> Queue.push (marked, span) deferred.marks
   | None -> (
       match marked with
-      | Ty.Reference (Ty.Param _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Error) -> ()
+      | Ty.Reference (Ty.Param _ | Ty.Veiled _ | Ty.Error) | Ty.Roaming (Ty.Param _ | Ty.Veiled _ | Ty.Error) -> ()
       | Ty.Reference inner when not (is_reference env inner) ->
           error env span
             (Printf.sprintf
@@ -161,7 +161,7 @@ let rec check_function_types env span (t : Ty.t) =
   | Ty.Reference t | Ty.Roaming t -> check_function_types env span t
   | _ -> ()
 
-(* A type argument of the wrong kind (generics.md §3.6): a reference type,
+(* A misplaced type argument (generics.md §3.6): a reference type,
    or an `&`, that an instance puts where a value mould holds only values
    (memory.md §2.10), or a value type it puts under an `&` written over a
    type parameter (memory.md §2.4). The walk follows what the instance
@@ -178,7 +178,7 @@ type wrong_kind = { path : string list; bad : Ty.t; slot : slot }
 (* A value type under `&`, which `&` cannot mark (memory.md §2.4). *)
 let is_value env (t : Ty.t) =
   match t with
-  | Ty.Param _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
+  | Ty.Param _ | Ty.Veiled _ | Ty.Error | Ty.Concept _ | Ty.Reference _ | Ty.Roaming _ -> false
   | t -> not (is_reference env t)
 
 (* The value types [inst] puts where [raw] writes `&` over a type parameter,
@@ -218,7 +218,7 @@ and verb_parts (v : Ty.verb) =
 let rec modes_agree env (expected : Ty.t) (actual : Ty.t) =
   let rec erase (t : Ty.t) : Ty.t =
     match t with
-    | Ty.Roaming v when Ty.free_params v = [] && v <> Ty.Error && not (is_reference env v) -> erase v
+    | Ty.Roaming v when Ty.free_params v = [] && not (Ty.unknown v) && not (is_reference env v) -> erase v
     | Ty.Roaming v -> Ty.Roaming (erase v)
     | Ty.Reference v -> Ty.Reference (erase v)
     | Ty.Verb v ->
@@ -277,7 +277,7 @@ let holds_reference env (ft : Ty.t) =
   | ft -> is_reference env ft
 
 (* Whether [t] is a capability (effects.md §6): a foreign handle type of
-   the capability kind, or the program's console or runtime. *)
+   [handle_kind] [Capability], or the program's console or runtime. *)
 let is_capability env (t : Ty.t) =
   match Ty.strip_mode t with
   | Ty.Named (tid, _) -> (
@@ -317,7 +317,7 @@ let stray_reference env (t : Ty.t) =
   in
   walk t
 
-(* A type argument of the wrong kind found inside a part of a type, reached
+(* A misplaced type argument found inside a part of a type, reached
    through [step]. *)
 let through step = Option.map (fun found -> { found with path = step :: found.path })
 
@@ -333,7 +333,7 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
           wrong_kind env ~seen (Ty.instantiate info.params args u)
       | _ -> None)
   (* A worker pool's state and events are values (concurrency.md §6.1).
-     What its element's `&`s name is a property of each element, not of its
+     The places its element's `&`s name are a property of each element, not of its
      type (Pool_elements). *)
   | Ty.Intrinsic { namespace = "primitives"; name = "WorkerPool"; args = [ Ty.Type el; Ty.Type st; Ty.Type ev ] } -> (
       let part what x = Printf.sprintf "the %s of %s" what (quote (Ty.to_string t)) |> fun p -> (p, x) in
@@ -357,7 +357,7 @@ let rec wrong_kind env ?(seen = []) (t : Ty.t) : wrong_kind option =
       through (elements ()) (wrong_kind env ~seen (Ty.strip_mode e))
   | _ -> None
 
-(* The first type argument of the wrong kind that field [n] of [t] holds,
+(* The first misplaced type argument that field [n] of [t] holds,
    in the field itself or inside its type. *)
 and wrong_kind_in_field env ~seen t (info : type_info) args (n, raw) =
   let step = Printf.sprintf "%s's field %s" (quote (Ty.to_string t)) (quote n) in
@@ -606,7 +606,7 @@ and generic_arg ?(element = false) env scope (a : N.Generic_arg.t) : Ty.arg =
         Ty.Type (Ty.strip_mode (param_type env scope t))
       end
 
-(* Arguments against the parameters they fill: one each, of the right kind
+(* Arguments against the parameters they fill: one each, of the parameter's [Ty.kind]
    (generics.md §4.2). *)
 and apply_args env scope span what (kinds : Ty.kind list) generics =
   let args = List.map (generic_arg env scope) generics in
@@ -1035,7 +1035,7 @@ let check_distinct_cycles env () =
    the intrinsic generics too -- gives an edge from each parameter of `A` an
    argument names to the parameter of `B` it is passed as: plain when the
    argument is that parameter itself, growing otherwise. A path from one of
-   `A`'s parameters to another of them is a way `A` leads back to itself, and
+   `A`'s parameters to another of them leads from `A` back to `A`, and
    the argument it passes back grows when the path takes a growing edge. So a
    growing edge breaks the rule when some declaration has a parameter that
    reaches the edge and a parameter the edge reaches. That is wider than a
@@ -1255,9 +1255,9 @@ let check_value_downstream env () =
           members)
     (infos_in_order env ())
 
-(* Fills [tables] and hands on a view of them. The checks that need every
-   type's kind wait until every type is defined, and the view handed on
-   holds no deferred check. *)
+(* Fills [tables] and hands on a view of them. The checks that depend on
+   whether each type is a reference type wait until every type is defined,
+   and the view handed on holds no deferred check. *)
 let run env (tables : types) =
   let deferred = { marks = Queue.create (); kinds = Queue.create () } in
   let env = { env with types = Types.defining tables deferred } in

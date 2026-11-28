@@ -103,7 +103,7 @@ Int probe(table ListRef<Slot>, key Int, shift Int, mask Int) {
 }
 
 /// Stores `key` in the first empty slot from its home. A `mut` method is no
-/// walk, so this stays a call; its `return` leaves it all the same.
+/// walk, so this stays a call; its `return` still leaves it.
 Unit insert(this ListRef<Slot>, key Int, shift Int, mask Int) mut {
 	h Int = home(key, shift);
 	d Int(1);

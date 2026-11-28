@@ -1,4 +1,4 @@
-"""The facts codegen gives LLVM about a program, and what LLVM makes of it
+"""The facts codegen gives LLVM about a program, and the code LLVM makes from them
 (docs/design/lowering.md §9, "What LLVM is told")."""
 
 from pathlib import Path
@@ -15,7 +15,7 @@ FACTS = Path(__file__).resolve().parent / "fixtures/facts"
 STAMP = "v1.0%0123456789abcdef%"
 SNAPSHOT = re.compile(r"load atomic|@zane_snapshot\(")
 # A call that may read a frame: any but an LLVM intrinsic other than the
-# memory ones, as `Frame_shadow.inert` sorts them.
+# memory intrinsics, as `Frame_shadow.inert` sorts them.
 OBSERVING = re.compile(r" call [^@]*@(?!llvm\.(?!memcpy|memmove|memset))")
 # A list handle's room and size: with frame references (experimental,
 # lib/cgt/ref32.ml), on by default on every target, the room counts elements
@@ -36,7 +36,7 @@ def run(*args):
 def run_program(exe, *args, env=None):
     """What a program wrote, run with its drains checked and unchecked
     (`ZANE_CHECK` 1 and 0), as every program in this directory is run. The
-    two runs must agree, and a failure names the mode it came from."""
+    two runs must print the same output, and a failure names the mode it came from."""
     outputs = {}
     for check in ("1", "0"):
         command = [str(exe), *map(str, args)]
@@ -260,10 +260,10 @@ class FactsTests(unittest.TestCase):
     def test_removals_of_scalars_leave_the_count(self):
         # A move of elements that hold no handle is a scalar access, which
         # cannot write a list's header, so the loop that removes foes from
-        # its list in one way keeps the count it read in a register through
-        # the other, and each bounds check compares against that register.
-        # A move of strings, each a handle, carries no tag. How many copies
-        # of each move LLVM keeps is its own choice.
+        # its list through one path keeps the count it read in a register
+        # through the other, and each bounds check compares against that
+        # register. A move of strings, each a handle, carries no tag. LLVM
+        # alone picks how many copies of each move it keeps.
         ir = run(ZANEC, "--ll", "--optimize", *packages("culls"))
         moves = re.findall(r"call void @llvm\.memmove\.p0\.p0\.i64\([^\n]*", ir)
         self.assertEqual(sorted({"!tbaa" in move for move in moves}), [False, True], moves)
@@ -477,7 +477,7 @@ class FactsTests(unittest.TestCase):
         self.assertNotIn("available_externally", optimized)
 
     def test_runtime_functions_keep_their_facts(self):
-        # What the runtime's C bodies are known to do is on their
+        # The known effects of the runtime's C bodies are on their
         # declarations (lib/codegen/runtime_facts.ml), in a plain build and
         # in an optimized one, where a body linked from the runtime's
         # bitcode replaces the declaration and its attributes are put back
@@ -553,8 +553,8 @@ class FactsTests(unittest.TestCase):
         # The method's subject is the whole of the caller's slot, two list
         # handles, and `main`'s frame is all there once its scope is open,
         # so the loops in both read each list's count and block once. The
-        # slot may be a member at any byte of a packed value, so it claims
-        # no alignment (Emit.declare_places).
+        # slot may be a member at any byte of a packed value, so its access
+        # declares no alignment (Emit.declare_places).
         ir = run(ZANEC, "--ll", *packages("bounce"))
         self.assertRegex(ir, rf'@"bounce\$step\([^"]*\)"\(ptr nonnull dereferenceable\({TWO_HANDLES}\) %0')
         self.assertRegex(ir, r'call void @llvm\.assume\(i1 true\) \[ "dereferenceable"\(ptr %[^,]+, i64 [0-9]+\), "align"')
@@ -573,7 +573,7 @@ class FactsTests(unittest.TestCase):
         # long copy into a main loop with no checks and the iterations after
         # it, whose block names it gives (Passes.optimized): both of
         # bounce's loops, the loop in `step`, inlined into `main`, and the
-        # one in `main` itself. A plain build, whose passes have no use for
+        # loop in `main` itself. A plain build, whose passes have no use for
         # the copies, emits each loop once.
         ir = run(ZANEC, "--ll", *packages("bounce"))
         self.assertNotIn('!{!"branch_weights", i32 1000, i32 1}', ir)
@@ -586,7 +586,7 @@ class FactsTests(unittest.TestCase):
         # A counted loop that can return early and holds only arithmetic is
         # asked to be unrolled twice (Emit.unrolled): its back edge names a
         # loop node that holds `llvm.loop.unroll.count` 2, in each of
-        # `escapes`' copies, the memo pass's and the plain one. `first`'s
+        # `escapes`' copies, the memo pass's and the plain copy. `first`'s
         # loop, which calls `sevenfold`, carries none. Optimized, LLVM
         # unrolls each copy of `escapes`' loop, so its escape test is there
         # twice as often.

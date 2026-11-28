@@ -1,7 +1,7 @@
 # Symbols
 
 What a program's types, verbs and variables are called in the LLVM IR and in
-the binary. The rule is the same for all of them: a thing is called by its
+the binary. The rule is the same for all of them: each is called by its
 declaration as written, fully qualified. That name is already unique across
 the program, so nothing is encoded, and the name a reader sees in the source is
 the name in the IR, in a stack trace and in `nm`, with `%` for the `@` of an
@@ -44,8 +44,8 @@ pkg$+(pkg$Vec, pkg$Vec)
 geometry$Point(%primitives$Int, %primitives$Int)
 ```
 
-- The package is the one that declares the verb, which is not necessarily
-  the one that declares its subject's type.
+- The package is the package that declares the verb, which is not necessarily
+  the package that declares its subject's type.
 - An operator is named by its token, and a subscript by `[]`.
 - A constructor is named by the type it builds, followed by `.member` for a
   named constructor. A field constructor writes its entries in braces, each
@@ -56,11 +56,11 @@ geometry$Point(%primitives$Int, %primitives$Int)
 - A generic verb's instance writes its arguments after its name, as a type
   does, and its parameter types with those arguments in place:
   `pkg$first<%primitives$Int>(this pkg$List<%primitives$Int>)`. An explicit
-  `T Type` or number parameter writes its kind (`Type`, `%concepts$Int`),
+  `T Type` or number parameter writes its concept (`Type`, `%concepts$Int`),
   since the argument it takes is already among the instance's.
 - The return type, parameter names and `mut` are left out. Overloads cannot
   differ by them ([functions.md §4.1](https://github.com/zane-lang/spec/blob/b0675d6/spec/functions.md)),
-  so the parameter types are enough to tell every overload of a name apart.
+  so the parameter types are enough to tell every overload of a verb name apart.
 
 ## Variables and lambdas
 
@@ -114,8 +114,8 @@ The table of walks over the blocks a type's values own, which the runtime is
 handed ([`lowering.md`](lowering.md) §9), is called by the type's name, or
 by the first by name of the types laid out alike that share it. An
 outcome's table is called `outcome of T`, with ` ? A` added when the verb can
-abort with `A`. Each walk is called by the table's name and what it does:
-`.copy`, `.end`, `.move` and `.overwrite`, and `.vacate` for the one that
+abort with `A`. Each walk is called by the table's name and its operation:
+`.copy`, `.end`, `.move` and `.overwrite`, and `.vacate` for the walk that
 emitted code calls itself.
 
 ## Names that stay C identifiers
@@ -126,12 +126,17 @@ The runtime is C, and it finds what it calls by a C name. These keep one:
   ([`lowering.md`](lowering.md) L16);
 - an exported lambda's C function, under the C name its `export` gives
   it, which a dynamic library offers its host and a test package's C
-  calls ([`ffi.md`](ffi.md) F20); a `$` in every Zane symbol keeps the two
-  apart;
-- the runtime's own functions, all `zane_*`. No symbol above can clash with
-  them, since every one contains a `$`.
+  calls ([`ffi.md`](ffi.md) F20), and in a plugin's or a test package's
+  build the root's own C globals, under the names its C gives them
+  ([`ffi.md`](ffi.md) F21); a `$` in every Zane symbol keeps these apart
+  from it;
+- the runtime's own functions, all `zane_*`. The program's entry and every
+  Zane symbol stay apart from them, since the entry is the runtime's own
+  and every Zane symbol contains a `$`. An export's C name or a root C
+  global can still be one of them, since the spec reserves no prefix, and
+  the link then fails on the symbol both define.
 
-What the compiler makes for itself, with no declaration behind it, is named
+A function or variable the compiler makes for itself, with no declaration behind it, is named
 under `zane.`: the function each spawned call runs through (`zane.spawn.N`),
 the function a spawned call to a verb expanded where it is called
 (`zane.expanded.N`) or to an intrinsic (`zane.intrinsic.N`) is made into
@@ -142,13 +147,14 @@ calls a worker pool's step and its funnel (`zane.step.N`, `zane.funnel.N`,
 `main` (`zane.start`), and the variable whose address a reference to a
 program value such as `@program$console` holds (`zane.value.@program$console`).
 
-## What the compiler does today
+## The current implementation
 
 - Verbs, types and walk tables are named as above, by `Symbol.verb` and
   `Symbol.ty`.
-- Lambdas are named as above. A lambda that expands into more than one
-  place keeps its one name, and is lifted once.
-- A package constant's function and variables are named as above. They are
+- Lambdas are named as "Variables and lambdas" describes. A lambda that
+  expands into more than one place keeps its one name, and is lifted once.
+- A package constant's function and variables are named as "Variables and
+  lambdas" describes. They are
   local to a program's object, and shared by every object of a library or a
   stamped dependency that reads them
   ([`separate-compilation.md`](separate-compilation.md) C4).

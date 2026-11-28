@@ -29,21 +29,21 @@ binary
    ([`optimization.md`](optimization.md)). Before it, every build evaluates
    the calls marked `comptime`, which are not optional, and writes their
    values into the CGT ([`comptime.md`](comptime.md)).
-6. **codegen** — lowers the CGT to LLVM IR and produces the binary. How
-   lowering and codegen are designed is in [`lowering.md`](lowering.md).
+6. **codegen** — lowers the CGT to LLVM IR and produces the binary.
+   [`lowering.md`](lowering.md) describes the design of lowering and codegen.
 
-The CST captures only what the source spells: every shorthand the grammar admits
+The CST captures only what the source spells: every shorthand the grammar accepts
 is a node of its own, and a form written two ways is two shapes in the tree.
 
-The SST expresses the same program one way. It is still untyped and still holds
+The SST expresses the same program in one canonical spelling. It is still untyped and still holds
 unresolved names — what it no longer holds is a choice of spelling. The rewrites
 that get there are inventoried in [`desugaring.md`](desugaring.md), along with
-the ones that look like they belong and do not.
+the rewrites that look like they belong and do not.
 
 The TST represents the semantically checked program. Names are resolved and
 expressions are typed, so later stages do not need to recover semantic
-information from syntax. How it is built is in
-[`semantics.md`](semantics.md). "TST" is used instead of the more common "typed AST"
+information from syntax. [`semantics.md`](semantics.md) describes how it is
+built. "TST" is used instead of the more common "typed AST"
 because CST, SST, TST, and CGT name the role of each tree directly. Their names
 describe what distinguishes each representation rather than accumulating every
 property inherited from earlier stages: the TST remains simplified, and the CGT
@@ -63,9 +63,9 @@ the same pipeline with an empty pass list. Because the two builds share one
 lowering and one codegen, a program that behaves differently with and without
 optimization points to a bug in an optimization pass.
 
-The line between stages 2 and 3 is what a rewrite needs to know. A desugaring
-needs nothing but the syntax tree; anything that has to know what a name refers
-to, what package a member came from, or what type an expression has is name
+The line between stages 2 and 3 is the information a rewrite needs. A desugaring
+needs nothing but the syntax tree; a rewrite that needs the target of an identifier,
+the package a member came from, or the type of an expression is name
 resolution or type checking, and belongs to semantics. That line is why control
 flow is not desugared anywhere — `if` and `guard` are ordinary calls, not syntax
 — and why a method call keeps its `:`/`!` marker through stage 2 even though

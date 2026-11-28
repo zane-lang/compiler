@@ -83,14 +83,14 @@ uses the shared traversals.
    - **Why not by address for everything.** A small value passed in
      registers never touches memory. By pointer, it is stored and loaded
      again on every call that is not inlined.
-   - **Why the meaning is kept.** A value parameter is a borrow (spec
+   - **The meaning is unchanged.** A value parameter is a borrow (spec
      `memory.md` §2.9), and nothing else in the call writes what it
      borrows (§2.9.1). So passing the address keeps the language's
-     meaning, and the parameter can tell LLVM so with `readonly` and
-     `noalias`.
+     meaning, and codegen can mark the parameter `readonly` and
+     `noalias` for LLVM.
    - **Backstop.** The existing limit, extended to signatures, stays as an
      internal check that should never fire.
-3. **F11: what happens to a drained chunk.** *Decided:* a few spare
+3. **F11: the fate of a drained chunk.** *Decided:* a few spare
    chunks stay warm. Every other spare keeps its addresses but gives its
    physical memory back to the system. Each drained chunk is kept as a
    spare for reuse. That avoids mapping it afresh, and while its pages
@@ -101,7 +101,7 @@ uses the shared traversals.
      chunk is reused. A program that builds and drops a large structure
      in a loop would pay that every round if every chunk went back at
      once.
-   - **What others do.** The usual allocators settle it the same way:
+   - **Other allocators.** The usual allocators settle it the same way:
      jemalloc returns unused memory over a decay period of about 10
      seconds, mimalloc after a short delay, and glibc's `malloc` trims
      above a threshold.
@@ -149,12 +149,12 @@ unchecked.
 
 **Fix.**
 - `tests/memory-probes/run` gains `--check`. It writes each `NAME.out` to
-  a temporary directory, diffs it against the committed one, and exits
+  a temporary directory, diffs it against the committed file, and exits
   non-zero on any difference. Without `--check` it keeps rewriting the
   committed outputs, as it does now.
 - A probe whose output contains `== build failed` or
   `== the optimized build differs` fails `--check` unless its directory
-  holds an `EXPECTED` file that names that outcome and says why. The file
+  holds an `EXPECTED` file that names that outcome and gives the reason. The file
   only permits the outcome. What the probe printed must still match its
   committed `NAME.out` exactly, so a different failure in the same probe
   fails the diff.
@@ -249,7 +249,7 @@ the lexer itself and not with an ASCII copy of its rule.
 negative cases: an uppercase first letter (ASCII and `Ü`), a leading
 digit, and an empty name.
 
-**Docs.** No change: the CLI help already says "a package name".
+**Docs.** No change: the CLI help already reads "a package name".
 
 ## Batch 3: entry point and backend ABI
 
@@ -301,8 +301,8 @@ address.
     by address. The 65,536-element array, the crashing case, goes by
     address too.
 - **Packing, as a measured step.** After the rule above is in and
-  measured, try packing small aggregates into 8-byte words before a call
-  and unpacking them in the callee, as clang does.
+  measured, measure packing small aggregates into 8-byte words before a
+  call and unpacking them in the callee, as clang does.
   - **What it changes.** The count becomes the number of words:
     `{ I8; I8; I8; }` then needs 1 register and `{ I32; I32; I32; I32; }`
     needs 2. On targets with a two-register limit both then travel in
@@ -354,7 +354,7 @@ address.
 
 Separate compilation is unaffected beyond this. The rule is a function of
 the type and the target, and objects for different targets never link, so
-every object a program links agrees on it.
+every object a program links uses the same convention.
 
 **Tests.**
 - **The crash.** Add a library fixture with `consume(x Array<I64, 65536>)`
@@ -391,7 +391,7 @@ The error is an invocation diagnostic: "the target `i386-unknown-linux-gnu`
 has 4-byte pointers; this compiler builds for 64-bit targets only". While
 implementing this, check whether anything relies on little-endian byte
 order (constant folding of text, the object rewriters in `lib/rewrite`).
-If something does, add byte order to the check.
+If any code does, add byte order to the check.
 
 **Tests.** Add CLI tests: `--ll --target i386-unknown-linux-gnu` and
 `--target armv7-unknown-linux-gnueabihf` exit 1 with the message, and
@@ -563,8 +563,8 @@ mutual recursion at the same arguments are still accepted, with their
 existing fixtures.
 
 **Docs.** `docs/design/semantics.md`: the new check, citing
-`generics.md` §2.4 by its pinned commit, and that boxing still decides per
-instance.
+`generics.md` §2.4 by its pinned commit, and that boxing is still settled
+per instance.
 
 ## Batch 5: compile-time resource bounds
 
@@ -595,7 +595,7 @@ cap them in total.
 **Tests.** Add an optimizer unit test: a function that calls its previous
 level twice and prints once at the base, 40 levels deep, folds or stops
 quickly under a small heap limit, and the optimized program's output
-matches the unoptimized one. Run it twice, once printing a word at the
+matches the unoptimized program's. Run it twice, once printing a word at the
 base and once printing `""`, so the cap is shown to fire on entries that
 carry no bytes. Add a codegen fixture with the same program
 at a size that runs, both builds held to one golden.
@@ -615,7 +615,7 @@ included, and capped.
   position, as it already does for a list's elements, and does not unroll
   it.
 - The constant evaluator (`lib/optimize`), which reads `layouts`, treats
-  the new kind like a list of fixed count.
+  the new `Array` position like a list of fixed count.
 
 **Tests.** Every existing fixture with an array of strings or lists passes
 unchanged in both checking modes. Add a fixture with
@@ -736,7 +736,7 @@ contexts.
   the memory bench and the spec repo's `langbench/`, before and after, on
   the maintainer's machine.
   - **When to add it.** Only if returning pages at once is slower there.
-  - **What it is.** Chunks turn cold only after sitting unused for a
+  - **The mechanism.** Chunks turn cold only after sitting unused for a
     while: past a number of later drains of the same context, so no
     timer thread is needed. Choose that number from the same
     benchmarks.
@@ -760,7 +760,7 @@ contexts.
   takes the decommit path.
 
 **Docs.** `docs/design/lowering.md` §9 (regions and chunks): warm and cold
-spares, where chunks come from, what each platform does to give pages
+spares, where chunks come from, each platform's call to give pages
 back, and whether a delay was kept, with the measurements.
 
 ### F30: overflow handlers call stdio
@@ -768,7 +768,7 @@ back, and whether a delay was kept, with the measurements.
 **Fix.** Make the program's output buffer the runtime's own, so that the
 fault handler can flush it with only async-signal-safe calls.
 - **Buffer.** `runtime/block.c`'s print writes into a runtime buffer
-  instead of `stdout`. Its size is what stdio would choose for stdout
+  instead of `stdout`. Its size is the size stdio would pick for stdout
   today: the `st_blksize` that `fstat(1)` reports, or `BUFSIZ` when that
   is unavailable (and `BUFSIZ` on Windows). The buffer is guarded by a mutex for
   ordinary writers, plus an atomic `busy` flag (0 free, 1 a writer, 2 the
@@ -783,7 +783,7 @@ fault handler can flush it with only async-signal-safe calls.
     moment never overlaps a writer's use.
 - **Flush.** The buffer is flushed with `write(1, ...)` in a loop
   (`WriteFile` on Windows), and a failed write records an error flag.
-- **When it flushes.** It keeps what stdio does today. At startup the
+- **When it flushes.** It keeps stdio's current flushing rules. At startup the
   runtime checks whether stdout is a terminal (`isatty`, `_isatty` on
   Windows). If it is, every print that writes a newline flushes the
   buffer, so a long-running program's progress lines and a prompt before
@@ -840,7 +840,7 @@ a child on a pseudo-terminal (`forkpty`): the child prints one line and
 then blocks on a pipe. The parent must read that line from the terminal
 before it releases the child, which shows that terminal output is
 flushed at each newline and not only at exit. The same test with a pipe
-in place of the terminal checks two things. Output smaller than the
+in place of the terminal checks two properties. Output smaller than the
 buffer is not flushed early. Output of exactly the buffer's size
 (`st_blksize`) reaches the reader while the child still blocks, as it
 does under stdio today.
@@ -916,7 +916,7 @@ fixture and generated rule unchanged. CI's file-size check
   `map`. `map` rebuilds every node it visits, so a read-only query through
   it allocates a copy of the tree for nothing. Moving the functions is a
   chance to check each caller for this.
-- Each analysis keeps only what is specific to it.
+- Each analysis keeps only its own specific code.
 
 **Tests.** Add a unit test per traverse module: on one node of each
 constructor, `parts` returns exactly its children, so a new constructor
@@ -982,7 +982,7 @@ file-size warning (1,500 lines).
 
 ### F24: one mutable environment for every semantic phase
 
-**Fix.** Give each phase a type that says what it may read and write. Do
+**Fix.** Give each phase a type that states what it may read and write. Do
 it in stages, each of them a PR:
 1. Group `Env.t`'s fields (`lib/tst/model/env.ml`) into sub-records by the
    pass that fills them:
@@ -993,10 +993,10 @@ it in stages, each of them a PR:
      from F01, notes).
    - `counters`.
 2. Each pass's entry point takes the sub-records it writes mutably, and a
-   read-only view of the ones before it: a module signature with an
+   read-only view of the sub-records before it: a module signature with an
    abstract type and only accessors. `Semantics.check` threads them in
    order, replacing the readiness flags (`defining`, and the options that
-   say a stage has run) with the presence of the earlier stage's result.
+   mark that a stage has run) with the presence of the earlier stage's result.
 3. Deferred closures stored in the environment become explicit queues
    that their owning pass drains before it returns.
 
@@ -1039,8 +1039,8 @@ it in stages, each of them a PR:
   golden. A codegen fixture added with no golden file, and a parser golden
   file with no fixture, each failed `dune runtest`, naming the file. The
   codegen README states the rule. A golden file that a hand-written rule
-  in the directory's `dune` compares against is the only kind the pairing
-  leaves alone, and a rule commented out with `;` counts for nothing, so a
+  in the directory's `dune` compares against is the only golden file the
+  pairing leaves alone, and a rule commented out with `;` counts for nothing, so a
   misnamed `golden/project.app.chek`, and `project.app.check` with its rule
   commented out, each failed `dune runtest`, naming the file.
 - **F26** (`853ab75`). `gen_rules` writes each codegen run rule twice,
@@ -1056,14 +1056,14 @@ it in stages, each of them a PR:
   checked (for example `hello` 1 to 0, `owners` 200,052 to 0, `settled`
   100,019 to 0). The drains it does not call took the `plain` path of
   `Emit.drain_scope`, its only other way out. The comments in both `dune`
-  files, the codegen README and `docs/design/lowering.md` §9 say that
+  files, the codegen README and `docs/design/lowering.md` §9 state that
   every program runs checked and unchecked.
 - **F27** (`2751d33`). `tests/memory-probes/run --check` writes each
   probe's output to a temporary directory and diffs it against the
   committed `NAME.out`. A run fails on any difference, and on a
   `== build failed` or `== the optimized build differs` outcome unless the
-  probe's `EXPECTED` file names that outcome on its first line and says
-  why below it. `just test-compiler`, which CI's compiler job and the
+  probe's `EXPECTED` file names that outcome on its first line and gives
+  the reason below it. `just test-compiler`, which CI's compiler job and the
   distribution workflow run, calls it last. Three consecutive runs gave
   identical outputs for all 37 probes, so none needed making
   deterministic, and none currently fails to build or differs when
@@ -1072,7 +1072,7 @@ it in stages, each of them a PR:
   `ZANE_CC=false`: it fails without an `EXPECTED` file, still fails with
   one that gives no reason, and with a reason fails only on the output
   diff. `docs/memory-semantics-findings.md` and the justfile comment for
-  `test-compiler` say how the probes are gated. Added in review:
+  `test-compiler` describe how the probes are gated. Added in review:
   `tests/memory-probes/reclaim.py --check`, also run by `test-compiler`,
   fails when an allocating loop's peak RSS grows by more than 1 MiB from
   10,000 to 1,000,000 iterations, or when the leaking control grows by less
@@ -1094,7 +1094,7 @@ container has no `wine64`.
 - **F17** (`b347cd7`). The object rewrite moves from `zanec` into the
   driver as `Driver.rewrite_object`, which takes its random source, and
   `Driver.temporary_name` draws each name from it. The temporary is
-  created exclusively, and a flag set first thing inside the
+  created exclusively, and a flag set as the first step inside the
   `with_open_gen` callback records that this call created it: only then is
   it removed on failure. A name that already exists is left alone and a new
   one drawn, up to 8 before the error is reported. A unit test in
@@ -1105,7 +1105,7 @@ container has no `wine64`.
   With the old behaviour put back (no retry, unconditional removal), the
   first case failed four of its five checks and the second its survivors
   check.
-  `docs/design/stages.md` says the driver holds the rewrite.
+  `docs/design/stages.md` states that the driver holds the rewrite.
   In review, any failure to create the temporary now draws again, rather
   than only one at a name `Sys.file_exists` sees: that lookup follows a
   dangling symlink and misses it. A third case puts a dangling symlink at
@@ -1301,8 +1301,8 @@ IR and objects `abi_test.py` builds.
   calls to itself never reach a fixed set". `instance_counts` became
   `instantiated`, a `(int, unit) Hashtbl.t`. Beyond the plan, the worklist is
   a stack, not a queue, and a declaration once reported (`Env.runaway`) is
-  asked for no more instances. Counting per chain alone would have made a
-  verb that asks for two growing instances per step, `fork<T>` calling
+  given no more instances. Counting per chain alone would have made a
+  verb that needs two growing instances per step, `fork<T>` calling
   `fork<Jar<T>>` and `fork<Sack<T>>`, check `2^64` instances before any
   chain reached the limit; breadth-first, the `fork` fixture did not finish
   in 20 seconds, and depth-first it is reported in under a second. The
@@ -1320,7 +1320,7 @@ IR and objects `abi_test.py` builds.
   the covered count is the distinct keys of `covered` whose every case is
   valid for its scrutinee; the first three missing combinations come from a
   lazy `Seq` walk in the old order that skips covered keys. "(and N more)"
-  uses `missing - 3`. When the total saturates, the message says "(and more
+  uses `missing - 3`. When the total saturates, the message reads "(and more
   than N more)" with `N = max_int - covered - 3`, the plan's
   `max_int - covered` less the three named. In `typing/reject/bad/matches.zn`,
   `three` (three `Light`s, one arm) checks the three-example order and "(and
@@ -1360,8 +1360,8 @@ IR and objects `abi_test.py` builds.
   errors, and does not finish with the backstops removed. The baseline
   accepts every rejected type. `docs/design/semantics.md` lists the check
   under pass 3 and describes it in §4, citing `generics.md` §2.4 at
-  `8298a3a`, with why `&` members are followed and that boxing still
-  decides per instance. The audit's reproduction, a library `consume` over
+  `8298a3a`, with why `&` members are followed and that boxing is still
+  settled per instance. The audit's reproduction, a library `consume` over
   `Grow<I64>` built with `--ll`, did not finish on the baseline and exits 1
   with the diagnostic here.
   In review, the backstops first stopped past 256 types deep, which a valid
@@ -1428,7 +1428,7 @@ Verified on the batch's head with `devbox run -- just test-compiler`
 - **F05** (`776cefe`). `Codegen.with_program` replaces `Codegen.emit`. It
   creates the context and the module, runs the caller's function on the
   module, and disposes both in `Fun.protect ~finally`, so a build that
-  returns, fails or raises, and an emit refused for a frame past the size
+  returns, fails or raises, and an emit rejected for a frame past the size
   limit, all release them. `Emit.program` fills a module it is given.
   `Driver.ir`, `executable` and `object_file` build inside it, and `ir`
   copies the text out with `string_of_llmodule` before the scope ends.
@@ -1546,7 +1546,7 @@ this batch.
     bytes that do.
 
   Only the full-pipe case failed on the old runtime, where it hung. The
-  others pass on both, since they hold what stdio already did. The
+  others pass on both, since they check stdio's existing behaviour. The
   "recursion too deep" and "scopes nested too deep" fixtures still show
   the output printed before the error. `docs/design/lowering.md` §9 and
   `platforms.md` ("Machine stack sizes") describe the buffer and what the
@@ -1555,7 +1555,7 @@ this batch.
 Each new runtime test passed 100 runs in a row (`output.c` 50, at fifty
 overflows per run), and the batch's head passed `devbox run -- just
 test-compiler` (including the probe gate) and `just check-file-sizes`,
-which still warns about `lib/cgt/lower.ml` as before. The Windows programs
+which still warns about `lib/cgt/lower.ml`. The Windows programs
 build with `dev/bin/windows-programs`; with no Wine here, they run only in
 CI.
 
@@ -1569,7 +1569,7 @@ still counts characters, so no header moved. The comment at the top of
 
 - **F20** (`f6f3b51`). A C0 control other than tab, DEL, a C1 control and
   each Bidi_Control character are shown as ASCII escapes (`\x1b`,
-  `\u202e`), as wide as their text, and tabs expand as before. Bytes
+  `\u202e`), as wide as their text, and tabs still expand. Bytes
   that are not UTF-8 are escaped too (`\xe9`); this commit already
   needed that, since it decodes the line. The file name in `at_span` and in the file and
   directory forms, and every message, are escaped when rendered (a tab
@@ -1584,11 +1584,11 @@ still counts characters, so no header moved. The comment at the top of
   every location form and an internal error. A file name is tested there
   rather than as a fixture, since a fixture with a control in its name
   cannot be checked out on Windows. It failed on the old renderer. The
-  one existing golden that moved is `reject.malformed-utf8`, whose
+  only existing golden that moved is `reject.malformed-utf8`, whose
   Latin-1 byte now shows as `\xe9`.
 - **F03** (`5ab45da`). Pieces are extended grapheme clusters from
   `uuseg`. A cluster is as wide as its widest code point by
-  `Uucp.Break.tty_width_hint`, not its first as the plan said: after a
+  `Uucp.Break.tty_width_hint`, not its first as the plan stated: after a
   prepended character such as U+0600, which takes no cell, the first is
   not the base (review, golden `width-prepend`), so the emoji test below
   also starts after any prepended characters (`width-prepend-emoji`). An
@@ -1600,7 +1600,7 @@ still counts characters, so no header moved. The comment at the top of
   `zane-compiler.opam`. `devbox.json` lists only Nix packages, so it is
   unchanged. `.github/scripts/update-toolchains.py` refreshes the two
   pins, taking the newest `uucp` of the latest `uuseg`'s major version,
-  which is the one it requires. Tests: goldens `width-combining`, `width-cjk`, `width-emoji` and
+  which is the version it requires. Tests: goldens `width-combining`, `width-cjk`, `width-emoji` and
   `width-zwj`, each with the caret off the error on the old renderer.
   `width-flag` and `width-presentation` (U+00A9 U+FE0F) came out right
   on the old renderer, since two code points happen to be two cells.
@@ -1618,7 +1618,7 @@ still counts characters, so no header moved. The comment at the top of
 
 The batch's head passed `devbox run -- just test-compiler` (including the
 probe gate) and `just check-file-sizes`, which still warns about
-`lib/cgt/lower.ml` as before.
+`lib/cgt/lower.ml`.
 
 ### Batch 8: architecture (F22, F25, F23)
 
@@ -1680,7 +1680,7 @@ golden and fixture as it was.
 
 The batch's head passed `devbox run -- just test-compiler` (including the
 probe gate) and `just check-file-sizes`, which still warns about
-`lib/cgt/lower.ml` as before. `dev/bin/windows-programs` cross-built every
+`lib/cgt/lower.ml`. `dev/bin/windows-programs` cross-built every
 Windows program and the probe; Wine was not available to run them.
 
 ### Batch 8b: lowering split (F21)
@@ -1703,7 +1703,7 @@ Windows program and the probe; Wine was not available to run them.
   `invoke` and `expand`. `Lower_match` has `match`, the enum map read,
   handlers and case reads; handlers are there, rather than with calls,
   because a case read runs one too. `Lower_spawn` has spawned calls and
-  `Lower_lambda` lambdas. Three things the plan did not name: `leave`,
+  `Lower_lambda` lambdas. Three moves the plan did not name: `leave`,
   which `Lower_match`, `Lower_calls` and `stat` all use, moved to
   `Build`; `Lower_calls` reaches `Lower_data.primitive` through the
   walk's `primitive`, since `Lower_data` calls into `Lower_calls`; and
@@ -1733,7 +1733,7 @@ F24's stages 2 and 3 follow in their own PRs.
   the current chain from F01, the instances checked, `defining`, the
   subscript results, the defaults, and the note) and `counters` (the
   next declaration, type parameter and local). Every access names its
-  group, as `env.verbs.signatures`. Two things the plan did not name:
+  group, as `env.verbs.signatures`. Two details the plan did not name:
   the counters include `next_decl`, which Collect alone writes, since the
   other two are counters of every pass; and the list of instances checked
   is `instances.checked`, not `instances.instances`. Collect annotates
@@ -1766,7 +1766,7 @@ probes included, and `just check-file-sizes` passed.
   pass 3 runs (`Types.defining`), and the view it returns has none
   (`Types.view`). `defining` became `instances.requests`, an option that
   `Program.run` fills with a fresh queue, drains, and sets to `None`
-  before checking the generic verbs nothing instantiates. Three things
+  before checking the generic verbs nothing instantiates. Three details
   the plan did not name: the note moved from `instances` to beside the
   diagnostics, because `error` reads it in every pass and the analyses
   set it; the instance queue's tables became the `requests` record, the
@@ -1774,7 +1774,7 @@ probes included, and `just check-file-sizes` passed.
   and finished, for the unit test of overload resolution. The `option`
   fields of a type or alias info (`definition`, `reference`, `target`)
   stay: each is per-declaration resolution state inside pass 3, which
-  is how a cycle is caught, not a flag saying a pass has run. No golden
+  is how a cycle is caught, not a flag marking that a pass has run. No golden
   or fixture changed.
 
 The commit built and passed `devbox run -- just test-compiler`, memory
@@ -1783,7 +1783,7 @@ since a slot's type changes for every pass that reads it at once.
 
 ### Batch 8e: environment, stage 3 (F24)
 
-- **F24, stage 3** (`989117f`). The one closure the environment stored was
+- **F24, stage 3** (`989117f`). The only closure the environment stored was
   pass 3's deferred kind check: `Type_decls.check_kinds` pushed a
   `unit -> unit` that captured the type, the arguments written explicitly
   and the span, to run once every type was defined. `Env.deferred` now

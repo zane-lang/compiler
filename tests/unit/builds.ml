@@ -46,8 +46,8 @@ let cached_runtime () =
   check "a cache that cannot be made still compiles the runtime" (Result.is_ok unwritable);
   let uncached = Build.runtime_object ~cc ~triple:host ~optimize:false work in
   check "no cache compiles the runtime" (Result.is_ok uncached && not (in_cache uncached));
-  (* A C compiler is asked what it is once, and again only once the
-     file it runs has changed. *)
+  (* The build queries a C compiler's identity once, and again only once
+     the file it runs has changed. *)
   if Sys.unix then begin
     let asked = Filename.concat directory "asked" and fake = Filename.concat directory "fake-cc" in
     let script extra =

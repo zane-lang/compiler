@@ -127,7 +127,7 @@ Unit stock(count Int) {
 	return Unit();
 }
 
-/// Each run of a loop body sees what the last one stored, whatever a later
+/// Each run of a loop body sees what the last run stored, whatever a later
 /// statement of that run replaced: after two runs `b` holds `pen` too.
 Unit rotate(pen &Pen) {
 	own Pen(Int(5));

@@ -7,12 +7,12 @@
 > open.
 
 The **CGT** is the one input codegen reads ([`stages.md`](stages.md)). The TST
-represents what a program means, in the language's own terms: calls to overloads,
-concepts, block arguments, handlers, owners and references. The CGT represents what the
-machine does: functions over primitive storage, with every allocation, copy,
+represents a program's meaning, in the language's own terms: calls to overloads,
+concepts, block arguments, handlers, owners and references. The CGT represents the
+machine's work: functions over primitive storage, with every allocation, copy,
 move, reference and death written out. Lowering is the only stage that turns one
-into the other, so codegen never reads a type declaration, never resolves a
-name, and never asks what a `&` means.
+into the other, so codegen never reads a type declaration, never resolves an
+identifier, and never interprets a `&`.
 
 ---
 
@@ -21,8 +21,8 @@ name, and never asks what a `&` means.
 **L1. Codegen emits LLVM IR, and the CGT is shaped for it.** A CGT function
 becomes one LLVM function, a CGT type becomes one LLVM type, and a CGT
 statement becomes a run of instructions over basic blocks. Codegen does no
-analysis of its own: whatever LLVM needs that the language does not say
-(sizes, alignments, which slot a value lives in, when it dies) is decided by
+analysis of its own: whatever LLVM needs that the language leaves unstated
+(sizes, alignments, which slot a value lives in, when it dies) is settled by
 lowering and is already in the tree.
 
 **L2. Codegen builds the module through LLVM's OCaml bindings.** The opam
@@ -53,7 +53,7 @@ explicitly (§4). Codegen turns that into basic blocks, which is mechanical.
 The tree is what an optimization pass reads and writes (stage 5), and a tree
 is where rewrites such as inlining and constant folding are easiest to state.
 SSA form is LLVM's job: every CGT local is a stack slot, and `mem2reg` promotes
-the ones that can live in registers.
+the slots that can live in registers.
 
 ---
 
@@ -76,7 +76,7 @@ one of:
   it is exactly as large as its members (`Nodes.Ty.tight`). A struct with
   no padding keeps C's layout and its alignment. The order and the choice
   are functions of the members' layouts alone, so every object that lays
-  a type out agrees on them, and lowering reaches a member by its place
+  a type out computes the same offsets, and lowering reaches a member by its place
   in it (`Type_layout.member_index`).
   Placement is the compiler's ([`memory.md`](https://github.com/zane-lang/spec/blob/b8c2b0b7463372e7682cfb4474ce2cc715292108/spec/memory.md) §3.3). A
   reference type's instance carries nothing else. A pooled variant's node
@@ -101,7 +101,7 @@ one of:
   after another at `T`'s stride (its size rounded up to its alignment), so it
   is statically sized and sits in a slot like a struct. Positions count from
   1 ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/control-flow.md) §5.1): element `i` is at
-  byte offset `(i - 1) × stride`. What an index outside `1..n` does is not yet
+  byte offset `(i - 1) × stride`. The behaviour of an index outside `1..n` is not yet
   specified (`control-flow.md` §5.2), so lowering emits one runtime check for it and leaves its
   outcome to §9;
 - a handle: the fixed-size part of a `List`, a `String` or a boxed member
@@ -146,7 +146,7 @@ is what folding counts on when code it cannot run is given other addresses
 ([`optimization.md`](optimization.md) O6).
 
 **L7. A result is written into a destination the caller names.** Every verb
-that returns something other than `Unit` or a scalar takes a pointer to the
+that returns a type other than `Unit` or a scalar takes a pointer to the
 slot its result goes in. That is the spec's own model: a move into a return
 slot is initialization in place ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §3.7), and a fresh value
 is built directly where it will live ([`memory.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/memory.md) §2.3). A `let` of a call passes the new
@@ -158,7 +158,7 @@ local's slot; a field or element store passes the field's.
 
 Every death point is known from the program text ([`lifetimes.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/lifetimes.md)
 §2.1), so lowering writes each one down. Nothing in codegen or the runtime
-tracks what is live.
+tracks liveness.
 
 **L8. Each scope is an arena, entered and drained by name.** A CGT block
 that owns storage opens its scope's arena on entry and drains it on every way
@@ -203,7 +203,7 @@ holds a value, and whether the type is a value or a reference.
 stored.** A field read, an element read or a `this` is an LLVM pointer for as
 long as one expression needs it, and `&` storage — a local, a field, an
 element, a parameter — keeps that pointer. So reading through a reference is
-one load, which is what the spec says it costs.
+one load, the cost the spec states.
 
 ---
 
@@ -299,7 +299,7 @@ on, as a `break` would (Zane has none,
   walk, since one that writes through the caller's place is an update, not
   a search, and written out it measured slower (`flips`' `advance`, +1.3%
   estimated cycles optimized);
-- it is given something to read memory through, a parameter that holds an
+- it is given a pointer into memory, a parameter that holds an
   address (a list, a reference, a box) or an owner it borrows, and takes no
   owner (`^T`). A function given only numbers computes rather than walks,
   and is what memoization may give a table
@@ -328,7 +328,7 @@ value parameters, such as `core`'s `implicit @primitives$String(v String)
 fresh storage
 ([`memory.md`](https://github.com/zane-lang/spec/blob/71f5a27/spec/memory.md)
 §2.9). Where such a call's result is only lent to a borrow parameter of a
-direct call and dies with it, nothing can tell the copy from the member
+direct call and dies with it, the copy is indistinguishable from the member
 itself, so lowering rewrites the argument as the member path, `f(conv(x))`
 as `f(x._value)`, and the call reads the member where `x` keeps it
 (`Lower_calls.lent`). A value has no identity and the member is only read,
@@ -357,13 +357,13 @@ have checked for `f(x._value)`:
 - `x` is no such local, and it and every member on the path are value
   types reached through no reference, owner, `^T`, subscript or case read,
   so nothing outside the caller's own slot can reach them. A conversion of a conversion is taken
-  apart the same way, the inner one's path becoming the outer's root.
+  apart the same way, the inner conversion's path becoming the outer's root.
 
 A verb written out where it is called is left as it is: its argument
 binds a slot of its own, whose body the rules above do not cover.
 
 **L12. A verb has up to three outcomes, and a call checks for them.** A
-function returns a small outcome tag when it can end in more than one way:
+function returns a small outcome tag when it can end other than by finishing:
 
 - **done** — the primary result is in its destination;
 - **aborted** — the abort value is in the abort slot the caller passed;
@@ -519,7 +519,7 @@ the storage they read, and its blocks and statements), the `lower_*.ml`
 modules for the rest of that lowering, each taking the walk as an argument
 so that it stays outside the walk's recursion (`lower_intrinsics.ml`,
 `lower_data.ml`, `lower_calls.ml`, `lower_match.ml`, `lower_spawn.ml` and
-`lower_lambda.ml`), `program.ml` for a whole program built with it, `traverse.ml` for what each node is made of
+`lower_lambda.ml`), `program.ml` for a whole program built with it, `traverse.ml` for each node's children
 and the walks and rewrites every pass over the tree uses, and
 `to_tree_graph.ml` to render it. Codegen
 lives in `lib/codegen/`: `emit.ml` builds the module through the bindings,
@@ -541,10 +541,10 @@ apart from the link, and the object is kept in a cache directory
 compiler's command and its `--version`, the target triple, and the flags it
 compiled with. The `--version` answer is itself kept there, under the path,
 size, modification time and inode of the file the command runs, so a build
-asks again only once that file has changed; on Windows, whose command search
-it does not follow, it asks every time. A
+runs `--version` again only once that file has changed; on Windows, whose
+command search the build does not follow, it runs `--version` every time. A
 later build that would compile the same object links the kept one instead,
-which saves most of a small program's build. A build with no cache directory,
+which saves most of a small program's build time. A build with no cache directory,
 or with a C compiler that will not say its version, compiles the runtime every
 time.
 
@@ -555,7 +555,7 @@ on every target but Apple's, whose ABI keeps frame pointers,
 a program's runtime also takes `-ftls-model=local-exec`: it is linked into
 an executable, so a thread's variable is read at a fixed offset from the
 thread's pointer, rather than through the descriptor a position-independent
-compile asks for. The runtime a plugin's dynamic library links takes the
+compile requires. The runtime a plugin's dynamic library links takes the
 initial-exec model instead, which a library `dlopen` loads may use
 ([`ffi.md`](ffi.md) F21). Some toolchains add the rest by default, hardened
 distribution clangs among them, and they cost the runtime's small, hot functions more than
@@ -574,7 +574,7 @@ hidden when stamped dependencies' objects linked with the program call the
 runtime too, and an empty object takes the runtime's place in the link.
 There is then one copy of the runtime, so LLVM may inline any of it and sees
 the runtime and the program as one. Where a call is the slow path of
-something emitted code already does itself, such as a push past a list's
+an operation emitted code already does itself, such as a push past a list's
 room, it is marked `noinline`, since the runtime's body would only repeat
 the fast path there. A program built so is checked against the same golden
 files as every other build. `--ll` prints an optimized module as the
@@ -596,7 +596,7 @@ its variables comes in as a declaration of the runtime's own, a thread's
 read at a fixed offset from the thread's pointer as the program's own are.
 The bitcode is compiled position-independent, so no definition in it is
 taken for the program's. A body is left out, and its function stays a call,
-when it would not mean the same copied: it reads a variable of the
+when a copy would behave differently: it reads a variable of the
 runtime's own translation unit, which no other unit can name, takes the
 address of one of the unit's functions, which a copy would not share, or
 calls one marked `noinline` or `cold`, which would be copied whole; a
@@ -630,9 +630,9 @@ flags and objects to link asks the C compiler, with `-###`, for the linker
 command it would run, keeps it in the cache under those, and every build
 runs that command with its own files put in, through the LLD linked into
 `zanec` (`lib/codegen/lld_stubs.cpp`): `ld.lld` for ELF, `ld64.lld` for
-Mach-O and `lld-link` for COFF. What the C compiler prints is the work of
-its driver, which finds the target's start-up files, C library and
-compiler runtime on this machine; LLD finds none of them. LLD runs the
+Mach-O and `lld-link` for COFF. The C compiler's driver produces the
+command it prints, and the driver finds the target's start-up files, C
+library and compiler runtime on this machine; LLD finds none of them. LLD runs the
 command whichever linker the C compiler would have run: GCC's `collect2`
 takes the linker's own arguments, so it is run as `ld.lld` without GCC's LTO
 plugin, and `zig ld`, Zig's Mach-O linker, takes ld64's, so it is run as
@@ -687,15 +687,15 @@ on, and is not copied. A program's other objects, its dependencies', are put
 in after its own. A target is always named there, since a C compiler given
 none compiles for the processor it runs on. A build for any other target, or
 with another C compiler or Zig, compiles its runtime and keeps it in the
-cache, and asks for its linker command as above.
+cache, and asks the C compiler for its linker command in the same way.
 
 Lowering starts at the root package's `main`, or, for a plugin package,
 which declares none, at its exported lambdas. Every build but one with
 `--no-root` also starts at the exported lambdas it gives C symbols
 ([`ffi.md`](ffi.md) F20). Lowering lowers each verb the first
 time a call reaches it, so a program's unused declarations never need to
-lower. Whatever it cannot handle yet it refuses with a diagnostic at that
-node, never by lowering it wrongly.
+lower. Lowering rejects any construct it cannot handle yet with a diagnostic
+at that node, never by lowering it wrongly.
 
 Lowering does not handle these yet, and refuses each where it is written:
 
@@ -719,8 +719,8 @@ The binary takes the same `--package` flags as the semantic views:
 | `--cgt` | prints the code-generation tree, as stage 5 left it when `--optimize` is given |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
-| `--library OUT` | builds a plugin package, a root without `main`, into the dynamic library `OUT`, linked with the runtime compiled for one, offering its exports ([`ffi.md`](ffi.md) F20, F21) |
-| `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3), and beside it `STEM.c.N.o`, the objects of their C sources holding assembly ([`ffi.md`](ffi.md) F15) |
+| `--library OUT` | builds a plugin package, a root without `main` that carries an export line or declares an exported lambda, into the dynamic library at the path `OUT`, whose extension the caller chooses, linked with the runtime compiled for one, offering its exports ([`ffi.md`](ffi.md) F20, F21) |
+| `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3), and beside it `STEM.c.hashes`, the file of their C modules' hashes when they have any, and `STEM.c.N.o`, the objects of their C sources holding assembly ([`ffi.md`](ffi.md) F15), and an empty `STEM.arguments` when a `comptime` call read the runtime's `arguments`, removing a marker an earlier build left there when none did ([`comptime.md`](comptime.md) K6) |
 | `--tiered` | with `--build`, makes tier 0 of a tiered build, whose calls go through slots tier 1 fills while it runs, linked with the runtime compiled with `-O2` ([`tiers.md`](tiers.md) T1, T4, T5) |
 | `--tier-up OUT` | makes tier 1 of a tiered build, the program optimized into the shared library `OUT` ([`tiers.md`](tiers.md) T1, T2) |
 | `--write-backs OUT` | writes `OUT`, the file of the places the program's spawned calls write back into, and builds nothing; with a root only (§9, "Snapshots") |
@@ -755,8 +755,8 @@ nor LLVM's, which makes the build about three times faster; only the
 runtime linked by tier 0 of a tiered build is compiled with `-O2`
 ([`tiers.md`](tiers.md) T5). `zane build`
 optimizes, and `zane run` makes both builds at once and moves the program
-from the unoptimized one to a lighter optimized one while it runs
-([`tiers.md`](tiers.md)). A program means the same every way, since the
+from the unoptimized build to a lighter optimized build while it runs
+([`tiers.md`](tiers.md)). A program behaves the same in every build, since the
 semantics leave nothing for an optimizer to decide, so `tests/codegen/` builds
 each fixture plain, optimized and tiered and holds all three to one golden
 file.
@@ -846,7 +846,7 @@ test passing.
 12. **Where blocks are made.** Once every function is lowered, a pass over
     the whole tree (`lib/cgt/regions.ml`) works out which callees keep the
     `^T` arguments they are given. A function whose arena holds only owners
-    that every way out moves on opens none, so what it makes is made where
+    that every way out moves on opens none, so the blocks it makes are made where
     its result goes and nothing relocates it, and a value parameter copied
     once into what the callee keeps takes a fresh argument as it is, through
     a local copy of a callee whose calls keep their signature. A returned
@@ -900,11 +900,11 @@ test passing.
     since writing over an owner drops it.
   - A function whose whole body is one arena, holding only owners that
     every way out moves on, opens none. It holds them in slots of its own,
-    and what it makes is made in its caller's innermost region, which is
+    and the blocks it makes are made in its caller's innermost region, which is
     where its result goes, so nothing relocates it (§3.5). A function with
     a spawn, a reserved slot, an arena nested in its body, or a callee lent
     one of its slots that opens an arena keeps its own, since the runtime
-    takes a slot outside every arena to be in the innermost one's region.
+    takes a slot outside every arena to be in the innermost arena's region.
   - A value parameter the body only reads to copy it once into what it
     keeps takes its argument: a fresh one is moved in rather than held by
     the caller and copied. A function no other object calls, and none
@@ -952,7 +952,7 @@ test passing.
     A scope that holds a worker pool holds it as a foreign handle, whose
     end waits for the pool's work, so its drain is the runtime's.
     Only a scope that places a slot that may hold a handle looks for one.
-    Otherwise both call the runtime, which does the same.
+    Otherwise both call the runtime, which makes the same check.
     A reserved slot and a spawned call's header
     and result slot are zeroed where they are placed; a held slot is written
     at once.
@@ -1009,7 +1009,7 @@ test passing.
     - **From the fault handler.** A stop for a full machine stack, a
       range full of frames or a failed commit claims `busy` from free to 2
       without the mutex, and flushes only if that succeeds, so it loses at
-      most the buffer when another thread, or the faulting one, was mid
+      most the buffer when another thread, or the faulting thread, was mid
       print, and a writer that later finds 2 waits for the program to end.
       A write to a full pipe would block, and a check before it cannot
       rule that out, since another process may fill the pipe in between.
@@ -1024,11 +1024,11 @@ test passing.
   reference as the `u32` segmented offset of the settled owner it names. The
   runtime addresses everything else with native pointers rather than
   segmented offsets -- slots, handles and blocks alike, as the next item
-  says -- so a reference is the owner's 64-bit address too. Minting one is
+  describes -- so a reference is the owner's 64-bit address too. Minting one is
   taking the place's address, and reading through one is a load. A settled
   owner never moves, and the semantic pass admits a reference only to a
   settled place, so the address holds until the owner's scope drains
-  (§4.2). Nothing a program does can tell the two representations apart;
+  (§4.2). No program can observe a difference between the two representations;
   moving the runtime's addressing to segmented offsets is one change for
   all of them.
 - **Every overwrite is in place.** [`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §2.2 requires
@@ -1064,7 +1064,7 @@ test passing.
   one of its own size, else the smallest on top of the region's stacks
   above 1 MiB, so a small block leaves a larger one for a larger request. So a list a field
   assignment replaced is where the next list grows, rather than resident
-  memory nothing asks for until the region drains. A box's payload past
+  memory nothing uses until the region drains. A box's payload past
   1 MiB is never such a span, which may lie anywhere: it takes whole
   chunks of its own, which lie within the image's reach as every chunk
   does, so a 32-bit box reaches it ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md) §3.6). Returned, its
@@ -1084,7 +1084,7 @@ test passing.
   block when the run fits in it and by `zane_list_reserve` otherwise, and
   the run's other pushes are stores with no check of the room. A list never
   shrinks: a removal moves the element out of its place and closes the list over it,
-  by moving the later elements down or the last one in, and the list keeps
+  by moving the later elements down or the last element in, and the list keeps
   the block until it dies. Where the runtime departs from the spec:
   - A block is placed where its value is made, which is the innermost
     scope. When the value arrives in a place -- a slot, an overwritten
@@ -1145,7 +1145,7 @@ test passing.
     build's, since such a scope no longer maps, lists and gives back a
     chunk.
   - The runtime finds a block's region from a map of every chunk it made,
-    and a slot's from where each open scope's slots began, trying the
+    and a slot's from where each open scope's slots began, checking the
     innermost scope first, rather than from a segmented offset (§3.1). A dynamic chunk begins with a cache line of
     its own bookkeeping, and an oversized block's chunks are one mapping.
   - Every block is at least a word, and aligned to one; a list's is aligned
@@ -1179,7 +1179,7 @@ test passing.
       (16) of them holding at most `ZANE_WARM_SPAN_BYTES` (64 MiB) of
       usable bytes, the most glibc's `malloc` keeps of what a program frees
       before trimming its heap (twice its largest mmap threshold). Past
-      either, the one kept longest goes back first, and a span larger than
+      either, the reservation kept longest goes back first, and a span larger than
       the budget goes back itself. An unbounded pool's reservation
       (experimental) lists one chunk however much of it was touched, so it
       counts nothing against the budget, and a context keeps at most
@@ -1214,7 +1214,7 @@ test passing.
       0.383 s [0.370–0.439] after, treecopy 0.295 s [0.292–0.311] and
       0.283 s [0.271–0.297], and binarytrees 16, listgrowth 2000000 and
       allocfree 1000000 overlapped too; delays of 64 and 512 drains
-      measured the same. Every other langbench program overlapped without
+      gave the same result. Every other langbench program overlapped without
       the delay. Peak memory did not change for any of them.
   - A value that owns a block is held in its scope's arena like an owner,
     and so is a fresh owner or value that nothing keeps, such as a result
@@ -1239,11 +1239,11 @@ test passing.
   - A program run with `ZANE_CHECK` set checks every drain instead. The
     scope's values and the values write-backs retired there return their
     blocks one at a time, and a block still out in the region after that is
-    one whose owner is somewhere the scope cannot reach, which stops the
+    one whose owner is out of the scope's reach, which stops the
     program. The codegen and object tests run every program both ways,
     each held to the same output.
 
-  Nothing a program does can tell these apart.
+  No program can observe a difference between the two drains.
 - **Each type's walks.** Copying, ending, moving and overwriting a value
   each walk the blocks it owns, down through the blocks inside them. Codegen
   emits the four walks for each type whose layout lists a block, and a
@@ -1280,7 +1280,7 @@ test passing.
   takes a boxed payload's block inline: the top of its size
   class's stack, or else the next bytes at the frontier, and calls the
   runtime only when neither has one. A box takes its block the same way,
-  in the region the runtime names `zane_open`: the innermost one of the
+  in the region the runtime names `zane_open`: the innermost region of the
   context running on the thread. A payload larger than the largest size
   class is left to the runtime, which past 1 MiB maps it whole chunks of
   its own (`zane_box_held`), below.
@@ -1345,7 +1345,7 @@ test passing.
   the count done. Each piece is stored in one atomic access of the widest
   width, up to 8 bytes, that its address is aligned to, so every naturally
   aligned 1, 2, 4 or 8 bytes of the subject changes in a single store. A
-  subject reached any other way is written where it is, since no other
+  subject reached by any other route is written where it is, since no other
   thread can reach it (§4.3). Other threads see the call's writes all at
   once, when it returns, which is one of the orders §3.7 already allows.
 - **Snapshots.** A value read through an owner into a fresh binding -- a
@@ -1360,7 +1360,7 @@ test passing.
   atomic load that codegen emits: a write-back changes exactly those 8 bytes
   in a single store, since its pieces are aligned blocks of at most 8 bytes
   and such a value holds no smaller place a write-back could target, so the
-  load sees all of the old value or all of the new one, which is the
+  load sees all of the old value or all of the new value, which is the
   snapshot. A narrower value can sit inside a wider piece that one store
   writes, which LLVM does not make atomic with a narrower load, so it stays
   a call. The load is `unordered`, which LLVM may
@@ -1372,7 +1372,7 @@ test passing.
   fannkuch and entities 1.8 to 4.6 times faster than the call, and a
   diagnostic build with plain loads in its place is no faster
   ([#203](https://github.com/zane-lang/compiler/issues/203#issuecomment-6062273902)).
-  How long retired values are kept is left to measurement.
+  Measurement will settle how long retired values are kept.
 
   A read of a place no write-back can touch is a plain load, read where it
   is. Only a spawned `mut` call whose subject is reached through an owner
@@ -1406,9 +1406,9 @@ test passing.
   the steps from it, or `-` when the place is not known, and the written
   value's type with every type it holds, member by member, as `Ty.to_string`
   spells each. Two places overlap as above, compared by those spellings; a
-  read whose place or the written one is not known takes a snapshot when
+  read whose place or the written place is not known takes a snapshot when
   what its type holds, itself included, meets what the written value's
-  holds, which is every case above and more. The lines are sorted with
+  holds, which covers every case above and others besides. The lines are sorted with
   repeats dropped, so programs that write back into the same places write
   the same bytes, which `zane` keys a dependency compiled from source on: an
   object built for one program is linked only into a program that writes
@@ -1431,7 +1431,7 @@ test passing.
 - **A spawned call that can abort or exit.** Its frame holds the call's
   whole outcome (L12), which comes home into a slot laid out for it: the
   result's blocks under the done tag, the abort value's under the
-  aborted one. The call settles once, on the spawning thread, where it is
+  aborted tag. The call settles once, on the spawning thread, where it is
   first read or where its block ends
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#33-abortable-spawned-calls-are-handled-at-the-spawn-site) §3.3). A flag the spawn sets
   records whether it has. An abort takes the abort value out of the slot and
@@ -1523,7 +1523,7 @@ test passing.
     compiling, so no call branches on them, and a function value's call
     (L14) follows the same rules, since they depend only on the type and
     the target. Objects for different targets never link, so every object
-    a program links agrees on them.
+    a program links uses the same rules.
   - **The address passed.** An argument that is a place, a local or what an
     address names, is lent where it is: nothing else in the call writes what
     the call borrows ([`memory.md`](https://github.com/zane-lang/spec/blob/1d11ea4/spec/memory.md) §2.9.1), so no copy is needed. A
@@ -1536,7 +1536,7 @@ test passing.
   - **What LLVM is told.** A parameter passed by address is `readonly`,
     `noalias` and `dereferenceable` for its whole size: nothing in the call
     writes what it borrows, so the optimizer may treat the value behind it
-    as a private copy. It claims no alignment, since what it borrows may
+    as a private copy. It declares no alignment, since what it borrows may
     be a member at any byte of a packed value (L5). It is not `nocapture`,
     since a call the callee spawns can hold the address for as long as it
     runs. An `sret` result is `noalias` and aligned, its slot being the
@@ -1555,7 +1555,7 @@ test passing.
     with it links only against objects built with it too, and a mismatch is
     an undefined symbol rather than a miscall. Packing only calls within one
     compilation would keep separate objects compatible, but the benchmark
-    builds `core` as an object of its own, and its calls are the ones being
+    builds `core` as an object of its own, and its calls are the calls being
     measured; a function value, called without knowing its function, would
     also need one convention for both. It is kept only if the benchmark
     below is faster with it on some target and slower on none; following
@@ -1612,8 +1612,8 @@ test passing.
   pass slots for the result and the abort value. Until results are written
   into destinations, a function that can abort or exit returns a
   sum of three cases instead: done with its result, aborted with its abort
-  value, and exited. A function that can only finish returns its result as
-  before. An exit ends the run of the block the call is written in
+  value, and exited. A function that can only finish returns its result
+  directly. An exit ends the run of the block the call is written in
   ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#23-a-block-is-transparent-to-return-and-abort-and-an-exit-ends-its-run) §2.3), so each run of a block
   argument has a label to leave.
 - **A 64-bit target.** Lowering sizes every type, a sum's payload room
@@ -1653,11 +1653,11 @@ test passing.
 - **What LLVM is told.** Codegen states what it has established about the code
   it emits in LLVM's own terms, so LLVM's passes can drop the checks and
   reloads it proves redundant, rather than lowering trying to. Each is a
-  contract, which LLVM may act on however it likes, so each holds for every
+  contract, which LLVM may act on freely, so each holds for every
   program:
   - *A list's header is not an element.* A handle is never a member or an
     element of a scalar's place, so a handle's fields and a scalar place
-    are disjoint storage, which type-based alias tags (`!tbaa`) say: the
+    are disjoint storage, which type-based alias tags (`!tbaa`) mark: the
     header fields read and written where an element is located, pushed or
     removed, and a handle loaded or stored whole, carry one tag, and a
     scalar loaded or stored through an address, or moved into a fresh place
@@ -1688,7 +1688,7 @@ test passing.
     may name it.
   - *An open scope's frame.* Once a scope is open, any slot of its frame
     may be read (above), and the frame is on a 16-byte boundary, since
-    every frame is a multiple of 16 bytes placed where the one before it
+    every frame is a multiple of 16 bytes placed where the frame before it
     ended. The open scope states this with `llvm.assume` and its
     `dereferenceable` and `align` operand bundles, which LLVM's OCaml
     bindings cannot build (`llvm_stubs.c`).
@@ -1696,7 +1696,7 @@ test passing.
     Both let LLVM read a slot ahead of a branch: a list reached through
     `this` or kept in `main`'s frame has its count and block loaded once
     before a loop that checks its indices, rather than after each check.
-  - *What some runtime functions do.* `zane_out_of_range` and
+  - *Some runtime functions' behaviour.* `zane_out_of_range` and
     `zane_too_deep` stop the program, so they are cold and do not return;
     `zane_text_equal` only reads memory, so what LLVM read before a call to
     it still holds after. A list's push, reserve and room look the handle's
@@ -1716,8 +1716,8 @@ test passing.
     the count, in the function that removes. LLVM then sees exactly which
     bytes change, as it sees an element's address and a push's
     (`runtime/list.c` keeps the runtime's own forms of all three).
-  A short counted loop that leaves early also carries a mark asking for it
-  to be unrolled twice (`llvm.loop.unroll.count` 2; "The passes" below).
+  A short counted loop that leaves early also carries a mark requesting
+  that LLVM unroll it twice (`llvm.loop.unroll.count` 2; "The passes" below).
 - **The passes.** `lib/codegen/passes.ml` names what LLVM runs over the
   module. An unoptimized build and tier 0 run `Passes.unoptimized`
   ([`optimization.md`](optimization.md) O12). An optimized build and tier 1
@@ -1730,7 +1730,7 @@ test passing.
   is one chain, as C's `else if` is. Once the CFG simplifier has made a
   cheap `if` body a `select`, both bodies' work runs on every pass round a
   loop instead. The unoptimized passes therefore merge blocks without
-  making selects before they thread, and the optimized ones thread at the
+  making selects before they thread, and the optimized passes thread at the
   end of `-O2`'s first function simplification, once each function's
   locals are in registers and before the inliner's passes run. Promoting
   the locals in a pass of their own ahead of `-O2` would also do, but
@@ -1747,7 +1747,7 @@ test passing.
   writes are checked into the iterations its checks may fail on and a main
   loop between them that it has proved needs none. The split costs each
   entry to the loop a few dozen instructions, which a short loop does not
-  earn back, so IRCE splits a loop only when it expects the split to remove
+  earn back, so IRCE splits a loop only when its estimate shows the split removes
   enough checks for each entry, which it reckons from the loop's branch
   weights, or from LLVM's guess where there are none
   (`-irce-min-eliminated-checks`, left at its default of 10). Codegen marks
@@ -1758,8 +1758,8 @@ test passing.
   both tiers of a tiered one, which emit the same module
   ([`tiers.md`](tiers.md) T3); a plain build, whose passes have no use for the
   copies, emits it once. A count of at least 16 runs
-  the copy whose branch weights say it goes round 1,000 times; a smaller
-  one runs the copy weighted to go round 4 times, which IRCE leaves alone. A
+  the copy whose branch weights mark it as going round 1,000 times; a smaller
+  count runs the copy weighted to go round 4 times, which IRCE leaves alone. A
   list's count is loaded with the range `[0, 2^63)`, which IRCE's bounds
   need.
 
@@ -1793,7 +1793,7 @@ test passing.
   element has no check for IRCE to split, so `floats`' escape test stays
   unweighted.
 
-  Any other loop codegen emits once has no branch weights, and LLVM guesses it goes
+  Any other loop that codegen emits once has no branch weights, and LLVM guesses it goes
   round often enough for IRCE to split it. In `tests/perf` `flips`,
   `advance` moves its first few elements down one place in such a loop,
   nested in another, usually over one or two elements; IRCE splits it, and
@@ -1834,7 +1834,7 @@ test passing.
   integer arithmetic and bit operations that cannot fail, and element reads
   of lists whose handle is reached from slots bound before the loop
   through struct members only: a list in a variant's payload is there
-  only while that case is held, which the top of the loop does not know,
+  only while that case is held, which is unknown at the top of the loop,
   and another case's bytes may read as a list with a count and no block. A
   local the body `let`s and assigns again only in a loop inside it, and
   not from an element, is taken at its `let`'s value, which is the address
@@ -1887,8 +1887,8 @@ test passing.
   unrolling (`-unroll-threshold`) is 250, where `-O2` allows 150. A loop of
   a few constant iterations whose body tests the counter, as `d!to(Int(4))`
   does over four `branch(d == k, ...)`, stays a loop at 150, with the four
-  tests one `switch` on the counter that a predictor without history cannot
-  learn; unrolled, the counter is a constant in each copy and the tests are
+  tests one `switch` on the counter that a branch predictor without history
+  mispredicts; unrolled, the counter is a constant in each copy and the tests are
   gone. The budget is a step: 150 and below leave `tests/perf` `paths` and
   `returns` as they were, 200 takes `returns`, 250 takes `paths`, and nothing
   up to 1000 moves another program. Partial unrolling
@@ -1909,7 +1909,7 @@ test passing.
   items pointer on every iteration, and `nbody` 3.0% more. The price is
   code: a `tests/perf` executable's `.text` grows up to 10.5%, tier 1 of
   `kept` 8% and of `repeats` 25%. The langbench programs that build
-  (`experiments/unroll-thresholds`) grow 2% to 14% (11% for the two tiny ones) and run within
+  (`experiments/unroll-thresholds`) grow 2% to 14% (11% for the two tiny programs) and run within
   0.2% of before except `entities` (8.6% fewer) and `nbody`, and compiling
   takes as long ([`experiments/unroll-thresholds`](../experiments/unroll-thresholds/README.md)).
 
@@ -1948,7 +1948,7 @@ test passing.
     record's skip and room check name its address, is a frame too
     (`Frame_shadow`);
   - a check of an index that a later check of the same index follows on a
-    straight path takes the smaller bound, and the later one always passes
+    straight path takes the smaller bound, and the later check always passes
     (`Merged_checks`); a check both arms of a branch begin with is made
     once above the branch, and the arms' stores of one address are sunk
     into one store (`Arm_checks`); the checks of `x`, `x + 1`, … `x + k`
@@ -1960,7 +1960,7 @@ test passing.
   A failed check stops the program after flushing its output, so moving
   a stop earlier on a path where no call writes output in between is not
   seen outside the program ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#52-a-position-outside-its-sequence-stops-the-program)
-  §5.2 says what a stop is).
+  §5.2 defines a stop).
   The emitted code itself also takes, in every build: a scalar's alias
   tag by its size, so a
   one-byte store leaves the wider scalars read around it in registers; and

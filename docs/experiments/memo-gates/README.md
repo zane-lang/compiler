@@ -14,8 +14,8 @@ behind a switch read when compiling (both since removed: see Outcome):
   is then a load and a call, with no score read. Other builds keep their
   gate; their lookup still sets the route, which nothing reads.
 
-The two exclude each other: a call through the route cannot know which
-convention its target uses, so `ZANE_MEMO_ROUTE` turns the other off.
+The two exclude each other: a call through the route carries no record of
+the convention its target uses, so `ZANE_MEMO_ROUTE` turns the other off.
 
 Measured with `measure.py` (estimated cycles, `tests/perf/run`'s formula)
 on `dev/bench/memo/programs`.

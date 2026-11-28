@@ -5,7 +5,7 @@ open Tree_graph
 (* ---                                                 *)
 (* a helper like name_type_to_node returns the Node    *)
 (* for its value directly, it never calls group on     *)
-(* its own output, even if that means the result       *)
+(* its own output, even if the result then             *)
 (* looks "unlabeled" on its own.                       *)
 (*                                                     *)
 (*   let name_type_to_node x = match x with            *)
@@ -19,8 +19,8 @@ open Tree_graph
 (* a "constructor" field there) or left ungrouped      *)
 (* entirely if it's just one entry among fields [...]. *)
 (* if a helper pre-wraps its own result, that decision *)
-(* is made once and for all callers, even the ones     *)
-(* that wanted a different label or no label at all.   *)
+(* is made once and for all callers, even callers      *)
+(* that need a different label or no label at all.     *)
 (* =================================================== *)
 
 (* An identifier renders as its text: the span it carries is for a diagnostic

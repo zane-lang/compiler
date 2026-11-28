@@ -40,7 +40,7 @@ let escaped s =
   Buffer.contents b
 
 (* The length below which a terminated string's copy is in the thunk's
-   frame: a path or a name, as most C strings are. *)
+   frame: a path or an identifier, as most C strings are. *)
 let short_string = 256
 
 (* One thunk, the [n]th of its file, calling [f] whose parameters and

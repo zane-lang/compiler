@@ -31,7 +31,7 @@ type introductions = {
 let introduce env intro ~at span name kind =
   match List.assoc_opt name intro.found with
   | Some p ->
-      (* A later marker such as the second `T Type` names the first one's
+      (* A later marker such as the second `T Type` names the first marker's
          parameter. *)
       Uses.param env.uses ~declaration:false at p;
       if p.Ty.kind <> kind then
@@ -642,18 +642,37 @@ let check_implicit env (d : decl) (s : S.t) =
                  (List.length params)))
   | _ -> ()
 
-(* A named constructor on a variant would share its spelling with a case,
-   and a variant is built by naming a case (adt.md §3.2). *)
+(* Every mould declares constructors (types.md §3.1), with two limits that
+   come from the mould. A named constructor shares the `Type.name` spelling
+   with an enum member and a variant case, so its name differs from each of
+   them (types.md §3.4). An enum or a variant has no fields, so its
+   constructors are positional, never the field-header form (types.md
+   §3.3). *)
 let check_constructor_target env (d : decl) (s : S.t) =
   match (s.kind, s.ret) with
-  | S.Constructor { member = Some m; _ }, Ty.Named (tid, _) -> (
-      match Type_decls.type_info_of_id env tid with
-      | Some { definition = Some (Variant cases); _ } when List.mem_assoc m cases ->
+  | S.Constructor { member; fields; _ }, Ty.Named (tid, _) -> (
+      let definition =
+        match Type_decls.type_info_of_id env tid with Some { definition; _ } -> definition | None -> None
+      in
+      let clash m what =
+        error env d.span
+          (Printf.sprintf
+             "%s is %s of %s, and naming it already builds one; a named constructor takes a \
+              name that no member or case of its type has"
+             (quote m) what (quote tid.Ty.name))
+      in
+      (match (definition, member) with
+      | Some (Variant cases), Some m when List.mem_assoc m cases -> clash m "a case"
+      | Some (Enum members), Some m when List.mem m members -> clash m "a member"
+      | _ -> ());
+      match definition with
+      | Some ((Variant _ | Enum _) as mould) when fields ->
           error env d.span
             (Printf.sprintf
-               "%s is a case of %s, and a case is built by naming it; it cannot also \
-                be a named constructor"
-               (quote m) (quote tid.Ty.name))
+               "%s is %s, which has no fields, so its constructors take positional parameters, \
+                not a field list"
+               (quote tid.Ty.name)
+               (match mould with Enum _ -> "an enum" | _ -> "a variant"))
       | _ -> ())
   | _ -> ()
 

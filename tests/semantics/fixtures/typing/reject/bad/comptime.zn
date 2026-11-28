@@ -33,6 +33,8 @@ Int markedEach(n Int, body @concepts$Block) {
 
 Int markedCount(runtime &@runtime$Runtime) => runtime:arguments():size();
 
+Int markedClock(runtime &@runtime$Runtime) => runtime:monotonicNanoseconds();
+
 Int markedApply(f Int[Int]) => f(Int(0));
 
 Int?Int markedRefused(n Int) {
@@ -68,6 +70,9 @@ Unit markedForms() {
 	g Int = comptime markedSame(markedApply(Int(n Int) { return markedCount(@program$runtime); }));
 	// A lambda given to the marked call runs inside it: accepted.
 	h Int = comptime markedApply(Int(n Int) { return markedCount(@program$runtime); });
+	// The clock is a read too: never in the arguments, and accepted inside.
+	i Int = comptime markedSame(@program$runtime:monotonicNanoseconds());
+	j Int = comptime markedClock(@program$runtime);
 	return Unit();
 }
 

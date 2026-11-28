@@ -15,6 +15,7 @@ squares: 332833500 332833500 332833500 332833500
 pair: 10946
 unused_nothing offered: no
 zane_output offered: no
+plugin_seen: right
 -- second library
 hello from the plugin
 hello from the plugin
@@ -32,4 +33,6 @@ squares: 332833500 332833500 332833500 332833500
 pair: 10946
 unused_nothing offered: no
 zane_output offered: no
-unloaded: the fault handler is the one before
+plugin_seen: right
+reloaded, count: 3
+reloaded, count: 3

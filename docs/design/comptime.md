@@ -1,15 +1,15 @@
 # `comptime`: calls evaluated at compile time on request
 
-> **Status: built.** This page says how the compiler implements a call
+> **Status: built.** This page describes how the compiler implements a call
 > marked `comptime`
 > ([`effects.md`](https://github.com/zane-lang/spec/blob/bdb1070/spec/effects.md)
 > §5.6, [`syntax.md`](https://github.com/zane-lang/spec/blob/88cc67f/spec/syntax.md)
 > §4.10). Each decision is numbered (**K1**…). Where the compiler accepts less
 > than the spec, [`spec-divergences.md`](../spec-divergences.md) §15 and §16
-> say so.
+> record the difference.
 
-Stage 5 ([`optimization.md`](optimization.md)) evaluates at compile time
-what it can, within budgets, and only in an optimized build: an implicit
+Stage 5 ([`optimization.md`](optimization.md)) evaluates every expression
+it can at compile time, within budgets, and only in an optimized build: an implicit
 fold is optional, so it may give up. A call marked `comptime` is not
 optional. Every build evaluates it, unoptimized and tiered builds included,
 runs it to completion, and fails the build when it cannot. The marked call
@@ -47,7 +47,7 @@ written inside the parentheses is refused by the checker.
 argument depend on any computation §5.3 permits to be evaluated at compile
 time, a local of the verb bound to a literal among them. The compiler
 evaluates a marked call in every build, and an unoptimized build has no
-fold that knows what a local holds at a given point, so it accepts only what
+fold that tracks the value a local holds at a given point, so it accepts only what
 can be evaluated without one: literals, package constants, foreign
 variables, the program's console and runtime, and calls, marked or not, on
 those. A local bound inside the marked expression is its own: a lambda's
@@ -111,9 +111,24 @@ its counterpart where the build runs:
 
 | Read | At compile time |
 |---|---|
-| The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)) |
+| The runtime's `arguments` | The arguments the build was started with: each `--build-argument ARGUMENT` given to `zanec`, in order, which `zane` passes on (zane's [`docs/design/cli.md`](https://github.com/zane-lang/zane/blob/main/docs/design/cli.md)). When a marked call reads them, `--object OUT` writes an empty `STEM.arguments` beside the object (below) |
+| The runtime's `monotonicNanoseconds` | The build machine's monotonic clock, which `lib/optimize/clock_stubs.c` reads as `zane_monotonic_ns` reads the program's; tier 1 of a tiered build replays tier 0's readings instead ([`tiers.md`](tiers.md) T12) |
 | A method without `mut` on a foreign capability | Its C, run by the C evaluator against the build's own C memory, where the capability's C global holds its first value, as each run's C memory starts (F16) |
 | An approximate `@math$` function | The build machine's C math library, through OCaml's, in double precision and rounded once for an `F32` |
+
+An object built from code whose marked calls read the arguments depends on
+them, while any other object is the same whatever arguments the build was
+given. So `--object OUT` marks a dependent object: when any marked call of the
+build read the runtime's `arguments`, `zanec` writes an empty file
+`STEM.arguments` beside the object, `STEM` being `OUT` without its
+extension, and when none did, it removes such a file an earlier build left
+there ([`separate-compilation.md`](separate-compilation.md) C3). The marker
+records the read, not the values: `zane` keys its cache of a marked object
+on the arguments it passed, and of an unmarked object on nothing else.
+Only the root package reaches `@program$runtime`, so a library's build,
+given `--no-root`, never writes the marker.
+`Eval.explicit`'s `read_arguments` records the read, and `Comptime.run`
+returns it beside the program.
 
 A package constant the run reads is made in the run, as the program makes
 one the first time it is read (L16), whether or not stage 5 could fold it.
@@ -176,7 +191,3 @@ them all. A value that holds an address is refused too, which a value type
 - **Callees left behind.** A function only a lifted function called stays
   in the program after the lifted function is dropped. An optimized build
   leaves it to LLVM; an unoptimized build emits it.
-- **Reads that change between builds.** Every read K6 lists gives the same
-  value to both tiers of a tiered build, which are two processes given the
-  same arguments. A read of the clock, or of a file, would not, and tier 1
-  would have to take tier 0's values.

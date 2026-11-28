@@ -6,7 +6,7 @@
    place a statement should have ended, uses an empty span. *)
 
 module Severity = struct
-  (* An error refuses the input. A warning lets the build go on, such as a
+  (* An error stops the build. A warning lets the build go on, such as a
      warning the C compiler gives about a package's own C code
      (docs/design/ffi.md F2). *)
   type t = Error | Warning
@@ -41,7 +41,7 @@ type t = {
 let error span message = { severity = Severity.Error; location = Location.Span span; message }
 let in_file path message = { severity = Severity.Error; location = Location.File path; message }
 
-(* [d] as a warning, which refuses nothing. *)
+(* [d] as a warning, which stops no build. *)
 let as_warning d = { d with severity = Severity.Warning }
 
 let in_directory dir message =

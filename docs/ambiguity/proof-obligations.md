@@ -17,11 +17,11 @@ Every LR conflict state must carry exactly one of:
 A grammar change that introduces a new conflict state is incomplete until
 the state is triaged into one of these categories.
 
-## What a semantic action may do
+## The effects a semantic action may have
 
 An action runs on **every branch the parser has live**, not only on the branch
 that goes on to be accepted. A conflict state forks, both branches reduce, and
-the losing one is discarded a token or twenty later — but its actions have
+the losing branch is discarded a token or twenty later — but its actions have
 already run by then.
 
 So an action **MUST NOT** raise to reject its own branch. Raising ends the
@@ -40,7 +40,7 @@ branch of a program that parses correctly one token later. The checks that stay
 after the parse — a `;` after a closing brace, and a trailing argument
 continued past its `}` — record the mismatch on the statement, and
 `Statement_check` walks the finished tree, where the losing branches are gone.
-Whether the `;` is there at all is the grammar's to decide, below.
+Whether the `;` is there at all is the grammar's question, below.
 
 The rule that follows: a check that depends on more than the branch it is in
 belongs **after the parse**, over the tree that survived. A check that is local
@@ -78,18 +78,18 @@ generic list expanded away, a fork the stock automaton reports as reducing
 `loption_generics_ ->` is reported as reducing the name itself —
 `type_expr -> UIDENT` and its qualified and `&` forms — and a fork on whether
 an empty `( )` is a call or a parameter list, which the stock automaton settles
-at the `(` by reducing the empty generics, the `--GLR` one settles at the `)`,
+at the `(` by reducing the empty generics, the `--GLR` automaton settles at the `)`,
 by reducing the empty parameter list. Every family in one census has its
 counterpart in the other; what differs is the productions it is reported under
 and how many states it spans.
 
 The rewrite happens only on the way to generated code, so
 `menhir --GLR --no-code-generation --explain` reports the stock census. The
-shipped one is what `dune build` prints and writes to
+shipped census is the census `dune build` prints and writes to
 `_build/default/lib/cst/parser.conflicts`.
 
-The table below is tallied on the stock automaton, since that is the one the
-tools number states by. It counts states rather than token occurrences. They
+The table below is tallied on the stock automaton, since the tools number
+states by that automaton. It counts states rather than token occurrences. They
 are not independent problems:
 
 | Lookahead | States | Reduction | Root |
@@ -98,6 +98,7 @@ are not independent problems:
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
+| `export`        | 5 | `body -> block_body`, and the `expr -> …` forms of a block call, a braced application and a braced `spawn` or `comptime` call | a lambda-variable ending in `}` against an `export` suffix (reduce/reduce) |
 | `?` `??`        | 6 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `expr -> COMPTIME unbraced_verb_call`, `expr -> COMPTIME braced_verb_call`, `func_callee -> unbraced_verb_call`, `member_braced -> braced_verb_call` | a spawned or `comptime` call against what follows it |
 
 `&` begins no expression: a reference is minted by storing a place into an
@@ -114,7 +115,7 @@ The instantiation shorthand reaches the first `(` row a second time behind a
 lambda-variable's parameters returning `^Car`. That is the fork the unmarked
 `car Car(` already has, and it adds three states to each automaton, one for
 each way the type may be named (bare, qualified, intrinsic). The stock census
-counts them in this row; the shipped one reports them as reducing the marked
+counts them in this row; the shipped census reports them as reducing the marked
 name, `type_expr -> CARET UIDENT` and its two qualified forms, beside the
 unmarked `type_expr -> UIDENT` lines.
 
@@ -131,7 +132,7 @@ in both current automata, conditional on its documented trusted components.
 The remaining `(` forks distinguish a call argument ending in a type from a
 constructor call or lambda continuing after that name. The type-argument
 regression checks the permitted and rejected spellings; an operator operand
-admits no type.
+cannot be a type.
 
 The `<` row is about the declaration form, not the comparison. Its eighteen states
 all reduce toward `ret_type "<" "(" params ")" body`, the declaration of the
@@ -150,7 +151,7 @@ not a proposal.
 **A package-scope declaration is closed by its own terminator too.** Until the
 spec gave package scope the statement rule (lexical.md §6.3), only `package`
 and `import` took a terminator there, and a declaration may open with `(` — the
-subscript declaration `(this T)[…] => …` — so a value ending in a name or a
+subscript declaration `(this T)[…] => …` — so a value ending in an identifier or a
 type member met a `(` that was either a call on it or the next declaration.
 That was five states in each automaton: three reducing `app -> … DOT LIDENT`, a
 type member against a named constructor call, one reducing
@@ -175,7 +176,7 @@ This was the ledger's largest open obligation, and it was a bug. The terminator
 used to be optional, `boption(";")`, with the mismatch checked after the parse
 by `Statement_check`. So a statement could end on any token, and then a `[` or
 `(` after it — the two tokens a statement can begin with — had two owners. The
-obligation claimed exactly one reading always survived; the scheduled proof run
+obligation stated that exactly one reading always survived; the scheduled proof run
 of 2026-09-21 found `Int {} { abort false[]() }`, and the valid program next to
 it measured two complete derivations:
 
@@ -193,7 +194,7 @@ reduce/reduce conflict of that family: every `[` state reducing an empty verb-ty
 the `[` states closing an `app` before a subscript, and the fifteen `{` states
 below that reduce a completed call. Each of those witnesses now has one
 derivation, and a statement with no mark is a parse error rather than a tree
-`Statement_check` has to reject. What the grammar still admits is a `;` after a
+`Statement_check` has to reject. The grammar still accepts a `;` after a
 statement that ends in a brace; that spelling has one parse, since nothing
 begins with a `;`, so `Statement_check` still rejects it from the tree.
 
@@ -212,35 +213,35 @@ So the call and subscript productions take only an `app`, which neither
 through `app_braced`, beside `block_call`, which was already written that way
 for the same reason. A value that closes on a `}` is called or subscripted
 through parentheses — `(match (x) { })(y)`. That holds in every position, not
-only at a statement's tail, which is what lets the grammar decide it without
+only at a statement's tail, so the grammar can settle it without
 knowing where the statement ends; syntax.md §4.9 states it the same way.
 
 Each witness now has one derivation, the five reduce/reduce states are gone,
 and a postfix with nothing to open the next statement — `abort match (x) { }
 (y);` — is a parse error. The two `?` `??` states of the spawned-call row
-became four: the fork is the one it always was, now counted once per closing
+became four: the fork is unchanged, now counted once per closing
 bracket of the call.
 
 A `.` field access and a `:` or `!` method call open no statement, so after the
 brace the next token alone determines which reading holds, and the member forms take
 `member_target`: an `app` or `member_braced`, the `init`, `match` and
 constructor-by-fields values. That added no conflict state to either census.
-The map literal is the one braced value left out. A postfix base is the first
-thing in the statement it opens, and a map literal there would open the
+The map literal is the only braced value left out. A postfix base is the first
+token of the statement it opens, and a map literal there would open the
 statement with a `{`, which lexical.md §6.3.1 forbids. Admitting it costs six
 `{` states against a field-constructor declaration's body, since after
 `Foo{ }` a `{` then either opens that body or a statement; restricting a
 statement's leftmost value instead means parameterizing the whole postfix chain
 by its braced bases, and the two copies meet in every state a block body shares
 with a map literal, which measured 25 new states. So a map literal is continued
-through parentheses, `({ k, v; }):size()`, and syntax.md §4.9 says so.
+through parentheses, `({ k, v; }):size()`, as syntax.md §4.9 states.
 
-What removed twelve conflicts and what brought them back is worth recording
-together. The twelve were on `[`, and all twelve were one adjacency: an enum
+This section records together the change that removed twelve conflicts and
+the change that brought them back. The twelve were on `[`, and all twelve were one adjacency: an enum
 map's type was a `type_expr`, whose own run of verb-type suffixes had to be
 closed before the entry list's bracket could be shifted. Which kind a bracket
 group was depended on what followed its closing bracket, so deciding at the
-opening one was a question LR could not answer. `enum_map_tail` shifted every
+opening bracket was a question LR could not answer. `enum_map_tail` shifted every
 group before classifying it, which removed all twelve without changing what the
 language accepted.
 
@@ -248,7 +249,7 @@ The spec then moved the enum map's entries from `[ ]` to `{ }`
 ([`adt.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/adt.md) §6), and
 the adjacency went with it: the entry list no longer shares a bracket with the
 suffixes, so the decision is made at the opening bracket by the bracket itself.
-`enum_map_tail`, the classifier that carried a group's kind, and the two
+`enum_map_tail`, the classifier that recorded whether a group was a suffix or an entry list, and the two
 rejected orders are all gone, and the enum map is a `type_expr` followed by a
 `{ }` body again. Twelve more `[` states of the same size appeared later on a
 plain `type` declaration with no enum map in sight; they were a different
@@ -265,14 +266,14 @@ statements.
 This one is worth recording in full, because it was the first obligation that
 turned out to be a bug rather than a fork. The state reducing
 `import_decl -> IMPORT LIDENT DOLLAR` was tracked as an open obligation: after
-the `$`, a name was either the member being imported or the first token of the
+the `$`, an identifier was either the member being imported or the first token of the
 next declaration, and with no terminator there was nothing between them to
 read. It looked transient, and the shape of a proof looked clear — the shift
 branch consumes a name the reduce branch needs in order to open a declaration,
 so for both to accept, some token sequence would have to be a run of
 declarations both with and without a name in front of it.
 
-That is exactly what a run of declarations can be. An unambiguity proof run
+A run of declarations can have exactly that shape. An unambiguity proof run
 found it, and the recognizer confirmed two derivations of
 
 ```zane
@@ -283,7 +284,7 @@ main Unit() { }
 — a whole-package import followed by a lambda-valued declaration, and a member
 import of `main` followed by a constructor declaration for `Unit`. Both halves
 are complete declarations on their own, so no lookahead separates them. The
-evidence behind the obligation had tried every continuation but this one: a
+evidence behind the obligation had covered every continuation but this one: a
 following `import`, a lowercase *variable* declaration, an uppercase verb
 declaration, a `type` declaration, a constructor declaration and an enum map
 each resolve to one derivation, and a lowercase *lambda-valued* declaration was
@@ -309,7 +310,7 @@ requiring it removed all fifteen.
 **A `match` does not reach this fork.** Its scrutinee list is parenthesized, so
 the brace that opens the arms is read after a `)` rather than after an
 expression, and `list_match_arm_` appears in no conflict explanation the
-grammar produces. What made that necessary was a witness the exact recognizer
+grammar produces. The parentheses became necessary because of a witness the exact recognizer
 confirmed on 2026-09-18, the thirteen tokens `LIDENT AMPERSAND UIDENT EQUAL
 MATCH UIDENT LCURLY RCURLY LOOSE_LESSEQ UIDENT LCURLY RCURLY EOF`, which
 parenthesizing the scrutinee list closed: with a bare scrutinee, `x Foo = match A { } <= B { }` had two complete
@@ -322,9 +323,9 @@ second owner as well, and `match A { } ( ) { }` was the second family the
 search found. Behind the family's own prefix that search now exhausts its
 bound without a witness, on a sixth of the frontiers it explored before.
 
-What the grammar does is pinned by two witnesses, each accepted by exactly
+Two witnesses pin the grammar's behaviour, each accepted by exactly
 one derivation. They are written with a function call; the constructor
-spelling of each measures the same:
+spelling of each gives the same count:
 
 ```sh
 ambiguity check UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN LCURLY LIDENT LPAREN RPAREN SEMICOLON RCURLY RCURLY EOF
@@ -339,15 +340,15 @@ The rule that distinguishes a block from a map literal is load-bearing on its ow
 literal** stands in a value position behind no introducing token, and so does a block argument, so in
 argument position the two can meet. They are told apart by the mark after the
 first expression — a `,` opens an entry's value, a `;` ends a statement — which
-is a parse rather than a scan, since both now hold `;`-terminated things. Both
+is a parse rather than a scan, since both now hold `;`-terminated statements. Both
 readings are explored and exactly one survives on every case measured,
-including the one that looks like a counterexample: a `match` consumes its own
+including the case that looks like a counterexample: a `match` consumes its own
 scrutinee commas before the entry's mark is reached. `f({ a, b; })` and
 `f({ g(); })` each have one derivation, and so do both of their trailing
 spellings.
 
 **A constructor call may trail its last argument, unless that would leave the
-`( )` empty.** The call and the instantiation shorthand that writes a name in
+`( )` empty.** The call and the instantiation shorthand that writes an identifier in
 front of it both reach the trailing form, and a named constructor's `.member`
 opens it as well as a field access; that last is the three
 `app -> ... DOT LIDENT` states in the table. Under GLR both readings are
@@ -366,14 +367,14 @@ the constructor declaration the divergence entry used to name. `Foo() { ... }`
 is a **lambda literal** whose return type is `Foo`
 ([`syntax.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/syntax.md)
 §3.8 gives `ReturnType() { body }` as a form of its own), and a lambda literal
-is an expression, so that reading is live everywhere the trailing one would be
+is an expression, so that reading is live everywhere the trailing reading would be
 — not only in statement position, where a constructor declaration is also
 spelled that way. Nothing inside the form separates them: an empty argument
 list and an empty parameter list are the same `( )`, and a trailing block
 argument and a block body are the same `{ }`. Admitting the trailing reading
 there gives `return Foo() { ... }` two derivations, measured; requiring
-something inside the `( )` gives every spelling one. What makes `do() { ... }`
-safe by comparison is the casing rule: a lower-case callee cannot be a return
+an argument inside the `( )` gives every spelling one. By comparison, the casing
+rule keeps `do() { ... }` safe: a lower-case callee cannot be a return
 type, so no lambda reading exists to collide with.
 
 **A type value is a whole call argument.** Previously a bare
@@ -382,7 +383,7 @@ parses: a lambda returning `Foo<1>[]`, and `(Foo < 1) > ([]() {})`. Restricting
 collection calls alone did not close the family: `Foo<1>[][Int]() {}` could
 subscript the collection before calling it.
 
-The grammar excludes type values from `expr` and admits them through
+The grammar excludes type values from `expr` and accepts them through
 `argument_value`, beside ordinary expressions. The positional arguments of
 every call -- a constructor's, a function's and a method's -- use that rule;
 named arguments, collection elements, operator operands and nested
@@ -439,7 +440,7 @@ export line, whose next token is a package name (`LIDENT`), and the
 suffix's branch reads it as the suffix, whose next token is a string
 (`STRING`). No sentence continues both, so one branch dies at the token
 after `export`, and the two never both reach acceptance. A grammar change
-that lets an export line start with a string, or the suffix take a name,
+that lets an export line start with a string, or the suffix take an identifier,
 invalidates this argument.
 
 ## A type is never parenthesised
@@ -455,8 +456,8 @@ The form also carried the one spelling of an abortable verb type,
 `(Int ? Error)[Int]`, because `Int ? Error[Int]` read as a return of `Int`
 aborting with the verb type `Error[Int]`. Both go together. §2.13 spells the
 verb type `Int?Error[Int]`: the abort type stays attached to the return type
-written before it. So an abort type is now a bare type atom, a name or `&` a
-name, and never takes a verb suffix of its own. `type_expr -> abort_ret_type
+written before it. So an abort type is now a bare type atom, a type name or `&` a
+type name, and never takes a verb suffix of its own. `type_expr -> abort_ret_type
 verb_type_suffix+` is the verb type, and a verb's own `Int?Error` return is
 `abort_ret_type` with nothing after it. The two part at the `[`.
 
@@ -465,7 +466,7 @@ one, where the families shift:
 
 - `primary -> LIDENT` and `primary -> THIS` at `(` are gone, all three states.
   That was the fork of a bare name before a `(` that could open a parenthesised
-  type, and it is the one the witness above sat in.
+  type, and the witness above sat in that fork.
 - Three `loption_generics_ ->` states at `<` are added. They are the declared
   `<` operator's fork again, after an abort type rather than a return type,
   and belong to that family.

@@ -3,7 +3,7 @@
    other modules could link against -- a function, a variable, an alias or
    an indirect function -- takes the package's prefix before its C name,
    except the glue's thunks, named by their labels, whose names already
-   carry the package's. A name an `__asm__` label gave, which LLVM writes
+   carry the package's. A symbol name an `__asm__` label gave, which LLVM writes
    with a leading \1 and the target's global prefix spelled out, is read as
    the label and renamed by it, so the new name is mangled as any other. A COMDAT named after a renamed global
    is renamed with it, so two versions of a package never share one. A
@@ -108,8 +108,8 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
    [zane_rename_c_globals] renamed, that the module defines, an alias named
    by the C name of the renamed definition, with default visibility, and
    on COFF marked for a DLL to export, so that a host finds the symbol by
-   the name it looks it up by. The renamed definition stays the one the
-   program's own code reaches, and is hidden, so a library offers it under
+   the name it looks it up by. The program's own code still reaches the renamed
+   definition, which is hidden, so a library offers the definition under
    one name. */
 extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value coff) {
   CAMLparam4(mod, prefix, labels, coff);
@@ -119,8 +119,12 @@ extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value
     std::string label = String_val(Field(l, 0));
     llvm::GlobalValue *g = m->getNamedValue(p + label);
     if (!g || g->isDeclarationForLinker() || g->hasLocalLinkage() || m->getNamedValue(label)) continue;
+    /* A DLL cannot export a thread-local variable: its address is per
+       thread, and GetProcAddress gives one address. */
+    if (Bool_val(coff) && g->isThreadLocal()) continue;
     auto *a = llvm::GlobalAlias::create(g->getValueType(), g->getAddressSpace(), llvm::GlobalValue::ExternalLinkage,
                                         label, g, m);
+    a->setThreadLocalMode(g->getThreadLocalMode());
     a->setVisibility(llvm::GlobalValue::DefaultVisibility);
     if (Bool_val(coff)) a->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
     g->setVisibility(llvm::GlobalValue::HiddenVisibility);
@@ -158,7 +162,7 @@ static llvm::StringRef unnumbered(llvm::StringRef name) {
   return name.substr(0, dot);
 }
 
-/* What a function does, as far as telling two copies of one header's
+/* A function's behaviour, as far as telling two copies of one header's
    function apart from two different functions needs: its instructions'
    opcodes, the constants they use and the globals they name. */
 static std::string fingerprint(llvm::Function &f) {
@@ -207,13 +211,13 @@ static bool used_beyond(llvm::Value *v, const std::set<llvm::Function *> &fs) {
   return false;
 }
 
-/* Whether a private variable [f] reaches, itself, through the functions
-   of its module it calls or through the initializer of a private variable
-   it reaches, is used by any other function: the glue's own
-   copy of a header's state, which only [f] sets up for the glue's
-   functions that read it. A function [f] reaches that something else uses
-   too could read such state for it, and a call through a pointer could
-   reach any function, so either counts as such a use. */
+/* Whether a private variable [f] reaches, itself, through the functions of
+   its module it calls or through the initializer of a private variable it
+   reaches, is used by any other function: the glue's own copy of a header's
+   state, which only [f] sets up for the glue's functions that read it. A
+   function [f] reaches that has a use outside the functions [f] reaches could
+   read such state for it, and a call through a pointer could reach any
+   function, so either counts as such a use. */
 static bool sets_up_private_state(llvm::Function &f) {
   std::set<llvm::Function *> reached{&f};
   std::vector<llvm::Function *> to_read{&f};
@@ -247,7 +251,7 @@ static bool sets_up_private_state(llvm::Function &f) {
 }
 
 /* What a constructor or destructor of the appending list [list] is known
-   by: the list, its name without the linker's number and what it does. */
+   by: the list, its name without the linker's number and its fingerprint. */
 static std::string run_by(const char *list, llvm::Function &f) {
   return std::string(list) + '\0' + unnumbered(f.getName()).str() + '\0' + fingerprint(f);
 }
@@ -391,8 +395,9 @@ static bool same_object(const llvm::GlobalVariable &a, const llvm::GlobalVariabl
 
 /* Whether the glue's constant [a] and the source's [b] have the same value
    once each object it points at is the other module's: a private object
-   the one its name and value match, a literal one of the same content, and
-   any other global value the one of its name. */
+   matches the object whose name and value match, a literal matches a
+   literal of the same content, and any other global value matches the
+   global value of its name. */
 static bool same_constant(const llvm::Constant *a, const llvm::Constant *b, llvm::StringRef prefix,
                           std::set<const llvm::GlobalVariable *> &assumed) {
   if (a == b) return true;

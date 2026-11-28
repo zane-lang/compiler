@@ -43,7 +43,7 @@ let maker (f : Func.t) =
       Some { Eval.maker = f.Func.symbol; state; value; known = None }
   | _ -> None
 
-(* Every constant of [funcs], by its two variables, none of them known. *)
+(* Every constant of [funcs], by its two variables, none of them computed yet. *)
 let register (prog : Eval.program) (funcs : Func.t list) =
   let all = List.filter_map maker funcs in
   List.iter

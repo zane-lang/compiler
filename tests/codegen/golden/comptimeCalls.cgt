@@ -31,8 +31,8 @@
     │   ├── takes[0]: i64
     │   └── gives: i64
     ├── callbacks[1] > callback:
-    │   ├── symbol: comptimeCalls$main()$lambda19
-    │   ├── entry: comptimeCalls$entry comptimeCalls$main()$lambda19
+    │   ├── symbol: comptimeCalls$main()$lambda20
+    │   ├── entry: comptimeCalls$entry comptimeCalls$main()$lambda20
     │   ├── takes[0]: i64
     │   └── gives: i64
     ├── funcs[0] > func:
@@ -645,12 +645,16 @@
     │       ├── body[36] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
+    │       │   └── args[0]: true : i1
+    │       ├── body[37] > eval > call:
+    │       │   ├── type: void
+    │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
     │       │   └── args[0] > binary:
     │       │       ├── type: i1
     │       │       ├── op: ==
     │       │       ├── left: 1 : i64
     │       │       └── right: 5 : i64
-    │       ├── body[37] > eval > call:
+    │       ├── body[38] > eval > call:
     │       │   ├── type: void
     │       │   ├── fn: comptimeCalls$check(%primitives$Bool)
     │       │   └── args[0] > binary:
@@ -658,7 +662,7 @@
     │       │       ├── op: ==
     │       │       ├── left: 4500001500000 : i64
     │       │       └── right: 4500001500000 : i64
-    │       └── body[38] > return: unit : void
+    │       └── body[39] > return: unit : void
     ├── funcs[2] > func:
     │   ├── symbol: comptimeCalls$check(%primitives$Bool)
     │   ├── params[0]: local #1 : i1
@@ -1067,7 +1071,30 @@
     │           │   └── layout: %primitives$String
     │           └── layout: %primitives$String
     ├── funcs[10] > func:
-    │   ├── symbol: comptimeCalls$main()$lambda19
+    │   ├── symbol: comptimeCalls$ordered(&%runtime$Runtime)
+    │   ├── params[0]: local #1 : ptr
+    │   ├── ret: i1
+    │   ├── body[0] > let:
+    │   │   ├── local: #2
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_monotonic_ns
+    │   │       └── args:
+    │   ├── body[1] > let:
+    │   │   ├── local: #3
+    │   │   └── value > runtime:
+    │   │       ├── type: i64
+    │   │       ├── fn: zane_monotonic_ns
+    │   │       └── args:
+    │   └── body[2] > return > flip:
+    │       ├── type: i1
+    │       └── value > binary:
+    │           ├── type: i1
+    │           ├── op: <
+    │           ├── left: local #3 : i64
+    │           └── right: local #2 : i64
+    ├── funcs[11] > func:
+    │   ├── symbol: comptimeCalls$main()$lambda20
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
     │   └── body[0] > return > binary:
@@ -1106,7 +1133,7 @@
     │               │                   ├── place: #7
     │               │                   └── value: local #5 : handle16
     │               └── body[1]: leave @3
-    ├── funcs[11] > func:
+    ├── funcs[12] > func:
     │   ├── symbol: comptimeCalls$counted(%primitives$I64)
     │   ├── params[0]: local #1 : i64
     │   ├── ret: i64
@@ -1153,7 +1180,7 @@
     │   │   ├── body[2] > eval: unit : void
     │   │   └── body[3]: leave @5
     │   └── body[3] > return: local #2 : i64
-    ├── funcs[12] > func:
+    ├── funcs[13] > func:
     │   ├── symbol: comptimeCalls$base
     │   ├── params:
     │   ├── ret: ptr
@@ -1176,7 +1203,7 @@
     │   │       ├── args[1]: global comptimeCalls$base.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global comptimeCalls$base.value
-    ├── funcs[13] > func:
+    ├── funcs[14] > func:
     │   ├── symbol: comptimeCalls$derived
     │   ├── params:
     │   ├── ret: ptr
@@ -1199,7 +1226,7 @@
     │   │       ├── args[1]: global comptimeCalls$derived.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global comptimeCalls$derived.value
-    ├── funcs[14] > func:
+    ├── funcs[15] > func:
     │   ├── symbol: comptimeCalls$origin
     │   ├── params:
     │   ├── ret: ptr
@@ -1238,7 +1265,7 @@
     │   │       ├── args[1]: global comptimeCalls$origin.value
     │   │       └── args[2]: layout comptimeCalls$Vec
     │   └── body[1] > return: global comptimeCalls$origin.value
-    ├── funcs[15] > func:
+    ├── funcs[16] > func:
     │   ├── symbol: comptimeCalls$summed
     │   ├── params:
     │   ├── ret: ptr
@@ -1261,7 +1288,7 @@
     │   │       ├── args[1]: global comptimeCalls$summed.value
     │   │       └── args[2]: layout %primitives$I64
     │   └── body[1] > return: global comptimeCalls$summed.value
-    ├── funcs[16] > func:
+    ├── funcs[17] > func:
     │   ├── symbol: comptimeCalls$doubler.adapter
     │   ├── linkage: shared
     │   ├── params[0]: local #0 : ptr
@@ -1301,8 +1328,8 @@
     │           ├── type: void
     │           ├── fn: zane_callback_detach
     │           └── args:
-    └── funcs[17] > func:
-        ├── symbol: comptimeCalls$main()$lambda19.adapter
+    └── funcs[18] > func:
+        ├── symbol: comptimeCalls$main()$lambda20.adapter
         ├── linkage: shared
         ├── params[0]: local #0 : ptr
         ├── params[1]: local #1 : ptr
@@ -1326,7 +1353,7 @@
         │   ├── address: local #1 : ptr
         │   └── value > call:
         │       ├── type: i64
-        │       ├── fn: comptimeCalls$main()$lambda19
+        │       ├── fn: comptimeCalls$main()$lambda20
         │       └── args[0] > deref:
         │           ├── type: i64
         │           └── ptr > deref:

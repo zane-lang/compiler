@@ -59,7 +59,7 @@ e:
 
 # The duplicate reductions live on B, which is not its class's representative.
 # If terminal equivalence discarded reduction multiplicity, A and B would merge
-# and the search would only try A, missing the ambiguous sentence `B EOF`.
+# and the search would only explore A, missing the ambiguous sentence `B EOF`.
 DUPLICATE_NONREPRESENTATIVE_TERMINAL = """\
 %token A "a"
 %token B "b"
@@ -208,8 +208,8 @@ class SearchTerminationTests(EngineTestCase):
         self.assertNotIn("the search space within the token bound was exhausted", output)
 
     def test_a_search_with_witnesses_also_reports_termination(self) -> None:
-        # Witnesses do not excuse the run from saying how it ended: whether the
-        # ones reported are all of them depends on the same distinction. A
+        # Witnesses do not excuse the run from reporting how it ended: whether
+        # the reported witnesses are all of them depends on the same distinction. A
         # search that finds witnesses is still a successful run, so it exits 0.
         output = self.search(AMBIGUOUS_EXPRESSION)
         self.assertRegex(output, WITNESS_LINE)

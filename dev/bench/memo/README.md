@@ -20,7 +20,7 @@ A call's operations estimate what an optimized build runs: computations,
 memory accesses, branches and calls, a loop's body as often as a constant
 count gives or else eight times, a switch's dearest case, and nothing for
 naming a local, a constant or a verb's expansion. Every build picks from the
-tree alone, so a tiered build's two tiers pick the same. `lib/codegen/emit.ml` (`memo`)
+tree alone, so a tiered build's two tiers pick the same functions. `lib/codegen/emit.ml` (`memo`)
 emits a gate, a lookup and two copies of each picked function.
 
 Each function keeps a score. A lookup is charged the lookup's cost
@@ -65,7 +65,7 @@ measured on; `run` takes the directories `generate` writes for them.
 
 ## Programs
 
-| program | what its calls do |
+| program | its calls |
 |---|---|
 | `fib`, `corefib`, `binom`, `tri` | repeat their scalar arguments often: the case a cache is for |
 | `ttt` | a tic-tac-toe minimax with the board, an `Array<I32, 9>`, as the argument; different move orders reach the same positions |
@@ -78,9 +78,9 @@ measured on; `run` takes the directories `generate` writes for them.
 | `leaves` | repeat only on the last level, whose calls do least: half the calls hit, and each hit saves less than a lookup costs |
 | `heavyleaf` | repeat only on the last two levels, whose calls run a loop of twenty rounds that the credit for a hit leaves out |
 | `shallow`, `shallowin` | worst case: a two-level recursion called 300,000 times from a loop, every argument new |
-| `linear` | a recursion that calls itself once, called from a loop that asks for the same 500 depths over and over |
+| `linear` | a recursion that calls itself once, called from a loop that passes the same 500 depths over and over |
 | `euclid` | a recursion that calls itself once, on arguments that never repeat |
-| `loopleaf` | no recursion: a call of 200 rounds in a loop that asks for the same 64 arguments over and over |
+| `loopleaf` | no recursion: a call of 200 rounds in a loop that passes the same 64 arguments over and over |
 | `loopcold` | the same call, every argument new |
 | `looplight` | a call in a loop whose arguments repeat but which does less than a lookup: it gets no table |
 

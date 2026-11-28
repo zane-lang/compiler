@@ -128,7 +128,7 @@ typedef struct {
 } watcher;
 
 /* The number of watcher calls, and the events applied in the state the
-   last one saw. */
+   last call saw. */
 static int64_t watch_calls, watch_applied;
 
 static void watch_step(char *frame) {

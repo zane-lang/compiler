@@ -23,7 +23,7 @@
    pool's workers and its funnel first (§6.7).
 
    Each element lives in a region of its own (a `zane_member`'s `mark`),
-   of the kind a spawned call's subject lives in: no scope, so it outlives
+   like the region a spawned call's subject lives in: no scope, so it outlives
    none, and written only by the step running on it. The shared state lives
    in a second such region, written only by the funnel, and the events
    waiting for the funnel in a third. Each of the three regions is touched
@@ -143,8 +143,11 @@ int64_t zane_jobs, zane_sleepers;
 static zane_member **zane_timers;
 static int64_t zane_timer_count, zane_timer_room;
 
-/* The monotonic clock, in nanoseconds. */
-static int64_t zane_now(void) {
+/* The monotonic clock, in nanoseconds: `@runtime$monotonicNanoseconds`,
+   and the clock `register`'s timers wait on. lib/optimize/clock_stubs.c
+   keeps a copy of this code for a `comptime` call's reading of the build
+   machine's clock; a change to one belongs in the other. */
+int64_t zane_monotonic_ns(void) {
 #ifdef _WIN32
 	LARGE_INTEGER count, rate;
 	QueryPerformanceFrequency(&rate);
@@ -152,7 +155,7 @@ static int64_t zane_now(void) {
 	return (int64_t)(count.QuadPart / rate.QuadPart) * 1000000000 +
 	       (int64_t)(count.QuadPart % rate.QuadPart) * 1000000000 / rate.QuadPart;
 #else
-	struct timespec t;
+	struct timespec t = { 0, 0 };
 	clock_gettime(CLOCK_MONOTONIC, &t);
 	return (int64_t)t.tv_sec * 1000000000 + t.tv_nsec;
 #endif
@@ -170,7 +173,7 @@ static int64_t zane_later(int64_t from, int64_t ticks, int64_t interval) {
 /* `@controlflow$register` on a timer (control-flow.md §4.1): its first
    deadline, an interval after the call begins, and 0 for an interval below
    1, which is always ready. */
-int64_t zane_tick_start(int64_t interval) { return interval < 1 ? 0 : zane_later(zane_now(), 1, interval); }
+int64_t zane_tick_start(int64_t interval) { return interval < 1 ? 0 : zane_later(zane_monotonic_ns(), 1, interval); }
 
 /* The wait between two steps of a `register` on a timer: until `deadline`,
    with a stand-in thread when this is a pool thread (zane_block_begin), so
@@ -179,12 +182,12 @@ int64_t zane_tick_start(int64_t interval) { return interval < 1 ? 0 : zane_later
    pool's do (zane_consume). An interval below 1 waits not at all. */
 int64_t zane_tick(int64_t interval, int64_t deadline) {
 	if (interval < 1) return deadline;
-	int64_t now = zane_now();
+	int64_t now = zane_monotonic_ns();
 	if (deadline > now) {
 		int began = zane_block_begin();
 		while (deadline > now) {
 			zane_sleep(deadline - now);
-			now = zane_now();
+			now = zane_monotonic_ns();
 		}
 		zane_block_end(began);
 	}
@@ -194,7 +197,7 @@ int64_t zane_tick(int64_t interval, int64_t deadline) {
 /* The wall-clock time `nanoseconds` from now, for a timed wait on a
    condition, which waits on the wall clock. */
 void zane_wait_until(pthread_cond_t *cond, pthread_mutex_t *lock, int64_t deadline) {
-	int64_t left = deadline - zane_now();
+	int64_t left = deadline - zane_monotonic_ns();
 	if (left <= 0) return;
 	struct timespec at;
 	clock_gettime(CLOCK_REALTIME, &at);
@@ -337,7 +340,7 @@ static void zane_wake(zane_member *m) {
    held. */
 static void zane_wake_due(void) {
 	if (!zane_timer_count) return;
-	int64_t now = zane_now();
+	int64_t now = zane_monotonic_ns();
 	while (zane_timer_count && zane_deadline(zane_timers[0]) <= now) zane_wake(zane_timers[0]);
 }
 
@@ -377,7 +380,7 @@ static zane_pool_job *zane_take(zane_workers *only) {
 static int zane_pool_finished(zane_workers *p) {
 	/* The funnel stays busy until it finds the queue empty, and only a
 	   running step or the funnel publishes, so an idle funnel with no
-	   element left means an empty queue. */
+	   element left shows an empty queue. */
 	return p->live == 0 && !__atomic_load_n(&p->funnel_busy, __ATOMIC_ACQUIRE);
 }
 
@@ -430,12 +433,12 @@ static void zane_run_step(zane_member *m) {
 	zane_context *c = zane_job_enter(p);
 	pthread_mutex_lock(&m->lock);
 	zane_claim(&m->mark);
-	zane_consume(m, zane_now());
+	zane_consume(m, zane_monotonic_ns());
 	zane_step_frame frame = { m->step, m->test, m->publish, m->value, NULL, 0 };
 	char *snapshot = NULL;
 	if (p->state) {
 		/* A state of no bytes, a `Unit`, has nothing to read, but the
-		   version the call saw is recorded all the same. */
+		   version the call saw is still recorded. */
 		int reads = p->state_size || p->state_type;
 		if (reads) {
 			snapshot = malloc((size_t)(p->state_size < 8 ? 8 : p->state_size));
@@ -481,7 +484,7 @@ static void zane_run_step(zane_member *m) {
 	} else {
 		/* A tick that came due during the step queues the next call,
 		   which consumes it. */
-		int64_t now = zane_now();
+		int64_t now = zane_monotonic_ns();
 		int ready = 0;
 		for (int64_t i = 0; i < m->timers; i++)
 			if (m->deadlines[i] <= now) ready = 1;
@@ -637,7 +640,7 @@ void zane_workers_start(char *handle, char *element, int64_t size, const zane_ty
 			m->intervals = malloc((size_t)(2 * n) * sizeof *m->intervals);
 			if (!m->intervals) zane_broken("out of memory for a worker's timers");
 			m->deadlines = m->intervals + n;
-			int64_t now = zane_now();
+			int64_t now = zane_monotonic_ns();
 			const int64_t *every = (const int64_t *)ZL_ITEMS(sources);
 			for (int64_t i = 0; i < n; i++) {
 				m->intervals[i] = every[i];
@@ -766,7 +769,7 @@ void zane_workers_free(void *const *args, void *result) {
 			pthread_mutex_lock(&p->lock);
 			if (zane_pool_finished(p)) break;
 			int64_t next = zane_workers_next_deadline();
-			int64_t soon = zane_now() + 2000000;
+			int64_t soon = zane_monotonic_ns() + 2000000;
 			zane_wait_until(&p->done, &p->lock, next >= 0 && next < soon ? next : soon);
 			continue;
 		}

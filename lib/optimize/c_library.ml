@@ -14,7 +14,7 @@ open C_memory
 let ptr_of = function Ptr p -> p | Null -> stop "a null pointer passed to the C library" | _ -> stop "an address that names nothing"
 let size_of = function Int (_, n) -> n | Addr _ -> stop C_ops.number | _ -> stop "a size that is not an integer"
 
-(* A size as an OCaml int, refusing one larger than any allocation. *)
+(* A size as an OCaml int; a size larger than any allocation stops the run. *)
 let small n = if n < 0L || n > Int64.of_int Sys.max_string_length then stop "a size larger than any allocation" else Int64.to_int n
 
 (* Work that grows with a size costs a step for each 64 bytes (F19). *)

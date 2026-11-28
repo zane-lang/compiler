@@ -73,9 +73,9 @@
 ; each package named by its directory in `lib/` or `bin/` with
 ; `--package NAME=DIR`, and `--root` for a program's build and `--no-root` for
 ; a library's. `project.app` checks a program quietly. The others each fail
-; one way: a root without `main`, a build without a root asked to become an
-; executable, a file declaring a package other than the one its directory
-; names, and a target LLVM does not know. `project.plugin` checks a plugin
+; for one reason: a root without `main`, a build without a root asked to become an
+; executable, a file declaring a package other than the package its directory
+; names, and a target unknown to LLVM. `project.plugin` checks a plugin
 ; package quietly, and the two after it build a plugin's root into an
 ; executable and a program's into a dynamic library (packages.md §8.1).
 

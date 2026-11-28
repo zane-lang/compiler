@@ -1,8 +1,8 @@
 # Optimization: folding at compile time
 
 > **Status: built.** Stage 5 runs one pass, compile-time evaluation, which
-> follows this design, and leaves to LLVM what LLVM does (O11). Each
-> decision is numbered (**O1**…). §4 says how it follows the spec's rule,
+> follows this design, and leaves LLVM's own transformations to LLVM (O11). Each
+> decision is numbered (**O1**…). §4 explains how it follows the spec's rule,
 > and §6 what is left to measurement.
 
 Stage 5 rewrites the CGT into a faster CGT ([`stages.md`](stages.md)). Its
@@ -10,8 +10,8 @@ pass evaluates, while the compiler runs, everything the program would compute
 the same way every time it runs, and writes the results into the tree in
 place of the code that computed them. Evaluation starts at the leaves of the
 tree and works up: an expression whose inputs are all known is replaced by its
-value, and its parent is tried next with that value as an input. It stops
-where a value depends on something only the running program has, such as
+value, and the evaluator then tries its parent with that value as an input. It stops
+where a value depends on an input only the running program has, such as
 the arguments it was started with.
 
 ---
@@ -28,7 +28,7 @@ constants' makers and lifted lambdas.
 
 | Module | Holds |
 |---|---|
-| `intrinsics.ml` | What each runtime function is to a fold (O3) |
+| `intrinsics.ml` | The fold's class for each runtime function (O3) |
 | `value.ml` | The values the evaluator computes with, and its memory (O5) |
 | `eval.ml` | The evaluator: CGT run at compile time (O5, O6, O8) |
 | `materialize.ml` | A computed value written back as CGT, and an output as the call that makes it (O4, O7) |
@@ -48,7 +48,7 @@ the fastest program it can in a reasonable compile time, and is then made to
 build as fast as it can without the program running any slower: a change that
 shortens it at the cost of the program's speed, such as a lighter LLVM
 pipeline, is not made. Tier 1 of a tiered build ([`tiers.md`](tiers.md)
-T2) is the third kind: an optimized build that puts its own arrival first,
+T2) is the third build: an optimized build that puts its own arrival first,
 since tier 1 gains a program nothing once the program has ended. An
 unoptimized build is what `zane run` starts the program as, tier 0, so it
 answers to the time from the command to the program's result: its build stays
@@ -70,7 +70,7 @@ lowering follows calls into stamped dependencies and retains their bodies with
 `Available` linkage. In an optimized build stage 5 can evaluate these calls,
 including transitive calls, private helpers and named lambdas. LLVM receives
 their bodies with `available_externally` linkage: its `-O2` pipeline, and the
-lighter one an unoptimized build runs (O12), can inline arithmetic and other
+lighter pipeline an unoptimized build runs (O12), can inline arithmetic and other
 wrappers even when their arguments are runtime inputs. The bodies themselves
 define no symbols in the caller's object; any call left after optimization
 links against the dependency's original object. Generic instances and package
@@ -82,23 +82,23 @@ or package flag is required.
 subexpressions, hoists what a loop does not change, unrolls, vectorizes and
 inlines, and does each better for every target than a second pass here
 would. So the compiler implements an optimization itself only when it rests
-on something about Zane that LLVM does not know, and otherwise tells LLVM
-what it knows and leaves the transformation to it
+on a Zane rule hidden from LLVM, and otherwise gives LLVM the facts the
+compiler has and leaves the transformation to LLVM
 ([`lowering.md`](lowering.md) §9, "What LLVM is told"). Where each piece of
 work stands:
 
 | Work | Where it is done, and why |
 |---|---|
-| Folding constants, choosing a known branch, dropping a loop that never runs (`fold.ml`) | Here as well as in LLVM: the evaluator needs these folds' results as its inputs, so they stay while it does |
+| Folding constants, taking a known branch, dropping a loop that never runs (`fold.ml`) | Here as well as in LLVM: the evaluator needs these folds' results as its inputs, so they stay while it does |
 | Running calls, lists, strings, boxes, runs of statements, output and spawned calls (`eval.ml`) | Here: LLVM cannot run the runtime's functions, and does not know O4's replay of output. Measured on the fixtures, LLVM alone leaves the list constructors, spawns and snapshots in `folding`, `runs` and `removalFolded` that stage 5 removes |
 | Package constants (O9) | Here: a constant is made once, under the runtime's lock, and an unoptimized dependency shares its object, so it is not an immutable global LLVM could fold |
 | Inlining | Lowering, for a verb whose body is one expression, in every build (L11): it reads from the source which verbs those are, and needs no cost model to write one out. LLVM, for the rest, seeing a dependency's bodies through O10 |
 | Writing out block-taking verbs, generic instances, lambdas and spawn thunks | Lowering: a verb that takes a block has no function of its own to inline (L11) |
 | Copies, scopes and results in the caller's region (`lib/cgt/regions.ml`) | Lowering: each rests on ownership and regions, which LLVM does not see |
 | Each type's walks, frames and allocation fast paths | Codegen, which emits them as plain IR for LLVM to simplify further |
-| Bounds checks, a list's count and block, a push | Codegen emits them as plain arithmetic and branches, tagged so LLVM can keep the header across element writes, and says which places and frames may be read ahead; LLVM drops the checks it proves redundant ([`lowering.md`](lowering.md) §9, "What LLVM is told"), and in an optimized build and tier 1 its IRCE takes them out of the main part of a long loop, which codegen emits twice and weights there, and of a loop it emits once on LLVM's guess, unless the loop is a search, one that can leave early, holds no loop and indexes an element by a local it steps by a constant apart from its counter, which codegen weights as short so IRCE leaves it whole ([`lowering.md`](lowering.md) §9, "The passes") |
+| Bounds checks, a list's count and block, a push | Codegen emits them as plain arithmetic and branches, tagged so LLVM can keep the header across element writes, and marks which places and frames may be read ahead; LLVM drops the checks it proves redundant ([`lowering.md`](lowering.md) §9, "What LLVM is told"), and in an optimized build and tier 1 its IRCE takes them out of the main part of a long loop, which codegen emits twice and weights there, and of a loop it emits once on LLVM's guess, unless the loop is a search, one that can leave early, holds no loop and indexes an element by a local it steps by a constant apart from its counter, which codegen weights as short so IRCE leaves it whole ([`lowering.md`](lowering.md) §9, "The passes") |
 | An `elif` after its `if` | LLVM's jump threading, run before the passes that make a branch a select, which makes the two one chain ([`lowering.md`](lowering.md) §9, "The passes") |
-| A truncation, exact math | LLVM intrinsics (`llvm.fptosi.sat`, `llvm.sqrt`, …), which mean exactly what the spec says |
+| A truncation, exact math | LLVM intrinsics (`llvm.fptosi.sat`, `llvm.sqrt`, …), whose semantics match the spec's exactly |
 | Division | Codegen's guards around `sdiv`, which by itself does not give `operators.md` §2.6's results |
 | Large aggregates (`lib/codegen/big_moves.ml`) | Codegen, since LLVM's code generator cannot move one at all, at either optimization level |
 
@@ -135,6 +135,7 @@ classified:
 | `@runtime$print` | `Print` | output (O4) |
 | `@runtime$setThreads`, `setThreadsAuto` | `Set_threads`, `Set_threads_auto` | output (O4) |
 | `@runtime$arguments` | `Arguments` | input |
+| `@runtime$monotonicNanoseconds` | `Monotonic_ns` | input |
 | a foreign call touching no capability, its C body in the build | `Foreign_call` | computed, by the C evaluator ([`ffi.md`](ffi.md) F16–F19) |
 | a foreign call touching no capability, its C in an archive or a system library | `Foreign_call` | input |
 | a foreign call reading or writing a capability | `Foreign_call` | input, and left in place |
@@ -142,11 +143,14 @@ classified:
 | a null handle a call into C gives | `No_object` | input |
 | an abort of `main`, which ends the program | `Main_aborted`, called only by the start function | input |
 
-`arguments` is the one intrinsic that reads input (effects.md §6.6), so a
-fold stops where it is reached, and everything computed before it still
-folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
-no value of the program depends on it. An intrinsic added later that reads
-input, a console read or the time, joins `arguments` in the input class.
+`arguments` and `monotonicNanoseconds` are the intrinsics that read input,
+the program's arguments (effects.md §6.6) and the clock, a read of the
+runtime that effects.md §5.3 keeps out of compile-time evaluation. A fold
+therefore stops where it reaches either, and everything
+computed before it still folds. `setThreadsAuto` reads the processor count,
+but gives nothing back, so no value of the program depends on it. An
+intrinsic added later that reads input, such as a console read, joins them
+in the input class.
 `register`'s timer is another input: its first deadline reads the clock, and
 the code after each wait runs at a moment that no replay could reproduce, so
 a fold stops there. So does a worker pool's every operation: its work runs on
@@ -172,7 +176,7 @@ Besides an input, a value is unknown when it is a parameter of the function
 being folded, or what a function with no body available gives. Optimized
 builds retain reachable stamped dependencies' bodies from the checked source
 (`separate-compilation.md` C12), so their calls fold under the same rules as
-local calls. Everything computed only from known values is known. Whether a function terminates is never analyzed: the
+local calls. Every value computed only from known values is known. Whether a function terminates is never analyzed: the
 budget (O6) determines how far evaluation goes.
 
 **O4. An output is replayed where it was made.** A call that prints while it
@@ -189,7 +193,7 @@ of what was computed.
 
 ## 3. How it is built
 
-**O5. The evaluator models what a program means, not where its bytes are.**
+**O5. The evaluator models a program's meaning, not where its bytes are.**
 `eval.ml` gives each CGT node the meaning `lib/codegen/emit.ml` gives it, and
 each runtime function the meaning `runtime/` gives it. Memory is a set of
 cells, each holding a structured value: a scalar, a string, a struct or array,
@@ -199,13 +203,13 @@ how every address in the tree is made (`Address`, `Offset`, `List_at`,
 `Array_at`). An address made by `Box` owns the cell it names; any other is
 lent.
 
-Where a value's bytes live is not modelled. Arenas, drains, the movement of
+The evaluator does not model where a value's bytes live. Arenas, drains, the movement of
 blocks between regions, and arrival are nothing at compile time, since no
 program can tell one placement from another (`lowering.md` §9). What a
 program can tell is modelled exactly, from the program's layouts: `Copy`
 copies every list and box a value owns, `Take` leaves the place it moved out
 of holding no list, string or box, and `Overwrite` writes the incoming
-payload into each box the old value and the new one both have, so an address
+payload into each box the old value and the new value both have, so an address
 into it still names it (`zane_overwrite`). A cell owns what it holds: a value
 is copied in when it is stored and copied out when it is read, so a store
 writes an element in place without changing a value read before it.
@@ -258,7 +262,7 @@ work is done once, not again for the entry point that calls it.
   spawned call. No reference names a value
   ([`memory.md`](https://github.com/zane-lang/spec/blob/911d749/spec/memory.md)
   §2.4), and a borrow of one ends with its call (§2.9), so code given no
-  address of it cannot write it, and what is known of it stays known past
+  address of it cannot write it, and the fold keeps its known value past
   that code. A pointer local bound once to an address of a local stands for
   that local. Every address of a local of any other type counts as kept: a
   call it is lent to may leave a reference to it where other code finds
@@ -303,7 +307,7 @@ size, joining strings, copying a list or a struct, growing a list, costs a
 step for each 64 bytes, charged before the work is done, so a few steps
 cannot build a value of any size. Each output costs the same way, by its
 weight: its text's length and one more, so that an output with no text, a
-`print("")` or a `setThreads`, still weighs something:
+`print("")` or a `setThreads`, still has a weight:
 
 - one fold takes at most 5,000,000 steps;
 - all the folds of a program take at most 50,000,000;
@@ -359,7 +363,7 @@ A list made this way gets its block in the region of the innermost scope,
 where a call's result arrives too, and then arrives or escapes from there like
 any other value. Its handle sits in the expansion's own slot, which is in no
 scope's chunks, and the runtime places the block of such a list in the
-innermost scope's region. An expansion that gives back what a `Hold` in it
+innermost scope's region. An expansion that gives back the value a `Hold` in it
 made is replaced by one that holds the value made again in the same scope,
 with the same layout, so the scope's drain still ends its block; an
 expansion with any other hold in it whose value owns a block is left as it
@@ -410,7 +414,7 @@ same point and in the same order. How is left to the compiler. Stage 5's answer 
 - the bound on work is O6's: the step budgets, the depth and the size cap.
 
 A call into C is the one place a fold can change what a program prints. A
-foreign verb that declares no capability says its C reads none
+foreign verb that declares no capability declares that its C reads none
 ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)
 §5.4), and its C is folded on that word ([`ffi.md`](ffi.md) F17). C that
 keeps state of its own anyway, such as a file-scope counter, is folded
@@ -447,12 +451,12 @@ optimized build makes, for the fixtures that show folding:
 - `runs` folds a sieve as one run of statements, and keeps a list that is
   still named after the program's arguments are read;
 - `math` folds every exact math function at its edges, and keeps the
-  approximate ones and an `F32` `fma` as calls;
+  approximate functions and an `F32` `fma` as calls;
 - `constants`, `counting` and `zero` show their optimized trees.
 
-`tests/objects/facts_test.py` checks the facts codegen gives LLVM, and what
-LLVM makes of it in an optimized build: no snapshot in a program that
-spawns nothing, every snapshot where something may write back, and in a
+`tests/objects/facts_test.py` checks the facts codegen gives LLVM, and the
+code LLVM makes from them in an optimized build: no snapshot in a program that
+spawns nothing, every snapshot where a spawned call may write back, and in a
 library built for one program only those of the places it writes back into, the
 runtime's small list operations in line, and a loop over a list's elements,
 each written and read again, with no index check left in it.
@@ -479,7 +483,7 @@ forgets, two folds of handmade
 functions, a replacement past the size cap only as a whole, a string that
 doubles past the budget, a call that replays its previous level's output
 twice stopping at the output cap, with a word and with empty prints, a member of a program variable written in place,
-and a call remembered for a zero and for its negative.
+and a call memoized for a zero and for its negative.
 
 ---
 
@@ -488,5 +492,5 @@ and a call remembered for a zero and for its negative.
 - **The limits.** The budgets, the depth and the size cap are starting
   points, left to measurement on real programs.
 - **Unrolled output.** A loop over known values that prints becomes one print
-  per line it writes, within the size cap. Whether a loop that prints should
-  stay a loop is left to measurement.
+  per line it writes, within the size cap. Measurement will settle whether a
+  loop that prints should stay a loop.

@@ -18,7 +18,7 @@ Callgrind with the cache and branch simulators on. It holds what each build
 printed to `golden/NAME.out`, which the three share, so a build that breaks a
 program is caught rather than measured. The caches are
 fixed rather than read from the machine, so every machine simulates the same
-ones: 32 KiB first-level instruction and data caches and an 8 MiB last-level
+caches: 32 KiB first-level instruction and data caches and an 8 MiB last-level
 cache, each with 64-byte lines. From what the simulators count it estimates
 cycles:
 
@@ -107,8 +107,8 @@ Valgrind runs on Linux only. To see where a change moved a number, compare
 the columns `run` prints, then build the program as the slower build was
 built, with or without `--optimize`, and run
 `valgrind --tool=callgrind --cache-sim=yes --branch-sim=yes --dump-instr=yes`
-on it. A change to a program here changes what its row measures, so say so
-in its pull request, label it `perf-accepted` before queueing it if the
+on it. A change to a program here changes its row's measurement, so state
+that change in its pull request, label it `perf-accepted` before queueing it if the
 number rises, and promote its output if that changed.
 
 ## Programs
@@ -145,11 +145,11 @@ repo's `langbench/` and print what it prints at the same size.
   calls, and must stop looking, since each hit saves less than the lookups
   cost ([`memoization.md`](../../docs/design/memoization.md) M3).
 - `depths` is a recursion that calls itself once, called from a loop that
-  asks for the same 500 depths over and over. A table of its results finds
+  passes the same 500 depths over and over. A table of its results finds
   every call after the first pass, so its numbers rise sharply when a table
   stops being picked for such a recursion or its hits stop paying
   ([`memoization.md`](../../docs/design/memoization.md) M1).
-- `repeats` is a heavy call in a loop that asks for the same 64 arguments
+- `repeats` is a heavy call in a loop that passes the same 64 arguments
   over and over, with no recursion. A table of its results hits on all but
   the first 64 calls, so its numbers rise sharply when a table stops being
   picked for such a call or its hits stop paying
@@ -173,7 +173,7 @@ repo's `langbench/` and print what it prints at the same size.
   floor, then kill the settled and respawn the dead from a generator.
 - `tokens` is a tokenizer: a text of character codes generated from a seeded
   generator is scanned into a list of `{kind, start, length}` value structs
-  whose kind is a variant, then a second pass matches on each kind to count
+  whose `kind` is a variant, then a second pass matches on each `kind` to count
   them and sum their lengths.
 - `entities` is an entity table with optional components: a list of value
   structs whose position, velocity and health are each a variant that is
@@ -187,7 +187,7 @@ repo's `langbench/` and print what it prints at the same size.
   path lengths are summed.
 - `workers` is a fetch loop written as a worker (spec control-flow.md
   §3.7): a machine runs a short list of operations, one a step, until it
-  has run as many as the size asks for. The step is a lambda written where
+  has run as many as the size sets. The step is a lambda written where
   the worker runs, so the optimized build makes one loop of it with no call
   through the function value, and the plain build calls the step each pass.
 - The rest each hold one optimization to its effect: with it gone, the
@@ -235,7 +235,7 @@ repo's `langbench/` and print what it prints at the same size.
   - `spans`: a list past 16 KiB grows in place in a growable span.
   - `lent`: a reference-type document's text is lent to a byte helper
     rather than copied per call.
-- `stress` is the logged one, a large program of sixteen sections:
+- `stress` is the logged program, a large program of sixteen sections:
   fannkuch-redux over small lists, binary-trees of reference nodes, trial
   division, the Mandelbrot set, bodies in a list pulled together, a list
   grown and one shrunk in order and by swapping, value trees copied whole,

@@ -1,5 +1,5 @@
 (* The linked clang (clang_stubs.cpp). A command line is one clang's driver
-   reads, its first word the driver's name; a run gives what the front end made
+   reads, its first word the driver's name; a run gives the front end's output
    and the errors it reported. *)
 
 (* One error or warning the front end reported, at a line and column of
@@ -7,7 +7,7 @@
    about the command itself. *)
 type problem = { file : string; line : int; column : int; message : string }
 
-(* What a run made, meaningful when [ok], and the warnings it gave, which
+(* A run's output, meaningful when [ok], and the warnings it gave, which
    never fail the run. *)
 type run = { ok : bool; output : string; problems : problem list; warnings : problem list }
 

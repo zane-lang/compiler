@@ -1,5 +1,5 @@
 (* The names a program's verbs and types carry in the IR and the binary
-   (docs/design/generics.md). A name is the declaration as written, fully
+   (docs/design/generics.md). A symbol name is the declaration as written, fully
    qualified, so it is unique across the program without being encoded. The
    spelling is defined here rather than by the TST's printer, because a
    symbol is an ABI: it changes only when this module does. *)
@@ -34,7 +34,7 @@ let rec ty_ stamp = function
   | Tty.Concept c -> concept stamp c
   | Tty.Verb v -> verb_type stamp v
   | Tty.Param p -> Diagnostic.bug ("Symbol.ty: the type parameter " ^ p.Tty.name ^ " is not concrete")
-  | Tty.Error -> Diagnostic.bug "Symbol.ty: an ill-typed type has no symbol"
+  | Tty.Error | Tty.Veiled _ -> Diagnostic.bug "Symbol.ty: an ill-typed type has no symbol"
 
 and args_ stamp = function
   | [] -> ""
@@ -85,8 +85,8 @@ let ty ?(stamp = unstamped) t = ty_ stamp t
 
    Two overloads never take the same parameter types (functions.md §4.1), and
    two instances of one generic never take the same arguments, so no two verbs
-   share a name. An explicit `T Type` or number parameter is written as its
-   kind; the argument it was given is among the instance's arguments. *)
+   share a symbol name. An explicit `T Type` or number parameter is written as its
+   concept; the argument it was given is among the instance's arguments. *)
 let verb ?(stamp = unstamped) (s : S.t) (instance : (Tty.param * Tty.arg) list) =
   let sub = Tty.subst (List.map (fun ((p : Tty.param), a) -> (p.Tty.id, a)) instance) in
   let param (p : S.param) =

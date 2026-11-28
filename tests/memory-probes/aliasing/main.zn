@@ -126,7 +126,7 @@ Unit main() {
 
 	list ListRef<Engine> = @primitives$ListRef(Engine);
 	list!push(Engine(Int(42), String("first")));
-	// Something allocated after the list's block, so that growing it cannot
+	// A block allocated after the list's block, so that growing it cannot
 	// extend it in place at the frontier.
 	pad ListRef<Engine> = @primitives$ListRef(Engine);
 	pad!push(Engine(Int(0), String("pad")));

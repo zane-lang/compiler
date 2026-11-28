@@ -24,10 +24,10 @@ let cpu triple =
 (* The features the target machine for [triple] adds to [cpu]'s: on AArch64
    the base architecture, `+v8a`, which clang names on every function it
    compiles for the architecture and LLVM's `generic` processor lacks. A
-   package's C, compiled by clang for the program's processor, then asks for
-   nothing the program's functions do not have, so it is inlined into them
+   package's C, compiled by clang for the program's processor, then needs
+   no feature the program's functions do not have, so it is inlined into them
    (docs/design/ffi.md; clang_stubs.cpp's drop_default_processor checks
-   against the same). *)
+   against the same features). *)
 let features triple =
   match String.split_on_char '-' triple with
   | ("aarch64" | "arm64") :: _ -> "+v8a"
@@ -37,8 +37,8 @@ let features triple =
    compiler builds for (docs/design/platforms.md, "64-bit targets only").
    Lowering lays out every type, and the runtime its records, for 8-byte
    pointers with `i64` and `double` aligned to 8 bytes; a target that
-   differs would get offsets that disagree with what LLVM and the C
-   compiler lay out. Byte order is not checked: nothing here depends on it,
+   differs would get offsets that differ from the layout LLVM and the C
+   compiler use. Byte order is not checked: nothing here depends on it,
    since every value is read at the width it was written, and the object
    rewriters read both byte orders. *)
 let sixty_four_bit triple layout =
@@ -69,7 +69,7 @@ let windows_host_triple = "x86_64-windows-gnu"
    machine spells it: conda-forge's vendor (`x86_64-conda-linux-gnu`) read
    as `unknown`, and its macOS (`arm64-apple-darwin20.0.0`) as
    `aarch64-macos`, whose objects name the oldest macOS that architecture
-   runs, not the one the LLVM was built for. *)
+   runs, not the macOS the LLVM was built for. *)
 let spelled_as_target default =
   match String.split_on_char '-' default with
   | arch :: "conda" :: rest -> String.concat "-" (arch :: "unknown" :: rest)
@@ -233,7 +233,7 @@ let target_flag = function Some target -> [ "--target=" ^ target ] | None -> []
 (* The name a runtime compiled by *cc*, which reports itself as [identity], with
    [flags] for [triple] is kept under: everything that changes the object is
    in it. The triple is the build's own, given or the host's, so a build that
-   names no target still keys its runtime by the one it links for. *)
+   names no target still keys its runtime by the triple it links for. *)
 let runtime_key ~cc ~identity ~triple flags =
   Digest.to_hex (Digest.string (String.concat "\000" ((cc :: identity :: triple :: flags) @ sources)))
 
@@ -247,7 +247,7 @@ let bundled_dir () =
   | None -> ( match Sys.getenv_opt "ZANE_RUNTIME_OBJECTS" with Some "" | None -> None | Some dir -> Some dir)
 
 (* The name a runtime compiled with [level] for [triple] is bundled under.
-   It names no C compiler, since a bundle is used only with the one that
+   It names no C compiler, since a bundle is used only with the C compiler that
    compiled it, and the target only in LLVM's normal form, so spellings that
    normalize alike, and a build for the host that names none, link the same
    object. *)
@@ -499,7 +499,7 @@ let marked_link ~cc ~triple ~args ~obj ~runtime ~output dir =
    [args]: what *cc* prints for these, the first time, and then what was
    kept in [cache] for the same compiler, target, flags and objects to link,
    with this build's files put in. That *cc* cannot link through LLD in the
-   compiler is kept too, so it is asked once; that it printed no command
+   compiler is kept too, so the build runs it once; that it printed no command
    is not kept. *)
 let link_command ?cache ~cc ~triple ~args ~obj ~runtime ~output dir =
   let mark, fill = link_marks ~obj ~runtime ~output () in
@@ -565,7 +565,7 @@ let shared_extension triple =
 
 (* The libraries a plugin's dynamic library for [target] links with
    besides libc: those a program links with (packages.md §8.1), but for the
-   ones only a program's own start-up needs, the command line and the main
+   libraries only a program's own start-up needs, the command line and the main
    thread's stack. *)
 let library_system_libraries target =
   if windows target then [] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]
@@ -628,7 +628,7 @@ let underscored triple =
    the next build, which notes it again. When *cc* fails
    too, the program does not link, and nothing is forgotten; when *cc*
    reports that it cannot find one of the `system` [libraries], the error names
-   the row that asks for it, and what *cc* wrote is not repeated. [lld]
+   the row that names it, and what *cc* wrote is not repeated. [lld]
    runs the LLD. *)
 let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(libraries = []) ~cc ~triple
     ~args ~deps ~obj ~runtime ~output dir =
@@ -965,13 +965,13 @@ let rewrites tm m =
 
 (* The module emitted for *target* made ready to be written: its shared
    functions in COMDATs, its stack probed, and its passes run, the optimized
-   ones when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A
+   passes when *optimize* and tier 1's for [Tier1] ([Passes.pipeline]). A
    program behaves the same either way (docs/design/lowering.md §7). A
    [tier] of a tiered build is fingerprinted
    first, then made tier 0 or tier 1 around its passes (docs/design/tiers.md);
-   tier 1 runs the optimized ones. An optimized module, and both tiers, take
+   tier 1 runs the optimized passes. An optimized module, and both tiers, take
    the runtime's bodies for LLVM to inline first ([Runtime_bodies]), the
-   tiers the same ones, so tier 0 exports what tier 1's may import. *)
+   tiers the same bodies, so tier 0 exports what tier 1's may import. *)
 let prepare_whole ?target ?(optimize = false) ?(tier = Tiers.Plain) ?fingerprint ?(bundled = bundled_dir ())
     ?(cache = Cache.dir ()) ?whole ?(separate_c = false) m =
   let optimize = optimize || tier = Tiers.Tier1 in
@@ -1404,7 +1404,7 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
       | exception Sys_error message -> Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
       | () -> (
           (* Tier 1 calls tier 0's runtime (docs/design/tiers.md T5), so tier
-             0 links the optimized one. *)
+             0 links the optimized runtime. *)
           let optimize = optimize || tier = Some Tiers.Tier0 in
           let runtime =
             if whole then empty_object ~triple tm (Filename.concat dir "runtime.o")
@@ -1449,7 +1449,7 @@ let dynamic_library ?target ?(optimize = false) ?(link = []) ?(bundled = bundled
   | Ok (triple, tm, _, apart) -> (
       Foreign_c.drop_pie_level m;
       let cc = cc () in
-      let level = level ~optimize and system = library_system_libraries target in
+      let level = library_level ~optimize and system = library_system_libraries target in
       let flags = target_flag target @ level @ library_link triple in
       let rows = List.map (fun (l : Foreign_c.library) -> "-l" ^ l.name) libraries in
       let deps (c : c_files) = c.objects @ link @ c.archives @ rows in
@@ -1512,7 +1512,7 @@ let install ~file ~output =
       (try Sys.remove temporary with Sys_error _ -> ());
       Error (Printf.sprintf "cannot write %s: %s" output message)
 
-(* [path] and everything in it removed, as far as it can be. A link is
+(* [path] and everything in it removed, as far as the system allows. A link is
    removed itself, never what it points to. *)
 let rec remove_tree path =
   match Unix.lstat path with

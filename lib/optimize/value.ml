@@ -313,8 +313,8 @@ let rec import = function
       VList { items; count = Array.length items; stride }
   | Box { ty; layout; payload } -> owner (cell ?layout ty (import payload))
 
-(* What a value is as a constant, when it holds nothing that lives
-   somewhere else: a reference or a lent address does. A list or a box the
+(* A value as a constant, when it holds nothing that lives in another
+   place: a reference or a lent address does. A list or a box the
    value owns is part of it. *)
 let rec export = function
   | VInt i -> Some (Int i)
@@ -343,7 +343,7 @@ let rec export = function
   | VPtr _ | VNull | VLayout _ | VForeign _ -> None
 
 (* Whether two constants are the same in every bit: [=] treats a zero and
-   its negative as equal, and a division tells them apart. *)
+   its negative as equal, and a division separates them. *)
 let rec same a b =
   match (a, b) with
   | Float x, Float y -> Int64.equal (Int64.bits_of_float x) (Int64.bits_of_float y)

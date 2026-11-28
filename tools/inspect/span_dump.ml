@@ -1,7 +1,7 @@
 (* Print every node in a parsed file with the source text its span covers.
 
-   A span is only ever wrong by pointing somewhere, and the cheapest way to see
-   where is to read it back out of the source. Each line is one node: its
+   A span is only ever wrong by pointing at the wrong text, and the cheapest
+   way to see where is to read it back out of the source. Each line is one node: its
    variant label, and the text between its span's two positions.
 
    The walk itself is not here. Rendering a stage's nodes is that stage's

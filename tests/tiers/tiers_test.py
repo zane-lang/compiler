@@ -5,7 +5,8 @@ libraries.
 Each test builds into a directory of its own, with a cache directory of its
 own, so none sees another's libraries. `fixtures/swap` prints that it started,
 then works in calls of its own for as many rounds as its argument gives;
-`fixtures/other` is another program. `just test-compiler` runs these.
+`fixtures/other` is another program; `fixtures/clocked` reads the clock in a
+`comptime` call. `just test-compiler` runs these.
 """
 
 import os
@@ -63,7 +64,7 @@ class Tiers(unittest.TestCase):
         the runtime wrote to stderr. Its output goes to a terminal, so the
         program writes each line as it prints it: Windows's pseudo-console where
         *put* waits for a line (conpty.py), and a pipe read once it ends
-        otherwise, since the lines are the same."""
+        otherwise, since both give the same lines."""
         env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_LOG="1")
         if sys.platform == "win32":
             if put:
@@ -146,6 +147,89 @@ class Tiers(unittest.TestCase):
         self.assertEqual(p.returncode, 1)
         self.assertEqual(p.stdout, "")
         self.assertIn("zane: tier 1 did not take every function", p.stderr)
+
+    def test_tier_1_replays_the_clock_readings_of_tier_0(self):
+        # Started first, as the CLI starts it: its `comptime` call waits for
+        # the readings tier 0 records.
+        readings = self.dir / "clocked.readings"
+        library = self.dir / "clocked.tier1"
+        package = str(FIXTURES / "clocked")
+        tier1 = subprocess.Popen(
+            [str(ZANEC), "--tier-up", str(library), "--comptime-readings", str(readings), "--package", package],
+            env=self.env,
+        )
+        # A tier 1 left waiting for readings that never come is stopped,
+        # however the test ends.
+        self.addCleanup(lambda: tier1.poll() is None and (tier1.kill(), tier1.wait()))
+        exe = self.dir / "clocked.tier0"
+        self.zanec("--build", str(exe), "--tiered", "--comptime-readings", str(readings), "--package", package)
+        self.assertEqual(tier1.wait(timeout=300), 0)
+        self.assertEqual(len(readings.read_text().splitlines()), 1)
+        self.assertEqual(list(self.dir.glob("*.partial")), [])
+        env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_WAIT="1")
+        p = subprocess.run([str(exe)], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual((p.returncode, p.stdout), (0, "3000\n"), p.stderr)
+
+    def test_without_the_readings_tier_1_reads_another_time(self):
+        package = str(FIXTURES / "clocked")
+        library = self.dir / "clocked.tier1"
+        self.zanec("--tier-up", str(library), "--package", package)
+        exe = self.dir / "clocked.tier0"
+        self.zanec("--build", str(exe), "--tiered", "--package", package)
+        env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_WAIT="1", ZANE_TIER_LOG="1")
+        p = subprocess.run([str(exe)], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("zane: tier 1 is another program's", p.stderr)
+
+    def test_an_unreadable_readings_file_is_a_diagnostic(self):
+        # A directory exists, so tier 1 stops waiting, but it cannot be read.
+        readings = self.dir / "readings"
+        readings.mkdir()
+        p = subprocess.run(
+            [str(ZANEC), "--tier-up", str(self.dir / "clocked.tier1"), "--comptime-readings", str(readings),
+             "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env, timeout=300,
+        )
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("cannot read the clock readings in", p.stderr)
+
+    @unittest.skipIf(sys.platform == "win32", "Windows reports a path under a file as absent")
+    def test_a_readings_path_tier_1_cannot_reach_is_a_diagnostic(self):
+        # A path under a regular file can never appear, so tier 1 reports it
+        # instead of waiting.
+        blocker = self.dir / "blocker"
+        blocker.write_text("")
+        p = subprocess.run(
+            [str(ZANEC), "--tier-up", str(self.dir / "clocked.tier1"), "--comptime-readings", str(blocker / "readings"),
+             "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env, timeout=300,
+        )
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("cannot read the clock readings in", p.stderr)
+
+    def test_a_failed_readings_write_leaves_no_file_behind(self):
+        # A rename onto a directory that holds a file fails, and tier 0
+        # removes the file it wrote the readings to.
+        readings = self.dir / "readings"
+        readings.mkdir()
+        (readings / "held").write_text("")
+        p = subprocess.run(
+            [str(ZANEC), "--build", str(self.dir / "clocked.tier0"), "--tiered", "--comptime-readings", str(readings),
+             "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env, timeout=300,
+        )
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("cannot write the clock readings to", p.stderr)
+        self.assertEqual(list(self.dir.glob("*.partial")), [])
+
+    def test_only_a_tiered_build_takes_the_readings(self):
+        exe = self.dir / "clocked.plain"
+        p = subprocess.run(
+            [str(ZANEC), "--build", str(exe), "--comptime-readings", str(self.dir / "r"), "--package", str(FIXTURES / "clocked")],
+            capture_output=True, text=True, env=self.env,
+        )
+        self.assertNotEqual(p.returncode, 0)
+        self.assertIn("usage: zanec", p.stderr)
 
     def test_a_stale_work_directory_that_links_elsewhere_removes_only_the_link(self):
         elsewhere = self.dir / "elsewhere"
