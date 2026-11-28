@@ -173,11 +173,11 @@ check-nesting-c-python:
 [script]
 prose:
 	command -v uv >/dev/null || { echo 'just prose needs uv on PATH: https://docs.astral.sh/uv/' >&2; exit 1; }
-	dir="${XDG_CACHE_HOME:-$HOME/.cache}/prose-lint/107c5f768ea3ce4936d6fdff1b0f30fac9237615"
+	dir="${XDG_CACHE_HOME:-$HOME/.cache}/prose-lint/58c23886b093aaa76d3f5281d8340813805f22c3"
 	if [ ! -d "$dir" ]; then
 		rm -rf "$dir.tmp"
 		git clone -q https://github.com/zane-lang/prose-lint "$dir.tmp"
-		git -C "$dir.tmp" checkout -q 107c5f768ea3ce4936d6fdff1b0f30fac9237615
+		git -C "$dir.tmp" checkout -q 58c23886b093aaa76d3f5281d8340813805f22c3
 		mv "$dir.tmp" "$dir"
 	fi
 	uv run --frozen --project "$dir" prose-lint .

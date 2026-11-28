@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: zane-lang/prose-lint
-          ref: 107c5f768ea3ce4936d6fdff1b0f30fac9237615
+          ref: 58c23886b093aaa76d3f5281d8340813805f22c3
           path: .prose-lint
           persist-credentials: false
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
