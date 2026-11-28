@@ -698,12 +698,14 @@ member through the parameter (`T.red`), a `match`, and calling the value as a
 function value. Each of those is reported where the body writes it, whether
 or not anything instantiates the body. `T(...)` and `T.name(...)` build a
 veiled value there and resolve in each instance. A method, function, operator
-or subscript on a veiled value resolves in each instance as well. A method,
-function or constructor call with a veiled argument still resolves here when
-one overload takes it, and reports nothing when none does or several do: the
-call's result keeps the overload's result type, so in `echoed(x).level`, with
-`T echoed(x T Type)`, the field read is of a veiled value and is reported. A
-subscript typed at a veiled argument is the check's own, and the program
+or subscript on a veiled value resolves in each instance as well. A call
+with a veiled argument, whether of a method, a function, a constructor, an
+operator, a subscript or a worker intrinsic, still resolves here when one
+overload takes it, and reports nothing when none does or several do. The
+call's result keeps the overload's result type. In `echoed(x).level`, with
+`T echoed(x T Type)`, the field read is therefore of a veiled value and is
+reported, and so is `(k + k).held.level` when `+` is declared on
+`Keeper<T Type>`. A subscript typed at a veiled argument is the check's own, and the program
 holds only the subscript's instances at real type arguments.
 
 What this check reports besides depends on whether anything instantiates the

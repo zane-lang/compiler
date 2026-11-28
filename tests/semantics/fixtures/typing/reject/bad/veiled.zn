@@ -82,3 +82,14 @@ Int keptRead(s Pannier<Tint>) => s[Int(1)];
 T echoed(x T Type) => x;
 Int sameLevel(x T Type) => echoed(x).level;
 Int appliedLevel(x T Type, f T[T]) => f(x).level;
+
+// An operator, a flip and a subscript resolve with a veiled operand too,
+// when a candidate is generic over the parameter, and keep their veiled
+// result.
+Keeper<T Type> +(left Keeper<T Type>, right Keeper<T Type>) => left;
+Keeper<T Type> ~(value Keeper<T Type>) => value;
+type Perch = struct { width Int; }
+(this Perch)[x T Type] => x;
+Int summedLevel(k Keeper<T Type>) => (k + k).held.level;
+Int flippedLevel(k Keeper<T Type>) => (~k).held.level;
+Int perchedLevel(s Perch, x T Type) => s[x].level;
