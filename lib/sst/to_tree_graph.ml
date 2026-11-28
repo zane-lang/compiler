@@ -418,8 +418,7 @@ and decl_to_node (x : Nodes.Decl.t) =
              ("value", expr_to_node x.value);
              ("symbol", Leaf (text x.symbol));
            ])
-  | ExportLine x ->
-      group "export_line" (fields [ ("package", Leaf (text x.package)); ("args", map_seq type_to_node x.args) ])
+  | ExportLine x -> group "export_line" (Leaf (text x.package))
 
 (* A foreign verb's C symbol, which only a foreign verb shows. *)
 and foreign_field = function Some symbol -> [ ("foreign", Leaf (text symbol)) ] | None -> []

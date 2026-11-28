@@ -183,6 +183,7 @@ let run_packages build =
   (* The memory layout depends on the target (Cgt.Ref32), which is known
      before anything is lowered. *)
   Cgt.Ref32.target := build.target;
+  Cgt.Ref32.library := (match build.view with Library _ -> true | _ -> false);
   let* () = match build.view with Build _ | Library _ | Tier_up _ -> Driver.buildable build.root | _ -> Ok () in
   let root = Option.value build.root ~default:true in
   let* packages =

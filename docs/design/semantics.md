@@ -936,9 +936,9 @@ type, whose value is discarded (`packages.md` §6.2).
 exported lambda as a constant that records its C symbol, and pass 2
 resolves each export line's package by its key, as it resolves an
 import's, refusing a line outside the root, one naming the file's own
-package, a package named twice, and, through `Collect.export_instance`
-alone, one naming an instance of a parameterized package, which zanec
-does not support. Pass 5 checks an exported lambda's signature (no abort
+package, and a package named twice. The grammar has no form yet for a
+line naming an instance of a parameterized package, `export lib<Args>;`,
+since zanec does not support parameterized packages. Pass 5 checks an exported lambda's signature (no abort
 type, no subject, parameters and a result C passes and takes, a C
 identifier for a name), checks its body with root-package rights, and
 refuses a name resolving to one in any package but the root. A root that

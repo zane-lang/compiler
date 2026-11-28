@@ -1,35 +1,31 @@
+File "fixtures/typing/exports/app/app.zn", line 10, characters 1-11:
+10 | export lib;
+   | ^^^^^^^^^^
+Error: `app` declares `main`, so it is a program package, and a program package carries no export lines; a plugin package, which declares no `main`, or a test package does (packages.md §8.1)
 File "fixtures/typing/exports/app/app.zn", line 11, characters 1-11:
 11 | export lib;
    | ^^^^^^^^^^
-Error: `app` declares `main`, so it is a program package, and a program package carries no export lines; a plugin package, which declares no `main`, or a test package does (packages.md §8.1)
-File "fixtures/typing/exports/app/app.zn", line 12, characters 1-11:
-12 | export lib;
-   | ^^^^^^^^^^
-Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:11
-File "fixtures/typing/exports/app/app.zn", line 13, characters 8-11:
-13 | export app;
+Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:10
+File "fixtures/typing/exports/app/app.zn", line 12, characters 8-11:
+12 | export app;
    |        ^^^
 Error: `app` is this file's own package; its exported lambdas get their C symbols without an export line, which names a library package (packages.md §8.3)
-File "fixtures/typing/exports/app/app.zn", line 14, characters 1-28:
-14 | export lib<@primitives$I64>;
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: this export line names an instance of a parameterized package, and zanec does not support parameterized packages (packages.md §2.6)
-File "fixtures/typing/exports/app/app.zn", line 15, characters 8-15:
-15 | export missing;
+File "fixtures/typing/exports/app/app.zn", line 13, characters 8-15:
+13 | export missing;
    |        ^^^^^^^
 Error: no package named `missing` is part of this build
-File "fixtures/typing/exports/app/app.zn", line 23, characters 5-45:
-23 |     inner I64(x I64) => x export "app_inner";
+File "fixtures/typing/exports/app/app.zn", line 21, characters 5-45:
+21 |     inner I64(x I64) => x export "app_inner";
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: an exported lambda is a package-scope lambda-variable, never one in a body: a host calls it as a C function (packages.md §8.2)
-File "fixtures/typing/exports/app/app.zn", line 24, characters 5-15:
-24 |     export lib;
+File "fixtures/typing/exports/app/app.zn", line 22, characters 5-15:
+22 |     export lib;
    |     ^^^^^^^^^^
 Error: an export line is written at package scope, beside the imports (syntax.md §8.3)
 File "fixtures/typing/exports/app/second.zn", line 3, characters 1-11:
 3 | export lib;
   | ^^^^^^^^^^
-Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:11
+Error: an export line already names `lib`, at fixtures/typing/exports/app/app.zn:10
 File "fixtures/typing/exports/lib/lib.zn", line 8, characters 1-11:
 8 | export app;
   | ^^^^^^^^^^
@@ -37,7 +33,7 @@ Error: only a plugin or test package carries export lines, and `lib` is a librar
 File "fixtures/typing/exports/lib/lib.zn", line 16, characters 49-60:
 16 | twice I64(x I64) => @operators$add(x, x) export "lib_twice";
    |                                                 ^^^^^^^^^^^
-Error: this build already exports a C function `lib_twice`, at fixtures/typing/exports/app/app.zn:20; each C name occurs once in a build (packages.md §8.2)
+Error: this build already exports a C function `lib_twice`, at fixtures/typing/exports/app/app.zn:18; each C name occurs once in a build (packages.md §8.2)
 File "fixtures/typing/exports/lib/lib.zn", line 18, characters 36-48:
 18 | aborts I64?Unit(x I64) => x export "lib_aborts";
    |                                    ^^^^^^^^^^^^

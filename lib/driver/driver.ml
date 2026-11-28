@@ -696,7 +696,7 @@ let bundle_runtime ~target ~optimize dir = built (Codegen.bundle_runtime ~target
    an executable. *)
 let buildable = function
   | Some false ->
-      fail [ Diagnostic.about_invocation "a build without a root is not built into an executable; check it with `--check`" ]
+      fail [ Diagnostic.about_invocation "a build without a root is not built into an executable or a dynamic library; check it with `--check`" ]
   | _ -> Ok ()
 
 (* The output is written only once the whole object has been rewritten, so a

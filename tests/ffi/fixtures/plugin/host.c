@@ -1,6 +1,8 @@
 /* A host (packages.md §8.1): it loads each dynamic library it is given,
    one runtime each, and calls their exports, on its own thread and on
-   threads it starts itself. */
+   threads it starts itself. A library named without a directory is the
+   file of that name beside the host, so the host finds its libraries
+   wherever dev/bin/check-programs runs it. */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +16,16 @@
 typedef struct { double x, y; } point;
 typedef struct { const uint8_t *data; size_t size; } bytes;
 
-static void *open_library(const char *path) {
+static void *open_library(const char *host, const char *name) {
+	char path[4096];
+	const char *slash = NULL;
+	if (!strchr(name, '/') && !strchr(name, '\\')) {
+		for (const char *c = host; *c; c++)
+			if (*c == '/' || *c == '\\') slash = c;
+	}
+	if (slash) snprintf(path, sizeof path, "%.*s/%s", (int)(slash - host), host, name);
+	else if (!strchr(name, '/') && !strchr(name, '\\')) snprintf(path, sizeof path, "./%s", name);
+	else snprintf(path, sizeof path, "%s", name);
 #ifdef _WIN32
 	return (void *)LoadLibraryA(path);
 #else
@@ -94,7 +105,7 @@ static void run(void *library, const char *which) {
 int main(int argc, char **argv) {
 	void *libraries[2];
 	for (int i = 1; i < argc && i < 3; i++) {
-		libraries[i - 1] = open_library(argv[i]);
+		libraries[i - 1] = open_library(argv[0], argv[i]);
 		if (!libraries[i - 1]) {
 			fprintf(stderr, "cannot load %s\n", argv[i]);
 			return 1;

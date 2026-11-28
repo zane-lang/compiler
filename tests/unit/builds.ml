@@ -356,6 +356,13 @@ let bundled_runtime () =
      named output && named runtime && after_obj !linked);
   check "and the files the link takes from the bundle"
     (bundled_files <> [] && List.for_all Sys.file_exists bundled_files);
+  check "and so is the link of a plugin's dynamic library, with the runtime compiled for one"
+    (Sys.file_exists
+       (List.fold_left Filename.concat bundled
+          [
+            "link";
+            Build.bundled_link_name ~triple:normal (level @ Build.library_link normal) (Build.library_system_libraries None);
+          ]));
   let refused = Build.bundle_runtime ~target:"i386-unknown-linux-gnu" ~optimize:false bundled in
   check "a target the compiler does not build for is refused" (Result.is_error refused)
 

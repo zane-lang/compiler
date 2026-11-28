@@ -436,10 +436,7 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
         ("symbol", Leaf (text x.symbol));
       ])
   | ExportLine x ->
-      group "export_line" (fields [
-        ("package", Leaf (text x.package));
-        ("args", map_seq type_to_node x.args);
-      ])
+      group "export_line" (Leaf (text x.package))
 
 and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
   | Func x ->

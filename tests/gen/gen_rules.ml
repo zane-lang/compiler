@@ -301,7 +301,7 @@ let ffi () =
             (fun (mode, check) ->
               let actual = Printf.sprintf "%s.plugin.%s.out.actual" name mode in
               Printf.printf
-                "(rule\n (deps %s.plugin.library %s.plugin.optimized.library)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.host.exe ./%s.plugin.library ./%s.plugin.optimized.library)))))\n\n"
+                "(rule\n (deps %s.plugin.library %s.plugin.optimized.library)\n (action\n  (setenv\n   ZANE_CHECK\n   %s\n   (with-stdout-to\n    %s\n    (run ./%s.host.exe %s.plugin.library %s.plugin.optimized.library)))))\n\n"
                 name name check actual name name name;
               diff golden actual)
             [ ("checked", "1"); ("unchecked", "0") ]

@@ -67,7 +67,8 @@ val root_kind : Tst.Nodes.Program.t -> (root_kind, failure) result
 val built_as : root_kind -> [ `Executable | `Library | `Other ] -> (unit, failure) result
 
 (** Checks that a build with [root], as `--root` or `--no-root` sets it, may
-    be built into an executable: a build without a root may not. *)
+    be built into an executable or a dynamic library: a build without a root
+    may not. *)
 val buildable : bool option -> (unit, failure) result
 
 (** The size in bytes of the range each context reserves for its frames:

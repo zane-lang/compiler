@@ -726,7 +726,7 @@ and declaration (x : C.Decl.t) : S.Decl.t =
         S.Decl.Var { name = name n; type_ = type_expr type_; value }
     | C.Decl.ExportedVar { name = n; type_; value; symbol } ->
         S.Decl.ExportedVar { name = name n; type_ = type_expr type_; value = expression value; symbol = name symbol }
-    | C.Decl.ExportLine { package; args } -> S.Decl.ExportLine { package = name package; args = List.map type_expr args }
+    | C.Decl.ExportLine { package } -> S.Decl.ExportLine { package = name package }
   in
   { S.Decl.node; span }
 

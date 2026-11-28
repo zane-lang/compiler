@@ -99,25 +99,17 @@ let conflicts a b =
 
 let members_of env pkg name = package_types env pkg name @ package_values env pkg name
 
-(* An export line naming an instance of a parameterized package (packages.md
-   §8.3, §2.6), `export lib<Args>;`: zanec does not implement parameterized
-   packages, so it refuses every such line here, and nowhere else. *)
-let export_instance env span (_args : N.Type_expr.t list) =
-  error env span
-    "this export line names an instance of a parameterized package, and zanec does not support parameterized packages (packages.md §2.6)"
-
 (* An export line (packages.md §8.3): only a root package carries one, and
    it names a library package of the build, which its key resolves as an
    import's does. Each package is named once, since a second line would give
    its exported lambdas their C names twice (§8.2). *)
-let export_line env (file : file) (p : N.Name.t) args span =
+let export_line env (file : file) (p : N.Name.t) span =
   let pkg = package env file.package in
   if not pkg.is_root then
     error env span
       (Printf.sprintf
          "only a plugin or test package carries export lines, and %s is a library package of this build (packages.md §8.3)"
          (quote pkg.declared))
-  else if args <> [] then export_instance env span args
   else
     match resolve_key env file (name_of p) with
     | Found id -> (
@@ -271,7 +263,7 @@ let import_file env (file : file) (decls : N.Decl.t list) =
           | N.Import.Members { package = p; members } ->
               Option.iter (fun id -> List.iter (fun m -> bring id m m span) members) (imported p)
           | N.Import.All { package = p } -> bring_all p span)
-      | N.Decl.ExportLine { package = p; args } -> export_line env file p args d.N.Decl.span
+      | N.Decl.ExportLine { package = p } -> export_line env file p d.N.Decl.span
       | _ -> ())
     decls
 

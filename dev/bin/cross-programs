@@ -22,7 +22,8 @@ set -euo pipefail
 # streams, as tests/codegen/ holds it.
 #
 # Each C interface fixture NAME with an expected output is built the same
-# three ways, from its packages, as ffi.NAME.
+# three ways, from its packages, as ffi.NAME, and each plugin fixture into
+# its two dynamic libraries and its host, ffi.NAME.host.
 #
 # `abi` is the runtime's probe of its own structs, held to runtime/zane_abi.h.
 #
@@ -119,6 +120,24 @@ for golden in tests/ffi/golden/*.out; do
 	expect "$name" "$golden" "$status"
 	expect "$name.optimized" "$optimized" "$status"
 	expect "$name.tiered" "$golden" "$status"
+done
+
+# A plugin fixture, `NAME.plugin.out`, as tests/ffi/ builds it: its
+# packages built into a dynamic library unoptimized and optimized, and its
+# C host `host.c`, which loads both from beside itself, run with their
+# names as its arguments.
+for golden in tests/ffi/golden/*.plugin.out; do
+	[[ -f "$golden" ]] || continue
+	fixture="$(basename "$golden" .plugin.out)"
+	name="ffi.$fixture"
+	dir="$objects/ffi/$fixture"
+	packages=()
+	for sub in "$dir"/*/; do [[ -d "$sub" ]] && packages+=(--package "${sub%/}"); done
+	"$ZANEC" --target "$TARGET" --library "$OUT/$name.plugin$LIB" "${packages[@]}"
+	"$ZANEC" --target "$TARGET" --optimize --library "$OUT/$name.plugin.optimized$LIB" "${packages[@]}"
+	"$ZANE_CC" --target="$TARGET" -std=c11 -O1 -pthread -o "$OUT/$name.host$EXE" "$dir/host.c"
+	expect "$name.host" "$golden" 0
+	printf '%s\n' "$name.plugin$LIB" "$name.plugin.optimized$LIB" >"$OUT/$name.host.args"
 done
 
 geometry=tests/objects/fixtures/geometry

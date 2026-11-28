@@ -619,13 +619,14 @@ header_decl:
   | value=import_decl {
       decl $loc (Nodes.Decl.Import value)
     }
-  (* An export line (syntax.md §8.3, packages.md §8.3): a library package,
-     or an instance of a parameterized one, whose exported lambdas this
-     build gives C symbols. It ends in a name or a `>`, so it takes the `;`
-     the other header declarations take. *)
-  | EXPORT package=lname
-    args=loption(delimited(LESS, separated_nonempty_list(COMMA, type_expr), MORE)) {
-      decl $loc (Nodes.Decl.ExportLine { package; args })
+  (* An export line (syntax.md §8.3, packages.md §8.3): a library package
+     whose exported lambdas this build gives C symbols. It ends in a name,
+     so it takes the `;` the other header declarations take. The form that
+     names an instance of a parameterized package, `export lib<Args>`,
+     waits for parameterized packages, whose `<` after a lower-case name
+     the grammar's proof does not yet certify (docs/ambiguity). *)
+  | EXPORT package=lname {
+      decl $loc (Nodes.Decl.ExportLine { package })
     }
 
 (* A verb declaration and the declaration wrapping it span the same tokens:

@@ -183,6 +183,11 @@ size_t zane_page_bytes(void) {
 #ifdef _WIN32
 extern const char __ImageBase;
 #define ZANE_IMAGE_START __ImageBase
+#elif defined(__APPLE__) && defined(ZANE_LIBRARY)
+/* A dynamic library's own Mach-O header, which its linker defines as it
+   defines an executable's `_mh_execute_header`. */
+extern const char __dso_handle;
+#define ZANE_IMAGE_START __dso_handle
 #elif defined(__APPLE__)
 extern const char _mh_execute_header;
 #define ZANE_IMAGE_START _mh_execute_header

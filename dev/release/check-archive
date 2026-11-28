@@ -40,13 +40,15 @@ cp -R "$source/tests/codegen/fixtures/hello" "$out/hello"
 # takes the archive's own toolchain.
 unset ZANE_CC ZIG ZANE_RUNTIME_OBJECTS
 export ZANE_CACHE_DIR="$out/cache" ZIG_GLOBAL_CACHE_DIR="$out/zig-cache" ZIG_LOCAL_CACHE_DIR="$out/zig-cache"
-test "$(find "$root/share/runtime" -maxdepth 1 -name '*.o' | wc -l)" -eq 12
+# A program's runtime and a plugin's dynamic library's, for each target
+# and level (docs/design/ffi.md F21).
+test "$(find "$root/share/runtime" -maxdepth 1 -name '*.o' | wc -l)" -eq 24
 # The optimized runtime's bitcode for each target, which an optimized build
 # links whole into its module (docs/design/lowering.md §7).
 test "$(find "$root/share/runtime" -maxdepth 1 -name '*.bc' -size +0 | wc -l)" -eq 6
-# A program's link for each target and level, and an optimized shared
-# library's for each target, tier 1's.
-test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 18
+# A program's link and a plugin's dynamic library's for each target and
+# level, and an optimized shared library's for each target, tier 1's.
+test "$(find "$root/share/runtime/link" -maxdepth 1 -type f | wc -l)" -eq 30
 for optimization in plain optimized; do
 	# macOS's bash 3.2 takes an empty array for unset, so the flag goes in
 	# the positional parameters, which may be empty.
@@ -67,7 +69,13 @@ cmp "$golden" "$out/hello-tiered.out"
 # the shell, since a backreference in an extended pattern is GNU's alone.
 said=$(sed -n 's/^zane: tier 1 runs \([0-9][0-9]*\) of \([0-9][0-9]*\) functions.*$/\1 \2/p' "$out/hello-tiered.log" | tr -d '\r')
 [[ -n "$said" && "${said% *}" == "${said#* }" ]] || { cat "$out/hello-tiered.log" >&2; false; }
+# A plugin package, built into a dynamic library plain and optimized with
+# the bundled library runtime and link (docs/design/ffi.md F21).
+cp -R "$source/tests/semantics/fixtures/project/bin/synth" "$out/synth"
+"$zanec" --library "$out/synth-plain$library" --package "$out/synth"
+"$zanec" --optimize --library "$out/synth-optimized$library" --package "$out/synth"
+test -s "$out/synth-plain$library" && test -s "$out/synth-optimized$library"
 unexpected=$(find "$ZANE_CACHE_DIR" -mindepth 1 -maxdepth 1 ! -name tier)
 [[ -z "$unexpected" ]] || { printf 'check-archive: the cache holds %s\n' "$unexpected" >&2; false; }
 test ! -e "$out/zig-cache"
-echo "Relocated compiler built and ran plain, optimized and tiered programs with its bundled runtimes and links, running no C compiler"
+echo "Relocated compiler built and ran plain, optimized and tiered programs, and built a plugin plain and optimized, with its bundled runtimes and links, running no C compiler"

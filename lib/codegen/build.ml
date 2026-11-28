@@ -557,6 +557,20 @@ let shared_extension triple =
   let has part = List.exists (fun p -> String.starts_with ~prefix:part p) parts in
   if has "windows" then ".dll" else if has "darwin" || has "macos" || has "apple" then ".dylib" else ".so"
 
+(* The libraries a plugin's dynamic library for [target] links with
+   besides libc: those a program links with (packages.md §8.1), but for the
+   ones only a program's own start-up needs, the command line and the main
+   thread's stack. *)
+let library_system_libraries target =
+  if windows target then [] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]
+
+(* The flags that link a plugin's dynamic library: a shared library, whose
+   references to its own definitions bind to them on ELF, so that two Zane
+   libraries in one host never reach each other's (packages.md §8.1); Mach-O's
+   two-level namespace and a DLL's imports bind them so already. *)
+let library_link triple =
+  shared @ if macho triple || List.mem "windows" (String.split_on_char '-' triple) then [] else [ "-Wl,-Bsymbolic" ]
+
 (* The libraries every program for [target] links with besides libc. The
    approximate math functions are the C math library's (math.md §2.6):
    Windows' C runtime and macOS's libSystem hold it, and on Linux it is a
@@ -1111,12 +1125,32 @@ let bundle_bitcode ~cc ~triple ~target dir work =
   | Ok _ when Runtime_bodies.readable path -> ()
   | Ok _ | Error _ -> ( try Sys.remove path with Sys_error _ -> ())
 
-(* What links a program with the runtime at [runtime] ([bundle_link]), and
-   for an optimized one also a shared library ([bundle_shared_link]). *)
-let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime =
+(* The linker command *cc* gives for a plugin's dynamic library for
+   [target] (docs/design/ffi.md F21), linked with [level] and the library
+   runtime at [runtime], kept as [bundle_link] keeps a program's. *)
+let bundle_library_link ~cc ~target ~triple ~tm level dir work runtime =
+  let system = library_system_libraries (Some target) in
+  let obj = Filename.concat work "library.o"
+  and output = Filename.concat work ("library" ^ shared_extension triple) in
+  (* A library as small as the runtime links with: no entry, and the sizes
+     of the contexts' ranges (runtime/zane.h). *)
+  stub_object ~triple ~tm obj (fun ctx m ->
+      List.iter
+        (fun name -> ignore (Llvm.define_global name (Llvm.const_int (Llvm.i64_type ctx) 0) m))
+        [ "zane_fixed_region"; "zane_spawned_fixed_region" ]);
+  let flags = level @ library_link triple in
+  let args = target_flag (Some target) @ flags @ [ "-o"; output; obj; runtime ] @ system in
+  bundle_command ~cc ~target ~triple ~args ~obj ~runtime ~output ~name:(bundled_link_name ~triple flags system) dir work
+
+(* What links a program with the runtime at [runtime] ([bundle_link]), a
+   plugin's dynamic library with the library runtime at [library]
+   ([bundle_library_link]), and for an optimized build also a shared
+   library ([bundle_shared_link]). *)
+let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime library =
   let ( let* ) = Result.bind in
   match
     let* () = bundle_link ~cc ~target ~triple ~tm level dir work runtime in
+    let* () = bundle_library_link ~cc ~target ~triple ~tm level dir work library in
     if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ()
   with
   | result -> result
@@ -1126,8 +1160,9 @@ let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime =
 
 (* The runtime compiled for [target], with or without optimizing, into
    [dir] under the name a build for that target looks for there
-   ([bundled_name]), and the linker command and files that link a program
-   with it ([bundle_link]), and an optimized one's bitcode
+   ([bundled_name]), beside the runtime a plugin's dynamic library links
+   with, and the linker commands and files that link a program and a
+   dynamic library with them ([bundle_links]), and an optimized one's bitcode
    ([bundle_bitcode]): what a release bundles for each target it ships
    (docs/design/lowering.md §7). A target is required, since a C compiler
    given none compiles for the processor it runs on. *)
@@ -1142,16 +1177,16 @@ let bundle_runtime ~target ~optimize dir =
   | () -> (
       let level = level ~optimize and cc = cc () in
       let runtime = Filename.concat dir (bundled_name ~triple level) in
-      let library = level @ library_flags ~triple in
+      let library_level = level @ library_flags ~triple in
+      let library = Filename.concat dir (bundled_name ~triple library_level) in
       match
         Result.bind (compile ~cc ~triple (target_flag (Some target) @ level) work runtime) (fun _ ->
-            compile ~cc ~triple (target_flag (Some target) @ library) work
-              (Filename.concat dir (bundled_name ~triple library)))
+            compile ~cc ~triple (target_flag (Some target) @ library_level) work library)
       with
       | Error _ as error -> error
       | Ok _ ->
           if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
-          bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime)
+          bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime library)
 
 (* The path of the [i]th object [object_file] writes beside [output] for
    the package's C sources holding assembly: `STEM.c.I.o`, [output]'s name
@@ -1372,20 +1407,6 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
           | Ok runtime, Ok c ->
               link_program ?cache ?bundled:bundled_link ~libraries ~cc ~triple
                 ~args:(args c obj runtime) ~deps:(deps c) ~obj ~runtime ~output dir))
-
-(* The libraries a plugin's dynamic library for [target] links with
-   besides libc: those a program links with (packages.md §8.1), but for the
-   ones only a program's own start-up needs, the command line and the main
-   thread's stack. *)
-let library_system_libraries target =
-  if windows target then [] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]
-
-(* The flags that link a plugin's dynamic library: a shared library, whose
-   references to its own definitions bind to them on ELF, so that two Zane
-   libraries in one host never reach each other's (packages.md §8.1); Mach-O's
-   two-level namespace and a DLL's imports bind them so already. *)
-let library_link triple =
-  shared @ if macho triple || List.mem "windows" (String.split_on_char '-' triple) then [] else [ "-Wl,-Bsymbolic" ]
 
 (* Every definition of the Zane code in [m] hidden, before its C is linked
    in: a plugin's dynamic library offers its host its exports, which its C

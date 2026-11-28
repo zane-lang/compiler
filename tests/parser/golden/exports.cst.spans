@@ -6,16 +6,6 @@ package | package plugin; import syn … 00.0) export "synth_rate";
       package synth | synth
   decl | export synth
     package synth | synth
-  decl | export clap<synth$Synth, synth$Params>
-    package clap | clap
-    type_expr | synth$Synth
-      name_type | synth$Synth
-        package synth | synth
-        ident Synth | Synth
-    type_expr | synth$Params
-      name_type | synth$Params
-        package synth | synth
-        ident Params | Params
   decl | create @primitives$I64(rat … ); } export "synth_create"
     name create | create
     type_expr | @primitives$I64(rate @prim … turn @primitives$I64(1); }

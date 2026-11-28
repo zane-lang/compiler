@@ -2896,7 +2896,7 @@
    1
    (with-stdout-to
     plugin.plugin.checked.out.actual
-    (run ./plugin.host.exe ./plugin.plugin.library ./plugin.plugin.optimized.library)))))
+    (run ./plugin.host.exe plugin.plugin.library plugin.plugin.optimized.library)))))
 
 (rule
  (alias runtest)
@@ -2911,7 +2911,7 @@
    0
    (with-stdout-to
     plugin.plugin.unchecked.out.actual
-    (run ./plugin.host.exe ./plugin.plugin.library ./plugin.plugin.optimized.library)))))
+    (run ./plugin.host.exe plugin.plugin.library plugin.plugin.optimized.library)))))
 
 (rule
  (alias runtest)

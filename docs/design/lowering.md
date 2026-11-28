@@ -552,10 +552,12 @@ The runtime is compiled with `-fzero-call-used-regs=skip`,
 `-fno-stack-protector`, `-fno-stack-clash-protection` and `-fno-wrapv`, and,
 on every target but Apple's, whose ABI keeps frame pointers,
 `-fomit-frame-pointer`, whatever the C compiler would add by itself. On ELF
-it also takes `-ftls-model=local-exec`: the runtime is only ever linked into
+a program's runtime also takes `-ftls-model=local-exec`: it is linked into
 an executable, so a thread's variable is read at a fixed offset from the
 thread's pointer, rather than through the descriptor a position-independent
-compile asks for. Some toolchains add the rest by default, hardened
+compile asks for. The runtime a plugin's dynamic library links takes the
+initial-exec model instead, which a library `dlopen` loads may use
+([`ffi.md`](ffi.md) F21). Some toolchains add the rest by default, hardened
 distribution clangs among them, and they cost the runtime's small, hot functions more than
 anything else in them; `-fwrapv`, signed arithmetic that wraps, keeps LLVM
 from simplifying the runtime's rounding of sizes. The C library's checked
@@ -716,6 +718,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--cgt` | prints the code-generation tree, as stage 5 left it when `--optimize` is given |
 | `--ll` | prints the LLVM module |
 | `--build OUT` | builds the program into the executable `OUT` |
+| `--library OUT` | builds a plugin package, a root without `main`, into the dynamic library `OUT`, linked with the runtime compiled for one, offering its exports ([`ffi.md`](ffi.md) F20, F21) |
 | `--object OUT` | writes the object file `OUT` of the project's own packages, with no runtime and no link ([`separate-compilation.md`](separate-compilation.md) C3), and beside it `STEM.c.N.o`, the objects of their C sources holding assembly ([`ffi.md`](ffi.md) F15) |
 | `--tiered` | with `--build`, makes tier 0 of a tiered build, whose calls go through slots tier 1 fills while it runs, linked with the runtime compiled with `-O2` ([`tiers.md`](tiers.md) T1, T4, T5) |
 | `--tier-up OUT` | makes tier 1 of a tiered build, the program optimized into the shared library `OUT` ([`tiers.md`](tiers.md) T1, T2) |
@@ -724,7 +727,7 @@ The binary takes the same `--package` flags as the semantic views:
 | `--stamp PATH=STAMP` | names the symbols of the package at `PATH` with `STAMP`, as `--package STAMPPATH=DIR` does; a dependency given one arrives as objects of its own, so its verbs are declared rather than lowered (C1, C6, C10) |
 | `--import PACKAGE:KEY=PACKAGE` | the package the first imports by `KEY`, each named by its identity (C10) |
 | `--link FILE` | links the object `FILE` into the program `--build` makes, as a stamped dependency's objects are (C7) |
-| `--target TRIPLE` | compiles `--ll`, `--build` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
+| `--target TRIPLE` | compiles `--ll`, `--build`, `--library` and `--object` for the LLVM target `TRIPLE` instead of the host, and has the C compiler link `--build` and `--library` for it; LLVM gets the triple's normal form, and the C compiler the triple as written ([`platforms.md`](platforms.md)) |
 | `--optimize` | runs stage 5 over the tree ([`optimization.md`](optimization.md)), then LLVM's `-O2` pipeline over the module, with the whole runtime in it for an executable and the runtime's bodies safe to copy for `--object` (§7), generates optimized code, and compiles the runtime with `-O2` |
 | `--fixed-region BYTES` | the size of the main context's range of frames, a whole number of MiB, 256 MiB when absent (§9) |
 | `--spawned-fixed-region BYTES` | the size of each spawned call's range of frames, a whole number of MiB, 8 MiB when absent (§9) |
@@ -738,7 +741,8 @@ library object `INPUT` to `OUTPUT` with its `!` placeholder turned into
 reference to the package version stamped `FROM` moved to the version stamped
 `TO`, as remapping does (C11).
 
-`--no-root` refuses `--build`, since a build without a root is not an executable.
+`--no-root` refuses `--build` and `--library`, since a build without a root is
+neither an executable nor a dynamic library.
 With it, lowering starts from every verb each of the project's own packages
 declares that is not generic and has a function of its own, and from their
 lambda-variables, rather than from `main`, and names them with the `!`
