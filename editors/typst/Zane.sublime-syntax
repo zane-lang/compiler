@@ -28,6 +28,8 @@ contexts:
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])handle(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
+    - match: "(?<![\\p{Alphabetic}0-9_])export(?![\\p{Alphabetic}0-9])"
+      scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])import(?![\\p{Alphabetic}0-9])"
       scope: keyword.control.zane
     - match: "(?<![\\p{Alphabetic}0-9_])return(?![\\p{Alphabetic}0-9])"

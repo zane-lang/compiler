@@ -121,7 +121,9 @@ identity; a package's imports name packages through the keys the driver
 gives it, or by name when the build is given no keys at all
 ([`separate-compilation.md`](separate-compilation.md) C10). `--check` runs semantics and prints only diagnostics, the C compiler's
 warnings of the packages being worked on among them ([`ffi.md`](ffi.md) F3), and
-`--root` makes a root without `main` an error (§6.2).
+`--root` makes a root without `main` an error (§6.2), unless it is a
+plugin package's, which carries an export line or declares an exported
+lambda (`packages.md` §8.1, `Driver.root_kind`).
 
 **D3. The compiler never names `core`.** `core` is an ordinary package
 ([`types.md`](https://github.com/zane-lang/spec/blob/b0675d6/spec/types.md) §2.6), so the compiler reads it as source and checks it by the
@@ -982,6 +984,21 @@ the signature's other introductions (`Verb_signatures.scan_ret`,
 `scan_param_type`), and belong to the verb, so a lambda that writes one is
 refused as any lambda introduction is.
 
-**`main`** is not required, since a library built on its own is also a root.
-When the root declares one, it takes no parameters, and it may return any
+**`main`** is not required, since a library built on its own is also a root,
+and a plugin package declares none (`packages.md` §8.1). When the root
+declares one, it takes no parameters, and it may return any
 type, whose value is discarded (`packages.md` §6.2).
+
+**Exports** (`packages.md` §8, `Tst.Check.Exports`). Pass 1 files an
+exported lambda as a constant that records its C symbol, and pass 2
+resolves each export line's package by its key, as it resolves an
+import's, refusing a line outside the root, one naming the file's own
+package, and a package named twice. The grammar has no form yet for a
+line naming an instance of a parameterized package, `export lib<Args>;`,
+since zanec does not support parameterized packages. Pass 5 checks an exported lambda's signature (no abort
+type, no subject, parameters and a result C passes and takes, a C
+identifier for a lambda name), checks its body with root-package rights, and
+refuses a name resolving to one in any package but the root. A root that
+declares `main` carries no export lines unless it is a test package, named
+`test`. The program lists the exports the build gives C symbols, each C
+name once ([`ffi.md`](ffi.md) F20).

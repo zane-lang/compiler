@@ -124,8 +124,17 @@ The runtime is C, and it finds what it calls by a C name. These keep one:
 
 - the program's entry, `zane_main`, whatever its `main` is called
   ([`lowering.md`](lowering.md) L16);
-- the runtime's own functions, all `zane_*`. No symbol above can clash with
-  them, since every one contains a `$`.
+- an exported lambda's C function, under the C name its `export` gives
+  it, which a dynamic library offers its host and a test package's C
+  calls ([`ffi.md`](ffi.md) F20), and in a plugin's or a test package's
+  build the root's own C globals, under the names its C gives them
+  ([`ffi.md`](ffi.md) F21); a `$` in every Zane symbol keeps these apart
+  from it;
+- the runtime's own functions, all `zane_*`. The program's entry and every
+  Zane symbol stay apart from them, since the entry is the runtime's own
+  and every Zane symbol contains a `$`. An export's C name or a root C
+  global can still be one of them, since the spec reserves no prefix, and
+  the link then fails on the symbol both define.
 
 A function or variable the compiler makes for itself, with no declaration behind it, is named
 under `zane.`: the function each spawned call runs through (`zane.spawn.N`),
@@ -150,10 +159,11 @@ program value such as `@program$console` holds (`zane.value.@program$console`).
   stamped dependency that reads them
   ([`separate-compilation.md`](separate-compilation.md) C4).
 - A program builds into one module ([`lowering.md`](lowering.md) L15), so
-  every verb but `zane_main` is local to it: its symbol is in the binary, for
-  a debugger or a profiler, but no other object links against it. A walk
-  table is private and has no symbol in the binary at all, and its walks are
-  local.
+  every verb but `zane_main` is local to it: a verb's symbol is in the
+  binary, for a debugger or a profiler, but no other object links against
+  it. A plugin's dynamic library hides every verb, and offers only its
+  exports ([`ffi.md`](ffi.md) F21). A walk table is private and has no
+  symbol in the binary at all, and its walks are local.
 - A library built into an object of its own carries the `!` placeholder
   before its package's name, in its verbs' names and in its types' names
   wherever a symbol names one: `!geometry$sum(this !geometry$Point)`. Its

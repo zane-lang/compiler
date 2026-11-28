@@ -1,0 +1,1 @@
+Error: the root is a program package, which declares `main`, so it builds into an executable with `--build`, not into a dynamic library

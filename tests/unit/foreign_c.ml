@@ -961,6 +961,7 @@ let own_hashes () =
         defined = [];
         libraries = [];
         labels = None;
+        keeps_names = false;
       } )
   in
   let ps = [ package "lib"; package "olib" ] in

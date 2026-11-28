@@ -41,7 +41,8 @@ type kind =
       value : N.Type_or_moulded.t;
       alias : bool;
     }
-  | Constant of { name : N.Name.t; type_ : N.Type_expr.t; value : N.Expr.t }
+  (* [export] is the C symbol an exported lambda names (packages.md §8.2). *)
+  | Constant of { name : N.Name.t; type_ : N.Type_expr.t; value : N.Expr.t; export : N.Name.t option }
   | Verb of N.Verb_decl.t
   | Enum_map of {
       enum : N.Type_expr.t;
@@ -84,6 +85,9 @@ type package = {
      a package by its name. *)
   keyed : bool;
   is_root : bool;
+  (* The library packages the package's export lines name, by identity,
+     each with the line's span (packages.md §8.3). *)
+  mutable export_lines : (string * Span.t) list;
   files : file list;
   mutable decls : decl list;
   (* Plain-name lookup reads these two and nothing else. *)

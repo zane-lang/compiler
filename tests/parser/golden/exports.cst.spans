@@ -1,0 +1,121 @@
+package | package plugin; import syn … 00.0) export "synth_rate";
+  decl | package plugin
+    name plugin | plugin
+  decl | import synth
+    import | import synth
+      package synth | synth
+  decl | export synth
+    package synth | synth
+  decl | create @primitives$I64(rat … ); } export "synth_create"
+    name create | create
+    type_expr | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+      verb_type | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+        param_type | @primitives$F64
+          type_expr | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+        ret_type | @primitives$I64
+          type_expr | @primitives$I64
+            name_type | @primitives$I64
+              package primitives | primitives
+              ident I64 | I64
+    expr | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+      func_lambda | @primitives$I64(rate @prim … turn @primitives$I64(1); }
+        param | rate @primitives$F64
+          name rate | rate
+          param_type | @primitives$F64
+            type_expr | @primitives$F64
+              name_type | @primitives$F64
+                package primitives | primitives
+                ident F64 | F64
+        ret_type | @primitives$I64
+          type_expr | @primitives$I64
+            name_type | @primitives$I64
+              package primitives | primitives
+              ident I64 | I64
+        body | { return @primitives$I64(1); }
+          statement | return @primitives$I64(1);
+            stat | return @primitives$I64(1);
+              expr | @primitives$I64(1)
+                verb_call | @primitives$I64(1)
+                  constructor_name | @primitives$I64
+                    name_type | @primitives$I64
+                      package primitives | primitives
+                      ident I64 | I64
+                  constructor_args | (1)
+                    call_arg | 1
+                      expr | 1
+    symbol synth_create | "synth_create"
+  decl | volume @primitives$Unit(th …  export "synth_set_volume"
+    name volume | volume
+    type_expr | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+      verb_type | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+        type_expr | Synth
+          name_type | Synth
+            ident Synth | Synth
+        param_type | @primitives$F64
+          type_expr | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+        ret_type | @primitives$Unit
+          type_expr | @primitives$Unit
+            name_type | @primitives$Unit
+              package primitives | primitives
+              ident Unit | Unit
+    expr | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+      meth_lambda | @primitives$Unit(this Synt … turn @primitives$Unit(); }
+        type_expr | Synth
+          name_type | Synth
+            ident Synth | Synth
+        param | level @primitives$F64
+          name level | level
+          param_type | @primitives$F64
+            type_expr | @primitives$F64
+              name_type | @primitives$F64
+                package primitives | primitives
+                ident F64 | F64
+        ret_type | @primitives$Unit
+          type_expr | @primitives$Unit
+            name_type | @primitives$Unit
+              package primitives | primitives
+              ident Unit | Unit
+        body | { return @primitives$Unit(); }
+          statement | return @primitives$Unit();
+            stat | return @primitives$Unit();
+              expr | @primitives$Unit()
+                verb_call | @primitives$Unit()
+                  constructor_name | @primitives$Unit
+                    name_type | @primitives$Unit
+                      package primitives | primitives
+                      ident Unit | Unit
+                  constructor_args | ()
+    symbol synth_set_volume | "synth_set_volume"
+  decl | rate @primitives$F64() =>  … 000.0) export "synth_rate"
+    name rate | rate
+    type_expr | @primitives$F64() => @primitives$F64(48000.0)
+      verb_type | @primitives$F64() => @primitives$F64(48000.0)
+        ret_type | @primitives$F64
+          type_expr | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+    expr | @primitives$F64() => @primitives$F64(48000.0)
+      func_lambda | @primitives$F64() => @primitives$F64(48000.0)
+        ret_type | @primitives$F64
+          type_expr | @primitives$F64
+            name_type | @primitives$F64
+              package primitives | primitives
+              ident F64 | F64
+        body | => @primitives$F64(48000.0)
+          expr | @primitives$F64(48000.0)
+            verb_call | @primitives$F64(48000.0)
+              constructor_name | @primitives$F64
+                name_type | @primitives$F64
+                  package primitives | primitives
+                  ident F64 | F64
+              constructor_args | (48000.0)
+                call_arg | 48000.0
+                  expr | 48000.0
+    symbol synth_rate | "synth_rate"

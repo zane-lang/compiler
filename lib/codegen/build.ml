@@ -211,7 +211,8 @@ let write_runtime dir =
 let sources = List.concat_map (fun (name, text) -> [ name; text ]) runtime_files
 
 (* The flags besides the target's that the runtime is compiled and the
-   program linked with, optimizing or not. *)
+   program linked with, optimizing or not; [library_level] gives a
+   dynamic library's. *)
 let level ~optimize =
   [ (if optimize then "-O2" else "-O0"); "-pthread" ]
   @ (if Cgt.Ref32.frames () then [ "-DZANE_FRAME_REFS" ] else [])
@@ -219,6 +220,11 @@ let level ~optimize =
      else if Cgt.Ref32.image_boxes () then [ "-DZANE_IMAGE_BOXES" ]
      else [])
   @ if Cgt.Ref32.bump () then [ "-DZANE_BUMP_REGIONS" ] else []
+
+let library_level ~optimize =
+  let was = !Cgt.Ref32.library in
+  Cgt.Ref32.library := true;
+  Fun.protect ~finally:(fun () -> Cgt.Ref32.library := was) (fun () -> level ~optimize)
 
 (* The C compiler links for the target as it was written: `zig cc` reads
    its own short triples, and not every normal form. *)
@@ -557,6 +563,20 @@ let shared_extension triple =
   let has part = List.exists (fun p -> String.starts_with ~prefix:part p) parts in
   if has "windows" then ".dll" else if has "darwin" || has "macos" || has "apple" then ".dylib" else ".so"
 
+(* The libraries a plugin's dynamic library for [target] links with
+   besides libc: those a program links with (packages.md §8.1), but for the
+   libraries only a program's own start-up needs, the command line and the main
+   thread's stack. *)
+let library_system_libraries target =
+  if windows target then [] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]
+
+(* The flags that link a plugin's dynamic library: a shared library, whose
+   references to its own definitions bind to them on ELF, so that two Zane
+   libraries in one host never reach each other's (packages.md §8.1); Mach-O's
+   two-level namespace and a DLL's imports bind them so already. *)
+let library_link triple =
+  shared @ if macho triple || List.mem "windows" (String.split_on_char '-' triple) then [] else [ "-Wl,-Bsymbolic" ]
+
 (* The libraries every program for [target] links with besides libc. The
    approximate math functions are the C math library's (math.md §2.6):
    Windows' C runtime and macOS's libSystem hold it, and on Linux it is a
@@ -711,17 +731,32 @@ let link_program ?cache ?bundled ?(lld = lld_run) ?(say = prerr_string) ?(librar
               end;
               Ok ()))
 
+(* The define that compiles the runtime for a dynamic library
+   (runtime/main.c): its start-up runs as the library is loaded, and it has
+   no C `main`. *)
+let library_define = "-DZANE_LIBRARY"
+
+(* What a dynamic library's runtime is compiled with besides a program's
+   (packages.md §8.1): hidden, so that two Zane libraries in one host each
+   call their own runtime, and, on ELF, position-independent, with its
+   thread's variables in the initial-exec model, which a library loaded by
+   `dlopen` may use where a program's local-exec model may not. *)
+let library_flags ~triple =
+  let coff = List.mem "windows" (String.split_on_char '-' triple) in
+  [ library_define; "-fvisibility=hidden" ] @ if macho triple || coff then [] else [ "-fPIC"; "-ftls-model=initial-exec" ]
+
 (* What the runtime is compiled with besides [flags], whatever the C
    compiler would add by itself: no clearing of the registers a function
    used before it returns, and, but on Apple's targets, whose ABI keeps
    them, no frame pointers. Some toolchains add both by default, hardened
    distribution clangs among them, and they cost the runtime's small, hot
    functions more than anything else in them (docs/optimizations.md). *)
-let tuning ~triple =
+let tuning ~triple flags =
   let coff = List.mem "windows" (String.split_on_char '-' triple) in
   [ "-fzero-call-used-regs=skip"; "-fno-stack-protector"; "-fno-stack-clash-protection"; "-fno-wrapv" ]
   @ (if macho triple then [] else [ "-fomit-frame-pointer" ])
-  @ if macho triple || coff then [] else [ "-ftls-model=local-exec" ]
+  (* A dynamic library's runtime takes the model [library_flags] gives. *)
+  @ if macho triple || coff || List.mem library_define flags then [] else [ "-ftls-model=local-exec" ]
 
 (* The runtime's sources in [dir] compiled by *cc* with [flags] and the
    [tuning] for [triple] into [output], or with [flags] alone by a C
@@ -730,7 +765,7 @@ let compile ~cc ~triple flags dir output =
   let command ?stderr flags =
     Filename.quote_command ?stderr cc (flags @ [ "-c"; "-o"; output; Filename.concat dir "zane.c" ])
   in
-  match Sys.command (command ~stderr:Filename.null (flags @ tuning ~triple)) with
+  match Sys.command (command ~stderr:Filename.null (flags @ tuning ~triple flags)) with
   | 0 -> Ok output
   | _ -> (
       let command = command flags in
@@ -743,8 +778,8 @@ let compile ~cc ~triple flags dir output =
    own, or from [cache] when either has it, and one compiled now is kept in
    [cache]; compiling it costs more than the rest of a small program's
    build. *)
-let runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir =
-  let level = level ~optimize in
+let runtime_object ?bundled ?cache ?(library = false) ~cc ~triple ?target ~optimize dir =
+  let level = level ~optimize @ if library then library_flags ~triple else [] in
   let flags = target_flag target @ level in
   let fresh = Filename.concat dir "runtime.o" in
   match Option.map (fun bundled -> Filename.concat bundled (bundled_name ~triple level)) bundled with
@@ -755,7 +790,7 @@ let runtime_object ?bundled ?cache ~cc ~triple ?target ~optimize dir =
       | Some (cache, identity) ->
           let kept =
             Filename.concat (Filename.concat cache "runtime")
-              (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple) ^ ".o")
+              (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple flags) ^ ".o")
           in
           if Sys.file_exists kept then Ok kept
           else
@@ -801,7 +836,7 @@ let with_runtime_bitcode ?bundled ?cache ~cc ~triple ?target use =
   let from_cache ~cache ~identity ~fresh compiled =
     let kept =
       Filename.concat (Filename.concat cache "runtime")
-        (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple) ^ ".bc")
+        (runtime_key ~cc ~identity ~triple (flags @ tuning ~triple flags) ^ ".bc")
     in
     if not (Sys.file_exists kept) then begin
       if not (compiled ()) then Out_channel.with_open_bin fresh (fun _ -> ());
@@ -1096,12 +1131,32 @@ let bundle_bitcode ~cc ~triple ~target dir work =
   | Ok _ when Runtime_bodies.readable path -> ()
   | Ok _ | Error _ -> ( try Sys.remove path with Sys_error _ -> ())
 
-(* What links a program with the runtime at [runtime] ([bundle_link]), and
-   for an optimized one also a shared library ([bundle_shared_link]). *)
-let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime =
+(* The linker command *cc* gives for a plugin's dynamic library for
+   [target] (docs/design/ffi.md F21), linked with [level] and the library
+   runtime at [runtime], kept as [bundle_link] keeps a program's. *)
+let bundle_library_link ~cc ~target ~triple ~tm level dir work runtime =
+  let system = library_system_libraries (Some target) in
+  let obj = Filename.concat work "library.o"
+  and output = Filename.concat work ("library" ^ shared_extension triple) in
+  (* A library as small as the runtime links with: no entry, and the sizes
+     of the contexts' ranges (runtime/zane.h). *)
+  stub_object ~triple ~tm obj (fun ctx m ->
+      List.iter
+        (fun name -> ignore (Llvm.define_global name (Llvm.const_int (Llvm.i64_type ctx) 0) m))
+        [ "zane_fixed_region"; "zane_spawned_fixed_region" ]);
+  let flags = level @ library_link triple in
+  let args = target_flag (Some target) @ flags @ [ "-o"; output; obj; runtime ] @ system in
+  bundle_command ~cc ~target ~triple ~args ~obj ~runtime ~output ~name:(bundled_link_name ~triple flags system) dir work
+
+(* What links a program with the runtime at [runtime] ([bundle_link]), a
+   plugin's dynamic library with the library runtime at [library]
+   ([bundle_library_link]), and for an optimized build also a shared
+   library ([bundle_shared_link]). *)
+let bundle_links ~cc ~target ~triple ~tm ~optimize ~library_level level dir work runtime library =
   let ( let* ) = Result.bind in
   match
     let* () = bundle_link ~cc ~target ~triple ~tm level dir work runtime in
+    let* () = bundle_library_link ~cc ~target ~triple ~tm library_level dir work library in
     if optimize then bundle_shared_link ~cc ~target ~triple ~tm level dir work else Ok ()
   with
   | result -> result
@@ -1111,8 +1166,9 @@ let bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime =
 
 (* The runtime compiled for [target], with or without optimizing, into
    [dir] under the name a build for that target looks for there
-   ([bundled_name]), and the linker command and files that link a program
-   with it ([bundle_link]), and an optimized one's bitcode
+   ([bundled_name]), beside the runtime a plugin's dynamic library links
+   with, and the linker commands and files that link a program and a
+   dynamic library with them ([bundle_links]), and an optimized one's bitcode
    ([bundle_bitcode]): what a release bundles for each target it ships
    (docs/design/lowering.md §7). A target is required, since a C compiler
    given none compiles for the processor it runs on. *)
@@ -1127,11 +1183,20 @@ let bundle_runtime ~target ~optimize dir =
   | () -> (
       let level = level ~optimize and cc = cc () in
       let runtime = Filename.concat dir (bundled_name ~triple level) in
-      match compile ~cc ~triple (target_flag (Some target) @ level) work runtime with
+      (* A dynamic library's runtime is compiled as a library build
+         compiles it, without the parts of the layout that place memory
+         near the image (Cgt.Ref32.library). *)
+      let library_level = library_level ~optimize in
+      let library_runtime = library_level @ library_flags ~triple in
+      let library = Filename.concat dir (bundled_name ~triple library_runtime) in
+      match
+        Result.bind (compile ~cc ~triple (target_flag (Some target) @ level) work runtime) (fun _ ->
+            compile ~cc ~triple (target_flag (Some target) @ library_runtime) work library)
+      with
       | Error _ as error -> error
       | Ok _ ->
           if optimize then bundle_bitcode ~cc:(bitcode_cc ()) ~triple ~target dir work;
-          bundle_links ~cc ~target ~triple ~tm ~optimize level dir work runtime)
+          bundle_links ~cc ~target ~triple ~tm ~optimize ~library_level level dir work runtime library)
 
 (* The path of the [i]th object [object_file] writes beside [output] for
    the package's C sources holding assembly: `STEM.c.I.o`, [output]'s name
@@ -1271,14 +1336,14 @@ let kept_c_files stem =
    reach the link apart from it, kept in [cache]'s `foreign/object/` under
    [Foreign_c.key], or written to [dir] when there is no cache. None when
    [m] has no C apart. *)
-let c_object ?target ?cache m dir =
+let c_object ?target ?cache ?(library = false) m dir =
   match attached_c m with
   | None -> Ok no_c_files
   | Some packages -> (
       detach m;
       let packages = Foreign_c.unretained packages in
       let triple = Llvm.target_triple m in
-      let key = Foreign_c.key ~triple ~compiler:(compiler_identity ()) packages in
+      let key = Foreign_c.key ~library ~triple ~compiler:(compiler_identity ()) packages in
       let stem =
         Option.map (fun c -> List.fold_left Filename.concat c [ "foreign"; "object"; key ]) cache
       in
@@ -1289,7 +1354,11 @@ let c_object ?target ?cache m dir =
           let* _, tm = target_machine ?target ~optimize:true () in
           let* c, _, apart = c_module tm m packages in
           let* c =
-            match c with None -> Ok [] | Some c -> Result.map (fun o -> [ o ]) (emit_c tm c dir)
+            match c with
+            | None -> Ok []
+            | Some c ->
+                if library then Foreign_c.drop_pie_level c;
+                Result.map (fun o -> [ o ]) (emit_c tm c dir)
           in
           let* apart = write_apart dir apart in
           let files = joined { no_c_files with objects = c } apart in
@@ -1352,6 +1421,63 @@ let executable ?target ?(optimize = false) ?tier ?(link = []) ?(bundled = bundle
           | Ok runtime, Ok c ->
               link_program ?cache ?bundled:bundled_link ~libraries ~cc ~triple
                 ~args:(args c obj runtime) ~deps:(deps c) ~obj ~runtime ~output dir))
+
+(* Every definition of the Zane code in [m] hidden, before its C is linked
+   in: a plugin's dynamic library offers its host its exports, which its C
+   entries define (Foreign.Glue), and the symbols its C code gives itself.
+   Hidden symbols still link with the program's other objects. *)
+let hide_definitions m =
+  let hide v =
+    if (not (Llvm.is_declaration v)) && Llvm.linkage v <> Llvm.Linkage.Internal && Llvm.linkage v <> Llvm.Linkage.Private
+    then Llvm.set_visibility Llvm.Visibility.Hidden v
+  in
+  Llvm.iter_functions hide m;
+  Llvm.iter_globals hide m
+
+(* A plugin package's dynamic library (packages.md §8.1): the program's
+   module linked as a shared library, with the runtime compiled for one,
+   whose start-up runs as the library is loaded (runtime/main.c), and the
+   objects of [link], as [executable] links them. The C links as it does
+   for an executable. *)
+let dynamic_library ?target ?(optimize = false) ?(link = []) ?(bundled = bundled_dir ()) ?(cache = Cache.dir ()) m output =
+  let libraries =
+    match attached_c m with Some packages -> Foreign_c.libraries packages | None -> []
+  in
+  hide_definitions m;
+  match prepare_whole ?target ~optimize ~separate_c:true m with
+  | Error _ as error -> error
+  | Ok (triple, tm, _, apart) -> (
+      Foreign_c.drop_pie_level m;
+      let cc = cc () in
+      let level = library_level ~optimize and system = library_system_libraries target in
+      let flags = target_flag target @ level @ library_link triple in
+      let rows = List.map (fun (l : Foreign_c.library) -> "-l" ^ l.name) libraries in
+      let deps (c : c_files) = c.objects @ link @ c.archives @ rows in
+      let args c obj runtime = flags @ [ "-o"; output; obj ] @ deps c @ [ runtime ] @ system in
+      let bundled_link =
+        Option.map
+          (fun dir -> List.fold_left Filename.concat dir [ "link"; bundled_link_name ~triple (level @ library_link triple) system ])
+          bundled
+      in
+      in_work_dir @@ fun dir ->
+      let obj = Filename.concat dir "library.o" in
+      match
+        Llvm_target.TargetMachine.emit_to_file m Llvm_target.CodeGenFileType.ObjectFile obj tm;
+        write_runtime dir
+      with
+      | exception Llvm_target.Error message -> Error (Printf.sprintf "cannot write the object file: %s" message)
+      | exception Sys_error message -> Error (Printf.sprintf "cannot write the runtime's sources: %s" message)
+      | () -> (
+          let runtime = runtime_object ?bundled ?cache ~library:true ~cc ~triple ?target ~optimize dir in
+          let c =
+            Result.bind (c_object ?target ?cache ~library:true m dir) (fun files ->
+                Result.map (joined files) (write_apart dir apart))
+          in
+          match (runtime, c) with
+          | (Error _ as error), _ | _, (Error _ as error) -> error
+          | Ok runtime, Ok c ->
+              link_program ?cache ?bundled:bundled_link ~libraries ~cc ~triple ~args:(args c obj runtime) ~deps:(deps c)
+                ~obj ~runtime ~output dir))
 
 (* How many tier-1 libraries the cache keeps: the newest, so an edit loop
    does not fill the disk with every version it built. *)

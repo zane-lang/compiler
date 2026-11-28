@@ -1,6 +1,8 @@
 (* Experimental (docs/experiments/goose-comparison): the compact memory
    layout. Each part is on by default, on every target, and turns off when
-   its variable is set to `0` in the environment while compiling. *)
+   its variable is set to `0` in the environment while compiling. A plugin
+   package's dynamic library takes none of the parts that place memory near
+   the image, whatever the variables are ([library]). *)
 
 (* A switch that is on unless set to `0`. *)
 let switch name = Sys.getenv_opt name <> Some "0"
@@ -41,6 +43,14 @@ let image () =
   | Some _ -> Elf
   | None -> Lazy.force host_image
 
+(* Whether the build is a plugin package's dynamic library (packages.md
+   §8.1). A host loads several into one process, each a runtime of its own,
+   and each would reserve the addresses near its own image that frame
+   references and image boxes need, so the second could find none: a
+   dynamic library takes none of the parts below that place memory near
+   the image, and its frames and chunks lie anywhere. *)
+let library = ref false
+
 (* The symbol the target's linker defines at the program image's start,
    which a frame reference counts from (runtime/region.c): the PE image's
    base on Windows, the Mach-O header on macOS (LLVM adds its `_`), the ELF
@@ -52,8 +62,9 @@ let image_symbol () =
    the program's image (runtime/region.c), so a stored reference, which
    names a frame's slot or a global, is its signed 32-bit distance from the
    image's start; and a list's handle is 16 bytes, its count and room 32
-   bits each, the room counted in elements. *)
-let frames () = switch "ZANE_FRAME_REFS"
+   bits each, the room counted in elements. A dynamic library's build
+   leaves it off ([library]). *)
+let frames () = switch "ZANE_FRAME_REFS" && not !library
 
 (* `ZANE_CHUNK_BOXES`: a boxed member's block is stored in 32 bits as its
    MiB's number, which the runtime gives each MiB of a context's frames and
@@ -64,7 +75,7 @@ let frames () = switch "ZANE_FRAME_REFS"
    it unmapped, and the dyld shared cache, with the range the system
    reserves after it, fills the addresses from 6 GiB to 63 GiB (#418).
    Chunk boxes need frame references, so `ZANE_FRAME_REFS=0` turns them
-   off. Otherwise `ZANE_CHUNK_BOXES=1` turns them on for every target,
+   off, and so does a dynamic library's build. Otherwise `ZANE_CHUNK_BOXES=1` turns them on for every target,
    whatever `ZANE_IMAGE_BOXES` is, and `ZANE_CHUNK_BOXES=0` turns them off, which on
    a Mach-O target brings image boxes back. With any other value, or
    unset, a Mach-O target takes chunk boxes unless `ZANE_IMAGE_BOXES` is

@@ -192,9 +192,10 @@ offers the namespaces, `@namespace$` the namespace's names, and
 before the `@` is a method's, and the server offers the methods whose subject
 takes the value before it: after `!` the `mut` methods, after `:` the others, as
 the checker requires. Where the check finds a type at the cursor, the
-server offers only types. Only a file of the root package is offered
-`@program$`, since only the root package reaches it (spec `effects.md` §6.6);
-a file that no build holds is not.
+server offers only types. Only a file of the root package, and the body
+of an exported lambda in any package, is offered `@program$`, since only
+they reach it (spec `effects.md` §6.6, `packages.md` §8.4); a file that no
+build holds is not.
 A unit test checks that each intrinsic has a description, and that the table
 describes nothing else.
 

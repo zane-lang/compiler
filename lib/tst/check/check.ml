@@ -248,7 +248,8 @@ and map_literal env ctx span entries =
         rest;
       mk (T.Expr.Map_lit entries) (Ty.Concept (Ty.Map_lit (k0.T.Expr.ty, v0.T.Expr.ty))) span
 
-and constant_ref env (d : decl) span =
+and constant_ref env ctx (d : decl) span =
+  Exports.check_name env ~package:ctx.package d span;
   let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
   mk (T.Expr.Var (T.Name_ref.Global { decl = d.id; name = decl_name d })) ty span
 
@@ -293,7 +294,7 @@ and name_value env ctx (n : N.Name_expr.t) =
               match lookup_values env ctx.file text with
               | d :: _ when not (is_function d) ->
                   Uses.add env.uses id.N.Name.span (Uses.Decl d.id);
-                  constant_ref env d span
+                  constant_ref env ctx d span
               | _ :: _ -> call_only env span text
               | [] ->
                   error env span
@@ -310,7 +311,7 @@ and name_value env ctx (n : N.Name_expr.t) =
           match reachable with
           | d :: _ when not (is_function d) ->
               Uses.add env.uses ident.N.Name.span (Uses.Decl d.id);
-              constant_ref env d span
+              constant_ref env ctx d span
           | _ :: _ -> call_only env span (pkg ^ "$" ^ ident.N.Name.text)
           | [] ->
               error env span
@@ -691,7 +692,7 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           match lookup_values env ctx.file text with
           | d :: _ when not (is_function d) ->
               Uses.add env.uses id.N.Name.span (Uses.Decl d.id);
-              value_call (constant_ref env d at)
+              value_call (constant_ref env ctx d at)
           | [] ->
               let hint = missing_import_hint env ctx.file text ~members:(package_values env) in
               error env at (Printf.sprintf "no function named %s is in scope%s" (quote text) hint);
@@ -710,7 +711,7 @@ and function_call env ~flow ctx span (callee : N.Expr.t) actuals handle =
           match reachable with
           | d :: _ when not (is_function d) ->
               Uses.add env.uses ident.N.Name.span (Uses.Decl d.id);
-              value_call (constant_ref env d at)
+              value_call (constant_ref env ctx d at)
           | [] ->
               error env at
                 (if found <> [] then Printf.sprintf "%s is private to the package %s" (quote ident.N.Name.text) (quote pkg)
@@ -1731,7 +1732,7 @@ and local_declaration env ctx (d : N.Decl.t) =
      it declares (ffi.md §5.1). *)
   | N.Decl.Var { name; type_; value = { N.Expr.node = N.Expr.Foreign_global symbol; span } } ->
       let declared = Type_decls.resolve env (type_scope ctx) type_ in
-      let v = Foreign_decls.global env ~package:ctx.package ~span ~declared symbol in
+      let v = Foreign_decls.global env ~root:ctx.is_root ~span ~declared symbol in
       let local = declare env ctx Symbol name declared in
       Hashtbl.replace env.foreign_locals local.T.Local.id ();
       T.Stat.Let { local; value = v }
@@ -1749,6 +1750,9 @@ and local_declaration env ctx (d : N.Decl.t) =
              (quote (Ty.to_string v.T.Expr.ty)));
       let local = declare env ctx Symbol name declared in
       T.Stat.Let { local; value = v }
+  | (N.Decl.ExportedVar _ | N.Decl.ExportLine _) as kind ->
+      Exports.in_body env d.N.Decl.span kind;
+      T.Stat.Expr (invalid d.N.Decl.span)
   | _ ->
       error env d.N.Decl.span "only a symbol is declared in a body; every other declaration is at package scope";
       T.Stat.Expr (invalid d.N.Decl.span)

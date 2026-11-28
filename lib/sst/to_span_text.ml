@@ -516,6 +516,15 @@ and decl d (x : Decl.t) =
   | Decl.Verb v ->
       line d "decl Verb" at;
       verb_decl (deeper d) v
+  | Decl.ExportedVar { name = n; type_; value; symbol } ->
+      line d "decl ExportedVar" at;
+      name (deeper d) "name" n;
+      type_expr (deeper d) type_;
+      expr (deeper d) value;
+      name (deeper d) "symbol" symbol
+  | Decl.ExportLine { package } ->
+      line d "decl ExportLine" at;
+      name (deeper d) "package" package
 
 (* [source] is the text the spans index into -- the text the CST this tree was
    lowered from was parsed out of, since a desugared node keeps the span of the

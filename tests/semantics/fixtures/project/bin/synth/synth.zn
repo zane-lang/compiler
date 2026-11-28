@@ -1,0 +1,7 @@
+/// A plugin package: a `bin/` package without `main` that declares an
+/// exported lambda, so a host calls it (packages.md §8.1).
+package synth;
+
+alias I64 = @primitives$I64;
+
+rate I64() => I64(48000) export "synth_rate";

@@ -146,9 +146,10 @@ let program ?(fixed_region = Cgt.Runtime.default_fixed_region)
     (fun (f : Func.t) -> if f.Func.linkage <> Cgt.Nodes.Linkage.Imported then func env f)
     p.Program.funcs;
   List.iter (Memos.memo env) memos;
-  (* The module with the program's entry also defines how large each
-     context's range is, which the runtime reads when it makes one. *)
-  if Option.is_some p.Program.entry then
+  (* The module with the program's entry, or a dynamic library's, also
+     defines how large each context's range is, which the runtime reads
+     when it makes one. *)
+  if Option.is_some p.Program.entry || p.Program.plugin then
     List.iter
       (fun (name, size) ->
         let g = Llvm.define_global name (Llvm.const_int env.i64 size) m in
@@ -247,6 +248,7 @@ type c_package = Foreign_c.package = {
   defined : string list;
   libraries : c_library list;
   labels : string option;
+  keeps_names : bool;
 }
 
 let global_prefix ?target () =
@@ -257,6 +259,7 @@ let global_prefix ?target () =
 let executable ?target ?optimize ?tier ?link m output =
   Build.executable ?target ?optimize ?tier ?link m output
 let shared_library ?target m output = Build.shared_library ?target m output
+let dynamic_library ?target ?optimize ?link m output = Build.dynamic_library ?target ?optimize ?link m output
 let object_file ?target ?optimize ?tier m output = Build.object_file ?target ?optimize ?tier m output
 let prepare ?target ?optimize ?tier m = Result.map ignore (Build.prepare ?target ?optimize ?tier m)
 let bundle_runtime ~target ~optimize dir = Build.bundle_runtime ~target ~optimize dir

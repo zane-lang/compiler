@@ -318,6 +318,7 @@ literal_tokens [
   ENUM           enum          keyword                 keyword.control
   HANDLE         handle        keyword                 keyword.control
   FOREIGN        foreign       keyword                 keyword.control
+  EXPORT         export        keyword                 keyword.control
   PACKAGE        package       keyword                 keyword.control
   IMPORT         import        keyword                 keyword.control
   AS             as            keyword                 keyword.control

@@ -999,5 +999,50 @@ class ForeignTests(ParserSyntaxTestCase):
                 self.assert_rejects(source)
 
 
+class ExportTests(ParserSyntaxTestCase):
+    """Plugin packages' forms: export lines and exported lambdas."""
+
+    def test_export_forms(self) -> None:
+        self.assert_parses(
+            """
+            package synthclap;
+            import synth;
+            export synth;
+
+            create ^Synth(rate F64) {
+                return Synth(rate);
+            } export "synth_create";
+
+            setVolume Unit(this Synth, volume F64) mut {
+                return Unit();
+            } export "synth_set_volume";
+
+            rate F64() => F64(48000.0) export "synth_rate";
+            """
+        )
+        # `export` is a keyword wherever an identifier could stand.
+        self.assert_rejects("Unit use() { export Int = Int(1); }")
+
+    def test_export_takes_its_terminator_and_names_a_string(self) -> None:
+        for source in (
+            # The declaration ends in the string, so it takes a `;`.
+            'f Int() { return Int(1); } export "f" g Int() => Int(2);',
+            # The C name is a string literal, after the lambda.
+            "f Int() => Int(1) export f;",
+            'f Int() export "f" => Int(1);',
+            # Only a lambda-variable is exported, never a verb or a symbol.
+            'Int f() { return Int(1); } export "f";',
+            'n Int = Int(1) export "n";',
+            # An export line names a package, never a string or a member.
+            'export "synth";',
+            "export synth$Synth;",
+            "export synth",
+            # zanec has no parameterized packages, so no line names an instance.
+            "export clap<synth$Synth>;",
+        ):
+            with self.subTest(source=source):
+                self.assert_rejects(source)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -59,8 +59,8 @@ numbers in a proof report refer to.
 
 | Automaton | Conflict states | with shift/reduce | with reduce/reduce |
 | --------- | --------------: | ----------------: | -----------------: |
-| `--GLR`, the parser that ships | 46 | 46 | 0 |
-| stock | 39 | 39 | 0 |
+| `--GLR`, the parser that ships | 51 | 46 | 5 |
+| stock | 44 | 39 | 5 |
 
 Menhir explains each conflict state once, so the explanations file holds one
 block per state; a state with both kinds of conflict counts in both of Menhir's
@@ -98,6 +98,7 @@ are not independent problems:
 | `<`             | 18 | `loption_generics_ ->` | against `<` as a declared operator |
 | `(` `<` `{` `.` | 3 | `loption_generics_ ->` | a named type opening a constructor body |
 | `(`             | 3 | `list_verb_type_suffix_ ->` | a type opening a statement, against a call |
+| `export`        | 5 | `body -> block_body`, and the `expr -> …` forms of a block call, a braced application and a braced `spawn` or `comptime` call | a lambda-variable ending in `}` against an `export` suffix (reduce/reduce) |
 | `?` `??`        | 6 | `expr -> SPAWN unbraced_verb_call`, `expr -> SPAWN braced_verb_call`, `expr -> COMPTIME unbraced_verb_call`, `expr -> COMPTIME braced_verb_call`, `func_callee -> unbraced_verb_call`, `member_braced -> braced_verb_call` | a spawned or `comptime` call against what follows it |
 
 `&` begins no expression: a reference is minted by storing a place into an
@@ -416,6 +417,31 @@ trading shift/reduce states for reduce/reduce ones. What it stands in for is a
 genuine overlap in the surface syntax — `x Foo(…)` is either a constructor
 shorthand or a lambda declaration whose return type is `Foo`, and nothing
 before the closing bracket determines which.
+
+## An exported lambda's `export` waits for the token after it
+
+An exported lambda (spec `syntax.md` §3.8) is a lambda-variable followed by
+`export` and a string, closed by a `;` (`simple_decl`), and an export line
+(§8.3) is `export` and a package name (`header_decl`). A lambda-variable
+whose body, or whose shorthand expression, ends in a `}` is also a whole
+declaration at that `}` (`simple_decl_braced`). So with `export` as the
+lookahead after such a `}`, the parser cannot tell whether the `}` ends a
+braced declaration, followed by an export line, or a body an `export`
+suffix continues. Five reduce/reduce states in each automaton hold that
+fork, one for each way the lambda's last `}` is reached: a block body
+(`body -> block_body` against `body_braced -> block_body`), and a
+shorthand expression ending in a block call, a braced application, or a
+`spawn` or `comptime` call taking a braced argument (`expr -> …` against
+`expr_braced -> …`).
+
+**Transience.** Each branch takes `export` and then needs a token the other
+refuses: the braced declaration's branch reads `export` as the start of an
+export line, whose next token is a package name (`LIDENT`), and the
+suffix's branch reads it as the suffix, whose next token is a string
+(`STRING`). No sentence continues both, so one branch dies at the token
+after `export`, and the two never both reach acceptance. A grammar change
+that lets an export line start with a string, or the suffix take an identifier,
+invalidates this argument.
 
 ## A type is never parenthesised
 

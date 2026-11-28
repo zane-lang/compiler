@@ -74,11 +74,13 @@ let check_defaults env (d : decl) (s : S.t) =
   | [] -> ()
   | values -> if s.S.generics = [] then env.instances.defaults := { T.Defaults.decl = d.id; args = []; values } :: !(env.instances.defaults)
 
+(* An exported lambda has the rights of root-package code wherever it is
+   declared (packages.md §8.4). *)
 let package_context env (d : decl) =
   {
     file = d.file;
     package = d.package;
-    is_root = (package env d.package).is_root;
+    is_root = (package env d.package).is_root || (match d.kind with Constant { export = Some _; _ } -> true | _ -> false);
     params = [];
     generics = [];
     scopes = [ Hashtbl.create 1 ];
@@ -179,21 +181,23 @@ let declaration env (d : decl) : T.Decl.t option =
             | Some a ->
                 Some (T.Decl.Alias { name = name.N.Name.text; params = a.alias_params; target = Type_decls.alias_target env a })
             | None -> None))
-    | Constant { name; value; _ } ->
+    | Constant { name; value; export; _ } ->
         let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
+        let ctx = package_context env d in
         let v =
           match value.N.Expr.node with
           | N.Expr.Foreign_global symbol ->
-              Foreign_decls.global env ~package:d.package ~span:value.N.Expr.span ~declared:ty symbol
-          | _ -> expr env (package_context env d) value
+              Foreign_decls.global env ~root:ctx.is_root ~span:value.N.Expr.span ~declared:ty symbol
+          | _ -> expr env ctx value
         in
+        Option.iter (Exports.check_lambda env ty) export;
         if not (Ty.assignable ~dst:ty ~src:v.T.Expr.ty) then
           error env v.T.Expr.span
             (Printf.sprintf
                "%s is declared %s, and its value is %s; a declaration is not a coercion \
                 site, so a conversion is written out"
                (quote name.N.Name.text) (quote (Ty.to_string ty)) (quote (Ty.to_string v.T.Expr.ty)));
-        Some (T.Decl.Constant { name = name.N.Name.text; ty; value = v })
+        Some (T.Decl.Constant { name = name.N.Name.text; ty; value = v; export = Option.map (fun (s : N.Name.t) -> s.N.Name.text) export })
     | Enum_map { enum; property; entries; _ } ->
         let ty = Option.value ~default:Ty.Error (Verbs.constant_type env.verbs d.id) in
         let ctx = package_context env d in
@@ -361,4 +365,6 @@ let run env (instances : instances) : T.Program.t =
     T.Program.packages;
     instances = List.sort (fun a b -> compare (key a) (key b)) all;
     defaults = List.rev !(env.instances.defaults);
+    exports = Exports.of_build env;
+    export_lines = Exports.lines env;
   }

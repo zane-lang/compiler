@@ -1,0 +1,38 @@
+-- first library
+hello from the plugin
+hello from the plugin
+count: 1 then 2
+sum: 3.75
+pick: 3 4
+less: 1 0
+an echo from the host
+echo gave 7
+arguments: 0
+tally adds
+tally adds
+entry: 15
+squares: 332833500 332833500 332833500 332833500
+pair: 10946
+unused_nothing offered: no
+zane_output offered: no
+plugin_seen: right
+-- second library
+hello from the plugin
+hello from the plugin
+count: 1 then 2
+sum: 3.75
+pick: 3 4
+less: 1 0
+an echo from the host
+echo gave 7
+arguments: 0
+tally adds
+tally adds
+entry: 15
+squares: 332833500 332833500 332833500 332833500
+pair: 10946
+unused_nothing offered: no
+zane_output offered: no
+plugin_seen: right
+reloaded, count: 3
+reloaded, count: 3

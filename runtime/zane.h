@@ -6,9 +6,11 @@
    in share/ of its releases, holds both. */
 
 /* The Zane runtime's ABI (docs/design/lowering.md L17): what emitted code
-   calls, and the one function it defines. A program's `main` is `zane_main`,
-   which the runtime's C `main` calls once the runtime is ready. Everything
-   else here is what an intrinsic lowers to. */
+   calls, and what a program defines for it. A program's `main` is `zane_main`,
+   which the runtime's C `main` calls once the runtime is ready. A plugin
+   package's dynamic library defines no `zane_main`: compiled with
+   ZANE_LIBRARY, the runtime has no C `main` and starts as the library is
+   loaded (main.c). Everything else here is what an intrinsic lowers to. */
 
 #ifndef ZANE_H
 #define ZANE_H
@@ -95,7 +97,8 @@ typedef struct {
    result. A handle's free and set thunks take its objects' pointers. */
 typedef void (*zane_thunk)(void *const *args, void *result);
 
-/* What the program defines: its entry, and the size of the range each
+/* What the program defines: its entry, which a dynamic library has none of,
+   and the size of the range each
    context reserves for its frames, the main context's and each spawned
    call's (memory.md §3.1, dependencies.md §2.1). */
 void zane_main(void);

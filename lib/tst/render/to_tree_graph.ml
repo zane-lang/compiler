@@ -178,9 +178,12 @@ let decl ~bodies (d : Decl.t) =
            ([ ("name", Leaf (Printf.sprintf "%s #%d" name d.id)) ]
            @ (if ps = [] then [] else [ ("params", Leaf (params ps)) ])
            @ [ ("target", ty target) ]))
-  | Decl.Constant { name; ty = t; value } ->
+  | Decl.Constant { name; ty = t; value; export } ->
       group "constant"
-        (fields ([ ("name", Leaf (Printf.sprintf "%s #%d" name d.id)); ("type", ty t) ] @ with_body [ ("value", expr value) ]))
+        (fields
+           ([ ("name", Leaf (Printf.sprintf "%s #%d" name d.id)); ("type", ty t) ]
+           @ Option.fold ~none:[] ~some:(fun symbol -> [ ("export", Leaf symbol) ]) export
+           @ with_body [ ("value", expr value) ]))
   | Decl.Enum_map { enum; property; ty = t; entries } ->
       group "enum_map"
         (fields
@@ -240,4 +243,12 @@ let to_node ~bodies (p : Program.t) =
                 group "package" (fields [ ("name", Leaf pkg.name); ("decls", map_seq (decl ~bodies) pkg.decls) ]))
               p.packages );
         ]
+       @ (if p.exports = [] then []
+          else
+            [
+              ( "exports",
+                map_seq
+                  (fun (e : Export.t) -> Leaf (Printf.sprintf "%s #%d of %s" e.Export.symbol e.Export.decl e.Export.package))
+                  p.exports );
+            ])
        @ if bodies then [ ("instances", map_seq instance p.instances) ] else []))

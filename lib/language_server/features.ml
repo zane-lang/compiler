@@ -383,8 +383,8 @@ let document_symbols encoding (d : P.document) =
         let span = x.N.Decl.span in
         match x.N.Decl.node with
         | N.Decl.Package n -> symbol n.N.Name.text `Package span n.N.Name.span
-        | N.Decl.Import _ -> None
-        | N.Decl.Var { name; _ } -> symbol name.N.Name.text `Constant span name.N.Name.span
+        | N.Decl.Import _ | N.Decl.ExportLine _ -> None
+        | N.Decl.Var { name; _ } | N.Decl.ExportedVar { name; _ } -> symbol name.N.Name.text `Constant span name.N.Name.span
         | N.Decl.Type { name; value; _ } ->
             let kind, children = members value in
             symbol ~children name.N.Name.text kind span name.N.Name.span
@@ -648,7 +648,7 @@ let completion encoding t (d : P.document) (line, character) =
   in
   let root =
     match (if Option.is_some index then index else fallback) with
-    | Some (index : Index.t) -> index.Index.is_root ~path:d.P.path
+    | Some (index : Index.t) -> index.Index.reaches_program ~path:d.P.path ~offset:start
     | None -> false
   in
   let intrinsics site =

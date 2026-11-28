@@ -1,0 +1,64 @@
+/// A plugin package (packages.md §8.1): a `bin/` package without `main`,
+/// built into a dynamic library that `host.c` loads. Its own exported
+/// lambdas write the console, read a package constant, which is made at
+/// the first call that reads it, declare a foreign variable and write
+/// through it (§8.4), take a value type, a `Bool` and a string from C, and
+/// read the program's arguments, which a host never passes. Its export
+/// line gives `tally`'s exported lambdas C symbols too, and its C defines
+/// `plugin_entry` under that name, which calls one of them (§8.3).
+package plugin;
+
+import tally;
+
+export tally;
+
+alias Unit = @primitives$Unit;
+alias I64 = @primitives$I64;
+alias F64 = @primitives$F64;
+alias Bool = @primitives$Bool;
+alias String = @primitives$String;
+
+type Counter = #handle{ cType = "counter_t"; }
+
+I64 next(this Counter) mut foreign "counter_next";
+
+type Point = struct {
+	x F64;
+	y F64;
+}
+
+greeting String = String.escaped("hello from the plugin\n");
+
+say Unit(text String) {
+	@program$console!print(text);
+	@program$console!print(String.escaped("\n"));
+	return Unit();
+}
+
+hello Unit() {
+	@program$console!print(greeting);
+	return Unit();
+} export "plugin_hello";
+
+count I64() {
+	counter Counter foreign "plugin_counter";
+	return counter!next();
+} export "plugin_count";
+
+sum F64(p Point) => @operators$add(p.x, p.y) export "plugin_sum";
+
+pick I64(first Bool, a I64, b I64) {
+	@controlflow$branch(first) {
+		return a;
+	}
+	return b;
+} export "plugin_pick";
+
+less Bool(a I64, b I64) => @operators$lessThan(a, b) export "plugin_less";
+
+echo I64(text String) {
+	say(text);
+	return I64(7);
+} export "plugin_echo";
+
+arguments I64() => @program$runtime:arguments():size() export "plugin_arguments";

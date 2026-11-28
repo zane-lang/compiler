@@ -85,10 +85,12 @@ the fault is the compiler's, not the program's: the stage raises
 request to report it, and exits with status 3. Status 2 is a usage error.
 
 The stages run in order through `lib/driver/`: one function per step
-(assemble, check, lower, and emit an IR module, an object or an executable),
+(assemble, check, lower, and emit an IR module, an object, an executable or
+a dynamic library),
 each a result whose failure is the step's diagnostics with the text they
 point into. The rules about a build rather than a stage live there too: which
-package a `--stamp` names, and whether the root needs a `main`. So does
+package a `--stamp` names, and whether the root is a program's, which needs
+a `main`, or a plugin's, which builds into a dynamic library. So does
 rewriting an object (`--rewrite`, `--remap`), which is fetching's step and not
 a build's. `zanec` and the inspection tools parse their arguments, call the
 driver, and print.

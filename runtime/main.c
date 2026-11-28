@@ -16,6 +16,9 @@
 #else
 #include <fcntl.h>
 #include <sys/socket.h>
+#ifdef ZANE_LIBRARY
+#include <dlfcn.h>
+#endif
 #endif
 
 /* ---------------------------------------------------------------------- */
@@ -206,6 +209,7 @@ char **zane_argv;
 
 int zane_checking;
 
+#ifndef ZANE_LIBRARY
 #ifdef _WIN32
 static void zane_keep_arguments(int argc, char **argv) {
 	(void)argc;
@@ -232,6 +236,73 @@ static void zane_keep_arguments(int argc, char **argv) {
 	zane_argv = argc > 0 ? argv + 1 : argv;
 }
 #endif
+#endif
+
+#ifdef ZANE_LIBRARY
+
+/* A plugin package's dynamic library (packages.md §8.1) has no C `main`:
+   its host loads it and calls its exports. The runtime starts as the host
+   loads the file, once for each loaded file, since each holds a runtime of
+   its own: it makes the program's console and runtime, and the program's
+   own scope, which holds the package constants, in a context that no
+   thread runs. The loading thread then runs no Zane code, and each call
+   the host makes of an export runs in a context made for it, as a call C
+   makes of a function value on a thread of its own does (snapshot.c). A
+   host passes no command line, so `arguments` gives an empty list. */
+static char *zane_no_arguments[1];
+
+/* The library stays loaded until the process ends, whatever the host
+   unloads: a pool thread may still be running its code, other code may
+   have saved its fault handler as the previous handler for faults, and its
+   runtime holds the regions and buffers it made. A later load of the same
+   file reaches this runtime again. macOS never unloads a library with
+   thread-local variables, as the runtime has, and the other systems are
+   told to keep it: Windows by pinning the module, the others with
+   `RTLD_NODELETE`. */
+static void zane_library_pin(void) {
+#ifdef _WIN32
+	HMODULE self;
+	if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+	                        (LPCWSTR)(void *)&zane_library_pin, &self))
+		zane_broken("keeping the library loaded");
+#else
+	Dl_info info;
+	if (!dladdr((void *)&zane_library_pin, &info) || !info.dli_fname ||
+	    !dlopen(info.dli_fname, RTLD_LAZY | RTLD_NOLOAD | RTLD_NODELETE))
+		zane_broken("keeping the library loaded");
+#endif
+}
+
+__attribute__((constructor)) static void zane_library_start(void) {
+	zane_library_pin();
+	zane_argc = 0;
+	zane_argv = zane_no_arguments;
+	const char *check = getenv("ZANE_CHECK");
+	zane_checking = check && *check && strcmp(check, "0") != 0;
+	zane_output_start();
+	zane_regions_start();
+	zane_self = zane_context_new();
+	zane_program = zane_scope_enter(0);
+	zane_constants_start();
+	zane_self = NULL;
+	zane_reopen();
+}
+
+/* As the process ends, what the library printed and has not written yet
+   is written. Elsewhere than on Windows the pool's threads are joined
+   first, so what they print as they stop is written too. Windows ends
+   every other thread before it runs a library's destructor, and runs that
+   destructor holding the loader lock, which a thread needs to end, so
+   there the destructor joins nothing. The fault handlers stay, since the
+   library's code stays loaded until the process is gone. */
+__attribute__((destructor)) static void zane_library_stop(void) {
+#ifndef _WIN32
+	zane_pool_stop();
+#endif
+	zane_flush_output();
+}
+
+#else
 
 /* A program whose output did not all reach stdout did not succeed: a write
    that failed earlier marks the output failed, even when the final flush
@@ -259,3 +330,5 @@ int main(int argc, char **argv) {
 	if (zane_self->top != zane_program) zane_broken("a scope was left without draining");
 	return zane_flush_output() ? 0 : 1;
 }
+
+#endif

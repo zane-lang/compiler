@@ -1,1 +1,1 @@
-Error: the root package `idle` declares no `main` to start from
+Error: the root package `idle` declares no `main` to start from, and no exported lambda or export line for a host to call (packages.md §8.1)

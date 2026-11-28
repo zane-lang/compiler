@@ -30,17 +30,23 @@ module List_pure = List_pure
 type write_backs
 
 (** The program, lowered from the root package's `main`, or from every
-    function of the root when the build is a [library]. A construct that
-    lowering does not handle yet is refused with a diagnostic at the
-    construct, and so is a type that the main context's range of frames of
-    [fixed_region] bytes could not hold ([Runtime.default_fixed_region] when
-    absent). [import_bodies] retains
+    function, lambda constant and handle type of the project's own packages
+    when the build is a [library]. Every build but a library's also lowers
+    the exported lambdas it gives C symbols. [plugin], false when absent,
+    lowers a plugin package's root, which declares no `main` (packages.md
+    §8.1), from its exported lambdas alone, with no entry; a caller passes
+    [~plugin:true] for every such root. A construct that lowering does not
+    handle yet is refused with a diagnostic at the construct, and so is a
+    type that the main context's range of frames of [fixed_region] bytes
+    could not hold ([Runtime.default_fixed_region] when absent).
+    [import_bodies] retains
     reachable stamped dependencies' functions with linkage that lets LLVM
     inline them and defines nothing, and [foreign_roots] lowers every thunk
     of a stamped dependency's glue, for a build that writes that glue again
     to compare with its release's (docs/design/ffi.md F13). *)
 val lower :
   ?library:bool ->
+  ?plugin:bool ->
   ?import_bodies:bool ->
   ?foreign_roots:bool ->
   ?fixed_region:int ->

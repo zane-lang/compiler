@@ -28,7 +28,11 @@ let declaration env (tables : names) pkg file (d : N.Decl.t) =
       Uses.add env.uses ~declaration:true name.N.Name.span (Uses.Package pkg.name);
       None
   | N.Decl.Import _ -> None
-  | N.Decl.Var { name; type_; value } -> make (Constant { name; type_; value })
+  | N.Decl.Var { name; type_; value } -> make (Constant { name; type_; value; export = None })
+  | N.Decl.ExportedVar { name; type_; value; symbol } -> make (Constant { name; type_; value; export = Some symbol })
+  (* Pass 2 resolves the package an export line names, as it does an
+     import's. *)
+  | N.Decl.ExportLine _ -> None
   | N.Decl.Type { name; params; value } ->
       make (Type_decl { name; params; value; alias = false })
   | N.Decl.Alias { name; params; value } ->
@@ -94,6 +98,33 @@ let conflicts a b =
   | One_member x, One_member y -> String.equal x y
 
 let members_of env pkg name = package_types env pkg name @ package_values env pkg name
+
+(* An export line (packages.md §8.3): only a root package carries one, and
+   it names a library package of the build, which its key resolves as an
+   import's does. Each package is named once, since a second line would give
+   its exported lambdas their C names twice (§8.2). *)
+let export_line env (file : file) (p : N.Name.t) span =
+  let pkg = package env file.package in
+  if not pkg.is_root then
+    error env span
+      (Printf.sprintf
+         "only a plugin or test package carries export lines, and %s is a library package of this build (packages.md §8.3)"
+         (quote pkg.declared))
+  else
+    match resolve_key env file (name_of p) with
+    | Found id -> (
+        Uses.add env.uses p.N.Name.span (Uses.Package id);
+        match List.assoc_opt id pkg.export_lines with
+        | Some earlier ->
+            error env span
+              (Printf.sprintf "an export line already names %s, at %s" (quote (name_of p)) (where earlier))
+        | None -> pkg.export_lines <- pkg.export_lines @ [ (id, span) ])
+    | Own ->
+        error env p.N.Name.span
+          (Printf.sprintf
+             "%s is this file's own package; its exported lambdas get their C symbols without an export line, which names a library package (packages.md §8.3)"
+             (quote (name_of p)))
+    | (Unknown | Not_given | Ambiguous _) as key -> Option.iter (error env p.N.Name.span) (key_message (name_of p) key)
 
 let import_file env (file : file) (decls : N.Decl.t list) =
   let forms : (string, form * Span.t) Hashtbl.t = Hashtbl.create 8 in
@@ -232,6 +263,7 @@ let import_file env (file : file) (decls : N.Decl.t list) =
           | N.Import.Members { package = p; members } ->
               Option.iter (fun id -> List.iter (fun m -> bring id m m span) members) (imported p)
           | N.Import.All { package = p } -> bring_all p span)
+      | N.Decl.ExportLine { package = p } -> export_line env file p d.N.Decl.span
       | _ -> ())
     decls
 
@@ -338,6 +370,13 @@ let add_import_edge env edges (pkg : package) file (d : N.Decl.t) =
       match resolve_key env file key with
       | Found target -> Hashtbl.add edges pkg.name (target, span)
       | Own | Unknown | Not_given | Ambiguous _ -> ())
+  (* An export line makes the root depend on the library it names, as an
+     import does, so a library that imports the root closes a cycle. Only a
+     root carries one; any other package's is refused where it is read. *)
+  | N.Decl.ExportLine { package = p } when pkg.is_root -> (
+      match resolve_key env file (name_of p) with
+      | Found target -> Hashtbl.add edges pkg.name (target, d.N.Decl.span)
+      | Own | Unknown | Not_given | Ambiguous _ -> ())
   | _ -> ()
 
 (* The tail of [path] that starts at [target]. *)
@@ -395,6 +434,7 @@ let run env (tables : names) (assembled : Assembly.package list) =
             imports = p.imports;
             keyed = p.keyed;
             is_root = p.is_root;
+            export_lines = [];
             files = List.map fst files;
             decls = [];
             types = Hashtbl.create 16;

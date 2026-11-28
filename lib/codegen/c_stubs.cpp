@@ -26,6 +26,7 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/Metadata.h"
 
 #include <map>
 #include <set>
@@ -100,6 +101,56 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
     names = cell;
   }
   CAMLreturn(names);
+}
+
+/* The root package's C globals offered under their C names as well
+   (docs/design/ffi.md F9): for each of [labels], the C names
+   [zane_rename_c_globals] renamed, that the module defines, an alias named
+   by the C name of the renamed definition, with default visibility, and
+   on COFF marked for a DLL to export, so that a host finds the symbol by
+   the name it looks it up by. The program's own code still reaches the renamed
+   definition, which is hidden, so a library offers the definition under
+   one name. */
+extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value coff) {
+  CAMLparam4(mod, prefix, labels, coff);
+  llvm::Module *m = module_of(mod);
+  std::string p = String_val(prefix);
+  for (value l = labels; l != Val_emptylist; l = Field(l, 1)) {
+    std::string label = String_val(Field(l, 0));
+    llvm::GlobalValue *g = m->getNamedValue(p + label);
+    if (!g || g->isDeclarationForLinker() || g->hasLocalLinkage() || m->getNamedValue(label)) continue;
+    /* A DLL cannot export a thread-local variable: its address is per
+       thread, and GetProcAddress gives one address. */
+    if (Bool_val(coff) && g->isThreadLocal()) continue;
+    auto *a = llvm::GlobalAlias::create(g->getValueType(), g->getAddressSpace(), llvm::GlobalValue::ExternalLinkage,
+                                        label, g, m);
+    a->setThreadLocalMode(g->getThreadLocalMode());
+    a->setVisibility(llvm::GlobalValue::DefaultVisibility);
+    if (Bool_val(coff)) a->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+    g->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  }
+  CAMLreturn(Val_unit);
+}
+
+/* The module's "PIE Level" flag dropped, which the C compiler sets as it
+   compiles C for an executable and which a link into the module carries
+   over: with it, LLVM takes the module for an executable's and reads a
+   thread's variable it defines at a fixed offset from the thread's pointer,
+   which a shared library may not do. A dynamic library's module is emitted
+   without it (docs/design/ffi.md F21). */
+extern "C" value zane_drop_pie_level(value mod) {
+  CAMLparam1(mod);
+  llvm::Module *m = module_of(mod);
+  if (llvm::NamedMDNode *flags = m->getModuleFlagsMetadata()) {
+    std::vector<llvm::MDNode *> kept;
+    for (llvm::MDNode *f : flags->operands()) {
+      auto *key = f->getNumOperands() > 1 ? llvm::dyn_cast<llvm::MDString>(f->getOperand(1)) : nullptr;
+      if (!key || key->getString() != "PIE Level") kept.push_back(f);
+    }
+    flags->clearOperands();
+    for (llvm::MDNode *f : kept) flags->addOperand(f);
+  }
+  CAMLreturn(Val_unit);
 }
 
 /* A name without the `.N` the linker adds to a local one it renames. */

@@ -330,4 +330,7 @@ let program (p : Program.t) =
        @ (match p.Program.globals with [] -> [] | gs -> [ ("globals", map_seq global gs) ])
        @ (match p.Program.foreign with [] -> [] | fs -> [ ("thunks", map_seq thunk fs) ])
        @ (match p.Program.callbacks with [] -> [] | cs -> [ ("callbacks", map_seq callback cs) ])
+       @ (match p.Program.exports with
+         | [] -> []
+         | es -> [ ("exports", map_seq (fun (s, c) -> Leaf (Printf.sprintf "%s as %s" s c)) es) ])
        @ [ ("funcs", map_seq func p.Program.funcs) ]))

@@ -556,6 +556,15 @@ header_decl:
   | value=import_decl {
       decl $loc (Nodes.Decl.Import value)
     }
+  (* An export line (syntax.md §8.3, packages.md §8.3): a library package
+     whose exported lambdas this build gives C symbols. It ends in a name,
+     so it takes the `;` the other header declarations take. The form that
+     names an instance of a parameterized package, `export lib<Args>`,
+     waits for parameterized packages, whose `<` after a lower-case name
+     the grammar's proof does not yet certify (docs/ambiguity). *)
+  | EXPORT package=lname {
+      decl $loc (Nodes.Decl.ExportLine { package })
+    }
 
 (* A verb declaration and the declaration wrapping it span the same tokens:
    there is nothing in a `Decl.Verb` but the verb. Both take `$loc`. *)
@@ -715,6 +724,28 @@ simple_decl:
           name;
           type_ = Nodes.meth_type_of_lambda meth_lambda;
           value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
+        })
+    }
+  (* An exported lambda (syntax.md §3.8, packages.md §8.2): a
+     lambda-variable followed by `export` and the C symbol it becomes. The
+     declaration ends in the string, not in the lambda's `}`, so it takes a
+     `;` (lexical.md §6.3) whichever body the lambda has. *)
+  | name=lname func_lambda=func_lambda(body) EXPORT symbol=STRING {
+      decl $loc
+        (Nodes.Decl.ExportedVar {
+          name;
+          type_ = Nodes.func_type_of_lambda func_lambda;
+          value = expr $loc(func_lambda) (Nodes.Expr.FuncLambda func_lambda);
+          symbol = mk_name $loc(symbol) symbol;
+        })
+    }
+  | name=lname meth_lambda=meth_lambda(body) EXPORT symbol=STRING {
+      decl $loc
+        (Nodes.Decl.ExportedVar {
+          name;
+          type_ = Nodes.meth_type_of_lambda meth_lambda;
+          value = expr $loc(meth_lambda) (Nodes.Expr.MethLambda meth_lambda);
+          symbol = mk_name $loc(symbol) symbol;
         })
     }
   | value=enum_map_decl { value }
