@@ -4,10 +4,10 @@
 /// package constant made by one and one read by another, a marked call
 /// inside another's arguments, a method call, a call through a function
 /// value, handlers, a handled `match` in the arguments, a field's default,
-/// the build's arguments (the `flags` file gives them), and a loop that runs
-/// far past the budget an implicit fold has, which a marked call does not
-/// take from. Each check prints `yes` when it holds and `no` when it does
-/// not.
+/// the build's arguments (the `flags` file gives them), the build
+/// machine's clock, and a loop that runs far past the budget an implicit
+/// fold has, which a marked call does not take from. Each check prints `yes`
+/// when it holds and `no` when it does not.
 package comptimeCalls;
 
 alias Int = @primitives$I64;
@@ -125,6 +125,14 @@ String joined(runtime &@runtime$Runtime) {
 
 Int count(runtime &@runtime$Runtime) => runtime:arguments():size();
 
+/// Whether two readings of the clock come in order: inside a marked call,
+/// the build machine's monotonic clock.
+Bool ordered(runtime &@runtime$Runtime) {
+	first Int = runtime:monotonicNanoseconds();
+	second Int = runtime:monotonicNanoseconds();
+	return @operators$not(@operators$lessThan(second, first));
+}
+
 Int twice(f Int[Int], x Int) => f(f(x));
 
 Int double(x Int) => @operators$multiply(x, Int(2));
@@ -206,6 +214,8 @@ Unit main() {
 	check(@operators$equal(comptime joined(@program$runtime), String("alpha,beta gamma")));
 	check(@operators$equal(comptime count(@program$runtime), Int(2)));
 	check(@operators$equal(@program$runtime:arguments():size(), Int(0)));
+	// The build machine's clock, read twice in one marked call.
+	check(comptime ordered(@program$runtime));
 	// A lambda given to the marked call reads inside it.
 	check(@operators$equal(comptime twice(Int(x Int) { return @operators$add(x, count(@program$runtime)); }, Int(1)), Int(5)));
 

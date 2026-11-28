@@ -205,7 +205,9 @@ void zane_spawn(char *frame, void (*run)(char *), char *dest, const zane_type *t
 /* A spawned call's subject goes into a region of its own (docs/design/lowering.md §9). */
 void zane_island_make(char **field, int64_t size, const zane_type *type, int64_t copied);
 
-/* workers.c: worker pools (concurrency.md §6), and `register`'s timer. */
+/* workers.c: worker pools (concurrency.md §6), `register`'s timer, and the
+   monotonic clock, in nanoseconds. */
+int64_t zane_monotonic_ns(void);
 int64_t zane_tick_start(int64_t interval);
 int64_t zane_tick(int64_t interval, int64_t deadline);
 void *zane_workers_new(int64_t stateful, char *state, int64_t state_size, const zane_type *state_type, void *funnel,

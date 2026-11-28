@@ -8,7 +8,8 @@
 ; run by [C_eval] on the package's C module (docs/design/ffi.md F16), which
 ; [C_ir] reads through c_ir_stubs.cpp; [C_memory] is its memory,
 ; [C_library] the C library functions it models, and [C_cross] carries
-; values between the two evaluators (F18).
+; values between the two evaluators (F18). clock_stubs.c reads the build
+; machine's monotonic clock for a `comptime` call.
 (library
  (name optimize)
  (foreign_stubs
@@ -16,6 +17,9 @@
   (names c_ir_stubs)
   (flags
    (:include llvm_cxx.sexp)))
+ (foreign_stubs
+  (language c)
+  (names clock_stubs))
  (libraries cgt diagnostic llvm))
 
 (rule

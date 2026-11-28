@@ -14,6 +14,8 @@ type t = Computed | Output | Input
 let classify : Cgt.Runtime.fn -> t = function
   | Print | Set_threads | Set_threads_auto -> Output
   | Arguments -> Input
+  (* The clock gives the time the running program reads it. *)
+  | Monotonic_ns -> Input
   (* A timer's deadline reads the clock, and what follows a wait runs when
      the running program reaches the wait, a timing no replay could keep,
      so a fold stops at either. *)

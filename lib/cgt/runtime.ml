@@ -80,6 +80,8 @@ type fn =
   | Constant_end
   | Writeback
   | Arguments
+  (* The monotonic clock, in nanoseconds (`@runtime$monotonicNanoseconds`). *)
+  | Monotonic_ns
   | Parse_i64
   | Parse_f64
   | Parse_f64_at
@@ -125,7 +127,7 @@ type fn =
   | Workers_state
   | Workers_elements
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Tick_start; Tick; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Tick_start; Tick; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Monotonic_ns; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
 
 let name = function
   | Print -> "zane_print"
@@ -179,6 +181,7 @@ let name = function
   | Constant_end -> "zane_constant_end"
   | Writeback -> "zane_writeback"
   | Arguments -> "zane_arguments"
+  | Monotonic_ns -> "zane_monotonic_ns"
   | Parse_i64 -> "zane_parse_i64"
   | Parse_f64 -> "zane_parse_f64"
   | Parse_f64_at -> "zane_parse_f64_at"
@@ -276,6 +279,7 @@ let signature = function
   | Constant_end -> (Void, [ Ptr; Ptr; Ptr ])
   | Writeback -> (Void, [ Ptr; Ptr; I64; Ptr ])
   | Arguments -> (Void, [ Ptr ])
+  | Monotonic_ns -> (I64, [])
   | Parse_i64 -> (I64, [ Ptr; Ptr ])
   | Parse_f64 -> (I64, [ Ptr; Ptr ])
   | Parse_f64_at -> (I64, [ Ptr; Ptr; I64; I64 ])

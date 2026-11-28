@@ -135,6 +135,7 @@ classified:
 | `@runtime$print` | `Print` | output (O4) |
 | `@runtime$setThreads`, `setThreadsAuto` | `Set_threads`, `Set_threads_auto` | output (O4) |
 | `@runtime$arguments` | `Arguments` | input |
+| `@runtime$monotonicNanoseconds` | `Monotonic_ns` | input |
 | a foreign call touching no capability, its C body in the build | `Foreign_call` | computed, by the C evaluator ([`ffi.md`](ffi.md) F16–F19) |
 | a foreign call touching no capability, its C in an archive or a system library | `Foreign_call` | input |
 | a foreign call reading or writing a capability | `Foreign_call` | input, and left in place |
@@ -142,11 +143,14 @@ classified:
 | a null handle a call into C gives | `No_object` | input |
 | an abort of `main`, which ends the program | `Main_aborted`, called only by the start function | input |
 
-`arguments` is the only intrinsic that reads input (effects.md §6.6), so a
-fold stops where it is reached, and everything computed before it still
-folds. `setThreadsAuto` reads the processor count, but gives nothing back, so
-no value of the program depends on it. An intrinsic added later that reads
-input, a console read or the time, joins `arguments` in the input class.
+`arguments` and `monotonicNanoseconds` are the intrinsics that read input,
+the program's arguments (effects.md §6.6) and the clock, a read of the
+runtime that effects.md §5.3 keeps out of compile-time evaluation. A fold
+therefore stops where it reaches either, and everything
+computed before it still folds. `setThreadsAuto` reads the processor count,
+but gives nothing back, so no value of the program depends on it. An
+intrinsic added later that reads input, such as a console read, joins them
+in the input class.
 `register`'s timer is another input: its first deadline reads the clock, and
 the code after each wait runs at a moment that no replay could reproduce, so
 a fold stops there. So does a worker pool's every operation: its work runs on

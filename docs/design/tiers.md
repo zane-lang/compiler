@@ -188,14 +188,38 @@ Linux a program links `-ldl` as needed, since only glibc before 2.34 keeps
 loading; macOS's libSystem and Windows' kernel32 hold `dlopen`'s equivalent
 already.
 
+**T12. Tier 1 replays the clock readings of tier 0.** A call marked
+`comptime` that reads the monotonic clock ([`comptime.md`](comptime.md) K6)
+folds the time of its build into the module, and the two tiers run as two
+processes that read the clock at different moments. With
+`--comptime-readings FILE` on both runs, tier 0 records each reading its
+marked calls make, in order, and writes them to `FILE`, one decimal number
+of nanoseconds a line, through a file it creates afresh beside `FILE` and a rename, once every
+marked call is evaluated, even when one fails. Tier 1 gives its marked
+calls those readings in the same order (`Driver.comptime`), so both tiers
+fold the same values and emit the same module (T3). Since the CLI builds
+tier 1 while it builds tier 0, tier 1 waits for `FILE` at its first reading,
+and a program whose marked calls read no clock never waits. A tier 0
+that fails before its marked calls run fails the same way in tier 1, which
+then never waits, so only a tier 0 that dies mid-build leaves tier 1
+waiting, and the caller stops tier 1 then (§5). A reading past
+the last one `FILE` holds is an error at the marked call that makes it. A
+caller removes `FILE` before a run, as it removes `OUT` (T9), so tier 1
+never replays an earlier run's readings. Without the flag each tier reads
+the build machine's clock itself, so the two tiers can fold different
+values; where they do, the fingerprints differ and the runtime refuses
+tier 1. The flag is refused on any other build.
+
 ---
 
 ## 5. How the CLI runs it
 
 `zane run` and `zane test` run each program the same way (zane
 `docs/design/cli.md` §2.4): they start `--tier-up` in the background, build
-tier 0, and run it with `ZANE_TIER_UP` naming tier 1's file beside it. A
-tier-1 build still going when the program ends is stopped. A compiler
+tier 0, and run it with `ZANE_TIER_UP` naming tier 1's file beside it. The
+CLI must give both builds the same `--comptime-readings` file and remove it
+before it starts them (T12). A tier-1 build still going when the program
+ends is stopped, and so is one still going when tier 0's build fails. A compiler
 release older than the first release with tiers builds the program
 unoptimized.
 
@@ -206,5 +230,6 @@ unoptimized.
 `tests/codegen/` builds every fixture tiered too, runs it with tier 1 loaded
 before `main` (T8), and holds it to the golden file the plain and optimized
 builds are held to. `tests/tiers/` runs a program that moves to tier 1 while
-it runs, and the libraries the runtime must refuse. `tests/perf/` measures a
+it runs, the libraries the runtime must refuse, and a tier 1 that replays
+tier 0's clock readings. `tests/perf/` measures a
 third build of each program, `tiered`, run as T8 runs it.
