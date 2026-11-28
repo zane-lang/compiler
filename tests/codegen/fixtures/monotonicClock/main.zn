@@ -2,7 +2,7 @@
 /// runtime, as `arguments` is. A later reading is never smaller than an
 /// earlier one, the root package and a verb handed the runtime both read it,
 /// and an optimized build leaves every reading for the running program,
-/// since no fold can know the time. Each check prints `yes` when it holds and
+/// since only the running program reads its own time. Each check prints `yes` when it holds and
 /// `no` when it does not.
 package monotonicClock;
 

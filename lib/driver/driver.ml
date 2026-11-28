@@ -568,9 +568,9 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       | Ok cs -> Ok (List.filter_map Fun.id cs)
       | Error { Foreign.diagnostics; sources } -> fail ~sources diagnostics)
 
-(* What a tiered build does with the clock readings of its `comptime`
-   calls (docs/design/tiers.md T12): tier 0 records them in a file, and
-   tier 1 replays that file. *)
+(* The handling of the clock readings that a tiered build's `comptime`
+   calls make (docs/design/tiers.md T12): tier 0 records them in a file,
+   and tier 1 replays that file. *)
 type readings = Record of string | Replay of string
 
 (* [readings] in the file, whole: tier 0 writes it beside its name and

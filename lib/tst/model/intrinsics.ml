@@ -365,7 +365,7 @@ let methods =
       [ param "this" (runtime "Runtime") ]
       (prim "List" ~args:[ Ty.Type (prim "String") ]);
     (* The monotonic clock in nanoseconds, a read of the runtime: it never
-       goes back, and only a difference of two readings means anything. *)
+       goes back, and a program uses only the difference of two readings. *)
     meth "runtime" "monotonicNanoseconds" [ param "this" (runtime "Runtime") ] (prim "I64");
     (* A number read from a string's text (types.md §2.10). *)
     meth ~abort:(Some (prim "Unit")) "primitives" "parseI64"

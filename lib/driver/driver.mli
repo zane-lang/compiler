@@ -108,8 +108,8 @@ val c_modules :
   Cgt.Nodes.Program.t ->
   (Codegen.c_package list, failure) result
 
-(** What a tiered build does with the readings its `comptime` calls make of
-    the monotonic clock (docs/design/tiers.md T12): [Record file], for tier
+(** The handling of the monotonic-clock readings that a tiered build's
+    `comptime` calls make (docs/design/tiers.md T12): [Record file], for tier
     0, writes them to [file], in order, once every call is evaluated;
     [Replay file], for tier 1, gives the calls the readings in [file],
     waiting for tier 0 to put it in place at the first reading. *)

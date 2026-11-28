@@ -353,7 +353,7 @@ external build_clock : unit -> int64 = "zane_optimize_monotonic_ns"
 
 (* The build machine's monotonic clock, which a `comptime` run reads as the
    program reads its own (spec effects.md §5.6). A fold that is not marked
-   stops at it, since only the running program knows its time. *)
+   stops at it, since only the running program reads its own time. *)
 let monotonic_ns run =
   match run.explicit with
   | None -> stop "an input, which only the running program has"
