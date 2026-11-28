@@ -1,7 +1,7 @@
 /// An interface header defining private state that an `archive` row's
 /// member holds a copy of, since it includes the header, which a `static
 /// inline` function the glue calls reads: the glue cannot share the
-/// archive's copy, and is refused.
+/// archive's copy, so the compiler refuses the glue.
 package archivedState;
 
 alias I64 = @primitives$I64;

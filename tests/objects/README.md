@@ -14,7 +14,7 @@ program linked from several objects wrote.
 - `geometry` is a library on its own. Every function it declares is exported
   under the `!` placeholder, private ones included, and the instance of its
   generic verb that it uses is shared, as are the function and variables of
-  the package constant one of its verbs reads. Its other generic verb has no instance,
+  the package constant that one of its verbs reads. Its other generic verb has no instance,
   so the object holds nothing for it. Its lambda-variable `double` has a
   type C can call, so the object also defines its adapter and C entry
   (docs/design/ffi.md F11), which call into the runtime for a context when
@@ -42,9 +42,9 @@ program linked from several objects wrote.
   every check it makes prints `yes` when it holds.
 
   geometry's own placeholder object is also rewritten with that stamp, as
-  fetching rewrites a release's objects. It must define exactly what the
-  object built from source with the stamp does, and survey links with it the
-  same way. geometry is rewritten the same way for macOS and Windows on
+  fetching rewrites a release's objects. It must define exactly the symbols
+  of the object built from source with the stamp, and survey links with it
+  the same way. geometry is rewritten the same way for macOS and Windows on
   x86-64 and ARM64, and held to the stamped build for each.
   `golden/geometry.macos-x86_64.symbols` and
   `golden/geometry.windows-x86_64.symbols` list two of those rewritten
@@ -62,7 +62,7 @@ program linked from several objects wrote.
   and `remapped` a program that uses it and atlas. atlas's object is
   remapped from the first version onto `geometry11`, keeps no reference to
   the first, and links with `geometry11` alone.
-- `doubling` is a program of 24 verbs, each calling the one below it
+- `doubling` is a program of 24 verbs, each calling the verb below it
   twice. `optimization_test.py` checks that an unoptimized build keeps the
   upper levels as calls rather than inlining 2^24 copies of the first.
 - `crossing` is a library of verbs that take and return values of one, two
@@ -96,7 +96,7 @@ program output while linking the same unoptimized dependency. It also runs
 `survey` optimized and builds the two-version, transitive `versions` graph
 with optimization enabled. Its `optimization/filled` program folds lists of
 one element, long and short, a list of mixed elements, and 16 zeros of
-which the last is `-0.0`: only the long one of one element is pushed by a
+which the last is `-0.0`: only the long list of one element is pushed by a
 loop, the zeros keeping their signs.
 
 `facts_test.py` checks the facts codegen gives LLVM
@@ -147,7 +147,7 @@ through a table it is given that returns from inside its own loop, which
 the loop writes out while `main`'s call outside any loop calls it, and
 `depth`, which calls itself, `spin`, given only a number, and `weighed`,
 whose constructor's left-out default makes it too big, which stay calls;
-each build prints the same. `taking` is a library whose `Text` constructor
+each build prints the same output. `taking` is a library whose `Text` constructor
 copies the string it is given once into the value it makes, and `takes` a
 program over it, built against `taking`'s object: the fresh string it
 passes goes to a local copy of `Text` that takes it with no copy, the string
@@ -179,7 +179,7 @@ build's answer, since no prefetch reads a list's handle through a variant's
 payload.
 `scans` is LangArena's Sort::Quick partition, whose scans are counted
 loops that return after an element or two: optimized, IRCE splits none of
-them, and every build sorts the same.
+them, and every build sorts to the same order.
 `pending` is LangArena's R5 shapes: a loop reading `this.adj[v]` that
 pushes onto a list of its own only inside an `if`, as Graph::BFS's queue
 does, which reads that list's items and count once before it in an
@@ -197,7 +197,15 @@ well-formed stamp, and a malformed one is a usage error that writes no
 object. Its packages are written to a temporary directory, so no file name
 in the repository is Unicode.
 
-`memo_test.py` checks calls remembered while the program runs
+`arguments_test.py` checks the empty `STEM.arguments` marker that
+`--object` writes beside an object when a `comptime` call read the
+runtime's `arguments` (`docs/design/comptime.md` K6). A root whose marked
+call reads them, directly or through a library's verb, gets the marker,
+also when the build was given no arguments; a root whose marked call reads
+nothing gets none; and a second build that reads nothing removes the marker
+the first build wrote.
+
+`memo_test.py` checks calls memoized while the program runs
 (docs/design/memoization.md). Its `memo` fixtures are programs, each built
 plain, optimized and tiered (tier 1 loaded before `main`), with and without
 `--no-memoize`, and each must print the same in all six. `fib`, `ttt` (a board array), `moves` (a variant) and

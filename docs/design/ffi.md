@@ -13,11 +13,11 @@
 > rows, with an archive's members and each source holding assembly
 > renamed as objects (F4, F9), both reaching a program built against a
 > release (F15); release archives' hashes of their C modules, with
-> a dependency's C retained for an optimized build to inline where they
-> agree (F13, F15); and C folded at compile time, in `lib/optimize/`
+> a dependency's C retained for an optimized build to inline where the
+> hashes match (F13, F15); and C folded at compile time, in `lib/optimize/`
 > (F16–F19); the fixtures of §6 and the entries of
 > [`optimizations.md`](../optimizations.md) for F13 and F16 are in place
-> too, so every step of §7 is built. This page says how the compiler implements the spec's C
+> too, so every step of §7 is built. This page describes how the compiler implements the spec's C
 > interface
 > ([`ffi.md`](https://github.com/zane-lang/spec/blob/8ee0f38/spec/ffi.md)):
 > compiling a package's C code, checking foreign verbs against it, calling
@@ -26,7 +26,7 @@
 
 The two documents divide the C interface between them. The spec states
 everything a Zane program or a package's C code can rely on: what is
-accepted, what a call does, which errors a build reports, and when a call is
+accepted, a call's behaviour, which errors a build reports, and when a call is
 evaluated at compile time. This page holds only how the compiler meets
 that: mechanisms a user cannot observe, such as the clang it links, the
 glue it generates, how it renames symbols and caches modules, and how it
@@ -80,7 +80,7 @@ target either way. The two triples are normalized as LLVM normalizes one and
 compared by architecture, operating system and environment, leaving out
 the vendor, which normalizing keeps (`pc` stays, a missing one becomes
 `unknown`) and which names no ABI on these targets, so `x86_64-linux-gnu`
-and `x86_64-pc-linux-gnu` agree; one that names another is an error saying to set `ZANE_CC` to a GCC
+and `x86_64-pc-linux-gnu` match; one that names another is an error that recommends setting `ZANE_CC` to a GCC
 for that target. The probe reads
 the list after `#include <...> search starts here:`, which GCC, clang and
 `zig cc` all print in that form; the list is kept in the cache, keyed by
@@ -103,7 +103,7 @@ ships, is taken for a builtin one too. Those hold its intrinsics and
 own instead: they are embedded in the compiler, written once into the
 cache directory, and named with `-resource-dir`, which `-nostdlibinc`
 leaves searched. Nothing else the C compiler would do is replayed, so a GCC's `cc1` options or a newer clang's never reach the
-linked one. `ZANE_CC` keeps its meaning: it names the C compiler that is
+linked clang. `ZANE_CC` keeps its meaning: it names the C compiler that is
 asked for the headers.
 
 MSVC's `cl.exe`, and `clang-cl` in its mode, take no `-E -v` and print no
@@ -112,8 +112,8 @@ variable, which a Visual Studio developer shell sets. A `ZANE_CC` whose
 `--version` or `/?` names either is therefore not run for the list. Its
 directories are read from `INCLUDE` in each build, never cached, split on
 `;`, and passed the same
-way, and a build that finds `INCLUDE` unset fails with an error saying to
-run from a developer shell. The default `ZANE_CC`, `zig cc`, needs neither,
+way, and a build that finds `INCLUDE` unset fails with an error that recommends
+running from a developer shell. The default `ZANE_CC`, `zig cc`, needs neither,
 since it carries its own headers for every target.
 
 **F2. Every C source is compiled with fixed flags first, then the package's
@@ -130,7 +130,7 @@ baseline already),
 module comes out of the front end unoptimized but optimizable: `-O0` would
 mark every function `noinline`, which no later pipeline undoes, and F13's
 inlining across the two languages would never happen. `-Wall` follows them;
-its warnings refuse nothing (F3 says which are shown). A function the front
+its warnings stop no build (F3 lists the warnings shown). A function the front
 end stamps with the compile's own processor, its `target-cpu`,
 `target-features` and `tune-cpu`, loses them, as the runtime's bodies do,
 and is compiled for the program's target: LLVM inlines a body only into a
@@ -169,7 +169,7 @@ C source compiles to a module of its own, and the package's modules, with its
 glue (F8), are linked into one with LLVM's linker. A source's module is kept
 in the cache directory as bitcode of the compiler's own LLVM, under a hash of
 the source's preprocessed text, with its line markers, the front-end
-command, and the linked clang's full version, which is what makes the
+command, and the linked clang's full version, since that clang makes the
 module from them. The preprocessed text is what the
 compilation reads, and its line markers name the file each line came from,
 so the key changes with any header's contents, with which file an include
@@ -223,7 +223,7 @@ check reports what a build would: a member for another architecture than
 the build's target is refused there, naming the member, rather than at
 the link. Each member is renamed (F9) and
 written back as a static library by LLVM's archive writer
-(`lib/codegen/archive_stubs.cpp`), in the kind the target's linker reads:
+(`lib/codegen/archive_stubs.cpp`), in the archive format the target's linker reads:
 GNU's for ELF, Darwin's for Apple's targets and COFF's for Windows, with
 a symbol table. The renamed libraries are passed to the link after every
 object, the program's and its dependencies', so each member an object
@@ -236,7 +236,7 @@ before the runtime and its libraries. A system library the target's C compiler c
 an error naming the package and the row: the linker's own words for it,
 `unable to find library -lX` from LLD, `library not found for -lX` from
 `ld64` and `cannot find -lX` from GNU `ld`, are read from what the link
-writes, and the error names the row of the `c.coda` that asks for the
+writes, and the error names the row of the `c.coda` that names the
 library in their place. A C function a foreign verb names that nothing
 linked defines, declared by an interface header and given by no source,
 archive or system library, is read from the link's words the same way:
@@ -301,20 +301,20 @@ information, which counts value bits, so a type with padding bits, whose
 width is less than its size, matches no primitive, full-width or narrow
 (`ffi.md` §3.3).
 A type §3.3 refuses is reported with its type on the target and a pointer
-to the converting C function §3.3 asks for. A C-compatible value type is compared field by field against the
+to the converting C function §3.3 requires. A C-compatible value type is compared field by field against the
 `struct`'s offsets and sizes, its fields laid out in declaration order as C
 lays a `struct` out ([`platforms.md`](platforms.md), "64-bit targets only"),
 which is the layout it crosses in (F10), and the two must
 have the same size and alignment: a `struct` aligned more strictly than its
 fields, as `_Alignas` makes one, is passed differently by C and would sit
 in an under-aligned slot. Two forms are
-refused outright, whatever their sizes say. A function declared without a
+refused outright, whatever their sizes. A function declared without a
 prototype, such as `int f();`, gives no parameter types to check, so a
 foreign verb naming one is an error; the header has to write `int f(void);`
 or the parameters. A `struct` with a bit-field can match a Zane field's
 offset and size while holding fewer bits, so no `struct` with one
 corresponds to a C-compatible value type (`ffi.md` §3.3's full-width fields
-exclude it). A `zane_bytes` or `zane_span` is the one `<zane_ffi.h>`
+exclude it). A `zane_bytes` or `zane_span` is the type `<zane_ffi.h>`
 declares (§3.4) only when its layout is: a `const` pointer to `uint8_t`, or
 to `void`, at offset 0 and a `size_t` after it, and nothing else. The
 toolchain puts `<zane_ffi.h>`'s directory on the include path but includes
@@ -336,13 +336,13 @@ or `Writes`), which later stages read as they read a verb's derived ones.
 A foreign handle is a type declaration whose definition is
 `Handle { c_type; set; free }`, a reference type with no fields: it is
 settled or roaming, moved and referenced, and destroyed, exactly like a
-`#struct`. Its kind is `Capability` when it has no `free`. Otherwise it
+`#struct`. Its `handle_kind` is `Capability` when it has no `free`. Otherwise it
 waits until every package's signatures are known, then is read from the
 foreign verbs that return the type, by `ffi.md` §4.2. Each check of §4.4
-and §5.3 is then a test of the kind against the verb's signature, so none
+and §5.3 is then a test of the `handle_kind` against the verb's signature, so none
 of them needs to look past the declaration. All of this is
 `lib/tst/passes/foreign_decls.ml`, the last step of pass 4, which reads
-each package's table through `Env.interfaces` and writes the kinds and the
+each package's table through `Env.interfaces` and writes the `handle_kind`s and the
 foreign verbs into pass 4's tables. The one rule that needs a place's
 state, that a settled handle without a setter is never overwritten
 (`ffi.md` §4.3), is in `references.ml` beside the other store rules.
@@ -405,7 +405,7 @@ that declares its C function. The glue holds:
 - one **free thunk** per foreign handle type with a free function, and one
   **set thunk** per type with a setter: thunks of the same pointer ABI,
   whose arguments are the objects' pointers, which call the free function
-  with the one and the setter with the two. A library's object defines
+  with the single pointer and the setter with the two. A library's object defines
   them for each of its handle types, since another object's ends and
   overwrites call them.
 - for function values, the entries of F11.
@@ -443,10 +443,10 @@ marks the declaration with an annotation, and the compile that turns a
 source into its module (`lib/foreign/clang_stubs.cpp`) makes each marked
 name an LLVM alias of its target once clang has emitted the module,
 giving it the declaration's uses and its linkage: a `static` declaration's
-alias is internal, as the `alias` attribute makes it. The front end refuses a mark, where it is
+alias is internal, as the `alias` attribute makes it. The front end rejects a mark, where it is
 written, unless it is on a declaration of a function or variable that the
-source does not define, and the source defines its target, of the same
-kind, with external linkage, neither has an `__asm__` label, which
+source does not define, and the source defines its target, likewise a
+function or a variable, with external linkage, neither has an `__asm__` label, which
 would name a symbol other than the C name the alias is made under, and the
 declaration is not weak: Mach-O has no weak alias, and LLVM writes one
 there as a weak reference, which defines nothing. A
@@ -500,7 +500,7 @@ anything else by name; a struct type matches the other module's copy of
 it field by field, as each module read names its own. A private function
 whose address the glue takes, as comparing it with a pointer of the
 header's does, is shared the same way, so the address the glue sees is
-the one the source's pointers hold; one the glue only calls stays its own.
+the address the source's pointers hold; one the glue only calls stays its own.
 A constructor or destructor whose address is taken is shared so too, and
 the glue's list no longer runs it, since the source's does, unless it sets
 up private state the glue keeps a copy of. Such a variable or function
@@ -528,7 +528,7 @@ optimized member's copy may be split or specialized into such pieces, as
 `state.0` and `state.1` for the fields of a struct `state`. And a member
 defining the header's external definitions, whose copies the glue drops
 for its, compiled the header, so it is refused whatever its local symbols
-say, as when an archive is stripped of the names no relocation needs.
+show, as when an archive is stripped of the names no relocation needs.
 Each holds for a private constant or function whose address the program
 can see, a copy of which is told apart from it, as it does for writable
 state; a function only called, or run from the constructor list, is not
@@ -538,14 +538,14 @@ a function the glue keeps reads, stays, itself, through a function of the
 glue it calls or through a private variable's initializer, such as a
 pointer to the state, since the source's copy sets up only the source's
 state; so does one that calls through a pointer, or calls a function
-something else calls too.
+another function calls too.
 A source assembled apart, or an archive built from sources, that includes
 the header defines the same copies outside the module: the glue's
 definitions of every name the package's objects define are made
 declarations too (`zane_drop_defined_apart`), a labelled one's matched by
 its label, as an object names it, and an assembled source's
 constructors are read from its module, as a linked source's are, so the
-glue leaves out the ones its object runs; one with external linkage the
+glue leaves out the constructors its object runs; one with external linkage the
 glue's copy of is a declaration so is left out of the glue's list too.
 An archive shows neither which of a header's constructors its members run
 nor whether a member is linked, nor which headers a member includes. So
@@ -588,19 +588,19 @@ rewritten with the map. Its functions are then called and never inlined
 or folded, since no module that F13 or F16 reads holds their bodies.
 Assembly that reaches the glue through an interface header has no such
 route, since the glue is linked into the package's module, and is
-refused with an error saying to move it into a C source.
+refused with an error that recommends moving it into a C source.
 
 The map holds every C name the package defines with external linkage:
 those its module renames, which `zane_rename_c_globals` hands back, and
 those its archives' members and assembled objects define, which renamed
 the module's declarations of them first. Each maps from the name the
-object spells, after the target's global prefix, to the one the module's
+object spells, after the target's global prefix, to the name the module's
 global takes, the prefix and the package's symbol and `%c$` before the C
 name, so an object's definitions and references both move, and the
 module's calls into an object and an object's into the module meet. The
 rewriter renames each object's symbols in place
 ([`separate-compilation.md`](separate-compilation.md) C9), so the
-objects' sections, relocations and code are the ones the archive or the
+objects keep the sections, relocations and code the archive or the
 assembler made.
 
 Section names are not renamed, so a linker set is refused (`ffi.md` §2.5).
@@ -658,7 +658,7 @@ its C layout, and the node passes the slots' addresses:
 | a handle | its pointer |
 
 A string, array or list is passed where it is, never copied going in:
-`ffi.md` §3.4 and `memory.md` §2.9.1 together mean nothing writes it during
+`ffi.md` §3.4 and `memory.md` §2.9.1 together guarantee that nothing writes it during
 the call. So is one a conversion such as `core`'s `implicit
 @primitives$String(v String) => v._value` gives, when nothing else in the
 call can write the source: the call reads the member where the source keeps
@@ -828,7 +828,7 @@ one process-wide counter, a 64-bit atomic fetch-and-add. Handles made by
 spawned calls on different pool threads still get distinct, comparable
 stamps, and a handle made from another is made after it in the program's
 happens-before order, so its stamp is larger. A move keeps the stamp,
-since the handle is the same one. A null pointer is stamped 0, which
+since the handle is unchanged. A null pointer is stamped 0, which
 lowering tests for the abort or stop of `ffi.md` §3.5.
 
 A slot whose value may hold a handle is listed among its scope's held
@@ -877,8 +877,8 @@ runs:
   the consumer's system headers, include directories or compiler differ from
   the publisher's, the dependency's C is called and never inlined or folded
 (`ffi.md` §2.6).
-  A `source` or path dependency is built by the consumer, so its modules
-  always agree.
+  A `source` or path dependency is built by the consumer, so its modules'
+  hashes always match.
 
   The glue the consumer compares is the publisher's own: it is written
   for every foreign verb of the package and the free and set thunks of
@@ -897,7 +897,7 @@ runs:
   consumer would be a second variable, and the function's inlined and
   called forms would each see their own. Such a function, and everything
   that reaches it, is called. A `static const` table and a `static`
-  function are copied only where nothing can tell the copy from the
+  function are copied only where the copy is indistinguishable from the
   original, so never one placed in an explicit section, which the linker
   may gather into a table that would then hold both: their contents are read and the function is called, and their
   address is never returned, stored, compared, converted to an integer or
@@ -910,8 +910,8 @@ runs:
 
 A retained variable is a declaration, and so is a constant that holds a
 `static` object's address or a label's, a weak definition another object may
-override, an alias and an indirect function: only bodies nothing can
-tell from the object's are copied. An optimized build links the retained
+override, an alias and an indirect function: only bodies indistinguishable
+from the object's are copied. An optimized build links the retained
 modules into the program's module after the program's own C, since LLVM's
 linker takes an `available_externally` body only into a module that
 already uses it. A build that compiles the C apart (F14) retains none.
@@ -947,7 +947,11 @@ source holding assembly is an object of its own (F9), renamed with the
 `!` placeholder as the package's object is, and `--object` writes these
 beside `OUT` too, as `STEM.c.0.o`, `STEM.c.1.o` and so on, `STEM` being
 `OUT` without its extension; one an earlier build wrote there under that
-name is removed first. LLVM's linkers cannot join objects into one for
+name is removed first. (`--object` also writes the empty marker
+`STEM.arguments` when a `comptime` call read the build's arguments, and
+removes one an earlier build left when none did; the marker concerns
+`comptime` calls rather than C: [`separate-compilation.md`](separate-compilation.md)
+C3.) LLVM's linkers cannot join objects into one for
 Apple's targets or Windows, so they stay apart: the release archive's
 `build/` directory holds them all (`dependencies.md` §3.1), fetching
 rewrites each (C9 of [`separate-compilation.md`](separate-compilation.md)),
@@ -966,12 +970,12 @@ its `system` libraries reach the link.
 **F16. Stage 5 evaluates C by interpreting its LLVM IR.** `lib/optimize/c_eval.ml`
 runs a function of a package's C module, before LLVM has optimized it, with
 the target's data layout. It is a second evaluator beside `eval.ml`, for a
-second language: `eval.ml` models what a Zane program means and never where
+second language: `eval.ml` models a Zane program's meaning and never where
 its bytes are (O5), and C can tell where its bytes are, so `c_eval.ml`
 models memory as bytes.
 
-The module is the one an optimized build links (F13): every package's C
-of the program, and each dependency's retained C where its hashes agree,
+The module is the module an optimized build links (F13): every package's C
+of the program, and each dependency's retained C where its hashes match,
 built before stage 5 runs and kept for codegen. `lib/optimize/c_ir_stubs.cpp`
 writes out each function and global the evaluator reaches, once, as text
 `c_ir.ml` reads, with every offset already computed from the data layout:
@@ -991,7 +995,7 @@ code in: the module's globals made from their initializers as the fold
 first reaches each, and its constructors, the functions
 `llvm.global_ctors` lists, run by priority when the fold first calls into
 C. A constructor that stops stops every call into C of that fold, since
-no state it leaves is the one the running program has. A variable that is
+no state it leaves is the state the running program has. A variable that is
 `thread_local` stops the fold, since each thread has its own, and so do
 calls nested more than 2,000 deep.
 
@@ -1038,7 +1042,7 @@ calls nested more than 2,000 deep.
   `abs`, `smin`/`smax` families, the exact float functions, `lifetime`,
   which does nothing, and `assume`, whose condition is evaluated: a false or
   poison one is undefined behavior and stops the fold, as the next item
-  says, since the optimized module may treat that path as unreachable).
+  explains, since the optimized module may treat that path as unreachable).
 - **Calls** to a function the module defines are evaluated. A call to a
   function it only declares is evaluated when it is one of the C library's
   functions whose meaning is exact, which `c_eval.ml` models: `memcpy`,
@@ -1047,8 +1051,8 @@ calls nested more than 2,000 deep.
   unknown, so the fold stops there, which is what keeps `sin` and its kin to
   the run time, as the Zane approximate functions are kept (O3).
 
-  Two of these give less than an exact value, and are modelled as what C
-  promises. `memcmp`, `strcmp` and `strncmp` promise only the sign of their
+  Two of these give less than an exact value, and are modelled by the C
+  standard's guarantee. `memcmp`, `strcmp` and `strncmp` guarantee only the sign of their
   result, so the evaluator's result is a **sign-only** integer: comparing it
   with zero folds, and anything else that would read its value (returning
   it, storing it where Zane reads it, arithmetic on it) stops the fold.
@@ -1084,7 +1088,7 @@ calls nested more than 2,000 deep.
   call folds as it does on x86-64.
 
 The IR evaluated is the IR the program runs, before the pipeline has
-optimized it. Code without undefined behavior means the same before and
+optimized it. Code without undefined behavior behaves the same before and
 after optimization, and F2's fixed flags take away the two freedoms that
 would let a float result differ between them: contraction into a fused
 operation and reassociation. So a folded call gives what the run would
@@ -1118,7 +1122,7 @@ value. A function value C calls while it runs is run by `eval.ml` through
 `C_cross.adapter`, which rebuilds each struct argument from C's order in
 Zane's and the result back in C's, as the adapter does at run time (F11). A view into a string, array or list is a read-only allocation
 holding a copy of its bytes, and a store into it stops the fold. `eval.ml`
-knows a value and not where it is stored (O5), so whether two views share
+models a value and not where it is stored (O5), so whether two views share
 storage at run time is unknown: two arguments from one variable do, two
 equal strings from different variables do not. A view's allocation is
 therefore marked as standing for storage of unknown identity, and comparing
@@ -1177,11 +1181,11 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
 - A release's C retained (F13): a dependency's C linked as a release
   prints what it prints compiled in, and the optimized build still calls
   only what reaches a `static` counter or lets out a `static const`'s
-  address, besides what is in its archives and assembled objects, a
+  address, besides the code in its archives and assembled objects, a
   source holding assembly among them, while
   every thunk, a pure function, one reading a `static const` table and
   one reading what a constructor with external linkage counted, which
-  runs once, are inlined. With hashes none of which agree, every thunk is
+  runs once, are inlined. With hashes none of which match, every thunk is
   called. `tests/unit/` checks the retained copy rule by rule, the hash
   file read, written and rewritten, and the glue's thunk order.
 - The `folding` fixture's `golden/folding.optimized.cgt` shows what folded:
@@ -1193,7 +1197,7 @@ evaluators, so a fold that calls C cannot run longer than one that does not.
   is C state of the package's own. So the fixture declares with no
   capability a C function that returns the next value of a file-scope
   counter, and calls it three times with its result printed and once with
-  its result unused. The test asserts what an optimized build prints (each
+  its result unused. The test asserts the optimized build's output (each
   call folded from the counter's first value, 1, 1, 1, in
   `golden/hazard.optimized.out`) against what a plain build prints (1, 2,
   3), so a change that stops folding such calls is a decision, not an

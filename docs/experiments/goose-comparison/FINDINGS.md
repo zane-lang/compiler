@@ -3,7 +3,7 @@
 Status: **finished**. This is the summary of the experiment. `README.md` is
 the full log, with every step's measurements and the dead ends in the order
 they happened. The spec was updated to the model afterwards; the section
-"The spec" says what changed there.
+"The spec" lists the changes there.
 
 ## The question
 
@@ -76,7 +76,7 @@ before the loop. A C replay of binarytrees ran as fast as Goose once its
 push had that shape.
 
 **A lead hides a loss.** Once Zane was level, whole-program times stopped
-showing what Goose or C still did better in parts of a program.
+showing the parts of a program where Goose or C was still faster.
 `mechanisms.py` lines up each function's own instructions (Callgrind)
 across Zane, Goose and C, and found the remaining mechanisms: a scope
 opened per loop pass, index checks that LLVM could not hoist, and a second
@@ -242,13 +242,13 @@ scope's own region, the common case.
   four elements. Other targets' layouts are left to the compiler, so the
   64-bit layout on Windows and macOS is the compiler's choice, not a
   departure.
-- The memory story gained the chapters that tell how the model came about,
+- The memory story gained the chapters that recount how the model came about,
   and links this experiment.
 
 The spec's `memorybench/` harness and its langbench programs and pins were
 not updated; they are a separate change.
 
-## What is still open
+## Open questions
 
 - **ntree**: closing the last 1.3× needs the node's children inline, as the
   `ArrayRef` port shows, or a smaller handle; the cage's 12-byte handle

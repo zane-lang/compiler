@@ -157,9 +157,9 @@ static int given_back(char *at, size_t bytes) {
 #endif
 	size_t kept = 0;
 	for (size_t i = 0; i < pages; i++) kept += resident[i] & 1;
-	/* On stderr, outside the golden output: what stayed, and on Linux the
-	   mappings it is in, to tell a page the runtime missed from one the
-	   system brought back. */
+	/* On stderr, outside the golden output: the pages that stayed, and on
+	   Linux the mappings they are in, which separate a page the runtime
+	   missed from a page the system brought back. */
 	if (kept) {
 		fprintf(stderr, "given_back: %zu of %zu pages resident from %p:", kept, pages, (void *)at);
 		for (size_t i = 0, runs = 0; i < pages && runs < 8;) {
@@ -297,7 +297,7 @@ static void exercise_warm_several(void) {
 }
 
 /* A context keeps at most ZANE_WARM_SPANS reservations, however small:
-   of one more lists than that, drained at once, the one its scope gave
+   of one more lists than that, drained at once, the list its scope gave
    back first, the newest, goes back to make room. The context gives back
    what earlier exercises left it first, so every list starts a span of
    3 MiB and the byte budget never binds. */
@@ -352,8 +352,8 @@ static void exercise_pool_not_listed(void) {
 }
 
 /* The reservations a context keeps hold at most ZANE_WARM_SPAN_BYTES
-   usable bytes, the ones kept longest going back first: of three lists of
-   32 MiB, only the one its scope gave back last stays, which is the first
+   usable bytes, the reservations kept longest going back first: of three lists of
+   32 MiB, only the list its scope gave back last stays, which is the first
    made, since a scope gives its blocks back newest first. Whether a later
    list lands at an old address proves nothing, as the system may map a
    released range there again. */
@@ -409,7 +409,7 @@ static rlim_t addresses_held(void) {
 }
 
 /* With the addresses a drained list's kept reservation holds all that is
-   left, a block that reservation cannot hold is still made: the kept one
+   left, a block that reservation cannot hold is still made: the kept reservation
    goes back to the system first. The child may take 2 MiB more addresses
    than it holds, less than the 5 MiB copy needs. */
 static int reserving_gives_back(void) {

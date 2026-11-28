@@ -1,5 +1,5 @@
 /// Removing a list's elements: `remove` moves the element at an index out and
-/// shifts the later ones down, and `swapRemove` moves the last one into its
+/// shifts the later elements down, and `swapRemove` moves the last element into its
 /// place. Of scalars, strings, owners and lists; a removed element kept,
 /// settled, pushed back, or left to die where it was removed; from a list
 /// that is itself an element whose list the index grows, and from one made

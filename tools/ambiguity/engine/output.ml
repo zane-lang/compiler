@@ -30,14 +30,13 @@ let eprintf fmt =
 (* How progress is shown, and how often.
 
    On a terminal it is one line rewritten in place several times a second.
-   Everywhere else there is no cursor to move back to and the stream is usually
-   being saved, so the same numbers go out as ordinary lines at a much slower
-   cadence. Showing nothing at all off a terminal -- which is what this used to
-   do -- is what made every wrapped run silent for its entire length: the
-   wrapper that streams the engine's output line by line was the one guaranteed
-   never to receive a line. AMBIGUITY_PROGRESS_SECONDS sets the cadence; zero
-   or less turns progress off, for a caller that wants the verdict and nothing
-   else. *)
+   Everywhere else there is no cursor to move back to and the stream is
+   usually being saved, so the same numbers go out as ordinary lines at a much
+   slower cadence. Without those lines a wrapped run would show no progress
+   for its entire length: the wrapper that streams the engine's output line by
+   line would receive no progress line. AMBIGUITY_PROGRESS_SECONDS sets the
+   cadence; zero or less turns progress off, for a caller that wants the
+   verdict and nothing else. *)
 let progress_on_terminal = Unix.isatty Unix.stderr
 
 (* Read on first use rather than at module initialisation, so a malformed value

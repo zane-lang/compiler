@@ -1,7 +1,7 @@
 (* The file `--object` writes beside a package build's object
    (docs/design/ffi.md F15): for each C source and each glue module of the
    packages the object holds, the hash F3 keys its module by, which a
-   consumer compares with the one it computes for the module it compiles
+   consumer compares with the hash it computes for the module it compiles
    from the dependency's checkout before it retains that module (F13).
 
    It is a Coda table, `c-hashes`, one row per module: the package as the

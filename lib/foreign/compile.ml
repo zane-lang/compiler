@@ -65,8 +65,8 @@ let headers root =
    names it: the baseline `x86-64` on x86-64, `generic` on AArch64 and
    `generic-rv64` on 64-bit RISC-V. Elsewhere clang's own default is that
    baseline already, and some targets (SystemZ, LoongArch) take no `-mcpu`,
-   so none is given. C then uses what the program's processor has and no
-   more, whatever processor clang defaults to for the target. *)
+   so none is given. C then uses the features of the program's processor
+   and no more, whatever processor clang defaults to for the target. *)
 let processor_flags ~triple cpu =
   let given baseline = if cpu = "" then baseline else cpu in
   match String.split_on_char '-' triple with
@@ -186,8 +186,8 @@ let map_flags ~dir maps =
 (* [args] without the overlays [map_flags] adds: an overlay's path is a
    temporary file's, and what it holds follows from the maps, which the
    arguments spell already. Nor with the flags that search
-   [search_root], which only a Windows host adds, so the hash is the one
-   any host computes. *)
+   [search_root], which only a Windows host adds, so every host computes
+   the same hash. *)
 let rec without_overlays args =
   let search = Option.map (fun s -> "-ffile-prefix-map=" ^ s ^ "=") search_root in
   match args with
@@ -233,7 +233,7 @@ let mapped_arg maps arg =
   | Some a -> a
   | None -> ( match after "-I" with Some a -> a | None -> mapped_path maps arg)
 
-(* Whether [line] of preprocessed C is a line marker, `# N "file"`. *)
+(* [line] of preprocessed C tested for a line marker, `# N "file"`. *)
 let marker line =
   let n = String.length line in
   n > 2 && line.[0] = '#' && line.[1] = ' ' && line.[2] >= '0' && line.[2] <= '9'
@@ -390,7 +390,7 @@ let mentions word text =
 (* [path], a C source of the package in [dir], compiled with [flags], from
    the module cache under [cache] when it holds it. The key is the
    preprocessed text, which keeps neither a token's column nor the line of
-   one inside a macro argument that spans lines, so a module that asks for
+   one inside a macro argument that spans lines, so a module that reads
    either (`__builtin_COLUMN`, `__builtin_LINE`) is compiled every time
    instead. The key's tag names the form zanec makes of clang's module
    (its aliases and their linkage, the processor its functions lose), so a

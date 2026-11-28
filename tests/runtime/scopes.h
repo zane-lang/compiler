@@ -1,8 +1,8 @@
 /* What a program defines for the runtime, and slots placed the way a test
    can place them. Emitted code lays a scope's frame out at compile time
    (lib/codegen/frames.ml); a test instead grows the innermost scope's
-   frame by each slot it asks for, which places the same bytes, since the
-   innermost frame is the last one in its context's range. */
+   frame by each slot it requests, which places the same bytes, since the
+   innermost frame is the last frame in its context's range. */
 
 #ifndef ZANE_TEST_SCOPES_H
 #define ZANE_TEST_SCOPES_H

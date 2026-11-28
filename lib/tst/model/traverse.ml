@@ -1,6 +1,6 @@
 (* Walking the typed syntax tree, for every analysis over it: the parts of
    each expression and statement. An analysis keeps only its own decisions,
-   such as which parts it walks into and what it does at each node. *)
+   such as which parts it walks into and its work at each node. *)
 
 module T = Nodes
 

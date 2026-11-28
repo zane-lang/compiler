@@ -116,7 +116,7 @@ let inline st t =
 (* A walk down a type's members, gone down to [t] (Tty.Growth). Semantics
    rejects a type that holds itself at a growing argument (generics.md §2.4),
    the only kind of type whose members lead to ever new types, so a walk that
-   keeps growing means semantics missed such a type: an internal error, not a
+   keeps growing shows semantics missed such a type: an internal error, not a
    hang or a stack overflow. *)
 let down ?span path t =
   match Tty.Growth.step path t with
@@ -331,7 +331,7 @@ let bytes n =
   in
   scaled [ ("GiB", 1 lsl 30); ("MiB", 1 lsl 20); ("KiB", 1 lsl 10) ]
 
-(* A type's layout, refused where the type is named when its size is past the
+(* A type's layout, rejected where the type is named when its size is past the
    limit no value can reach (Nodes.Ty.limit), or past the main context's
    range of frames (`--fixed-region`), which could then never hold a value
    of the type (docs/design/lowering.md §9). Each layout is checked once. *)

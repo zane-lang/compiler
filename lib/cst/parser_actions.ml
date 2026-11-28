@@ -8,7 +8,7 @@
    between.
 
    Raising is safe in exactly these two places. An action runs on every branch
-   the GLR parser has live, not only the accepted one, so a raise ends the
+   the GLR parser has live, not only the accepted branch, so a raise ends the
    parse rather than the branch -- and no valid program reaches either of
    these. A check a valid program can reach belongs in [Statement_check],
    over the tree that survived. *)
@@ -120,7 +120,7 @@ let constructor_expr loc name args =
 (* An `as` alias renames one member, and an identifier's case marks it as a
    type or a value, so a rename across the two classes would change whether
    the identifier is a type or a value, not only its spelling. The grammar
-   admits either case on each side because both are ordinary identifiers; only
+   accepts either case on each side because both are ordinary identifiers; only
    a pair of different cases is wrong. *)
 let import_alias (member : Nodes.Import_member.t)
     (alias : Nodes.Import_member.t) =

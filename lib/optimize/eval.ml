@@ -1,11 +1,12 @@
 (* The CGT run at compile time (docs/design/optimization.md O5). Each node
    computes here what the code lib/codegen/emit.ml emits for it computes,
-   and each runtime function what runtime/ does, except where the bytes of
-   a value live: arenas, regions and the blocks that move between them are nothing
+   and each runtime function computes the result of its C body in runtime/,
+   except where the bytes of a value live: arenas, regions and the blocks that
+   move between them are nothing
    here, since no program can tell one placement from another
    (docs/design/lowering.md §9).
 
-   A run stops, with [Value.Stop], at anything it cannot know: an input, a
+   A run stops, with [Value.Stop], at any value it cannot compute: an input, a
    local the fold has no value for, a function with no body here, a division
    by zero or an index out of range (which must stop the program when it
    runs), or a budget spent. *)
@@ -13,7 +14,7 @@
 open Cgt.Nodes
 open Value
 
-(* What a run did that the running program must still do, in order (O4). *)
+(* A run's effects that the running program must still perform, in order (O4). *)
 type output = Print of string | Set_threads of int64 | Set_threads_auto
 
 (* A run of a call marked `comptime` (docs/design/comptime.md): it is not
@@ -22,11 +23,13 @@ type output = Print of string | Set_threads of int64 | Set_threads_auto
    machine's own. [arguments] is what the runtime's `arguments` gives: the
    arguments the build was started with. [reads] counts the reads the run
    has made, and the package constants it has made, so that a call that
-   made one is not remembered as a call that reads nothing. *)
-type explicit = { arguments : string list; mutable reads : int }
+   made one is not remembered as a call that reads nothing. [read_arguments]
+   becomes true once the run reads the runtime's `arguments`, so the build
+   can mark an object whose code depends on them. *)
+type explicit = { arguments : string list; mutable reads : int; mutable read_arguments : bool }
 
 (* A write of capability-backed state inside a `comptime` call, which no
-   such call may make (spec effects.md §5.6): what the write was. *)
+   such call may make (spec effects.md §5.6): a description of the write. *)
 exception Writes of string
 
 (* A package constant's two variables (docs/design/lowering.md L16), and its
@@ -71,7 +74,7 @@ let size_steps (t : Ty.t) =
   | Ty.Struct _ | Ty.Array _ | Ty.Sum _ | Ty.Packed _ -> fst (Ty.size_align t) / 64
 
 (* The weight a body may have and still be run again rather than
-   remembered: a node each, and the steps of each aggregate it makes or
+   memoized: a node each, and the steps of each aggregate it makes or
    moves. [core]'s arithmetic and constructors weigh a few each. *)
 let large_body = 64
 
@@ -137,7 +140,7 @@ type program = {
   mutable left : int;
   (* The program's C and its thunks (docs/design/ffi.md F16, F17). *)
   c : C_cross.program;
-  (* Whether a value of each layout asked about holds a foreign handle. *)
+  (* Whether a value of each layout looked up holds a foreign handle. *)
   holding : (Layout.t, bool) Hashtbl.t;
 }
 
@@ -148,7 +151,7 @@ let total = 50_000_000
 let max_depth = 2_000
 
 (* What the evaluator knows of [p] before any run: its functions, layouts
-   and variables, no constant known yet, nothing remembered, the whole
+   and variables, no constant computed yet, no call memoized, the whole
    [total] left, and its C, [c] (F16). *)
 let program_of ?(c = []) (p : Program.t) =
   let table f xs =
@@ -172,7 +175,7 @@ let program_of ?(c = []) (p : Program.t) =
   }
 
 (* The locals of one call. The function being folded has [outer]: the value
-   the fold knows a local of it holds, read the first time it is needed. *)
+   the fold has recorded for a local of it, read the first time it is needed. *)
 module Locals = struct
   (* The cell each local number names: numbers below [dense] in an array
      grown as they are bound, and any above in a table. A frame then costs
@@ -297,7 +300,7 @@ let spend run n =
 
 let tick run = spend run 1
 
-(* Work that grows with the size of what it makes or copies costs a step for
+(* Work that grows with the size of the data it makes or copies costs a step for
    each 64 bytes, charged before the work is done, so a few steps cannot
    build a value of any size. *)
 let bytes run n = if n >= 64 then spend run (n / 64)
@@ -348,6 +351,7 @@ let build_arguments run =
   | None -> stop "an input, which only the running program has"
   | Some x ->
       x.reads <- x.reads + 1;
+      x.read_arguments <- true;
       let layout =
         if Hashtbl.mem run.prog.layouts "%primitives$String" then Some "%primitives$String"
         else
@@ -441,12 +445,12 @@ let offset (p : ptr) within path =
 (* ---------------------------------------------------------------------- *)
 
 (* A NaN's sign and payload are the host's, and no program can tell one NaN
-   from another, so every NaN folds to the same one: the same source folds
+   from another, so every NaN folds to one canonical NaN: the same source folds
    the same way on any machine (O6). *)
 let canonical f = if Float.is_nan f then Int64.float_of_bits 0x7FF8_0000_0000_0000L else f
 
 (* A float as its type holds it: an [F32]'s result is rounded to a single,
-   which is the one rounding the machine's own single operation makes. *)
+   which is the only rounding the machine's own single operation makes. *)
 let float (t : Ty.t) f = canonical (match t with Ty.F32 -> Scalar.single f | _ -> f)
 
 (* Canonical scientific notation, as runtime/block.c's [zane_decimal_text]. *)
@@ -467,7 +471,7 @@ let decimal_text text =
       Printf.sprintf "%se%d" (String.sub text 0 last) power
 
 (* Compare all round-tripping candidates, including scientific notation
-   where %g prefers a longer fixed spelling. Ties retain the first (least
+   where %g picks a longer fixed spelling. Ties retain the first (least
    precise) candidate. The runtime makes the same search in the C locale. *)
 let float_text (t : Ty.t) f =
   if Float.is_nan f then "nan"
@@ -872,7 +876,7 @@ and stat run fr (s : Stat.t) =
       let t = value.Expr.ty and layouts = run.prog.layouts in
       let old = load p in
       (* The old value's foreign handles end, or with [setters] are set
-         from the incoming ones where they are settled (F12). *)
+         from the incoming handles where they are settled (F12). *)
       let old, v =
         if run.stamps = 0L || not (holds run layout) then (old, v)
         else
@@ -993,8 +997,8 @@ and call run fn args =
       if List.length f.Func.params <> List.length args then stop "a call with the wrong arguments";
       (* A call made before with the same arguments gives what it gave then.
          A run that makes a constant changes what a constant's state holds,
-         and a call's arguments do not show that change, so such a run
-         remembers nothing. *)
+         and a call's arguments do not show that change, so the evaluator
+         memoizes no call of such a run. *)
       let key =
         if run.making = None && remembers run.prog.funcs e then
           let consts = List.map export args in

@@ -42,7 +42,7 @@ let max_depth = 2_000
 let spend t n = t.hooks.spend n
 
 (* A weak declaration's address is null where nothing defines it, and
-   only the program's link shows whether something does. *)
+   only the program's link shows whether a definition exists. *)
 let weak name = stop ("the address of `" ^ name ^ "`, a weak declaration")
 
 let function_address t name =

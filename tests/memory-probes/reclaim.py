@@ -7,7 +7,7 @@ can see growth.
 
 With --check, the run fails unless every case built and exited 0, every case
 but the control grew by at most RECLAIMED_SLACK_KIB from the small run to the
-large one, and the control grew by at least CONTROL_GROWTH_KIB. Peak RSS
+large run, and the control grew by at least CONTROL_GROWTH_KIB. Peak RSS
 differs between machines, so the check compares a case's two runs with each
 other, never with the numbers in reclaim.out. `just test-compiler` runs this.
 Usage: python3 reclaim.py [--check] [CASE...]"""
@@ -77,8 +77,8 @@ cases={
 "string_concat_reset": ("s String(\"\"); k Int(0);", "s = @operators$concat(s, String(\"a\")); k = @operators$add(k, Int(1)); if(@operators$equal(k, Int(64))) { s = String(\"\"); k = Int(0); }"),
 "value_list_rebuild": ("l ListRef<Int> = @primitives$ListRef(Int);", "l = @primitives$ListRef(Int); l!push(i); l!push(i);"),
 "list_copy": ("l @primitives$List<String> = @primitives$List(String); l!push(String(\"abc\")); m @primitives$List<String> = l;", "m = l; m!push(String(\"d\"));"),
-# A field's list past 1 MiB replaced by a fresh one each time round: the
-# next one grows into the block of the one it replaced (memory.md §3.6).
+# A field's list past 1 MiB replaced by a fresh list each time round: each
+# new list grows into the block of the list it replaced (memory.md §3.6).
 "field_list_replace": ("bag Bag = Bag();", "bag.items = @primitives$List(Int); j Int(1); j!to(Int(300000)) { bag.items!push(j); }", (4, 40)),
 }
 args=sys.argv[1:]

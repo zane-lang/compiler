@@ -83,7 +83,7 @@ let bind_explicit (p : Ty.param) (a : actual) subst =
       | None -> None)
   | Ty.Number_kind, T.Arg.Value { T.Expr.node = T.Expr.Var (T.Name_ref.Number_param { value; _ }); _ } ->
       bind (Ty.Number value)
-  | _, T.Arg.Value { T.Expr.ty = Ty.Error; _ } -> Some subst
+  | _, T.Arg.Value { T.Expr.ty; _ } when Ty.unknown ty -> Some subst
   | _ -> None
 
 (* Every element, when no element is missing. *)
@@ -254,7 +254,7 @@ let has_literal actuals =
       || match a.aty with Ty.Concept (Ty.Array_lit (t, _)) -> Ty.is_bare_literal t | _ -> false)
     actuals
 
-(* Whether a bare literal sits where some generic candidate would have to
+(* Tests whether a bare literal sits where some generic candidate would have to
    infer a parameter from it -- the only mistake generics.md §5.4's hint is
    for. A literal that fills an explicit `n @concepts$Int` is not such a
    literal, and for a call with the wrong number of arguments the message
@@ -294,8 +294,14 @@ let request_coercions env (o : outcome) =
       | _ -> ())
     o.converted
 
-let report_resolution env ?(literal = false) ~span ~what ~args result cands =
+(* With [veiled], an argument is veiled where a generic body is declared
+   (generics.md §3.8): the call keeps the outcome it resolves to, so its
+   result type stays veiled, and reports nothing, since what fails depends
+   on the parameter and its instances report it. *)
+let report_resolution env ?(veiled = false) ?(literal = false) ~span ~what ~args result cands =
   match result with
+  | Resolved o when veiled -> Some o
+  | _ when veiled -> None
   | Resolved o ->
       List.iter (fun (at, message) -> error env at message) o.site_errors;
       request_coercions env o;

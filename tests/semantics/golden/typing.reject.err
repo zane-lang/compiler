@@ -246,6 +246,50 @@ File "fixtures/typing/reject/bad/comptime.zn", line 80, characters 9-17:
 80 |         abort e;
    |         ^^^^^^^^
 Error: a `comptime` call is evaluated whole at compile time, so nothing in it may abort the verb it is in; finish its handler with `resolve`
+File "fixtures/typing/reject/bad/constructors.zn", line 8, characters 1-24:
+8 | Hue.amber() => Hue.teal;
+  | ^^^^^^^^^^^^^^^^^^^^^^^
+Error: `amber` is a member of `Hue`, and naming it already builds one; a named constructor takes a name that no member or case of its type has
+File "fixtures/typing/reject/bad/constructors.zn", line 9, characters 1-37:
+9 | Ledger.some(n Int) => Ledger.some(n);
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `some` is a case of `Ledger`, and naming it already builds one; a named constructor takes a name that no member or case of its type has
+File "fixtures/typing/reject/bad/constructors.zn", line 12, characters 1-29:
+12 | Hue{level Int;} => Hue.amber;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Hue` is an enum, which has no fields, so its constructors take positional parameters, not a field list
+File "fixtures/typing/reject/bad/constructors.zn", line 13, characters 1-41:
+13 | Ledger{count Int;} => Ledger.some(count);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Ledger` is a variant, which has no fields, so its constructors take positional parameters, not a field list
+File "fixtures/typing/reject/bad/constructors.zn", line 17, characters 16-22:
+17 | Hue.blank() => init{}
+   |                ^^^^^^
+Error: `init{ }` assigns a struct's fields, and the enum `Hue` has none; its constructor returns one of its members, as `Hue.member`
+File "fixtures/typing/reject/bad/constructors.zn", line 18, characters 19-25:
+18 | Ledger.blank() => init{}
+   |                   ^^^^^^
+Error: `init{ }` assigns a struct's fields, and the variant `Ledger` has none; its constructor returns one of its cases, as `Ledger.case(payload)`
+File "fixtures/typing/reject/bad/constructors.zn", line 19, characters 17-39:
+19 | Hue.tinted() => init{ level = unlit; }
+   |                 ^^^^^^^^^^^^^^^^^^^^^^
+Error: `init{ }` assigns a struct's fields, and the enum `Hue` has none; its constructor returns one of its members, as `Hue.member`
+File "fixtures/typing/reject/bad/constructors.zn", line 19, characters 31-36:
+19 | Hue.tinted() => init{ level = unlit; }
+   |                               ^^^^^
+Error: no name `unlit` is in scope
+File "fixtures/typing/reject/bad/constructors.zn", line 32, characters 30-51:
+32 |     misbuilt Pouch<String> = IntPouch(String("x"));
+   |                              ^^^^^^^^^^^^^^^^^^^^^
+Error: this name builds `bad$Pouch<@primitives$I64>`, and the constructor these arguments reach builds `bad$Pouch<@primitives$String>`
+File "fixtures/typing/reject/bad/constructors.zn", line 33, characters 26-46:
+33 |     drawn Draw<String> = IntDraw(String("y"));
+   |                          ^^^^^^^^^^^^^^^^^^^^
+Error: this name builds `bad$Draw<@primitives$I64>`, and the constructor these arguments reach builds `bad$Draw<@primitives$String>`
+File "fixtures/typing/reject/bad/constructors.zn", line 41, characters 7-13:
+41 |     m Mark();
+   |       ^^^^^^
+Error: `bad$Mark` has no constructor; a variant is also built by naming a case, as `Mark.case(payload)`
 File "fixtures/typing/reject/bad/conventions.zn", line 15, characters 7-63:
 15 |     c Courier(Int(p Parcel) => Int(1), Parcel(String("hint")));
    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -382,18 +426,18 @@ File "fixtures/typing/reject/bad/imports.zn", line 11, characters 1-16:
 11 | import lib$hook;
    | ^^^^^^^^^^^^^^^
 Error: this import brings `hook` from `lib`, which takes the same parameter types as the `hook` declared at fixtures/typing/reject/bad/twin.zn:8; the two cannot be told apart at a call
-File "fixtures/typing/reject/bad/instances.zn", line 5, characters 25-56:
-5 | T half(value T Type) => @operators$divide(value, value);
-  |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: no `@operators$divide` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$I32 @operators$divide(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$divide(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$divide(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$divide(@primitives$F64, @primitives$F64)` (in `half` with T = @primitives$String, required at fixtures/typing/reject/bad/instances.zn:9)
+File "fixtures/typing/reject/bad/instances.zn", line 9, characters 19-36:
+9 |     text String = half(String("x"));
+  |                   ^^^^^^^^^^^^^^^^^
+Error: no `@operators$divide` accepts (@primitives$String, @primitives$String); the candidates are `@primitives$I32 @operators$divide(@primitives$I32, @primitives$I32)`; `@primitives$I64 @operators$divide(@primitives$I64, @primitives$I64)`; `@primitives$F32 @operators$divide(@primitives$F32, @primitives$F32)`; `@primitives$F64 @operators$divide(@primitives$F64, @primitives$F64)` (in `half` with T = @primitives$String, at fixtures/typing/reject/bad/instances.zn:5)
 File "fixtures/typing/reject/bad/instances.zn", line 22, characters 5-16:
 22 |     ping(value);
    |     ^^^^^^^^^^^
-Error: `ping` is instantiated more than 64 times along one chain of instantiations, which begins `ping`, `pong`, `ping`, `pong`, ...; its calls to itself never reach a fixed set (in `pong` with T = bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:17)
+Error: `ping` is instantiated more than 64 times along one chain of instantiations, which begins `ping`, `pong`, `ping`, `pong`, ...; its calls to itself never reach a fixed set (in `ping` with T = @primitives$I64; which calls `pong` at fixtures/typing/reject/bad/instances.zn:17, in `pong` with T = bad$Jar<@primitives$I64>; which calls `ping` at fixtures/typing/reject/bad/instances.zn:22, in `ping` with T = bad$Jar<@primitives$I64>; ...; which calls `pong` at fixtures/typing/reject/bad/instances.zn:17, in `pong` with T = bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<bad$Jar<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)
 File "fixtures/typing/reject/bad/instances.zn", line 34, characters 5-21:
 34 |     fork(Jar(value));
    |     ^^^^^^^^^^^^^^^^
-Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>, required at fixtures/typing/reject/bad/instances.zn:35)
+Error: `fork` is instantiated more than 64 times along one chain of instantiations, which begins `fork`, `fork`, `fork`, `fork`, ...; its calls to itself never reach a fixed set (in `fork` with T = @primitives$I64; which calls `fork` at fixtures/typing/reject/bad/instances.zn:35, in `fork` with T = bad$Sack<@primitives$I64>; which calls `fork` at fixtures/typing/reject/bad/instances.zn:35, in `fork` with T = bad$Sack<bad$Sack<@primitives$I64>>; ...; which calls `fork` at fixtures/typing/reject/bad/instances.zn:35, in `fork` with T = bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<bad$Sack<@primitives$I64>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>)
 File "fixtures/typing/reject/bad/interpolation.zn", line 10, characters 31-33:
 10 |     noName String = String("a \% b");
    |                               ^^
@@ -446,14 +490,6 @@ File "fixtures/typing/reject/bad/literals.zn", line 10, characters 32-37:
 10 | Int first(values Array<T Type, n Int>) => Int(1);
    |                                ^^^^^
 Error: `n` introduces a parameter, which takes `Type` or `@concepts$Int` (generics.md §3.3)
-File "fixtures/typing/reject/bad/literals.zn", line 14, characters 55-74:
-14 | Int relayed(values Array<Int, 3>, n @concepts$Int) => measured(values, n);
-   |                                                       ^^^^^^^^^^^^^^^^^^^
-Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)` (in `relayed` with n = 4, required at fixtures/typing/reject/bad/literals.zn:44)
-File "fixtures/typing/reject/bad/literals.zn", line 18, characters 12-27:
-18 |     return measure(values);
-   |            ^^^^^^^^^^^^^^^
-Error: no `measure` accepts (@primitives$Array<@primitives$I64, 3>); the candidate is `@primitives$I64 measure(@primitives$Array<@primitives$I64, 4>)` (in `sizedLike` with n = 4, required at fixtures/typing/reject/bad/literals.zn:39)
 File "fixtures/typing/reject/bad/literals.zn", line 29, characters 17-25:
 29 |     whole Int = Int(2.5);
    |                 ^^^^^^^^
@@ -470,6 +506,14 @@ File "fixtures/typing/reject/bad/literals.zn", line 34, characters 17-37:
 34 |     sized Int = measured(numbers, 4);
    |                 ^^^^^^^^^^^^^^^^^^^^
 Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)`
+File "fixtures/typing/reject/bad/literals.zn", line 39, characters 16-37:
+39 |     like Int = sizedLike(numbers, 4);
+   |                ^^^^^^^^^^^^^^^^^^^^^
+Error: no `measure` accepts (@primitives$Array<@primitives$I64, 3>); the candidate is `@primitives$I64 measure(@primitives$Array<@primitives$I64, 4>)` (in `sizedLike` with n = 4, at fixtures/typing/reject/bad/literals.zn:18)
+File "fixtures/typing/reject/bad/literals.zn", line 44, characters 18-37:
+44 |     passed Int = relayed(numbers, 4);
+   |                  ^^^^^^^^^^^^^^^^^^^
+Error: no `measured` accepts (@primitives$Array<@primitives$I64, 3>, @concepts$Int); the candidate is `@primitives$I64 measured(@primitives$Array<@primitives$I64, n>, n @concepts$Int)` (in `relayed` with n = 4, at fixtures/typing/reject/bad/literals.zn:14)
 File "fixtures/typing/reject/bad/literals.zn", line 47, characters 18-31:
 47 |     mixed Unit = twice(2, 3.5);
    |                  ^^^^^^^^^^^^^
@@ -709,11 +753,11 @@ Error: no import in this file spells a package `nope`
 File "fixtures/typing/reject/bad/operands.zn", line 14, characters 19-24:
 14 |     feet Meters = a + b;
    |                   ^^^^^
-Error: no operator `+` accepts (bad$Meters, bad$Feet); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`
+Error: no operator `+` accepts (bad$Meters, bad$Feet); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`; `bad$Keeper<T> +(bad$Keeper<T>, bad$Keeper<T>)`
 File "fixtures/typing/reject/bad/operands.zn", line 15, characters 22-29:
 15 |     literal Meters = a + 2.0;
    |                      ^^^^^^^
-Error: no operator `+` accepts (bad$Meters, @concepts$Float); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`
+Error: no operator `+` accepts (bad$Meters, @concepts$Float); the candidates are `bad$Meters +(bad$Meters, bad$Meters)`; `@primitives$I64 +(@primitives$I64, @primitives$Bool)`; `bad$Keeper<T> +(bad$Keeper<T>, bad$Keeper<T>)`
 File "fixtures/typing/reject/bad/overloads.zn", line 6, characters 1-29:
 6 | Int same(other Int) => other;
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1154,68 +1198,68 @@ File "fixtures/typing/reject/bad/temporary.zn", line 12, characters 10-34:
 12 |     hear(Note(@primitives$I64(1)));
    |          ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: a new reference names a place, and this is a temporary value
-File "fixtures/typing/reject/bad/typeValues.zn", line 20, characters 21-25:
-20 | T zeroOf(T Type) => T(0);
-   |                     ^^^^
-Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, required at fixtures/typing/reject/bad/typeValues.zn:36)
-File "fixtures/typing/reject/bad/typeValues.zn", line 23, characters 20-36:
-23 |     tooMany Hopper(Couple<Int, Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 24, characters 20-36:
+24 |     tooMany Hopper(Couple<Int, Int>);
    |                    ^^^^^^^^^^^^^^^^
 Error: `Couple` takes 1 type argument, and 2 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 24, characters 26-27:
-24 |     number Hopper(Couple<3>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 25, characters 26-27:
+25 |     number Hopper(Couple<3>);
    |                          ^
 Error: `Couple` expects a type here, not a number
-File "fixtures/typing/reject/bad/typeValues.zn", line 25, characters 20-27:
-25 |     unknown Hopper(Missing<Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 26, characters 20-27:
+26 |     unknown Hopper(Missing<Int>);
    |                    ^^^^^^^
 Error: no type named `Missing` is in scope
-File "fixtures/typing/reject/bad/typeValues.zn", line 26, characters 37-44:
-26 |     unknownRef @primitives$ListRef(&Missing);
+File "fixtures/typing/reject/bad/typeValues.zn", line 27, characters 37-44:
+27 |     unknownRef @primitives$ListRef(&Missing);
    |                                     ^^^^^^^
 Error: no type named `Missing` is in scope
-File "fixtures/typing/reject/bad/typeValues.zn", line 27, characters 30-36:
-27 |     bare @primitives$ListRef(Couple);
+File "fixtures/typing/reject/bad/typeValues.zn", line 28, characters 30-36:
+28 |     bare @primitives$ListRef(Couple);
    |                              ^^^^^^
 Error: `Couple` takes 1 type argument, and 0 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 28, characters 32-37:
-28 |     shared @primitives$ListRef(&Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 29, characters 32-37:
+29 |     shared @primitives$ListRef(&Gong);
    |                                ^^^^^
 Error: `&bad$Gong` is a reference, and it fills the elements of `@primitives$ListRef<&bad$Gong>`; a `ListRef`'s elements are owners, never references
-File "fixtures/typing/reject/bad/typeValues.zn", line 29, characters 30-36:
-29 |     introduced Hopper(Couple<U Type>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 30, characters 30-36:
+30 |     introduced Hopper(Couple<U Type>);
    |                              ^^^^^^
 Error: `U` introduces a parameter, which only a verb signature may do; a type lists its parameters in its `< >` header
-File "fixtures/typing/reject/bad/typeValues.zn", line 30, characters 20-25:
-30 |     roaming Hopper(^Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 31, characters 20-25:
+31 |     roaming Hopper(^Gong);
    |                    ^^^^^
 Error: `^bad$Gong` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never on a type passed as an argument
-File "fixtures/typing/reject/bad/typeValues.zn", line 31, characters 23-32:
-31 |     bareResult Hopper(Gong[Int]);
+File "fixtures/typing/reject/bad/typeValues.zn", line 32, characters 23-32:
+32 |     bareResult Hopper(Gong[Int]);
    |                       ^^^^^^^^^
 Error: this function type returns `bad$Gong`, a reference type, bare; a borrow is never returned, so write `^bad$Gong` to hand back an owner or `&bad$Gong` to hand back a reference
-File "fixtures/typing/reject/bad/typeValues.zn", line 32, characters 59-75:
-32 |     fnTooMany ^@primitives$ListRef<Couple<Int>> = emptyOf(Couple<Int, Int>);
+File "fixtures/typing/reject/bad/typeValues.zn", line 33, characters 59-75:
+33 |     fnTooMany ^@primitives$ListRef<Couple<Int>> = emptyOf(Couple<Int, Int>);
    |                                                           ^^^^^^^^^^^^^^^^
 Error: `Couple` takes 1 type argument, and 2 were written
-File "fixtures/typing/reject/bad/typeValues.zn", line 33, characters 34-39:
-33 |     fnRoaming Int = Int(1):sized(^Gong);
+File "fixtures/typing/reject/bad/typeValues.zn", line 34, characters 34-39:
+34 |     fnRoaming Int = Int(1):sized(^Gong);
    |                                  ^^^^^
 Error: `^bad$Gong` is a roaming owner, and `^` is written only on a local, a parameter or a return type, never on a type passed as an argument
-File "fixtures/typing/reject/bad/typeValues.zn", line 34, characters 24-36:
-34 |     typeForValue Int = counted(Int);
+File "fixtures/typing/reject/bad/typeValues.zn", line 35, characters 24-36:
+35 |     typeForValue Int = counted(Int);
    |                        ^^^^^^^^^^^^
 Error: no `counted` accepts (Type); the candidates are `@primitives$Unit counted(n @concepts$Int, @concepts$Block)`; `@primitives$I64 counted(@primitives$I64)`
-File "fixtures/typing/reject/bad/typeValues.zn", line 35, characters 46-61:
-35 |     valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
+File "fixtures/typing/reject/bad/typeValues.zn", line 36, characters 46-61:
+36 |     valueForType ^@primitives$ListRef<Int> = emptyOf(Int(1));
    |                                              ^^^^^^^^^^^^^^^
 Error: no `emptyOf` accepts (@primitives$I64); the candidate is `^@primitives$ListRef<T> emptyOf(T Type)`
-File "fixtures/typing/reject/bad/typeValues.zn", line 37, characters 20-26:
-37 |     takesType Unit(T Type) => Unit();
+File "fixtures/typing/reject/bad/typeValues.zn", line 37, characters 25-38:
+37 |     unbuildable Knell = zeroOf(Knell);
+   |                         ^^^^^^^^^^^^^
+Error: `bad$Knell` has no constructor (in `zeroOf` with T = bad$Knell, at fixtures/typing/reject/bad/typeValues.zn:21)
+File "fixtures/typing/reject/bad/typeValues.zn", line 38, characters 20-26:
+38 |     takesType Unit(T Type) => Unit();
    |                    ^^^^^^
 Error: `Type` is a concept type, and only a named verb's parameter may have one: a lambda is one value with one exact type, and a generic function value is not specified (generics.md §9)
-File "fixtures/typing/reject/bad/typeValues.zn", line 39, characters 17-32:
-39 |     literal Int(n @concepts$Int) => Int(n);
+File "fixtures/typing/reject/bad/typeValues.zn", line 40, characters 17-32:
+40 |     literal Int(n @concepts$Int) => Int(n);
    |                 ^^^^^^^^^^^^^^^
 Error: `@concepts$Int` is a concept type, and only a named verb's parameter may have one: a lambda is one value with one exact type, and a generic function value is not specified (generics.md §9)
 File "fixtures/typing/reject/bad/types.zn", line 5, characters 1-23:
@@ -1278,6 +1322,78 @@ File "fixtures/typing/reject/bad/unimported.zn", line 5, characters 21-27:
 5 | Int unimported() => helper(Int(1));
   |                     ^^^^^^
 Error: no function named `helper` is in scope; the package `lib` declares one, and like every package it needs an import
+File "fixtures/typing/reject/bad/veiled.zn", line 37, characters 27-32:
+37 | Int peeked(x T Type) => x.level;
+   |                           ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `peeked`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 40, characters 10-15:
+40 |     copy.level = Int(1);
+   |          ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `poked`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 43, characters 29-34:
+43 | Int labelled(x T Type) => x.label;
+   |                             ^^^^^
+Error: this reaches `label` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `labelled`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 44, characters 23-29:
+44 | T picked(x T Type) => T.dusk;
+   |                       ^^^^^^
+Error: `T.dusk` names a member through the type parameter `T`; a generic body names no enum member through a type parameter, and `T.dusk(...)` would call a named constructor of the type that fills it (generics.md §3.8) (in `picked`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 45, characters 33-34:
+45 | Int matched(x T Type) => match (x) {
+   |                                 ^
+Error: a match dispatches on a variant or an enum, and this is a veiled value, whose type is the type parameter `T`; a generic body never depends on the mould of the type that fills it (generics.md §3.8) (in `matched`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 49, characters 25-34:
+49 | Int called(x T Type) => x(Int(1));
+   |                         ^^^^^^^^^
+Error: this calls a veiled value, whose type is the type parameter `T`, as a function value; a generic body calls methods, functions, operators and constructors on such a value, never the value itself (generics.md §3.8) (in `called`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 52, characters 33-38:
+52 | Int instantiated(x T Type) => x.level;
+   |                                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `instantiated`)
+File "fixtures/typing/reject/bad/veiled.zn", line 62, characters 14-35:
+62 |     r Vane = relayed(Vane(Int(4)));
+   |              ^^^^^^^^^^^^^^^^^^^^^
+Error: `bad$Vane` has no constructor named `fresh` (in `relayed` with T = bad$Vane; which calls `freshened` at fixtures/typing/reject/bad/veiled.zn:58, in `freshened` with T = bad$Vane, at fixtures/typing/reject/bad/veiled.zn:57)
+File "fixtures/typing/reject/bad/veiled.zn", line 69, characters 49-54:
+69 | Int heldLevel(this Keeper<T Type>) => this.held.level;
+   |                                                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `heldLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 74, characters 43-48:
+74 | (this Keeper<T Type>)[n Int] => this.held.level;
+   |                                           ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `[]`)
+File "fixtures/typing/reject/bad/veiled.zn", line 78, characters 34-43:
+78 | Int keptRead(s Pannier<Tint>) => s[Int(1)];
+   |                                  ^^^^^^^^^
+Error: no method `read` accepts (bad$Tint); the candidate is `@primitives$I64 read(this bad$Vane)` (in `[]` with T = bad$Tint, at fixtures/typing/reject/bad/veiled.zn:76)
+File "fixtures/typing/reject/bad/veiled.zn", line 83, characters 38-43:
+83 | Int sameLevel(x T Type) => echoed(x).level;
+   |                                      ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `sameLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 84, characters 44-49:
+84 | Int appliedLevel(x T Type, f T[T]) => f(x).level;
+   |                                            ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `appliedLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 93, characters 51-56:
+93 | Int summedLevel(k Keeper<T Type>) => (k + k).held.level;
+   |                                                   ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `summedLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 94, characters 49-54:
+94 | Int flippedLevel(k Keeper<T Type>) => (~k).held.level;
+   |                                                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `flippedLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 95, characters 45-50:
+95 | Int perchedLevel(s Perch, x T Type) => s[x].level;
+   |                                             ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `perchedLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 101, characters 50-55:
+101 | Int builtLevel(x T Type) => Tote{held = x;}.held.level;
+    |                                                  ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `builtLevel`, which nothing instantiates)
+File "fixtures/typing/reject/bad/veiled.zn", line 104, characters 17-22:
+104 |     v full => v.level;
+    |                 ^^^^^
+Error: this reaches `level` of a veiled value, whose type is the type parameter `T`; a generic body reaches such a value only through methods, functions, operators, subscripts and constructors, never a field or an enum map (generics.md §3.8) (in `pouchedLevel`, which nothing instantiates)
 File "fixtures/typing/reject/bad/workers.zn", line 8, characters 18-30:
 8 | Unit nested(this List<T Type> Type) => Unit();
   |                  ^^^^^^^^^^^^

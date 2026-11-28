@@ -6803,6 +6803,128 @@
   (diff golden/math.out math.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mouldConstructors.exe --package fixtures/mouldConstructors)))
+
+(rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mouldConstructors.optimized.exe --optimize --package fixtures/mouldConstructors)))
+
+(rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mouldConstructors.tiered.exe --tiered --package fixtures/mouldConstructors)))
+
+(rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up mouldConstructors.tier1 --package fixtures/mouldConstructors)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    mouldConstructors.checked.out.actual
+    (run ./mouldConstructors.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    mouldConstructors.unchecked.out.actual
+    (run ./mouldConstructors.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    mouldConstructors.optimized.checked.out.actual
+    (run ./mouldConstructors.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    mouldConstructors.optimized.unchecked.out.actual
+    (run ./mouldConstructors.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.optimized.unchecked.out.actual)))
+
+(rule
+ (deps mouldConstructors.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./mouldConstructors.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    mouldConstructors.tiered.checked.out.actual
+    (run ./mouldConstructors.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.tiered.checked.out.actual)))
+
+(rule
+ (deps mouldConstructors.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./mouldConstructors.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    mouldConstructors.tiered.unchecked.out.actual
+    (run ./mouldConstructors.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/movedOut))
  (action
   (with-stdout-to
@@ -10969,6 +11091,128 @@
  (alias runtest)
  (action
   (diff golden/typeValues.out typeValues.tiered.unchecked.out.actual)))
+
+(rule
+ (deps (source_tree fixtures/veiledValues))
+ (targets veiledValues.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build veiledValues.exe --package fixtures/veiledValues)))
+
+(rule
+ (deps (source_tree fixtures/veiledValues))
+ (targets veiledValues.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build veiledValues.optimized.exe --optimize --package fixtures/veiledValues)))
+
+(rule
+ (deps (source_tree fixtures/veiledValues))
+ (targets veiledValues.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build veiledValues.tiered.exe --tiered --package fixtures/veiledValues)))
+
+(rule
+ (deps (source_tree fixtures/veiledValues))
+ (targets veiledValues.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up veiledValues.tier1 --package fixtures/veiledValues)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    veiledValues.checked.out.actual
+    (run ./veiledValues.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/veiledValues.out veiledValues.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    veiledValues.unchecked.out.actual
+    (run ./veiledValues.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/veiledValues.out veiledValues.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    veiledValues.optimized.checked.out.actual
+    (run ./veiledValues.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/veiledValues.out veiledValues.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    veiledValues.optimized.unchecked.out.actual
+    (run ./veiledValues.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/veiledValues.out veiledValues.optimized.unchecked.out.actual)))
+
+(rule
+ (deps veiledValues.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./veiledValues.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    veiledValues.tiered.checked.out.actual
+    (run ./veiledValues.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/veiledValues.out veiledValues.tiered.checked.out.actual)))
+
+(rule
+ (deps veiledValues.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./veiledValues.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    veiledValues.tiered.unchecked.out.actual
+    (run ./veiledValues.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/veiledValues.out veiledValues.tiered.unchecked.out.actual)))
 
 (rule
  (deps (source_tree fixtures/walks))

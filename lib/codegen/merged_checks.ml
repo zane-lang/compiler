@@ -3,11 +3,11 @@
    `ranks[prior]~=ranks[index] or second[prior]~=second[index]` checks
    `prior` against `ranks`'s count and then against `second`'s. A failed check stops the program
    (`zane_out_of_range` flushes the output and exits), so where a later
-   check of the same index follows an earlier one on every path, with no
+   check of the same index follows an earlier check on every path, with no
    call between them that could write output, stopping at the earlier
-   one instead is the same to everything outside the program: the earlier
+   check instead is the same to everything outside the program: the earlier
    check compares against the smaller of the two counts, and the later
-   one goes.
+   check goes.
 
    A check is a conditional branch on an unsigned compare of an index
    against a bound, one of whose targets does nothing but call

@@ -97,7 +97,7 @@ type walk = {
   mutable grew : bool;
 }
 
-(* Whether block [b] is [d] or encloses it. *)
+(* Tests whether block [b] is [d] or encloses it. *)
 let rec within w b d =
   b = d || match Hashtbl.find_opt w.parent d with Some p -> within w b p | None -> false
 
@@ -197,7 +197,7 @@ and names env w (e : T.Expr.t) =
         passed env w (References.param_types env impl) [ T.Arg.Value value ]
     | _ -> Names.empty)
     (* A match's arms, and a handler's `resolve`, were walked before the
-       store asked for the names: the names they handed on are kept under the
+       store computed the names: the names they handed on are kept under the
        expression's span. *)
     |> Names.union (keep env e.T.Expr.ty (result w e))
 

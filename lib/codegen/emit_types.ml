@@ -22,7 +22,7 @@ type env = {
   ptr : Llvm.lltype;
   i64 : Llvm.lltype;
   funcs : (string, Llvm.llvalue * Llvm.lltype) Hashtbl.t;
-  (* How each of the program's functions is called, by symbol. *)
+  (* The calling convention of each of the program's functions, by symbol. *)
   abis : (string, abi) Hashtbl.t;
   (* The thunks of calls into C, by symbol, with whether each argument is
      a function value, which C takes as its lambda's C entry
@@ -150,7 +150,7 @@ and stored env t = if t = Ty.Void then Llvm.struct_type env.ctx [||] else lltype
    registers than [env.registers], and by the address of a slot otherwise.
    With [env.pack], an aggregate that fits in that many 8-byte words passes
    as them instead, every word an integer, as clang passes a small C
-   struct. Fixed by the type, so every call site and every callee agree,
+   struct. Fixed by the type, so every call site matches every callee,
    and a function value's call too. *)
 let passing env (t : Ty.t) =
   match Hashtbl.find_opt env.passings t with
@@ -216,7 +216,7 @@ let fn_type env params ret = abi_type env (abi env params ret)
    index. A parameter passed by address is a borrow (memory.md §2.9), and
    nothing in the call writes what it borrows (§2.9.1), so it is `readonly`
    and `noalias`, and dereferenceable for its whole size: the optimizer may
-   take the value behind it for a private copy. It claims no alignment,
+   take the value behind it for a private copy. It declares no alignment,
    since what it borrows may be a member at any byte of a packed value
    (Ty.tight); the `sret` slot is the caller's own, at its alignment. It is
    not `nocapture`, since a call the callee spawns may hold the address for
@@ -254,7 +254,7 @@ let declare_abi env f a =
 
 (* What a function's [places] (Func) give LLVM: each is the address of a
    whole slot that outlives the call, so it is `nonnull` and
-   dereferenceable for the slot's size. It claims no alignment: the slot
+   dereferenceable for the slot's size. It declares no alignment: the slot
    may be a member at any byte of a packed value (Ty.tight). That lets the
    optimizer read through it ahead of a branch, as it hoists a list's
    length and storage out of a loop that checks its indices. Nothing more

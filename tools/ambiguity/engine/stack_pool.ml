@@ -1,4 +1,4 @@
-(* How exact GLR stacks are represented and shared.
+(* The representation and sharing of exact GLR stacks.
 
    One node per (parent, state) pair, hash-consed so that two frontiers
    standing on the same stack point at the same node rather than at equal

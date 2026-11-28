@@ -13,8 +13,8 @@ let library_math = function
   | _ -> false
 
 (* The count from which a [versioned] loop runs its long copy, and how often
-   each copy is weighted as going round: the long one as a hot loop, the short
-   one too few times for IRCE to expect its split to pay. *)
+   each copy is weighted as going round: the long copy as a hot loop, the short
+   copy too few times for IRCE to expect its split to pay. *)
 let long_loop = 16
 let long_trips = 1000
 let short_trips = 4
@@ -35,7 +35,7 @@ let indexes (e : Expr.t) =
    [symbol], whose cost would dwarf a check, nothing leaves it before its
    count runs out, and it reads or writes a list's element, whose check IRCE
    may take out of it. *)
-(* How many call sites each function has in the program being emitted
+(* The count of call sites of each function in the program being emitted
    ([count_call_sites]). A loop that calls a function with one call site
    is emitted once: its two copies would give the callee two call sites,
    and LLVM's inliner, which gives a function with one caller a large

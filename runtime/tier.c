@@ -16,7 +16,7 @@
    program optimized, loads it, and checks that it was built from the same
    module. It then fills tier 1's imports from tier 0's exports and points
    each slot at tier 1's function of the same key. A call already running
-   finishes in tier 0; the next one runs tier 1. Anything that goes wrong
+   finishes in tier 0; the next call runs tier 1. Anything that goes wrong
    leaves the program in tier 0, which behaves the same, and logs the failure only
    when `ZANE_TIER_LOG` is set. `ZANE_TIER_WAIT=1` loads tier 1 before
    `main` runs, for the tests. The variables are removed once read, so
@@ -140,7 +140,7 @@ static void zane_tier_pause(int ms) {
 	nanosleep(&d, NULL);
 }
 
-/* `dlopen` searches for a name without a slash as it searches for a
+/* `dlopen` searches for a file name without a slash as it searches for a
    system library, so one gets `./` first. */
 static const struct zane_tier1 *zane_tier_open(const char *path) {
 	char *named = NULL;

@@ -262,6 +262,20 @@ class DefinitionTest(ServerTest):
         found = self.at("textDocument/definition", self.main, self.text, "zero()")
         self.assertEqual(self.span_text(found[0]), "zero")
 
+    def test_constructors_of_an_enum_and_a_variant(self):
+        named = self.at("textDocument/definition", self.main, self.text, "background()")
+        self.assertEqual(self.span_text(named[0]), "background")
+        # An anonymous constructor's call finds the type it builds.
+        geo_text = self.geo.read_text()
+        anonymous = self.at("textDocument/definition", self.main, self.text, "Step();")
+        self.assertTrue(anonymous[0]["uri"].endswith("lib/geo/geo.zn"))
+        self.assertEqual(anonymous[0]["range"]["start"]["line"], position_of(geo_text, "type Step")[0])
+        self.assertEqual(self.span_text(anonymous[0]), "Step")
+        geo = self.client.request("textDocument/documentSymbol", {"textDocument": {"uri": uri(self.geo)}})
+        names = [s["name"] for s in geo]
+        self.assertIn("Color.background", names)
+        self.assertIn("Step", names)
+
     def test_a_label_of_a_constructor_with_its_own_fields(self):
         geo = self.geo.read_text()
         found = self.at("textDocument/definition", self.main, self.text, "both =")

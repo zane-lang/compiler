@@ -618,7 +618,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
         )
 
     def test_the_instantiation_shorthand_takes_a_trailing_block(self) -> None:
-        # `name VarType(args, ...)` is a constructor call with a name in front
+        # `name VarType(args, ...)` is a constructor call with an identifier in front
         # of it, so it trails on the same terms. The empty list is the lambda
         # variable's, for the same reason the bare call's is the lambda
         # literal's.
@@ -709,7 +709,7 @@ class ParserGrammarAmbiguityTests(unittest.TestCase):
 
     def test_any_type_may_be_passed_to_any_call(self) -> None:
         # Every call takes any type as a whole positional argument. None is
-        # an operand, so the `<` after a name can only open its `<>` list.
+        # an operand, so the `<` after an identifier can only open its `<>` list.
         self.assert_derivations(
             "UIDENT LIDENT LPAREN RPAREN LCURLY LIDENT UIDENT LPAREN UIDENT "
             "COMMA INT RPAREN SEMICOLON RCURLY EOF",

@@ -2,7 +2,7 @@
    strip-mined.
 
    A hash of eight lanes keeps them in an `Array<I32, 8>` and updates the
-   one at `bitAnd(i-1, 7)+1` for each byte (tests/perf `lanes`). LLVM
+   lane at `bitAnd(i-1, 7)+1` for each byte (tests/perf `lanes`). LLVM
    unrolls the loop by four from wherever its range-check split leaves it,
    so the index is never a constant and the eight lanes stay in memory,
    each update a store and a load. Cut into runs of eight whose index is

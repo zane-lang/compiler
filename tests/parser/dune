@@ -1,17 +1,17 @@
 ; Every node's span, read back out of the source it points at.
 ;
-; `span_dump --cst` prints one line per node: the node's kind and the text
+; `span_dump --cst` prints one line per node: the node's constructor and the text
 ; between its span's two positions. `span_dump --sst` does the same over the
 ; desugared tree and prints each node's variant as well, so its expectations
 ; show the rewrites of docs/design/desugaring.md having happened and not merely that
 ; spans survived them.
 ;
-; What these are for: a span is only ever wrong by pointing somewhere, and the
-; rest of the suite cannot see where. The acceptance tests ask whether a file
+; The goldens' purpose: a span is only ever wrong by pointing at the wrong text,
+; and the rest of the suite cannot see where. The acceptance tests ask whether a file
 ; parses, and the grouping tests ask which shape it parsed to -- neither reads
 ; a position. So a grammar change that widens a span to swallow a binder, or
-; narrows one past its own bracket, passes everything and is noticed only in
-; review, if at all.
+; narrows one past its own bracket, passes everything, and only a reviewer
+; may catch it.
 ;
 ; A failing diff is not by itself a bug: a change to the grammar, the fixture
 ; or the lowering is expected to move these. Read the diff, satisfy yourself
@@ -37,13 +37,13 @@
 ; hundred lines reached only by the compiler binary -- and its SST counterpart
 ; would have inherited that. Rendering one fixture through each covers both.
 ;
-; Reading them side by side is also the clearest statement of what the
-; desugaring does: the SST rendering is the CST one with `parenthized`,
+; Reading them side by side is also the clearest statement of the
+; desugaring's rewrites: the SST rendering is the CST rendering with `parenthized`,
 ; `ret_shorthand`, `var_decl_shorthand`, `trailing` and one of the two call
 ; groups gone.
 
 ; How a rejected file is reported: the source line, the caret under the
-; offending text, and the message. Everything else in the suite asks only
+; offending text, and the message. Every other test in the suite checks only
 ; whether a file was rejected, so a change to the renderer in lib/diagnostic/
 ; -- a caret one column off after a tab or a multibyte character, a message
 ; lost on the way out -- would pass it unseen.

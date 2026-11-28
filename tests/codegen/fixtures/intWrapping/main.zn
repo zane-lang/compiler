@@ -1,8 +1,8 @@
 /// `Int` wraps on overflow (operators.md §2.6): `max + 1` is `min`, with no
 /// trap and no undefined behavior. The operands are read from the `arguments`
 /// file beside this program, so no build has them while it compiles, and each
-/// check is one an optimizer would settle the other way if the program's
-/// arithmetic promised not to overflow (LLVM's `nsw`): a sum that is larger
+/// check is one an optimizer would settle the other way if the compiler
+/// marked the arithmetic as never overflowing (LLVM's `nsw`): a sum that is larger
 /// than its operand, a doubling that halves back, a count of steps that did not
 /// wrap, a square that is never negative. Optimized, unoptimized and tiered
 /// builds print the same text.
@@ -57,7 +57,7 @@ Unit report(args @primitives$List<String>) {
 	check(String("max * 2 / 2 = max: "), @operators$equal(@operators$divide(doubled, two), max));
 
 	// A counter that starts two below the largest value passes it on the third
-	// step and wraps; the steps that did not wrap are the ones that grew.
+	// step and wraps; exactly the steps that did not wrap grew the counter.
 	grew Int(0);
 	i Int = @operators$add(max, @operators$negate(two));
 	@controlflow$repeat(Int(6), {

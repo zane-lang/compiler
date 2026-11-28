@@ -4,8 +4,8 @@
 /// overwritten,
 /// and a value array of 20,000 strings, arrays nested four deep, copied
 /// whole: a value moved whole holds at most 65,535 parts (lowering.md §9,
-/// "How a value crosses a call"), so a value array of 100,000 strings is
-/// refused. Each pass sums what its strings read back as, and each
+/// "How a value crosses a call"), so the compiler refuses a value array of
+/// 100,000 strings. Each pass sums what its strings read back as, and each
 /// check prints `yes` when it holds and `no` when it does not.
 package stringArrays;
 
@@ -99,7 +99,7 @@ Unit moved() {
 	return Unit();
 }
 
-/// Overwritten in place: the old strings end, the new ones stay. At 50,000,
+/// Overwritten in place: the old strings end, the new strings stay. At 50,000,
 /// since making one and overwriting with it holds five copies of the array
 /// on the machine stack, past its 8 MiB at 100,000.
 Unit overwritten() {

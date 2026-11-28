@@ -1,6 +1,6 @@
 /// A fetch loop written as a worker (control-flow.md §3.7): a machine that
 /// runs a short program of operations from a list, one operation a step,
-/// until it has run as many as the size asks for. The step is a lambda
+/// until it has run as many as the size sets. The step is a lambda
 /// written where the worker runs, so the optimized build makes one loop of
 /// it, with no call through the function value; the plain build calls the
 /// step each pass.

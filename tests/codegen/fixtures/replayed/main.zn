@@ -212,7 +212,7 @@ Unit main() {
 	long String = repeated(String("0123456789"), Int(7000));
 	check(@operators$equal(long, repeated(String("0123456789"), Int(7000))));
 
-	// The pool resized, and a count it refuses, replayed as they were made.
+	// The pool resized, and a thread count out of range, both replayed in order.
 	@program$runtime!setThreads(Int(2)) ? u {
 		resolve Unit();
 	}

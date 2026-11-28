@@ -1,0 +1,106 @@
+/// A veiled value (generics.md §3.8): a value whose type is a type
+/// parameter is reached only through methods, functions, operators,
+/// subscripts and constructors. Every other use is reported where the
+/// generic body writes it, whether or not anything instantiates the body.
+package bad;
+
+type Vane = struct { level Int; }
+type Tint = enum [ dusk, dawn ];
+
+Tint.label Int {
+    dusk = Int(1);
+    dawn = Int(2);
+}
+
+Vane(level Int) => init{ level; }
+Int read(this Vane) => this.level;
+
+// Legal: hold it, call a method, a function, an operator and a
+// constructor on it, and pass it on.
+Int dialed(x T Type) => x:read();
+T rebuilt(x T Type) {
+    fresh T = T(Int(1));
+    named T = T.from(Int(2));
+    return x;
+}
+// A local may mark a veiled type with `&` or `^`, as the parameter does.
+Unit lent(x &T Type) {
+    held &T = x;
+    return Unit();
+}
+^T roamed(x ^T Type) {
+    kept ^T = x;
+    return kept;
+}
+
+// Reported though nothing instantiates them.
+Int peeked(x T Type) => x.level;
+Unit poked(x T Type) {
+    copy T = x;
+    copy.level = Int(1);
+    return Unit();
+}
+Int labelled(x T Type) => x.label;
+T picked(x T Type) => T.dusk;
+Int matched(x T Type) => match (x) {
+    dusk => Int(1);
+    dawn => Int(2);
+}
+Int called(x T Type) => x(Int(1));
+
+// Reported though every instance would have the field.
+Int instantiated(x T Type) => x.level;
+
+// `T.name(...)` is always a named-constructor call. A type that declares
+// none of that name makes the instance ill-formed, which is reported at
+// the type's origin, with the path from there to the call.
+T freshened(x T Type) => T.fresh();
+T relayed(x T Type) => freshened(x);
+
+Unit veiledCalls() {
+    n Int = instantiated(Vane(Int(3)));
+    r Vane = relayed(Vane(Int(4)));
+    return Unit();
+}
+
+// A generic type's own structure is not veiled, but the field of type `T`
+// it yields is.
+type Keeper<T Type> = struct { held T; }
+Int heldLevel(this Keeper<T Type>) => this.held.level;
+
+// A generic subscript's body is checked the same way: a veiled use once,
+// where the body writes it, and an error only an instance exposes at the
+// origin of that instance's type arguments.
+(this Keeper<T Type>)[n Int] => this.held.level;
+type Pannier<T Type> = struct { held T; }
+(this Pannier<T Type>)[n Int] => this.held:read();
+Int keptLevel(k Keeper<Tint>) => k[Int(1)];
+Int keptRead(s Pannier<Tint>) => s[Int(1)];
+
+// A call with a veiled argument keeps its veiled result, so a field of
+// that result is reported as a field of the argument would be.
+T echoed(x T Type) => x;
+Int sameLevel(x T Type) => echoed(x).level;
+Int appliedLevel(x T Type, f T[T]) => f(x).level;
+
+// An operator, a flip and a subscript resolve with a veiled operand too,
+// when a candidate is generic over the parameter, and keep their veiled
+// result.
+Keeper<T Type> +(left Keeper<T Type>, right Keeper<T Type>) => left;
+Keeper<T Type> ~(value Keeper<T Type>) => value;
+type Perch = struct { width Int; }
+(this Perch)[x T Type] => x;
+Int summedLevel(k Keeper<T Type>) => (k + k).held.level;
+Int flippedLevel(k Keeper<T Type>) => (~k).held.level;
+Int perchedLevel(s Perch, x T Type) => s[x].level;
+
+// A field constructor and a case form with a veiled argument resolve as
+// well, and keep the type they build.
+type Tote<T Type> = struct { held T; }
+Tote<T>{held T Type;} => init{ held = held; }
+Int builtLevel(x T Type) => Tote{held = x;}.held.level;
+type Knapsack<T Type> = variant { full T; empty Unit; }
+Int pouchedLevel(x T Type) => match (Knapsack.full(x)) {
+    v full => v.level;
+    empty => Int(0);
+}

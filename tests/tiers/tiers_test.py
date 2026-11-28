@@ -63,7 +63,7 @@ class Tiers(unittest.TestCase):
         the runtime wrote to stderr. Its output goes to a terminal, so the
         program writes each line as it prints it: Windows's pseudo-console where
         *put* waits for a line (conpty.py), and a pipe read once it ends
-        otherwise, since the lines are the same."""
+        otherwise, since both give the same lines."""
         env = dict(self.env, ZANE_TIER_UP=str(library), ZANE_TIER_LOG="1")
         if sys.platform == "win32":
             if put:

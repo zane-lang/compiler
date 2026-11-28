@@ -72,8 +72,8 @@ Unit main() {
 	check(@operators$not(@operators$equal(a, b)));
 	check(@operators$equal(twice(a), String("abab")));
 
-	// A copy owns bytes of its own, so overwriting the original leaves it
-	// as it was.
+	// A copy owns bytes of its own, so overwriting the original leaves the
+	// copy unchanged.
 	c String = b;
 	check(@operators$equal(c, String.escaped("abcd\n")));
 	b = String("again");
@@ -111,8 +111,8 @@ Unit main() {
 	twice(a);
 	check(@operators$equal(refuse(String("no")) ? e { resolve e; }, String("no!")));
 
-	// Many strings made and replaced: each pass returns what it replaced,
-	// and what it made itself.
+	// Many strings made and replaced: each pass returns the strings it
+	// replaced, and the strings it made itself.
 	s String("");
 	i Int(1);
 	i!to(Int(10000)) {

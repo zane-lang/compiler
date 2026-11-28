@@ -101,7 +101,7 @@ At 2 GiB, best parameter:
   `amac` and ×0.45 for `group` at 256 KiB. This one needs a gate.
 - A second thread is not worth a core: at most ×1.2, against ×1.8 to ×2.05
   for a prefetch in the loop itself, and ×0.64 to ×0.88 in cache.
-- The non-temporal hint is never ahead of the ordinary one and does nothing
+- The non-temporal hint is never ahead of the ordinary hint and does nothing
   at 32 MiB (×1.0 against ×2.0).
 - With 4 KiB pages the light loops (`gather`, `twohop`) gain nothing from
   prefetching: round 1's ×1.12 for `gather` did not repeat (×0.99). With
@@ -166,7 +166,7 @@ with the nodes placed as a build would place them:
   the lists grown a link at a time in turn, as a table of buckets fills.
 - `+10`, `+50`: that share of the nodes then freed and allocated again in
   an unrelated order.
-- `rand`: as before.
+- `rand`: unchanged from round 1.
 
 At 2 GiB, plain time and the better of `group` and `amac`:
 
@@ -352,7 +352,7 @@ without the prefetch being separate sweeps:
 
 **What it shows.**
 
-- The light loop gains what the model said: `gather` ×2.6 at 2 GiB (model
+- The light loop gains what the model predicted: `gather` ×2.6 at 2 GiB (model
   ×2.7). Nothing else measured helps that loop.
 - Every program is faster at 2 GiB, by ×1.1 to ×1.6, and none is slower at
   any size beyond the noise.
@@ -404,7 +404,7 @@ holds moves.
 
 ## Round 8: where interleaving starts to pay (the size gate)
 
-The sweep the design asks for before the pass lands
+The sweep the design requires before the pass lands
 ([`design/interleaving.md`](../../design/interleaving.md) I5): `chains` and
 `tree` in the model, plain (`base`) against interleaved (`amac`, the best
 of W = 4 to 128), at every power of two from 64 KiB to 256 MiB, 4 KiB
@@ -437,7 +437,7 @@ misses the L1 and the L2's nearby lines on most links. `tree`, whose walk
 is up to 64 steps and branches on every key it reads, gains at every size,
 from ×1.2 at 64 KiB. So the gate is 512 KiB of walked lists for a walk
 whose count is not a constant of 32 or more, and no size gate for one
-whose count is; both runs agree on each, and the run-to-run spread above
+whose count is; both runs give the same result on each, and the run-to-run spread above
 2 MiB (×3.2 to ×9.8) is the host's, not the crossing's.
 
 ## Round 9: interleaving in `zanec`
@@ -451,7 +451,7 @@ runs in iteration order. Every build prints the same checksum as with
 
 **Attempts on the way, 3 runs per size, best run.** The raw files of these
 were deleted by mistake before they were committed, so only the summaries
-printed at the time are left; they are kept here because they decided W
+printed at the time are left; they are kept here because they settled W
 and the retirement of sums. Speed over `ZANE_INTERLEAVE=0`:
 
 | version | `tree` 256 KiB | `tree` 32 MiB | `chains` 256 KiB | `chains` 32 MiB |
@@ -463,7 +463,7 @@ and the retirement of sums. Speed over `ZANE_INTERLEAVE=0`:
 | sums in any order, W = 32 | ×1.13 | ×5.38 | ×1.03 | ×2.63 |
 
 Retiring every iteration in order, the slots being the ring, let a slot
-whose walk finished early sit idle until the ones before it retired, which
+whose walk finished early sit idle until the iterations before it retired, which
 cost `chains` most (its chains are 1 to 15 links). Sums retired as each
 walk ends, as I1 allows, freed the slots and recovered `tree` in cache.
 `chains` at 256 KiB runs plain behind the size gate in every row.
@@ -501,11 +501,11 @@ What it concludes is what this round brings to `main`: `zane_huge` in
 list's *reservation*, and `zane_alloc_growable` reserves 64 times the
 block's span (`ZANE_HEADROOM`), so the reservation is at least 64 MiB for
 any block it makes. The test is always true: every list whose block passes 1
-MiB asks for huge pages, as it did in round 6. Huge pages also come only
+MiB requests huge pages, as it did in round 6. Huge pages also come only
 where a 2 MiB-aligned range is wholly inside the part of the reservation
 made usable (`mprotect` splits the mapping), and the block starts at a 1 MiB
 boundary, so a 3 MiB block holds one huge page, not one and a half. Two
-things follow for round 6. Its 256 KiB column was not the same program both
+consequences follow for round 6. Its 256 KiB column was not the same program both
 ways: the indices or keys every program reads in its loop (2^23 of them, 64
 MiB, in `gather`, `heavy` and `hash`; 2^21, 16 MiB, in `chains` and `tree`)
 are in huge pages at every size. And its loops' data lists are built by
@@ -560,7 +560,7 @@ the cells under ×1.0 have medians of ×0.96 to ×1.06 or best runs above ×1.
 **2. The whole run.** `whole.py` (new) times a run from before the process
 is made to after it has exited, and splits it at `ready` into building the
 data and the loop. One pass (`WHOLE_PASSES=1`), the two ways in turn with
-the one that goes first alternating, and `/proc/vmstat`'s compaction and
+the way that goes first alternating, and `/proc/vmstat`'s compaction and
 huge-page counters read around each run. On the machine as the loop sweep
 left it (`whole.py settled`, seven runs each way, every size;
 `results/whole-settled.tsv`), medians:
@@ -608,7 +608,7 @@ compaction (`compact_stall` 0).
 
 But at 512 MiB and up the runs with huge pages are bimodal: system time 0.2
 to 0.4 s or 1.0 to 1.8 s for `gather`, with no compaction in either. The
-slow ones are, in every case at 1 and 2 GiB, the runs that came straight
+slow runs are, in every case at 1 and 2 GiB, the runs that came straight
 after a run without huge pages; whole.py makes no pause. In
 `results/order.txt`, `gather` at 2 GiB builds in 0.8 s with huge pages
 straight after another run with huge pages, in 0.95 to 1.26 s straight after
@@ -619,12 +619,12 @@ it: whole runs of 4.18 s with huge pages (2.92 to 4.75) against 5.08 s
 without (3.16 to 6.13), the build 4.06 s against 4.73 s. The large cost
 after a pause fits memory the VM gave back to its host coming back, which a
 program touching that much fresh memory pays either way, and huge pages do
-not make it worse. Why a run with huge pages is slower straight after one
-without is not established. Round 6's first run of 4.09 s against 1.83 s may
+not make it worse. The cause of a run with huge pages being slower straight
+after a run without is not established. Round 6's first run of 4.09 s against 1.83 s may
 be the pause, with the run without huge pages going second, on memory still
 warm.
 
-To make huge pages cost something to get, `whole.py` can run each run on
+To give huge pages a cost to get, `whole.py` can run each run on
 fragmented memory (`WHOLE_FRAGMENT`, `programs/fragment.c`): before each
 run, with huge pages and without, the page cache is dropped, a process
 touches 12 GiB in 4 KiB pages and gives back 63 in 64 of them, then holds
@@ -675,8 +675,8 @@ MiB to 2 GiB for `gather`, `heavy` and `tree`, 4 to 9 for `hash`, and 4 to
 10 for `chains` at 512 MiB and 1 GiB. A pass here is the program's 2^23 or
 2^21 operations, not a read of every element. Under 512 MiB the slowest
 build with huge pages was at most 0.2 s over the median without (`tree` at
-256 MiB), and for `gather`, `heavy` and `hash` 10 ms or less. What cost time
-was not compaction. It was the runs that came after a run without huge pages
+256 MiB), and for `gather`, `heavy` and `hash` 10 ms or less. Compaction
+did not cost the time. It was the runs that came after a run without huge pages
 or after a pause.
 
 **4. The sparse case.** A list's block can only be touched from its start:
@@ -749,7 +749,7 @@ spread is as large as the difference.
 - Getting the pages cost little that was found here. Compaction ran only on
   deliberately fragmented memory, and cost less than the faults it saved. A
   run after a pause pays seconds at 2 GiB, and a run without huge pages pays
-  the same. A run with them straight after one without can build up to 0.5 s
+  the same seconds. A run with them straight after one without can build up to 0.5 s
   slower at 2 GiB, for a reason not established, which 1 to 10 passes pay
   back.
 - The cost is memory: under 2 MiB a list, which is up to +47% for lists of 1
@@ -788,7 +788,7 @@ or more, made or grown in place (`zane_huge` in `runtime/region.c`), and
 round 6's test on the reservation is not brought over. A list's block never
 shrinks on `main`, so a kept reservation a list takes again needs nothing
 undone; one an unbounded pool takes, whose pages it touches only here and
-there, is told `MADV_NOHUGEPAGE`. No program in `tests/perf` makes either
+there, gets `MADV_NOHUGEPAGE`. No program in `tests/perf` makes either
 request. `ZANE_HUGE=0` still leaves the request out, and `ZANE_HUGE_MIN=N`
 moves the threshold, for measuring. Checked on running programs: `gather`
 with 16 MiB of data holds 64 MiB of huge pages (its 64 MiB index list, not
@@ -802,7 +802,7 @@ Worth building, in the order the measurements rank them:
 
 1. Interleaving a loop over independent chains (tree lookups, chains,
    binary searches): ×3 to ×10, gated on the data's size where the chain is
-   short. Every miss in the iteration should be a step, the ones before the
+   short. Every miss in the iteration should be a step, the misses before the
    chain included (round 3).
 2. A prefetch `D` = 32 iterations ahead in a loop whose body branches on or
    works on what it loads (`heavy`, `hash`): ×1.6 to ×2.8, no gate.
@@ -810,8 +810,8 @@ Worth building, in the order the measurements rank them:
    itself, and what lets a prefetch help them at all.
    Round 10 finds getting them costs little time: building is up to
    0.27 s slower on the median at 2 GiB, and compacts on fragmented
-   memory, and the loop pays that back within three passes. It asks for
-   them by default for a list's block of 32 MiB or more.
+   memory, and the loop pays that back within three passes. The runtime
+   requests them by default for a list's block of 32 MiB or more.
 
 Not worth building: prefetching right before the access, batching in place
 of a sliding distance, loading early without a prefetch, the non-temporal

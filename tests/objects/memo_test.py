@@ -1,4 +1,4 @@
-"""Calls remembered while the program runs, on unless `--no-memoize`
+"""Calls memoized while the program runs, on unless `--no-memoize`
 (docs/design/memoization.md). Each fixture in fixtures/memo/ is built plain,
 optimized and tiered, with and without `--no-memoize`, and prints the same in
 all six builds. Which functions get a table is read from the symbols of each table's
@@ -200,7 +200,7 @@ class MemoTests(unittest.TestCase):
         # Its spawned calls run `fib` on threads of the pool at once. They
         # share one table, whose entries' versions guard them, and each thread
         # keeps its own state and count of work. A program whose only other
-        # thread work is a worker pool's steps does the same.
+        # thread work is a worker pool's steps shares its tables too.
         for name, spawns in [("spawning", True), ("pooling", True), ("fib", False)]:
             for build in ["plain", "optimized"]:
                 with self.subTest(name=name, build=build):
@@ -230,8 +230,8 @@ class MemoTests(unittest.TestCase):
 
     def test_a_library_remembers_for_a_program_that_spawns(self):
         # The library's object, linked into a program that calls its `fib`
-        # from two spawned calls and `main` at once, prints what it does
-        # without tables.
+        # from two spawned calls and `main` at once, prints the output it
+        # prints without tables.
         library = [f"--package", f"{STAMP}memolibrary={LIBRARY}"]
         outputs = {}
         for build in ["plain", "optimized"]:
@@ -248,7 +248,7 @@ class MemoTests(unittest.TestCase):
 
     def test_every_build_gives_the_same_tables(self):
         # A tiered build's two tiers must emit one module, so no build's
-        # choice depends on what its optimizer would make of the program.
+        # choice depends on the code its optimizer would make of the program.
         for name in ["shallow", "shallowin"]:
             for build in BUILDS:
                 with self.subTest(name=name, build=build):

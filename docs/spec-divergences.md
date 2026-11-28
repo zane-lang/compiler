@@ -1,8 +1,8 @@
 # Where the compiler differs from the spec
 
 The [spec](https://github.com/zane-lang/spec) is authoritative for anything not
-listed here. This file records the places the compiler deliberately does
-something else, or settles something the spec leaves open, so a contributor
+listed here. This file records the places the compiler deliberately departs
+from the spec, or settles a question the spec leaves open, so a contributor
 reading a spec section and then the compiler knows which of the two is
 currently ahead.
 
@@ -20,18 +20,18 @@ A choice the spec leaves open is recorded here when a running program can
 observe it. The rest sit beside the design they belong
 to: what the type checker determines is in
 [`design/semantics.md`](design/semantics.md) §9, with D12 and D14, and how
-lowering and the runtime place and represent things is in
+lowering and the runtime place and represent values is in
 [`design/lowering.md`](design/lowering.md) §9.
 
 Each entry's links point at the spec commit the entry was last checked
-against, so a later spec edit cannot silently make a quotation here disagree
-with what it links to. Re-pin them when the entries are rechecked. Where a claim is
+against, so a later spec edit cannot silently make a quotation here differ
+from the text it links to. Re-pin them when the entries are rechecked. Where a claim is
 about what the parser accepts, it was measured with
 `ambiguity search --check-tokens`, which reports how many parses a token
 sequence has: `0` is a syntax error, `1` is accepted.
 
 Three entries closed at the `034f11a` re-pin, when the spec moved to `;`-terminated
-statements and a brace that ends one. What was the widest divergence — the
+statements and a brace that ends one. The widest divergence — the
 spec separating statements by newline where the compiler terminated them — is
 gone, and with it the same-line rule for a trailing block and the disagreement
 over what may follow one. The **Closed** section at the end records those and
@@ -65,7 +65,7 @@ other.reading!nudge();           // rejected, even when `flag` is false
 `lib/tst/analyses/spawns.ml` checks it, and
 `tests/semantics/fixtures/typing/reject/bad/spawns.zn` has the cases.
 Reconciling means following a reference to its owner in more of the cases
-where the type alone decides today.
+where the type alone settles it today.
 
 ---
 
@@ -184,7 +184,7 @@ or a worker's timer is refused, since the evaluator runs neither.
 [`design/comptime.md`](design/comptime.md) K6, K7 are the decision, and
 `tests/codegen/fixtures/reject/comptimeRefused` the cases.
 
-Reconciling means an effect analysis that finds a write in the body, the
+Reconciling requires an effect analysis that finds a write in the body, the
 arguments evaluated apart from the call, and pools run by the evaluator.
 
 ---
@@ -223,18 +223,18 @@ arguments turned out to belong to `zane`'s documentation.
   behaved that way for the statements whose *form* made it look obvious — a
   block-bodied verb, any mould, a call closed by a trailing block — each of
   which reached `stat` by a production with no terminator in it. Reading the
-  rule off the form is what made that wrong for one of them: the peer mould's
+  rule off the form made that wrong for one of them: the peer mould's
   contents are a flat list, so it closes on a `]` and never had a brace to end
   it. It took no terminator anyway, and taking one was a syntax error. This
   pull request narrowed the no-terminator productions to the brace moulds and
   routed the peer mould through the ordinary terminated path.
 
-  What the compiler did not have at all was the rule stated over a statement's
-  **tail** rather than its form, which is what reaches a variable bound to a
+  The compiler lacked the rule stated over a statement's
+  **tail** rather than its form, which is the rule that reaches a variable bound to a
   `match`, an assignment, a `return`, and a `=> expr` verb whose expression
   ends in a brace. The grammar now determines whether a statement takes a `;`;
   only a stray `;` after its closing brace, and a trailing argument's `}` with
-  something after it, are checked after the parse.
+  more code after it, are checked after the parse.
 
 - **A trailing block is placed by position, not by line.** The spec required a
   trailing block's `{` to open on the same line as its call, to tell it from a
@@ -249,10 +249,10 @@ arguments turned out to belong to `zane`'s documentation.
 - **A call statement closed by a trailing block takes no handler.** The spec
   gave `expr ? binder { ... }` for any abortable operation, which read as
   permitting a handler after a trailing block. Spec #181 settled it the other
-  way: "A trailing argument **MUST** be the last thing in its statement [...]
+  way: "A trailing argument **MUST** be the last thing in its statement [...] <!-- prose-lint: ignore placeholder-noun -->
   neither a `;` nor anything that would continue the call may come after it."
   The compiler now enforces exactly that, for a handler and for a further call
-  or subscript alike, and an abortable call that wants a handler writes its
+  or subscript alike, and an abortable call that needs a handler writes its
   block inside the argument list:
 
   ```zane
@@ -291,7 +291,7 @@ arguments turned out to belong to `zane`'s documentation.
   below the comparisons, now carried by `Op` like every other operator.
 
 - **The compiler had a pipe, `callable|value`.** The spec fixed only its
-  grouping, at level 2 of the precedence table, and never said what it did.
+  grouping, at level 2 of the precedence table, and never defined its behaviour.
   Spec [#190](https://github.com/zane-lang/spec/pull/190) removed it, and the
   compiler followed: `|` is not a token, so `show|Color.red` stops at the
   lexer, and the call is written `show(Color.red)`. The `Pipe` and
@@ -311,7 +311,7 @@ arguments turned out to belong to `zane`'s documentation.
   text without taking it. The compiler now declares `print` exactly as the
   spec does, and a string built in the argument is passed as it is.
 
-- **An integer division by zero stopped the program.** The spec said nothing
+- **An integer division by zero stopped the program.** The spec was silent
   about it, and the compiler stopped with status 1 after writing `division by
   zero` to stderr. Spec [#222](https://github.com/zane-lang/spec/pull/222)
   gives it a result, zero (`operators.md` §2.6), and makes `truncate` total
@@ -333,8 +333,8 @@ arguments turned out to belong to `zane`'s documentation.
   `tests/semantics/fixtures/typing/reject/bad/exits.zn` now cites the spec.
 
 - **A declaration inside a body was terminated like the statement it is.**
-  The spec said a package-scope declaration "is not a statement and takes no
-  terminator of its own"; the compiler agreed at package scope and applied the
+  The spec stated that a package-scope declaration "is not a statement and takes no
+  terminator of its own"; the compiler followed that rule at package scope and applied the
   statement rule inside a body, so moving a declaration between the two levels
   changed how it was spelled. Spec
   [`lexical.md`](https://github.com/zane-lang/spec/blob/482bf99d4db1fa34c48042357e0baabc75126830/spec/lexical.md)
@@ -350,7 +350,7 @@ arguments turned out to belong to `zane`'s documentation.
   with every other declaration that does not end in a brace, so the
   compiler's `;` is now the spec's rule.
 
-- **A value closed by a brace took no postfix.** The spec said only that
+- **A value closed by a brace took no postfix.** The spec stated only that
   nothing continues a statement past the brace that ends it, and the compiler
   held a `match`, a map literal, an `init` and a constructor call by fields to
   that in every position: none took a call, a subscript, a field access or a
@@ -367,7 +367,7 @@ arguments turned out to belong to `zane`'s documentation.
   value"
   ([`generics.md`](https://github.com/zane-lang/spec/blob/034f11a/spec/generics.md)
   §5.3). The compiler took a type only as a whole positional argument of a
-  constructor call. What has to stay out is a type as an operand: there
+  constructor call. A type as an operand has to stay out: there
   `x Result = Foo<1>[]() {}` is both a lambda returning `Foo<1>[]` and
   `(Foo < 1) > ([]() {})`. A whole argument is never an operand, since the
   `,`, `)` or `;` after it ends it, so the line at constructors was a choice,
@@ -383,7 +383,7 @@ arguments turned out to belong to `zane`'s documentation.
 - **A spawned worker's wait no longer holds back the pool.** The spec had a
   stalling call made with `spawn`, or in a worker pool's step, "parked by the
   runtime so it does not consume a worker thread while waiting", and never
-  said which calls stall. The compiler parked nothing: `workEvery` slept on
+  listed the calls that stall. The compiler parked nothing: `workEvery` slept on
   the thread that ran it, so a pool of `n` threads ran at most `n` waiting
   workers. Spec [#292](https://github.com/zane-lang/spec/pull/292) dropped
   parking for "A waiting call holds back only its caller"
@@ -414,7 +414,7 @@ arguments turned out to belong to `zane`'s documentation.
 
 - **A `'` separated groups of digits.** The spec's numeric literals had no
   separator. It now takes `'` between two digits before the `.`, for the
-  reason the compiler had: `,` and `.` mean opposite things in American and
+  reason the compiler had: `,` and `.` swap roles between American and
   German notation, and the Swiss `'` means only grouping
   ([`lexical.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/lexical.md#7-literals) §7). `parseI64` and `parseF64`
   still read digits without it.
@@ -427,14 +427,14 @@ arguments turned out to belong to `zane`'s documentation.
   ([`control-flow.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/control-flow.md#23-a-block-is-transparent-to-return-and-abort-and-an-exit-ends-its-run)
   §2.3, §3.6, §4.2).
 
-- **A spawned call's handler ran where the call settled.** The spec did not
-  say when or where. It now settles the call once, on the spawning thread, at
+- **A spawned call's handler ran where the call settled.** The spec left the
+  time and place open. It now settles the call once, on the spawning thread, at
   the first read of its symbol or where its block ends, and a block left early
   runs no handler
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#33-abortable-spawned-calls-are-handled-at-the-spawn-site) §3.3).
 
-- **A block did not write an owner it lent a running spawn.** The spec said
-  nothing about the spawning block's own writes. It now lends a spawn every
+- **A block did not write an owner it lent a running spawn.** The spec was
+  silent on the spawning block's own writes. It now lends a spawn every
   owner passed to it and bars the spawning scope from writing one until the
   block drains (§4.3, linked from §8). What remains is §8: where the compiler
   cannot follow a reference, it judges the write by type.
@@ -447,14 +447,14 @@ arguments turned out to belong to `zane`'s documentation.
   which the compiler's status 1 is.
 
 - **A publish function called outside its pool's work stopped the program.**
-  The spec did not say. It now has a publish function publish to the pool of
+  The spec left that case open. It now has a publish function publish to the pool of
   its event type whose work is running the call, and stop the program where
   none is
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#65-the-funnel-is-the-one-writer-of-the-shared-state) §6.5).
 
-- **Missed timer ticks merged.** The spec did not say what a step slower than
+- **Missed timer ticks merged.** The spec left open what a step slower than
   its interval sees. A timer is now ready at most once per call of its step,
-  with its next deadline the first one on its schedule after the call
+  with its next deadline the first deadline on its schedule after the call
   ([`concurrency.md`](https://github.com/zane-lang/spec/blob/b158a77b47b03590543750f08ea46d8b04559197/spec/concurrency.md#63-when-a-step-runs) §6.3).
 
 - **The build's arguments came from `--build-argument`.** The spec's

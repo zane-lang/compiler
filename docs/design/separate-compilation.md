@@ -1,6 +1,6 @@
 # Separate compilation: one object per package
 
-> **Status: built through §5 step 7.** This page says how the compiler builds
+> **Status: built through §5 step 7.** This page describes how the compiler builds
 > one package into an object file of its own, so a library can ship prebuilt
 > objects ([`dependencies.md`](https://github.com/zane-lang/spec/blob/main/spec/dependencies.md)
 > §3.1) and a program can link against them. Each decision is numbered
@@ -10,7 +10,7 @@
 
 A dependency reaches a build in two forms. Its **source** is the verified
 checkout in the package cache (`dependencies.md` §7), and its **objects** are
-the ones its release archive carries, with every symbol it defines spelled
+the objects its release archive carries, with every symbol it defines spelled
 with the `!` placeholder that fetching rewrites (`dependencies.md` §6.1). The
 compiler reads the first and links the second: it type-checks a package
 against its dependencies' source, and generates code for that package alone.
@@ -50,7 +50,19 @@ packages included (`dependencies.md` §3.1). It is the library's counterpart
 to `--build`: no runtime and no link, only the object, and beside it the
 objects of the packages' C sources holding assembly, which cannot be
 renamed inside it, and the file of its C modules' hashes
-([`ffi.md`](ffi.md) F15).
+([`ffi.md`](ffi.md) F15). When a `comptime` call of the build read the
+runtime's `arguments`, `--object` also writes an empty `STEM.arguments`
+beside the object, `STEM` being `OUT` without its extension, and when none
+did, it removes such a file an earlier build wrote there
+([`comptime.md`](comptime.md) K6). `zane` reads the marker to key its
+cache of the object on the build's arguments. Only the root package
+reaches `@program$runtime`, so only a build with a root can write the
+marker: the object of a library's build, given `--no-root`, never carries
+it. `zanec` refuses an `OUT` whose extension is `.arguments` in any letter
+case, since that object would be its own marker on a file system that
+ignores case. A release whose objects
+carry the marker is one `zane` compiles from source, so `--rewrite` (C9)
+is never given the marker.
 `--build OUT` keeps its meaning, a linked executable, and for a root with
 dependencies it compiles the root's object and links it with theirs (C7).
 
@@ -86,14 +98,14 @@ names:
 
 Once the driver gives any `--import`, every package imports through its
 keys alone, and a package given none imports nothing: an import of a
-package it was not given is an error saying it may not import it. A build
+package it was not given is an error stating that it may not import it. A build
 given no `--import` at all imports a package by its name, which then has to
-name one package of the build, as in the test fixtures; a name two packages
+name one package of the build, as in the test fixtures; a package name two packages
 share is an error at the import, naming both.
 
 ---
 
-## 2. What the symbols are
+## 2. The symbols
 
 **C4. A generic instance is emitted where it is needed, and named by its home
 package.** An instance belongs to the generic's home package and is named
@@ -103,7 +115,7 @@ consumer's types existed. So whichever object needs an instance emits it,
 under the home package's name, with LLVM's `linkonce_odr` linkage: every
 copy is the same code, and the linker keeps one. An instance the library
 itself uses is in the library's objects, and a consumer that needs the same
-one emits a copy that merges with it.
+instance emits a copy that merges with it.
 
 A package constant of a library is shared the same way. Its function and
 its two variables ([`lowering.md`](lowering.md) L16) are emitted in every
@@ -202,23 +214,24 @@ spells a symbol (§4).
 
 The rewriter reads ELF, Mach-O and COFF objects, and edits a symbol table and
 nothing else. A stamped name is longer than the placeholder, so the new names
-cannot go where the old ones are: they are added after the end of the string
+cannot go where the old names are: they are added after the end of the string
 table, and each renamed symbol points at its new name. Mach-O and COFF put
 the string table last in the file, so it grows where it is; ELF does not, so
-its table is copied to the end of the file first, and the old one stays
+its table is copied to the end of the file first, and the old table stays
 behind, unread. A COFF symbol holds a name of up to 8 bytes in its own
 record, and a stamped name never fits there, so it moves to the string
 table. A Mach-O indirect symbol, the alias `_alias = _target` defines,
 names its target by a string-table offset in its value, so that name is
 renamed as a symbol's is. Nothing else in the object moves, since
-relocations, section groups and COMDATs name a symbol by its index. The rewritten object defines exactly
-what one built from source with `--stamp` does.
+relocations, section groups and COMDATs name a symbol by its index. The
+rewritten object defines exactly the symbols of an object built from source
+with `--stamp`.
 
 **C11. `zanec --remap FROM TO INPUT OUTPUT` moves an object's references
 from one version of a package to another.** Remapping collapses versions of
 a package that its `version-pattern` says are interchangeable onto one
 (`dependencies.md` §15), so an object built against a displaced version has
-to name the chosen one instead: every symbol that starts with the stamp
+to name the chosen version instead: every symbol that starts with the stamp
 `FROM` is renamed to start with `TO`, as in
 `v6.2.9%3f9a1c02b7e4d6a8%math$vec` → `v6.3.4%3f9a1c02b7e4d6a8%math$vec`
 (§15.6). The two stamps must share their identity hash, since remapping
@@ -236,7 +249,7 @@ stamped dependencies. In an optimized build, stage 5 evaluates calls with
 known inputs. Codegen gives LLVM these definitions with
 `available_externally` linkage, which permits inlining and analysis but emits
 no function definition in the caller's object. A call LLVM leaves behind uses
-the original stamped symbol, and the dependency object resolves it as before.
+the original stamped symbol, and the dependency object still resolves it.
 A call that passes a fresh argument to a value parameter the function only
 copies calls a local copy of it, `<symbol>.taken`, defined in the caller's own
 object ([`lowering.md`](lowering.md) §9), so the dependency object needs no
@@ -252,16 +265,16 @@ these body imports sound.
 
 ---
 
-## 4. What a compilation must agree on
+## 4. What a compilation must keep consistent
 
 A consumer computes a dependency's layouts, its verbs' signatures and its
 generic bodies from source, and links against objects built elsewhere. Those
-agree because they are built from the same source, pinned by commit, by
+match because they are built from the same source, pinned by commit, by
 compilers of one major (`dependencies.md` §14). The project being built
 names the compiler for its whole graph, and a dependency's `zane-version`
-names the oldest compiler that builds it, which is the one its release
-objects were written by. Within a major, a compiler computes the layouts and
-signatures an earlier one did and links the objects the earlier one wrote,
+names the oldest compiler that builds it, which is the compiler that wrote
+its release objects. Within a major, a compiler computes the layouts and
+signatures an earlier compiler did and links the objects the earlier compiler wrote,
 so a consumer built by a newer compiler agrees with an archive built by an
 older one.
 `zane` refuses a graph holding a package of another major, or one that needs
@@ -273,7 +286,7 @@ compiler is at major `0`, a release may change layouts, signatures, the
 symbol spelling of C9 and the language itself, and it carries no code to
 read source, objects or flags of an earlier `0.x` compiler. `zane` adds no
 check of its own for major `0`: it accepts a dependency whose floor is an
-earlier `0.x`, and that build may fail, or link objects that disagree with
+earlier `0.x`, and that build may fail, or link objects that do not match
 the consumer and misbehave at run time.
 
 ---

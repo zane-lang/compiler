@@ -67,7 +67,7 @@ Unit derived(a Int, b Int) {
 	/// A parenthesized right operand. The synthesized `~` spans the operator
 	/// and the operand as *written*, brackets included -- lowering has already
 	/// dropped them from the operand's own span by then, so a span built from
-	/// the lowered one would stop inside the brackets.
+	/// the lowered operand would stop inside the brackets.
 	bracketed Int = a - (b);
 	return Unit();
 }
@@ -117,7 +117,7 @@ String render(e Expr) => match (e) {
 /// §2.7 — the instantiation shorthand, in both its positional and field forms,
 /// and for a variant case as well as a constructor.
 /// §2.8 — parentheses, which group and nothing else.
-/// §2.9 — a trailing argument, which is the same call as the parenthesized one.
+/// §2.9 — a trailing argument, which is the same call as the parenthesized call.
 Unit shorthands() {
 	origin Vec.origin();
 	square Vec{x = Int(2); y = Int(2);}

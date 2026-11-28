@@ -8,7 +8,7 @@
 #
 # Builds the compiler; checks that programs/niches prints the same in every
 # mode, unoptimized and optimized; runs measure.py over the modes, the
-# tests/perf programs by wall clock (programs.py, the realistic ones
+# tests/perf programs by wall clock (programs.py, the realistic programs
 # scaled up), and langbench's Zane programs against core (langbench.py).
 #
 # The ZANE_PACK and ZANE_UNSWITCH switches this script sets were removed in
