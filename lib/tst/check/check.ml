@@ -1086,9 +1086,9 @@ and constructor_call env ctx span (name : N.Constructor_name.t) (args : N.Constr
             in
             names_what_it_builds env span built open_ made))
 
-(* A name that fixes every argument of its type, such as an alias of
+(* A type name that fixes every argument of its type, such as an alias of
    `Pick<Int>`, builds that type: a generic constructor that infers other
-   arguments from the call builds another, which the call refuses. *)
+   arguments from the call builds another, and the checker reports it. *)
 and names_what_it_builds env span built open_ (made : T.Expr.t) =
   let result = Ty.strip_mode made.T.Expr.ty in
   if open_ = [] && Ty.free_params built = [] && (not (Ty.contains_error result))
