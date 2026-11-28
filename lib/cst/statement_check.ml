@@ -158,9 +158,9 @@ and in_body (body : Nodes.Body.t) =
 and in_decl (decl : Nodes.Decl.t) =
   match decl.Nodes.Decl.node with
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
-  | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ ->
+  | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ | Nodes.Decl.ExportLine _ ->
       None
-  | Nodes.Decl.Var { value; _ } -> in_expr value
+  | Nodes.Decl.Var { value; _ } | Nodes.Decl.ExportedVar { value; _ } -> in_expr value
   | Nodes.Decl.VarShorthand { args; _ } -> in_constructor_args args
   | Nodes.Decl.EnumMap { entries; _ } -> first_of (List.map snd entries)
   | Nodes.Decl.Verb verb -> in_verb_decl verb

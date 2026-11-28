@@ -47,8 +47,8 @@ let is_value v = not (String.starts_with ~prefix:"-" v)
 let print_usage () =
   prerr_endline "usage: zanec [--cst|--sst] (SOURCE|-)";
   prerr_endline
-    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--object OUT|--tier-up OUT|--compile-commands OUT";
-  prerr_endline "              |--write-backs OUT]";
+    "       zanec [--check|--decls|--tst|--cgt|--ll|--build OUT [--tiered]|--library OUT|--object OUT|--tier-up OUT";
+  prerr_endline "              |--compile-commands OUT|--write-backs OUT]";
   prerr_endline "             [--root|--no-root] [--program-write-backs FILE]";
   prerr_endline
     "             [--target TRIPLE] [--optimize] [--stamp PATH=STAMP ...] [--link FILE ...] [--c-hashes FILE ...]";
@@ -112,7 +112,7 @@ let run_file stage (filename, input) =
 let ( let* ) = Result.bind
 
 (* Lowering and codegen, once semantics has accepted the program. *)
-let generate packages c_code build program =
+let generate ~plugin packages c_code build program =
   let root = Option.value build.root ~default:true in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   (* Only an optimized build retains a dependency's C (docs/design/ffi.md
@@ -120,7 +120,7 @@ let generate packages c_code build program =
      the glue again to compare it. *)
   let compare_glue = optimize && build.c_hashes <> [] in
   let* cgt =
-    Driver.lower ~regions:build.regions ~compare_glue ?program_write_backs:build.program_write_backs ~root packages
+    Driver.lower ~regions:build.regions ~compare_glue ?program_write_backs:build.program_write_backs ~plugin ~root packages
       program
   in
   (* The C is made from the lowered tree, whose thunks and function values
@@ -129,7 +129,7 @@ let generate packages c_code build program =
   let c_of cgt =
     let* hashes = Driver.read_hashes build.c_hashes in
     let hashes = if compare_glue then hashes else [] in
-    Driver.c_modules ?target ~link:build.link ~hashes ~root packages c_code cgt
+    Driver.c_modules ?target ~link:build.link ~hashes ~plugin ~root packages c_code cgt
   in
   (* A call marked `comptime` runs in every build, and may call into C, so
      a build with one makes the C before evaluating it. *)
@@ -147,6 +147,9 @@ let generate packages c_code build program =
       let* ir = Driver.ir ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt in
       print_string ir;
       Ok ()
+  | Library output ->
+      let* c = c () in
+      Driver.library ?target ~pack ~memoize ~c ~regions:build.regions ~optimize ~link:build.link cgt output
   | Build output ->
       let* c = c () in
       Driver.executable ?target ~pack ~memoize ~c ~regions:build.regions ~tiered:build.tiered ~optimize
@@ -160,12 +163,19 @@ let generate packages c_code build program =
       Driver.write_hashes ~output (Driver.hashes_of packages c_code c)
   | Assembled | Check | Declarations | Typed | Compile_commands _ | Write_backs _ -> Ok ()
 
-(* Without `--root` or `--no-root`, the root needs its `main` once the
-   program is lowered, since lowering starts from `main`. *)
-let needs_main build =
+(* Without `--root` or `--no-root`, the root needs its `main`, or the
+   exports of a plugin package, once the program is lowered, since lowering
+   starts from them (packages.md §8.1). *)
+let needs_entry build =
   match (build.root, build.view) with
-  | Some true, _ | None, (Cgt | Ir | Build _ | Object _ | Tier_up _ | Write_backs _) -> true
+  | Some true, _ | None, (Cgt | Ir | Build _ | Library _ | Object _ | Tier_up _ | Write_backs _) -> true
   | Some false, _ | None, (Assembled | Check | Declarations | Typed | Compile_commands _) -> false
+
+(* What the view builds the root into. *)
+let built_into = function
+  | Build _ | Object _ | Tier_up _ -> `Executable
+  | Library _ -> `Library
+  | Assembled | Check | Declarations | Typed | Cgt | Ir | Compile_commands _ | Write_backs _ -> `Other
 
 (* No tree is printed when semantics found a problem, since neither tree view
    promises a tree with holes in it. *)
@@ -173,7 +183,7 @@ let run_packages build =
   (* The memory layout depends on the target (Cgt.Ref32), which is known
      before anything is lowered. *)
   Cgt.Ref32.target := build.target;
-  let* () = match build.view with Build _ | Tier_up _ -> Driver.buildable build.root | _ -> Ok () in
+  let* () = match build.view with Build _ | Library _ | Tier_up _ -> Driver.buildable build.root | _ -> Ok () in
   let root = Option.value build.root ~default:true in
   let* packages =
     Driver.assemble ~root ~imports:build.imports ~stamps:build.stamps build.packages
@@ -183,17 +193,19 @@ let run_packages build =
       print_string (Tree_graph.render (Tst.Assembly.to_node packages));
       Ok ()
   | Compile_commands output -> Driver.compile_commands ?target:build.target packages output
-  | Check | Declarations | Typed | Cgt | Ir | Build _ | Object _ | Tier_up _ | Write_backs _ -> (
+  | Check | Declarations | Typed | Cgt | Ir | Build _ | Library _ | Object _ | Tier_up _ | Write_backs _ -> (
       let* c = Driver.c_code ?target:build.target packages in
       let* program = Driver.check ~c packages in
-      let* () = if needs_main build then Driver.require_main program else Ok () in
+      let* kind = if needs_entry build then Driver.root_kind program else Ok Driver.Program in
+      let* () = Driver.built_as kind (built_into build.view) in
+      let plugin = kind = Driver.Plugin in
       match build.view with
       | Check -> Ok ()
       | Write_backs output -> Driver.write_backs packages program ~output
       | Declarations | Typed ->
           print_string (Tree_graph.render (Tst.to_node ~bodies:(build.view = Typed) program));
           Ok ()
-      | _ -> generate packages c build program)
+      | _ -> generate ~plugin packages c build program)
 
 (* The only place the binary exits: 0 when the run did what it was asked,
    1 when the compiler refused the program, 2 for a command it cannot run,

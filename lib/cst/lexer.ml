@@ -50,6 +50,7 @@ let rec token buf =
   | "enum" -> ENUM
   | "handle" -> HANDLE
   | "foreign" -> FOREIGN
+  | "export" -> EXPORT
   | "package" -> PACKAGE
   | "import" -> IMPORT
   | "as" -> AS
@@ -83,4 +84,4 @@ let is_lower_identifier text =
   | exception (Lexing_error | MalFormed) -> false
 
 (* Every literal token spelled as a word: the reserved words. *)
-let words = [ "and"; "or"; "type"; "alias"; "Type"; "struct"; "variant"; "enum"; "handle"; "foreign"; "package"; "import"; "as"; "implicit"; "init"; "match"; "spawn"; "comptime"; "true"; "false"; "this"; "mut"; "abort"; "return"; "resolve" ]
+let words = [ "and"; "or"; "type"; "alias"; "Type"; "struct"; "variant"; "enum"; "handle"; "foreign"; "export"; "package"; "import"; "as"; "implicit"; "init"; "match"; "spawn"; "comptime"; "true"; "false"; "this"; "mut"; "abort"; "return"; "resolve" ]

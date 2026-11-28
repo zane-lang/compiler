@@ -29,8 +29,11 @@ module List_pure = List_pure
     alone: its reads of every other place are plain loads. *)
 type write_backs
 
-(** The program, lowered from the root package's `main`, or from every
-    function of the root when the build is a [library]. A construct that
+(** The program, lowered from the root package's `main`, from every
+    function of the root when the build is a [library], or from the
+    exported lambdas when the root is a [plugin] package, which declares no
+    `main` (packages.md §8.1). Every build but a library's also lowers the
+    exported lambdas it gives C symbols. A construct that
     lowering does not handle yet is refused with a diagnostic at the
     construct, and so is a type that the main context's range of frames of
     [fixed_region] bytes could not hold ([Runtime.default_fixed_region] when
@@ -41,6 +44,7 @@ type write_backs
     to compare with its release's (docs/design/ffi.md F13). *)
 val lower :
   ?library:bool ->
+  ?plugin:bool ->
   ?import_bodies:bool ->
   ?foreign_roots:bool ->
   ?fixed_region:int ->

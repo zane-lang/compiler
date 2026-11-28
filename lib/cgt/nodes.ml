@@ -884,7 +884,10 @@ end
    a call marked `comptime` was lifted into (Lower_comptime), with the
    call's span: each call of one is a call through its address with no
    arguments, which Optimize.Comptime replaces by the value it gives before
-   codegen, which never sees one. *)
+   codegen, which never sees one. [exports] is each exported lambda the
+   build gives a C symbol (packages.md §8.3), as the symbol of its lifted
+   function and the C name: a dynamic library has no entry, and a host
+   calls these instead. *)
 module Program = struct
   type t = {
     funcs : Func.t list;
@@ -895,5 +898,9 @@ module Program = struct
     foreign : Foreign.t list;
     callbacks : Callback.t list;
     exclusive : bool;
+    exports : (string * string) list;
+    (* Whether the module is a plugin package's dynamic library, which has
+       no entry and starts a runtime of its own (packages.md §8.1). *)
+    plugin : bool;
   }
 end

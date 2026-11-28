@@ -655,6 +655,12 @@ and Decl : sig
     | Verb of Verb_decl.t
     (* A foreign variable: a handle to the C global [symbol] names. *)
     | ForeignVar of { name : Name.t; type_ : Type_expr.t; symbol : Name.t }
+    (* An exported lambda: a lambda-variable [value] that a build exporting
+       it gives the C symbol [symbol] (packages.md §8.2). *)
+    | ExportedVar of { name : Name.t; type_ : Type_expr.t; value : Expr.t; symbol : Name.t }
+    (* An export line: the library [package], with the type arguments
+       [args] of an instance of a parameterized one (packages.md §8.3). *)
+    | ExportLine of { package : Name.t; args : Type_expr.t list }
 end = Decl
 
 (* ---------------------------------------------------------------------- *)

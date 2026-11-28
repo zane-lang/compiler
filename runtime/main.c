@@ -205,6 +205,7 @@ char **zane_argv;
 
 int zane_checking;
 
+#ifndef ZANE_LIBRARY
 #ifdef _WIN32
 static void zane_keep_arguments(int argc, char **argv) {
 	(void)argc;
@@ -231,6 +232,40 @@ static void zane_keep_arguments(int argc, char **argv) {
 	zane_argv = argc > 0 ? argv + 1 : argv;
 }
 #endif
+#endif
+
+#ifdef ZANE_LIBRARY
+
+/* A plugin package's dynamic library (packages.md §8.1) has no C `main`:
+   its host loads it and calls its exports. The runtime starts as the host
+   loads the file, once for each loaded file, since each holds a runtime of
+   its own: it makes the program's console and runtime, and the program's
+   own scope, which holds the package constants, in a context that no
+   thread runs. The loading thread then runs no Zane code, and each call
+   the host makes of an export runs in a context made for it, as a call C
+   makes of a function value on a thread of its own does (snapshot.c). A
+   host passes no command line, so `arguments` gives an empty list. */
+static char *zane_no_arguments[1];
+
+__attribute__((constructor)) static void zane_library_start(void) {
+	zane_argc = 0;
+	zane_argv = zane_no_arguments;
+	const char *check = getenv("ZANE_CHECK");
+	zane_checking = check && *check && strcmp(check, "0") != 0;
+	zane_output_start();
+	zane_regions_start();
+	zane_self = zane_context_new();
+	zane_program = zane_scope_enter(0);
+	zane_constants_start();
+	zane_self = NULL;
+	zane_reopen();
+}
+
+/* What the library printed and has not written yet, written as the host
+   unloads it or ends. */
+__attribute__((destructor)) static void zane_library_stop(void) { zane_flush_output(); }
+
+#else
 
 /* A program whose output did not all reach stdout did not succeed: a write
    that failed earlier marks the output failed, even when the final flush
@@ -258,3 +293,5 @@ int main(int argc, char **argv) {
 	if (zane_self->top != zane_program) zane_broken("a scope was left without draining");
 	return zane_flush_output() ? 0 : 1;
 }
+
+#endif

@@ -45,6 +45,7 @@
 "enum" @keyword
 "handle" @keyword
 "foreign" @keyword
+"export" @keyword
 "package" @keyword
 "import" @keyword
 "as" @keyword

@@ -30,7 +30,8 @@ type c_library = { name : string; row : string }
     and names the C names those objects define as its archives'
     (docs/design/ffi.md F15); with [labels], the package as its publisher's
     glue labels named it, it also has the sources' and glue modules an
-    optimized build retains (F13). *)
+    optimized build retains (F13). A package that [keeps_names] has its C
+    globals keep their C names (F9). *)
 type c_package = {
   prefix : string;
   sources : c_module list;
@@ -41,6 +42,7 @@ type c_package = {
   defined : string list;
   libraries : c_library list;
   labels : string option;
+  keeps_names : bool;
 }
 
 (** [f] run on the program's module for [target], the host when it is
@@ -133,6 +135,13 @@ val executable :
     at the given path, which tier 0 loads while it runs, or the one the
     cache keeps for the same module (docs/design/tiers.md). *)
 val shared_library : ?target:string -> Llvm.llmodule -> string -> (unit, string) result
+
+(** A plugin package's dynamic library at the given path (packages.md
+    §8.1): the module linked as a shared library with the runtime compiled
+    for one and the objects in [link], offering its host the exports of the
+    program's C entries. *)
+val dynamic_library :
+  ?target:string -> ?optimize:bool -> ?link:string list -> Llvm.llmodule -> string -> (unit, string) result
 
 (** The runtime compiled for [target] into the directory a released
     toolchain bundles it in, under the name a build for that target, with

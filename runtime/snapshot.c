@@ -173,7 +173,8 @@ void zane_context_release(zane_context *c) {
 }
 
 /* A thread the program did not start, one C made, that calls a function
-   value (docs/design/ffi.md F11) runs it in a context of its own, made
+   value (docs/design/ffi.md F11), or a host's thread that calls an export
+   of a dynamic library (packages.md §8.1), runs it in a context of its own, made
    when the call comes in and back in the pool once it returns: the result
    C takes holds no block. The adapter calls these only when the thread
    has no context, so they stay out of it, cold. */
@@ -185,6 +186,12 @@ __attribute__((cold, noinline)) void zane_callback_attach(void) {
 }
 
 __attribute__((cold, noinline)) void zane_callback_detach(void) {
+#ifdef ZANE_LIBRARY
+	/* A dynamic library's host call (packages.md §8.1) writes what it
+	   printed before it returns, so the library's output and the host's
+	   own reach the terminal in the order they were made. */
+	zane_flush_output();
+#endif
 	zane_context_release(zane_self);
 	zane_self = NULL;
 	zane_workers_thread_stop();

@@ -99,7 +99,11 @@ let verb_decl_ends_in_brace (value : Nodes.Verb_decl.t) =
 
 let decl_ends_in_brace (value : Nodes.Decl.t) =
   match value.Nodes.Decl.node with
-  | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.ForeignVar _ -> false
+  | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.ForeignVar _
+  | Nodes.Decl.ExportLine _ ->
+      false
+  (* It ends in its C symbol, a string. *)
+  | Nodes.Decl.ExportedVar _ -> false
   | Nodes.Decl.Var { value; _ } -> expr_ends_in_brace value
   | Nodes.Decl.VarShorthand
       { args = { Nodes.Constructor_args.node = Nodes.Constructor_args.Fields _; _ }; _ } ->
@@ -266,14 +270,14 @@ let verb_decl_continues_past_trailing (value : Nodes.Verb_decl.t) =
 (* A declaration's own expression, for the same question. *)
 let decl_continues_past_trailing (value : Nodes.Decl.t) =
   match value.Nodes.Decl.node with
-  | Nodes.Decl.Var { value; _ } -> continues_past_trailing value
+  | Nodes.Decl.Var { value; _ } | Nodes.Decl.ExportedVar { value; _ } -> continues_past_trailing value
   | Nodes.Decl.VarShorthand { args; _ } ->
       constructor_args_continue_past_trailing args
   | Nodes.Decl.EnumMap { entries; _ } ->
       List.exists (fun (_, value) -> continues_past_trailing value) entries
   | Nodes.Decl.Verb verb -> verb_decl_continues_past_trailing verb
   | Nodes.Decl.Package _ | Nodes.Decl.Import _ | Nodes.Decl.Type _
-  | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ ->
+  | Nodes.Decl.Alias _ | Nodes.Decl.ForeignVar _ | Nodes.Decl.ExportLine _ ->
       false
 
 (* The defect, if any, in how a construct that the grammar closed ends: a

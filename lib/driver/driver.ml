@@ -195,10 +195,17 @@ let analyze ?(c = []) ?placeholder packages =
   let { Tst.Semantics.program; diagnostics; index } = Tst.check ~interfaces ~record:true ?placeholder packages in
   { program; diagnostics; index }
 
-(* A program starts from its root's `main` (packages.md §6.2), so a root
-   without `main` is an error however far the build goes. This is the only check for
-   `main`: lowering assumes it. *)
-let require_main (program : Tst.Nodes.Program.t) =
+(* What a build's root is (packages.md §2.1, §8.1): a program, which
+   declares `main` and starts from it (§6.2), or a plugin, which declares
+   none and is built into a dynamic library that a host calls through its
+   exports. *)
+type root_kind = Program | Plugin
+
+(* A root that declares `main` is a program's; one that declares none is a
+   plugin's when it carries an export line or declares an exported lambda,
+   and an error otherwise, however far the build goes. This is the only
+   check for `main`: lowering assumes it. *)
+let root_kind (program : Tst.Nodes.Program.t) =
   match program.Tst.Nodes.Program.packages with
   | root :: _ ->
       let declares_main =
@@ -209,15 +216,33 @@ let require_main (program : Tst.Nodes.Program.t) =
             | _ -> false)
           root.Tst.Nodes.Package.decls
       in
-      if declares_main then Ok ()
+      let exports =
+        program.Tst.Nodes.Program.export_lines <> []
+        || List.exists
+             (fun (d : Tst.Nodes.Decl.t) ->
+               match d.Tst.Nodes.Decl.node with Tst.Nodes.Decl.Constant { export = Some _; _ } -> true | _ -> false)
+             root.Tst.Nodes.Package.decls
+      in
+      if declares_main then Ok Program
+      else if exports then Ok Plugin
       else
         fail
           [
             Diagnostic.about_invocation
-              (Printf.sprintf "the root package `%s` declares no `main` to start from"
+              (Printf.sprintf
+                 "the root package `%s` declares no `main` to start from, and no exported lambda or export line for a host to call (packages.md §8.1)"
                  root.Tst.Nodes.Package.name);
           ]
-  | [] -> Ok ()
+  | [] -> Ok Program
+
+(* A program's root builds into an executable or an object, and a plugin's
+   into a dynamic library (packages.md §8.1). *)
+let built_as kind view =
+  let name = function Program -> "a program package, which declares `main`" | Plugin -> "a plugin package, which declares no `main`" in
+  match (kind, view) with
+  | Program, `Library -> fail [ Diagnostic.about_invocation ("the root is " ^ name kind ^ ", so it builds into an executable with `--build`, not into a dynamic library") ]
+  | Plugin, `Executable -> fail [ Diagnostic.about_invocation ("the root is " ^ name kind ^ ", so it builds into a dynamic library with `--library`, not into an executable or an object") ]
+  | _ -> Ok ()
 
 (* Lowering refuses what it cannot handle yet with a diagnostic rather than
    lowering it wrongly (docs/design/lowering.md). A build without a root
@@ -232,7 +257,7 @@ let no_regions = { fixed = None; spawned = None }
    LLVM inlines these bodies and defines them in no object
    (docs/design/separate-compilation.md C12), and an unoptimized build's
    inlining needs them as much as an optimized build's does. *)
-let lower ?(regions = no_regions) ?(compare_glue = false) ?program_write_backs ~root packages program =
+let lower ?(regions = no_regions) ?(compare_glue = false) ?program_write_backs ?(plugin = false) ~root packages program =
   let read path =
     match In_channel.with_open_bin path In_channel.input_all with
     | exception Sys_error why -> fail [ Diagnostic.about_invocation why ]
@@ -246,7 +271,7 @@ let lower ?(regions = no_regions) ?(compare_glue = false) ?program_write_backs ~
     match program_write_backs with Some path -> Result.map Option.some (read path) | None -> Ok None
   in
   match
-    Cgt.lower ~library:(not root) ~import_bodies:true ~foreign_roots:compare_glue ?fixed_region:regions.fixed
+    Cgt.lower ~library:(not root) ~plugin ~import_bodies:true ~foreign_roots:compare_glue ?fixed_region:regions.fixed
       ?program_write_backs program
   with
   | Ok cgt -> Ok cgt
@@ -373,7 +398,14 @@ let write_hashes ~output rows =
    are renamed after the package's symbols: with `!` before the package
    name in a library's object, which fetching stamps, and with no prefix in
    a program's object. *)
-let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
+(* Whether the package [p]'s C globals keep their C names: those of the
+   root of a dynamic-library build or of a test build, of which a build has
+   one copy, so that a host finds a symbol the root's C defines by the name
+   it looks it up by, such as CLAP's `clap_entry` (packages.md §8.1,
+   docs/design/ffi.md F9). Every other package's are renamed after it. *)
+let keeps_c_names ~plugin (p : Assembly.package) = p.Assembly.is_root && (plugin || p.Assembly.name = "test")
+
+let c_modules ?target ?(link = []) ?(hashes = []) ?(plugin = false) ~root packages (c : Foreign.package list) (cgt : Cgt.Nodes.Program.t) =
   let module F = Cgt.Nodes.Foreign in
   (* A package's stamp: its id up to and including the last `%`. The
      packages with the first package's stamp are the project this object
@@ -457,7 +489,18 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
         let objects, archives, libraries = apart f in
         let package ?(sources = []) ?(glue = []) ?(thunks = []) ?(objects = []) ?(archives = []) ?(defined = []) ?labels
             () =
-          { Codegen.prefix = prefix p.Assembly.id; sources; glue; thunks; objects; archives; defined; libraries; labels }
+          {
+            Codegen.prefix = prefix p.Assembly.id;
+            sources;
+            glue;
+            thunks;
+            objects;
+            archives;
+            defined;
+            libraries;
+            labels;
+            keeps_names = keeps_c_names ~plugin p;
+          }
         in
         (* A stamped dependency's C is in its objects, which link with its
            `system` libraries and its archives. The archives are renamed
@@ -533,14 +576,26 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
       in
       let callbacks () =
         let p = List.filter (fun (c : C.t) -> c.C.here) cgt.Cgt.Nodes.Program.callbacks in
-        if p = [] then Ok None
+        (* An exported lambda's C function, under its C name, which calls
+           the lambda's adapter, whichever object defines the lambda
+           (packages.md §8.2). *)
+        let exports =
+          List.map
+            (fun (symbol, name) ->
+              match List.find_opt (fun (c : C.t) -> c.C.symbol = symbol) cgt.Cgt.Nodes.Program.callbacks with
+              | Some c -> (c, name)
+              | None -> Diagnostic.bug ("codegen: the exported lambda `" ^ name ^ "` has no C entry"))
+            cgt.Cgt.Nodes.Program.exports
+        in
+        if p = [] && exports = [] then Ok None
         else
-          let entry (c : C.t) =
+          let entry ?export (c : C.t) =
             {
-              Foreign.Glue.label = global_prefix ^ c.C.entry;
+              Foreign.Glue.label = global_prefix ^ Option.value ~default:c.C.entry export;
               adapter = global_prefix ^ C.adapter c.C.symbol;
               params = List.map shape c.C.takes;
               result = shape c.C.gives;
+              export = export <> None;
             }
           in
           Result.map
@@ -551,18 +606,22 @@ let c_modules ?target ?(link = []) ?(hashes = []) ~root packages (c : Foreign.pa
                   Codegen.prefix = prefix id;
                   sources = [];
                   glue = [ { Codegen.key = s.key; bitcode = s.bitcode; files = [] } ];
-                  thunks = List.map (fun (c : C.t) -> c.C.entry) p;
+                  (* An exported lambda's C function keeps its C name. *)
+                  thunks = List.map (fun (c : C.t) -> c.C.entry) p @ List.map snd exports;
                   objects = [];
                   archives = [];
                   defined = [];
                   libraries = [];
                   labels = None;
+                  keeps_names = false;
                 })
             (Result.bind
                (Result.map_error
                   (fun message -> { Foreign.diagnostics = [ Diagnostic.about_invocation message ]; sources = [] })
                   (Codegen.target_cpu ?target ()))
-               (fun cpu -> Foreign.callbacks ~cpu ~target (List.map entry p)))
+               (fun cpu ->
+                 Foreign.callbacks ~cpu ~target
+                   (List.map (fun c -> entry c) p @ List.map (fun (c, name) -> entry ~export:name c) exports)))
       in
       match Foreign.combine ((if c = [] then [] else List.map2 one packages c) @ [ callbacks () ]) with
       | Ok cs -> Ok (List.filter_map Fun.id cs)
@@ -608,6 +667,12 @@ let ir ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize cgt =
   built
     (emitted ?target ?pack ?memoize ?c ~version:optimize regions cgt (fun m ->
          Result.map (fun () -> Codegen.ir m) (Codegen.prepare ?target ~optimize m)))
+
+(* A plugin's dynamic library (packages.md §8.1). *)
+let library ?target ?pack ?memoize ?c ?(regions = no_regions) ~optimize ~link cgt output =
+  built
+    (emitted ?target ?pack ?memoize ?c ~tiered:false ~version:optimize regions cgt (fun m ->
+         Codegen.dynamic_library ?target ~optimize ~link m output))
 
 (* A [tiered] build is tier 0 (docs/design/tiers.md). Every build plans its
    memoization the same way, so tier 0 and tier 1 emit the same module. *)

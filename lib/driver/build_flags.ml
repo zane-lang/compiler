@@ -31,7 +31,9 @@ type regions = { fixed : int option; spawned : int option }
    hashes match (docs/design/ffi.md F13, F15). A tiered
    build (docs/design/tiers.md) takes two runs: `--build OUT --tiered` makes
    tier 0, and `--tier-up OUT` makes tier 1, the shared library that tier 0
-   loads while it runs. `--check`
+   loads while it runs. `--library OUT` builds a plugin package, a root
+   without `main`, into a dynamic library a host loads (packages.md §8.1).
+   `--check`
    runs semantics and prints only diagnostics, including the C compiler's
    warnings (docs/design/ffi.md F3), so the exit status and the diagnostics
    are the whole result. `--compile-commands OUT` writes the compilation
@@ -50,6 +52,7 @@ type view =
   | Cgt
   | Ir
   | Build of string
+  | Library of string
   | Object of string
   | Tier_up of string
   | Compile_commands of string
@@ -174,8 +177,8 @@ let parse arguments =
     | [] ->
         let view = Option.value view ~default:Assembled in
         if build.packages = [] then usage ()
-        else if build.link <> [] && (match view with Build _ -> false | _ -> true) then usage ()
-        else if build.c_hashes <> [] && (match view with Build _ | Object _ | Ir | Tier_up _ -> false | _ -> true) then
+        else if build.link <> [] && (match view with Build _ | Library _ -> false | _ -> true) then usage ()
+        else if build.c_hashes <> [] && (match view with Build _ | Library _ | Object _ | Ir | Tier_up _ -> false | _ -> true) then
           usage ()
         (* Tier 0 is made by `--build`, and neither tier takes `--optimize`:
            tier 1 does its own optimization (docs/design/tiers.md). *)
@@ -215,6 +218,8 @@ let parse arguments =
         packages (Some (Tier_up output)) build rest
     | "--build" :: output :: rest when view = None && is_value output ->
         packages (Some (Build output)) build rest
+    | "--library" :: output :: rest when view = None && is_value output ->
+        packages (Some (Library output)) build rest
     | "--object" :: output :: rest when view = None && is_value output ->
         packages (Some (Object output)) build rest
     | "--compile-commands" :: output :: rest when view = None && is_value output ->
@@ -281,7 +286,7 @@ let parse arguments =
 
 (* Whether [flag], as the first argument, starts a package build. *)
 let starts = function
-  | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--object" | "--stamp"
+  | ( "--package" | "--root" | "--no-root" | "--target" | "--optimize" | "--build" | "--library" | "--object" | "--stamp"
     | "--link" | "--c-hashes" | "--import" | "--build-argument" | "--fixed-region" | "--spawned-fixed-region" | "--pack-aggregates" | "--no-memoize" | "--check"
     | "--compile-commands" | "--write-backs" | "--program-write-backs"
     | "--tiered" | "--tier-up"

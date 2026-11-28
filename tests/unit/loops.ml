@@ -49,7 +49,7 @@ let list_pure () =
   in
   let call fn = C.Stat.Eval (e (C.Expr.Call { fn; args = [] }) C.Ty.Void) in
   let program funcs =
-    { C.Program.funcs; entry = None; comptime = []; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true }
+    { C.Program.funcs; entry = None; comptime = []; layouts = []; globals = []; foreign = []; callbacks = []; exclusive = true; exports = []; plugin = false }
   in
   Optimize__Loop_pushes.pure
     (program

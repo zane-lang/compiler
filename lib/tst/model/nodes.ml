@@ -237,7 +237,10 @@ module Decl = struct
         definition : definition;
       }
     | Alias of { name : string; params : Ty.param list; target : Ty.t }
-    | Constant of { name : string; ty : Ty.t; value : Expr.t }
+    (* [export] is the C symbol of an exported lambda (packages.md §8.2),
+       which it has in every build; [Program.exports] lists the ones this
+       build gives C symbols. *)
+    | Constant of { name : string; ty : Ty.t; value : Expr.t; export : string option }
     | Verb of { signature : Signature.t; body : body }
     | Subscript of { signature : Signature.t; params : Local.t list; value : Expr.t option }
     | Enum_map of {
@@ -277,6 +280,22 @@ module Defaults = struct
   type t = { decl : int; args : (Ty.param * Ty.arg) list; values : (int * Expr.t) list }
 end
 
+(* An exported lambda this build gives a C symbol (packages.md §8.3): the
+   constant [decl] of the package [package], as the C function [symbol]. *)
+module Export = struct
+  type t = { decl : int; package : string; symbol : string }
+end
+
 module Program = struct
-  type t = { packages : Package.t list; instances : Instance.t list; defaults : Defaults.t list }
+  type t = {
+    packages : Package.t list;
+    instances : Instance.t list;
+    defaults : Defaults.t list;
+    (* The root's own exported lambdas, then those of the packages its
+       export lines name, in the lines' order; none in a build without a
+       root. *)
+    exports : Export.t list;
+    (* The packages the root's export lines name, in order. *)
+    export_lines : string list;
+  }
 end

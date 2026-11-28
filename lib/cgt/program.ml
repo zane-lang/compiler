@@ -343,7 +343,10 @@ let written_back st calls =
     calls
 
 (* A program lowers from its root package's `main`; a [library] from every
-   function its own packages declare, into an object with no entry.
+   function its own packages declare, into an object with no entry; and a
+   [plugin], a dynamic library, from its exported lambdas, also with no
+   entry (packages.md §8.1). Every build but a library's also lowers from
+   the exported lambdas it gives C symbols.
 
    A package given a stamp is already named with it: its identity is its
    stamped name (docs/design/separate-compilation.md C6, C10), which can be
@@ -426,7 +429,7 @@ let start_function st main span entry makes (funcs : Func.t list) =
    come from the program it is built for, [program_write_backs], when there
    is one. Also which packages are the project's own and which are
    stamped. *)
-let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Program.t) =
+let prepare ?(plugin = false) ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Program.t) =
   let stamp_of id =
     match String.rindex_opt id '%' with Some i -> String.sub id 0 (i + 1) | None -> ""
   in
@@ -445,7 +448,9 @@ let prepare ~library ~import_bodies ~fixed_region ~program_write_backs (p : T.Pr
   Hashtbl.reset List_pure.handles;
   Hashtbl.reset List_pure.pushers;
   List_pure.c_stays := false;
-  let exclusive = (not library) && calls = [] in
+  (* A dynamic library's host may call its exports from several threads at
+     once (concurrency.md §4.7). *)
+  let exclusive = (not library) && (not plugin) && calls = [] in
   let st = create ~region:fixed_region ~import_bodies ~library ~exclusive ~exports ~stamp ~stamped in
   st.places <- Some (Tst.States.of_program p);
   (match p.T.Program.packages with r :: _ -> st.package <- st.stamp r.T.Package.name ^ r.T.Package.name | [] -> ());
@@ -556,9 +561,9 @@ let write_backs (p : T.Program.t) =
     Ok (Write_backs.to_text st (Option.value st.written_back ~default:[]))
   with Refused d -> Error d
 
-let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false) ?(fixed_region = Runtime.default_fixed_region)
+let program ?(library = false) ?(plugin = false) ?(import_bodies = false) ?(foreign_roots = false) ?(fixed_region = Runtime.default_fixed_region)
     ?program_write_backs (p : T.Program.t) =
-  let st, own, stamped = prepare ~library ~import_bodies ~fixed_region ~program_write_backs p in
+  let st, own, stamped = prepare ~plugin ~library ~import_bodies ~fixed_region ~program_write_backs p in
   try
     (* The root package is the first (docs/design/semantics.md §2), and its `main`
        is where the program starts (packages.md §6.2). *)
@@ -575,6 +580,29 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
           match Queue.take_opt st.made with
           | Some decl -> drain (made st decl :: acc)
           | None -> List.rev acc)
+    in
+    (* The exported lambdas the build gives C symbols, each lifted, which
+       roots it, and its C entry made (Lower_lambda): a host calls it,
+       whether or not the root's code does. *)
+    let exports =
+      List.map
+        (fun (e : T.Export.t) ->
+          let lambda =
+            List.find_map
+              (fun (pkg : T.Package.t) ->
+                List.find_map
+                  (fun (d : T.Decl.t) ->
+                    match d.T.Decl.node with
+                    | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } when d.T.Decl.id = e.T.Export.decl ->
+                        Some (Lower_lambda.lambda st span ty l)
+                    | _ -> None)
+                  pkg.T.Package.decls)
+              p.T.Program.packages
+          in
+          match lambda with
+          | Some s -> (s, e.T.Export.symbol)
+          | None -> Diagnostic.bug ("lowering: the exported lambda `" ^ e.T.Export.symbol ^ "` is no lambda constant"))
+        (if library then [] else p.T.Program.exports)
     in
     let finish ?(start = fun _ -> []) entry =
       let funcs = drain [] in
@@ -596,6 +624,8 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
              foreign = List.rev st.thunks;
              callbacks;
              exclusive = st.exclusive;
+             exports;
+             plugin;
            })
     in
     if foreign_roots then
@@ -608,6 +638,7 @@ let program ?(library = false) ?(import_bodies = false) ?(foreign_roots = false)
         p.T.Program.packages;
       finish None
     end
+    else if plugin then finish None
     else
       let main =
         List.find_map

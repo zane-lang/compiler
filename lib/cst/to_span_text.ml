@@ -395,6 +395,14 @@ and decl d (x : Decl.t) =
       name d "name" n;
       type_expr d type_;
       name d "symbol" symbol
+  | Decl.ExportedVar { name = n; type_; value; symbol } ->
+      name d "name" n;
+      type_expr d type_;
+      expr d value;
+      name d "symbol" symbol
+  | Decl.ExportLine { package; args } ->
+      name d "package" package;
+      List.iter (type_expr d) args
 
 (* [source] is the text the spans index into, which is the text that was
    parsed. Handing it in rather than re-reading the file keeps this honest for

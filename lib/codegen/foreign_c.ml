@@ -35,7 +35,11 @@ type c_module = { key : string; bitcode : string; files : string list }
    labels name it, which is how its publisher named it, `!` before a
    library's own package, so that the glue compiles to the publisher's
    module. Its thunks take the package's stamped names back before the
-   module is linked, and every body in it is retained, never emitted. *)
+   module is linked, and every body in it is retained, never emitted.
+
+   A package that [keeps_names] has its C globals keep their C names, as
+   the root of a dynamic-library or test build does, so that a host finds
+   a symbol its C defines by its name (docs/design/ffi.md F9). *)
 type package = {
   prefix : string;
   sources : c_module list;
@@ -46,6 +50,7 @@ type package = {
   defined : string list;
   libraries : library list;
   labels : string option;
+  keeps_names : bool;
 }
 
 (* What reaches the link beside the C module: the objects and archives of
@@ -214,7 +219,7 @@ let package_module ctx ~triple ~data_layout p =
     match m with
     | Some m ->
         localize_shared m;
-        rename m p.prefix global_prefix p.thunks p.defined
+        if p.keeps_names then [] else rename m p.prefix global_prefix p.thunks p.defined
     | None -> []
   in
   let m =

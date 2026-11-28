@@ -110,6 +110,20 @@
     },
     {
       "rules": [
+        "body",
+        "body_braced"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "ret_type",
+        "'('",
+        "')'",
+        "block_body"
+      ],
+      "lookahead": "'export'"
+    },
+    {
+      "rules": [
         "expr",
         "stat"
       ],
@@ -142,6 +156,21 @@
     },
     {
       "rules": [
+        "expr",
+        "expr_braced"
+      ],
+      "symbol_sequence": [
+        "identifier",
+        "ret_type",
+        "'('",
+        "')'",
+        "'=>'",
+        "app_braced"
+      ],
+      "lookahead": "'export'"
+    },
+    {
+      "rules": [
         "abort_handle",
         "expr",
         "expr_braced"
@@ -152,21 +181,6 @@
         "'='",
         "expr",
         "'??'",
-        "expr"
-      ],
-      "lookahead": "'?'"
-    },
-    {
-      "rules": [
-        "expr",
-        "expr_braced"
-      ],
-      "symbol_sequence": [
-        "identifier",
-        "type_expr",
-        "'='",
-        "expr",
-        "'=='",
         "expr"
       ],
       "lookahead": "'?'"

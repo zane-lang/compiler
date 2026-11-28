@@ -428,6 +428,18 @@ and decl_to_node (x: Nodes.Decl.t) = match x.Nodes.Decl.node with
         ("type", type_to_node x.type_);
         ("symbol", Leaf (text x.symbol));
       ])
+  | ExportedVar x ->
+      group "exported_var_decl" (fields [
+        ("name", Leaf (text x.name));
+        ("type", type_to_node x.type_);
+        ("value", expr_to_node x.value);
+        ("symbol", Leaf (text x.symbol));
+      ])
+  | ExportLine x ->
+      group "export_line" (fields [
+        ("package", Leaf (text x.package));
+        ("args", map_seq type_to_node x.args);
+      ])
 
 and verb_decl_to_node (x: Nodes.Verb_decl.t) = match x.Nodes.Verb_decl.node with
   | Func x ->
