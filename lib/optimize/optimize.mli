@@ -11,10 +11,12 @@ val run : ?c:Llvm.llmodule list -> Cgt.Nodes.Program.t -> Cgt.Nodes.Program.t
     of the call (docs/design/comptime.md). Every build runs it, before
     [run]. [arguments] is what the runtime's `arguments` gives inside such
     a call: the arguments the build was started with. A call into C runs on
-    [c], as for [run]. A call that cannot be evaluated, or that writes
-    capability-backed state, is a diagnostic naming it. *)
+    [c], as for [run]. The boolean beside the program is true when some
+    marked call read the runtime's `arguments`. A call that cannot be
+    evaluated, or that writes capability-backed state, is a diagnostic
+    naming it. *)
 val comptime :
   ?c:Llvm.llmodule list ->
   arguments:string list ->
   Cgt.Nodes.Program.t ->
-  (Cgt.Nodes.Program.t, Diagnostic.t list) result
+  (Cgt.Nodes.Program.t * bool, Diagnostic.t list) result

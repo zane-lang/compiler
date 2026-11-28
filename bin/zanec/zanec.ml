@@ -112,6 +112,7 @@ let ( let* ) = Result.bind
 
 (* Lowering and codegen, once semantics has accepted the program. *)
 let generate packages c_code build program =
+  let* () = match build.view with Object output -> Driver.check_object_output output | _ -> Ok () in
   let root = Option.value build.root ~default:true in
   let target = build.target and optimize = build.optimize and pack = build.pack and memoize = build.memoize in
   (* Only an optimized build retains a dependency's C (docs/design/ffi.md
@@ -134,7 +135,7 @@ let generate packages c_code build program =
      a build with one makes the C before evaluating it. *)
   let marked = cgt.Cgt.Nodes.Program.comptime <> [] in
   let* made = if optimize || marked then Result.map Option.some (c_of cgt) else Ok None in
-  let* cgt = Driver.comptime ?target ?c:made ~arguments:build.build_arguments packages cgt in
+  let* cgt, read_arguments = Driver.comptime ?target ?c:made ~arguments:build.build_arguments packages cgt in
   let* cgt = Driver.optimize ?target ?c:(if optimize then made else None) ~optimize cgt in
   let c () = match made with Some c -> Ok c | None -> c_of cgt in
   match build.view with
@@ -156,7 +157,8 @@ let generate packages c_code build program =
   | Object output ->
       let* c = c () in
       let* () = Driver.object_file ?target ~pack ~memoize ~c ~regions:build.regions ~optimize cgt output in
-      Driver.write_hashes ~output (Driver.hashes_of packages c_code c)
+      let* () = Driver.write_hashes ~output (Driver.hashes_of packages c_code c) in
+      Driver.write_arguments_marker ~output ~read:read_arguments
   | Assembled | Check | Declarations | Typed | Compile_commands _ | Write_backs _ -> Ok ()
 
 (* Without `--root` or `--no-root`, the root needs its `main` once the
