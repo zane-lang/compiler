@@ -250,6 +250,50 @@ File "fixtures/typing/reject/bad/comptime.zn", line 85, characters 9-17:
 85 |         abort e;
    |         ^^^^^^^^
 Error: a `comptime` call is evaluated whole at compile time, so nothing in it may abort the verb it is in; finish its handler with `resolve`
+File "fixtures/typing/reject/bad/constructors.zn", line 8, characters 1-24:
+8 | Hue.amber() => Hue.teal;
+  | ^^^^^^^^^^^^^^^^^^^^^^^
+Error: `amber` is a member of `Hue`, and naming it already builds one; a named constructor takes a name that no member or case of its type has
+File "fixtures/typing/reject/bad/constructors.zn", line 9, characters 1-37:
+9 | Ledger.some(n Int) => Ledger.some(n);
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `some` is a case of `Ledger`, and naming it already builds one; a named constructor takes a name that no member or case of its type has
+File "fixtures/typing/reject/bad/constructors.zn", line 12, characters 1-29:
+12 | Hue{level Int;} => Hue.amber;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Hue` is an enum, which has no fields, so its constructors take positional parameters, not a field list
+File "fixtures/typing/reject/bad/constructors.zn", line 13, characters 1-41:
+13 | Ledger{count Int;} => Ledger.some(count);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: `Ledger` is a variant, which has no fields, so its constructors take positional parameters, not a field list
+File "fixtures/typing/reject/bad/constructors.zn", line 17, characters 16-22:
+17 | Hue.blank() => init{}
+   |                ^^^^^^
+Error: `init{ }` assigns a struct's fields, and the enum `Hue` has none; its constructor returns one of its members, as `Hue.member`
+File "fixtures/typing/reject/bad/constructors.zn", line 18, characters 19-25:
+18 | Ledger.blank() => init{}
+   |                   ^^^^^^
+Error: `init{ }` assigns a struct's fields, and the variant `Ledger` has none; its constructor returns one of its cases, as `Ledger.case(payload)`
+File "fixtures/typing/reject/bad/constructors.zn", line 19, characters 17-39:
+19 | Hue.tinted() => init{ level = unlit; }
+   |                 ^^^^^^^^^^^^^^^^^^^^^^
+Error: `init{ }` assigns a struct's fields, and the enum `Hue` has none; its constructor returns one of its members, as `Hue.member`
+File "fixtures/typing/reject/bad/constructors.zn", line 19, characters 31-36:
+19 | Hue.tinted() => init{ level = unlit; }
+   |                               ^^^^^
+Error: no name `unlit` is in scope
+File "fixtures/typing/reject/bad/constructors.zn", line 32, characters 30-51:
+32 |     misbuilt Pouch<String> = IntPouch(String("x"));
+   |                              ^^^^^^^^^^^^^^^^^^^^^
+Error: this name builds `bad$Pouch<@primitives$I64>`, and the constructor these arguments reach builds `bad$Pouch<@primitives$String>`
+File "fixtures/typing/reject/bad/constructors.zn", line 33, characters 26-46:
+33 |     drawn Draw<String> = IntDraw(String("y"));
+   |                          ^^^^^^^^^^^^^^^^^^^^
+Error: this name builds `bad$Draw<@primitives$I64>`, and the constructor these arguments reach builds `bad$Draw<@primitives$String>`
+File "fixtures/typing/reject/bad/constructors.zn", line 41, characters 7-13:
+41 |     m Mark();
+   |       ^^^^^^
+Error: `bad$Mark` has no constructor; a variant is also built by naming a case, as `Mark.case(payload)`
 File "fixtures/typing/reject/bad/conventions.zn", line 15, characters 7-63:
 15 |     c Courier(Int(p Parcel) => Int(1), Parcel(String("hint")));
    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

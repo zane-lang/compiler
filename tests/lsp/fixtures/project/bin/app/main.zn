@@ -1,6 +1,6 @@
 package app;
 
-import geo$[Point, dist, Color, scaled, itself];
+import geo$[Point, dist, Color, scaled, itself, Step];
 import geo$Pair as Twin;
 
 alias Unit = @primitives$Unit;
@@ -19,6 +19,8 @@ Unit main() {
 	two Float = scaled(far, Float(2.0));
 	label String = String("größe"); x Float = far.x;
 	o Point = Point.zero();
+	back Color = Color.background();
+	s Step = Step();
 	pair Twin{ both = Float(1.0); }
 	first Float = pair.left;
 	return Unit();

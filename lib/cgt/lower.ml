@@ -457,20 +457,25 @@ and pool_value st ctx span (e : T.Expr.t) =
 
 (* Experimental pooled variants: the pooled variant [e] built at the end of
    the pool at [dest], and the position of its top node there. A case is
-   built node by node, its subtrees first; a call to a function that pours
-   its result (Lower_calls.pours) is given the pool; any other expression is
-   made as a value and its pool is copied over. *)
+   built node by node, its subtrees first; a call to a function or a
+   variant's constructor that pours its result (Lower_calls.pours) is given
+   the pool; any other expression is made as a value and its pool is copied
+   over. *)
 and into st ctx span dest (e : T.Expr.t) : Expr.t =
   let t = Tty.strip_mode e.T.Expr.ty in
+  let pouring id instance args =
+    match verb_of st id instance with Some v when Lower_calls.pours st span v -> Some (v, args) | _ -> None
+  in
   let poured =
     match e.T.Expr.node with
-    | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; handler = None; _ } -> (
-        match verb_of st id instance with Some v when Lower_calls.pours st span v -> Some v | _ -> None)
+    | T.Expr.Call { callee = { owner = S.Declared id; instance; _ }; args; handler = None }
+    | T.Expr.Construct { ctor = { owner = S.Declared id; instance; _ }; args; handler = None } ->
+        pouring id instance args
     | _ -> None
   in
   match (e.T.Expr.node, poured) with
   | T.Expr.Case { case; payload }, _ -> pool_into st ctx span dest t case payload
-  | T.Expr.Call { args; _ }, Some v ->
+  | _, Some (v, args) ->
       let args = Lower_calls.arguments walk st ctx span v (Lower_calls.passed v args) in
       { Expr.node = Expr.Call { fn = symbol st v; args = args @ [ dest ] }; ty = Nodes.Ty.I64 }
   | _ ->

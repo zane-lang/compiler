@@ -132,6 +132,10 @@ then run it again, read the golden diff and promote that.
   §5.3) and converting `T(0)`, built at `I64` and `I32`, and
   `Vector2<T>.splat`, which infers `T` from its argument. `namedGeneric.cgt`
   shows each call written out as a record of its own instance's width.
+- `mouldConstructors` is constructors on every mould (types.md §3.1,
+  adt.md §2.2, §3.3): an enum's anonymous, named and implicit constructors
+  return members, a variant's return cases beside its case forms, and a
+  `#enum` and a `#variant` declare them as well.
 - `typeValues` is a type passed to a call as an applied type or a
   reference (generics.md §5.3): a generic bag makes an empty
   `@primitives$ListRef(Pair<T>)` over its own parameter, pushed to and read
