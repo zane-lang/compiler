@@ -1,4 +1,4 @@
-(** The report a stage returns when it refuses its input, how a report is
+(** The report a stage returns for an input the compiler refuses, how a report is
     rendered for a person, and the internal error a broken invariant
     raises. *)
 
@@ -13,7 +13,7 @@ val render : source:string -> t -> string
 (** A report rendered against the files a build read. *)
 val render_in : Source.Files.t -> t -> string
 
-(** A broken invariant: something an earlier stage guarantees did not hold.
+(** A broken invariant: a property an earlier stage guarantees did not hold.
     The compiler's fault, never the program's. *)
 exception Internal of { span : Source.Span.t option; message : string }
 

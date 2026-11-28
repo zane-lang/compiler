@@ -59,8 +59,8 @@ moves which arguments share an entry.
 A lookup probes the first entry of its set and the second only when the
 first misses; a miss writes an empty entry, else one at random. `loopleaf`
 −59%, the shared-table stress program −20%, but `overlap` +17%, `ttt` +6%
-and the random programs a median of +0.5%: a miss probes twice, and
-choosing which entry to write takes about ten instructions more. Comparing
+and the random programs a median of +0.5%: a miss probes twice, and the
+choice of entry to write takes about ten instructions more. Comparing
 both entries' keys without a branch made `ttt` +12% to +18% and `overlap`
 +33% to +37%, since every word of both keys is read; writing the entry whose
 work was less was measured only so, and did no better than writing one at
@@ -74,7 +74,7 @@ was chosen three ways:
 | the first while empty, else the second | −59% | +13% | +67% |
 
 The last keeps whatever filled the first entry, so `ttt`, whose positions
-change as the search moves on, keeps positions it never asks for again.
+change as the search moves on, keeps positions it never looks up again.
 
 ### Without the tag
 

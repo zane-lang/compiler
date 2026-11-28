@@ -49,7 +49,7 @@ let keep ~random ~object_ ~kept =
 (* The executable that the command *cc* runs. When *cc* contains a directory,
    it is *cc* itself. Otherwise it is the first executable file named *cc* in a
    directory on `PATH`, where an empty entry is the current directory, and
-   [None] when no directory has one. On Windows the command search also tries
+   [None] when no directory has one. On Windows the command search also checks
    the current directory and each extension in `PATHEXT`, so this function
    returns [None] there, and the compiler's version is asked every time. *)
 let located cc =
@@ -73,8 +73,8 @@ let located cc =
    when *cc* reports none; then nothing *cc* compiles is kept. Asking costs a
    run of the C compiler, about as long as the rest of a small unoptimized
    build, so the answer is kept in [cache]. Its key is the executable *cc* runs,
-   with that file's size, modification time, inode and device, and the compiler
-   is asked again only when one of those changes. *)
+   with that file's size, modification time, inode and device, and this
+   function runs the compiler again only when one of those changes. *)
 let identity ~cache cc dir =
   let file = Filename.concat dir "cc-version" in
   let read path = try Some (In_channel.with_open_bin path In_channel.input_all) with Sys_error _ -> None in

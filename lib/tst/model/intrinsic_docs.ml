@@ -6,9 +6,9 @@
    entry here, and a unit test (tests/unit/unit.ml) checks that the two lists
    match.
 
-   The text is Markdown. A description states what a program gets from the
-   intrinsic and cites the spec section that defines it. A description of a
-   name with several overloads covers every overload. *)
+   The text is Markdown. A description states the value or effect a program
+   gets from the intrinsic and cites the spec section that defines it. A
+   description of a spelling with several overloads covers every overload. *)
 
 let namespaces =
   [

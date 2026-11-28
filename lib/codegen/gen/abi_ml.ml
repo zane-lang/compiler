@@ -1,7 +1,7 @@
 (* Reads runtime/zane_abi.h, named on the command line, and prints the
    [Abi] module: each `#define ZANE_NAME number` as `let name = number`,
    and [values], every one by its C name, for the test that compares them
-   with what the runtime's structs measure. A `#define` of a name alone is
+   with what the runtime's structs measure. A `#define` of a macro name alone is
    the include guard; any other line that is not a plain number is a
    mistake in the header, which stops the build here rather than giving the
    compiler a number the runtime does not have. *)

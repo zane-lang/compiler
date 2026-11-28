@@ -2,7 +2,7 @@
 
 Changes to the grammar that were measured, and ambiguities that were found and
 resolved. They are recorded because the reasoning that recommends a rejected
-change survives being told it does not work, so each of them gets proposed
+change survives the measurement that refutes it, so each of them gets proposed
 again.
 
 ## Generic lambda against comparison (October 1, 2026)
@@ -95,8 +95,8 @@ finds one derivation for each new spelling, one for the lambda witnesses
 argument or a type in an ordinary call (`tests/grammar/type_arguments_test.py`).
 The visible-stack certificate proves the grammar unambiguous: 2,259
 configurations in 29 frames over a 1,315-state GLR model, against 2,294
-configurations, 30 frames and 1,372 states before the change, and the stock
-automaton likewise. `just verify-grammar` re-checks it in Lean.
+configurations, 30 frames and 1,372 states before the change, and it proves
+the stock automaton unambiguous too. `just verify-grammar` re-checks it in Lean.
 
 ### A type in every call
 
@@ -127,13 +127,13 @@ and the stock automaton in 2,271 configurations and 29 frames.
 `enum_map_tail` removed twelve conflicts by shifting every bracket group before
 classifying it, and the same move looked like it should close the generics
 family: give the constructor path the same `loption(generics)` the type path
-carries, so that no reduction has to decide which one a name type is opening.
+carries, so that no reduction has to pick the path a name type is opening.
 Measured, it goes the wrong way. Adding the option to `constructor_name` turned
 29 conflict states into 49, twelve of them reduce/reduce; routing `verb_call`
 through `constructor_decl_name`, which reaches the same shape by a different
 edit, landed on the same 49.
 
-What the enum-map case had and this one does not is a common shape to shift.
+The enum-map case had a common shape to shift, and this case does not.
 Both readings of a bracket group there were `[ … ]`, differing only in the role
 the contents played, so one rule could take the group and let the actions sort
 it out afterward. Here the two readings diverge in shape at the token the
@@ -141,8 +141,8 @@ decision is about: `Foo<Int>` continues as a type, `Foo(x)` as an argument
 list, and `Foo.bar` as either a type member or a constructor member. Giving
 both paths the same optional generics makes their prefixes identical without
 making their continuations identical. It buys two `(` states and pays ten new
-`.` states and twelve reduce/reduce ones for them: the parser now cannot tell
-which nonterminal it is completing at the point where it used to know.
+`.` states and twelve reduce/reduce states for them: the parser now cannot tell
+which nonterminal it is completing at the point where it used to be certain.
 
 Both measurements were taken before the terminator change and have not been
 retaken against the current grammar; the counts they cite are relative to the

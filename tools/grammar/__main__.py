@@ -92,7 +92,7 @@ def outputs(directory: Path, executable: str, tree_sitter=None):
         grammar, report = conflicts.discover(render, config, temp, cli)
     _, queries = treesitter.generate(spec, start, rules, precedence, overlay)
     # Neovim reads one query, which nvim-treesitter installs from
-    # editors/neovim/queries: the shared one plus Neovim's own captures. Those
+    # editors/neovim/queries: the shared query plus Neovim's own captures. Those
     # use the zane-bound? predicate of the zane-nvim plugin, which gets the
     # grammar's binders and the node types that can hold one as arguments, so
     # everything grammar-specific arrives with the parser.

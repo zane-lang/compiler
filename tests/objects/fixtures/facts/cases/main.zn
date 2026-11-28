@@ -1,7 +1,7 @@
 /// A list of optional values whose payload leaves no spare byte, so each
 /// is packed as a one-byte tag and eight bytes, and a loop that tests each
 /// one's case and its payload, as `tests/perf/entities`' sweep does. Which
-/// case an element holds follows no pattern a predictor learns.
+/// case an element holds follows no pattern a branch predictor can pick up.
 package cases;
 
 alias Int = @primitives$I64;

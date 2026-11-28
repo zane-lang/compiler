@@ -1,12 +1,12 @@
 # Optimizations
 
-Every optimization the compiler applies to the programs it builds: what it
-does to the binary, which builds get it, and where it lives. Making the
+Every optimization the compiler applies to the programs it builds: its
+effect on the binary, the builds that get it, and its source location. Making the
 compiler itself faster is out of scope here.
 
 This is a catalog. The design documents remain where each optimization is
-explained and justified; an entry here says what it is in a few lines and
-links there.
+explained and justified; an entry here describes the optimization in a few
+lines and links there.
 
 ## How to add or edit an entry
 
@@ -93,8 +93,8 @@ copying it.
 - **Design:** [`design/lowering.md`](design/lowering.md) L11
 - **Effect:** estimated cycles of the perf programs it changes, plain,
   optimized and tiered: `division` −10.0%, 0.0% and −0.4%, `paths` 0.0%,
-  −0.6% and 0.0%, `stress` −0.2%, −0.4% and −0.3%; the rest are built the
-  same. A hash probe written as a plain function and called in a loop ran
+  −0.6% and 0.0%, `stress` −0.2%, −0.4% and −0.3%; the rest build to
+  identical code. A hash probe written as a plain function and called in a loop ran
   as fast as its call (×0.96 to ×1.00, best of 5 paired runs each, 256 KiB
   to 2 GiB tables, 4-core Xeon at 2.1 GHz): the gain is in what codegen's
   loop analyses can then do with the walk. The compiler runs 3.2% more
@@ -270,7 +270,7 @@ Each generic verb is lowered once per instance, so a type argument or an
 explicit number parameter has already picked the function and costs nothing
 at run time; the body reads a number parameter as a constant.
 
-### Calls remembered while the program runs
+### Calls memoized while the program runs
 
 - **Builds:** every build; `--no-memoize` turns it off
 - **Where:** `lib/cgt/memo.ml`, `lib/codegen/memos.ml` (`memo`)
@@ -291,7 +291,7 @@ returns fixed-size values, and which calls back into its own cycle, or is
 heavy and called from a loop, keeps a table of its results, so a call whose
 arguments repeat returns at once. Each function scores its lookups against
 the work its hits save, counted from below, and stops looking for good when
-they do not pay. A loop decides once, before it starts, whether its calls
+they do not pay. A loop checks once, before it starts, whether its calls
 still look, so a loop whose functions have stopped runs as written. In a
 program that spawns or makes a worker pool, and in a library, threads share
 each table, whose
@@ -491,7 +491,7 @@ to run. C evaluation spends the fold's budget.
 
 A call that reads C state the package keeps and that no capability names
 folds from that state's first value, so the optimized build can print
-what the plain one does not (spec `ffi.md` §5.5): the `hazard` fixture
+output the plain build does not (spec `ffi.md` §5.5): the `hazard` fixture
 prints `1`, `1`, `1` optimized and `1`, `2`, `3` plain.
 
 ### Output replayed where it was made
@@ -513,8 +513,8 @@ its value is used. A call that only outputs becomes its outputs alone.
 - **Effect:** `runs` folds a whole sieve to its output
 
 A run of statements in one block is evaluated together, so a list made,
-changed in place and read by later statements, which no single statement
-leaves known, still folds. The longest run that can end is replaced by its
+changed in place and read by later statements, whose value no single
+statement leaves known, still folds. The longest run that can end is replaced by its
 outputs and the locals it leaves.
 
 ### Values kept known past code left to run
@@ -525,7 +525,7 @@ outputs and the locals it leaves.
 - **Design:** [`design/optimization.md`](design/optimization.md) O6
 - **Effect:** the perf program `kept`, optimized, −43% estimated cycles
   and −64% of its instructions, its plain build unchanged; the other perf
-  programs and langbench's programs fold to the same trees as before
+  programs and langbench's programs fold to the same trees as without it
 
 Code that does not fold forgets only the locals it can write: those it is
 given an address of, and those an address of which may be kept. A value
@@ -591,7 +591,7 @@ its result) and indexes an array of 2 to 16
 elements, a power of two, through `bitAnd` is cut into runs of that many
 copies of its body, each run starting at a multiple of the size, so each
 copy's index is a constant and the array's elements become registers. The
-remaining iterations run as before.
+remaining iterations run unchanged.
 
 ### String literals in locals bound, not held
 
@@ -676,7 +676,7 @@ where a call is, leaves out of line.
 Each slot of a placed frame that is loaded and stored whole, as one
 scalar type, gets a copy in an alloca, filled where the frame is placed;
 loads and stores use the copy, which SROA makes a register. A copy is
-written back to its slot just before something may read it there, and
+written back to its slot just before an instruction may read it there, and
 only when it was stored since the two last agreed: before a call given an
 address in the frame, any call once a runtime call has kept one (a drain
 reads the slots `zane_hold` lists), and a wider load that holds the slot.
@@ -704,7 +704,7 @@ a path that loads it no more never reads it.
 A frame its scope enters inline is still a frame: the record's skip, a
 phi between the frame and a scope it encloses, is stored only as a value,
 as the frame is, and the check of the room past the frame only compares
-its address. A frame whose address escapes any other way is left alone. A
+its address. A frame whose address escapes by any other route is left alone. A
 frame placed on two paths, as LLVM leaves a scope's entry when it threads
 the fast and slow paths apart, is the phi that joins them, along with a
 phi beside it that carries a slot's address on each path; the paths'
@@ -732,9 +732,9 @@ followed.
   writes state back before stopping is kept
 
 A failed check stops the program after flushing its output, so where a
-later check of the same index follows an earlier one on a straight path
-with no call that could write output between, the earlier one takes the
-smaller of the two bounds and the later one goes. A check both arms of a
+later check of the same index follows an earlier check on a straight path
+with no call that could write output between, the earlier check takes the
+smaller of the two bounds and the later check goes. A check both arms of a
 branch begin with is made once above it, after which LLVM makes the arms'
 stores one store of a select. The checks of `x`, `x + 1`, ... `x + k` on
 one path become one check of the lowest and one of the highest. In a
@@ -756,11 +756,11 @@ never hold and is removed, wherever it would lead.
 The module goes through LLVM's `default<O2>` pipeline: inlining, constant
 folding, dead-code removal, common subexpressions, loop hoisting,
 unrolling and vectorization, with the passes the next entries name added
-to it. The runtime is compiled with `-O2` too, and so is the one linked by
+to it. The runtime is compiled with `-O2` too, and so is the runtime linked by
 tier 0 of a tiered build, since tier 1 calls it
 ([`design/tiers.md`](design/tiers.md) T5). The
-compiler implements a transformation itself only where it rests on
-something about Zane that LLVM does not know.
+compiler implements a transformation itself only where it rests on a Zane
+rule hidden from LLVM.
 
 ### The runtime's bodies inlined
 
@@ -801,8 +801,8 @@ no argument table or result slot left. Each package's C globals are
 renamed first (F9), so linking them in cannot bind one package's names
 to another's. A dependency linked as a release has its C and glue compiled
 from its checkout and linked in as bodies to inline only, where their
-hashes agree with the ones the release published and nothing can tell an
-inlined copy from the dependency's object (F13).
+hashes match the hashes the release published and an inlined copy is
+indistinguishable from the dependency's object (F13).
 
 The `retained` fixture of `tests/ffi/` shows it: its
 `golden/retained.released.calls` lists which parts of a release's C the
@@ -871,8 +871,8 @@ grow its caller's frame for good. A generic instance or a package constant
 stays a call, so an object still defines every one that C4 says it does;
 lowering has already written out the generic instances whose body is one
 expression.
-Passes then promote the wrappers' scalars to registers, simplify what that
-makes constant, merge the blocks left behind without making a branch a
+Passes then promote the wrappers' scalars to registers, simplify the values
+that makes constant, merge the blocks left behind without making a branch a
 select, join each `elif` to the `if` before it (next entry) and merge
 again. Each takes time in proportion to the instructions it reads; LLVM's
 own inliner, scalar replacement of aggregates and instruction combining,
@@ -915,7 +915,7 @@ with sinking on it moves the room's load into the case that reads the
 payload, where nothing marks for LLVM that the load is safe to make before the
 tag is tested. Left beside the tag's load, the room is read either way, and a
 case's test and payload become a select instead of a branch on the tag
-that the predictor cannot learn.
+that the branch predictor mispredicts.
 
 ### Loops unrolled past `-O2`'s budgets
 
@@ -930,9 +930,9 @@ that the predictor cannot learn.
 
 LLVM is given a full-unroll budget of 250, against `-O2`'s 150, and a
 partial-unroll budget of 100. A loop of a few constant iterations whose
-body tests the counter becomes straight-line code with each test decided,
+body tests the counter becomes straight-line code with each test folded,
 and a counted loop over a list shares its copies' index arithmetic and
-bounds checks. Unrolling never changes what a program means. A cold loop's
+bounds checks. Unrolling never changes a program's behaviour. A cold loop's
 copies can cost a hot loop in the same function a register, and a loop that
 runs only one to four times is unrolled four times for nothing.
 
@@ -956,10 +956,10 @@ runs only one to four times is unrolled four times for nothing.
 LLVM's inductive range check elimination splits a loop that checks its
 element indices into a main loop it has proved needs no check and the few
 iterations around it that might fail one, which still check and stop the
-program as the spec says. It runs inside `-O2` once each loop is rotated.
+program as the spec requires. It runs inside `-O2` once each loop is rotated.
 An optimized build emits each loop it could help twice, with branch
-weights saying the long copy goes round 1,000 times and the short one 4,
-and IRCE splits the long copy and not the short one, since the split costs
+weights marking the long copy as going round 1,000 times and the short copy 4,
+and IRCE splits the long copy and not the short copy, since the split costs
 a short loop more than it saves. A loop that calls back into its own
 function is left as it is: the call costs far more than the check. A loop
 that can leave before its count runs out, holds no loop and reads an
@@ -1112,7 +1112,7 @@ attributes. A parameter that is the address of a slot that outlives the call, a
 and `dereferenceable` for the whole slot when the slot holds a
 declared type, a list or a text, so a loop reads a list in it once rather
 than after every index check. A runtime value such as `Console` has no
-layout lowering has computed, and gets none of these. Neither kind claims an
+layout lowering has computed, and gets none of these. Neither kind declares an
 alignment: what it names may be a member at any byte of a packed value.
 
 ### List headers and scalars in separate alias classes
@@ -1126,7 +1126,7 @@ alignment: what it names may be a member at any byte of a packed value.
   register, in optimized and tiered builds, and pushes of scalars in a row
   keep the count and room (`tests/objects/facts_test.py`)
 
-Type-based alias tags say a list handle's fields never alias a scalar
+Type-based alias tags mark a list handle's fields as never aliasing a scalar
 place, so writing a scalar field of an element, or a scalar element a
 push makes room for, does not invalidate the count and block LLVM already
 loaded, nor the bounds check made with them. A removal
@@ -1247,7 +1247,7 @@ before the run.
 - **Where:** `lib/codegen/frames.ml`, `lib/codegen/emit.ml`
 - **Design:** [`design/lowering.md`](design/lowering.md) §9, "A scope's
   slots are one frame, in one range per context"
-- **Effect:** telling LLVM the frame may be read: `tests/perf` `flips`,
+- **Effect:** marking the frame as readable for LLVM: `tests/perf` `flips`,
   tiered, 6.6% fewer estimated cycles
 
 Each scope's slots form one frame at fixed offsets, placed back to back in
@@ -1350,8 +1350,8 @@ A counted loop whose body cannot change the handle of a list it indexes
 reads that list's items and count once before the loop. The checks then
 compare with a count the loop does not change, so in an optimized build
 and tier 1, LLVM's IRCE takes them out of the loop and the loop can
-vectorize. A list's count read as its size in the loop is the one read
-before it too.
+vectorize. A list's count read as its size in the loop is also the count
+read before it.
 
 Such a body spawns nothing, writes only scalars through an address, and
 calls the runtime only to index, or to push to, make room in or remove
@@ -1390,7 +1390,7 @@ entry of a short loop costs more than it saves (LangArena Etc::NeuralNet
 was 5% slower).
 
 In an optimized build, a list an enclosing loop read before itself is
-the one the inner loop uses: the enclosing loop's body, the inner loop
+the list the inner loop uses: the enclosing loop's body, the inner loop
 included, cannot change its handle. LLVM then sees the inner loop's bound
 and the count read before it as one value. A plain build reads it again
 before each inner loop instead, which is cheaper there (`tests/perf`
@@ -1441,7 +1441,7 @@ not do for a body with a branch in it.
 
 ### A loop that calls a single-caller function emitted once
 
-- **Builds:** optimized only; a tiered build versions every loop as before
+- **Builds:** optimized only; a tiered build still versions every loop
 - **Where:** `lib/codegen/loop_copies.ml` (`single_caller`)
 - **Design:** [`design/lowering.md`](design/lowering.md), "After the
   passes"
@@ -1511,7 +1511,7 @@ interleaved when it has at least 64 iterations and its walks read 512 KiB
 of lists or more, or, for one that retires in any order, when its walk is
 a constant 32 trips or more. A loop whose iterations depend on each other
 through what the walks read, that writes outside the iteration before its
-walk, calls anything, or can leave or return is left as it is.
+walk, calls anything, or can leave or return is left unchanged.
 
 ### Emitted walks per type, shared between alike types
 
@@ -1639,7 +1639,7 @@ line, so the common path is short.
 - **Effect:** `tests/perf` `scopes` 29% fewer estimated cycles optimized,
   33% plain, 26% tiered
 
-While a scope is the innermost one, its blocks go into its own frame,
+While a scope is the innermost scope, its blocks go into its own frame,
 stretched past its slots 4 KiB at a time up to 64 KiB, before any chunk.
 The drain gives them back with the frame, so a scope whose blocks fit there
 maps no chunk and drains inline.
@@ -1702,7 +1702,7 @@ copied at each doubling to a megabyte. Only its touched pages use memory.
 
 A list's or string's block past a chunk that a move takes into another
 region of the same context is a growable span, the one block of its
-mapping: the mapping leaves the old region for the new one, its chunks are
+mapping: the mapping leaves the old region for the new region, its chunks are
 the new region's in the chunk map, and no byte is copied. When the new
 region returns it, it goes to its context's kept spans, where the next
 list past a chunk takes it with its pages resident. A smaller block is
@@ -1744,7 +1744,7 @@ holds both copies of its elements for long.
 
 A drained list's oversized span keeps its reservation and pages: a context
 keeps up to `ZANE_WARM_SPANS` (16) holding at most `ZANE_WARM_SPAN_BYTES`
-(64 MiB), the one kept longest going back first, each until it has sat
+(64 MiB), the reservation kept longest going back first, each until it has sat
 unused through `ZANE_COOLING` of its later drains, and gives them back when
 its call is over or a reservation fails. The next list to grow past 1 MiB
 takes one that holds what it would reserve, so a list built again each

@@ -132,8 +132,8 @@ class StreamingOutputTests(unittest.TestCase):
 
     def test_the_first_line_arrives_before_the_run_ends(self) -> None:
         # Zane's own grammar with a long deadline: the search is still running
-        # when the first line is read, which is what makes the read evidence
-        # of flushing rather than of a run that happened to be over.
+        # when the first line is read, so the read proves the engine flushes
+        # rather than showing a run that happened to be over.
         process = subprocess.Popen(
             [
                 str(ENGINE),

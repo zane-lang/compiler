@@ -10,7 +10,7 @@
    describes, and lib/codegen/dune reads it into the compiler's `Abi`
    module, so the runtime and the code the compiler emits share one copy.
    That rule reads the lines as they are, without a C compiler, so each
-   number is a `#define` of a name to a plain decimal number. */
+   number is a `#define` of a macro name to a plain decimal number. */
 
 #ifndef ZANE_ABI_H
 #define ZANE_ABI_H
@@ -63,7 +63,7 @@
 
 /* A list's block is aligned to a word, as every element is. Its first
    holds four elements, but no fewer than ZANE_LIST_LEAST bytes and no more
-   than ZANE_LIST_FIRST unless one push asks for more, so that a list of
+   than ZANE_LIST_FIRST unless one push needs more, so that a list of
    few small elements takes a size class's block (list.c). */
 #define ZANE_LIST_ALIGN 8
 #define ZANE_LIST_LEAST 32

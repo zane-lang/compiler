@@ -1,4 +1,4 @@
-/// A package whose C a release's consumer retains where nothing can tell
+/// A package whose C a release's consumer retains where no program can tell
 /// the copy from the original (docs/design/ffi.md F13): `add` and
 /// `square`, which reads a `static const` table, are inlined; `next`,
 /// which counts in a `static` variable, and `token_record` and

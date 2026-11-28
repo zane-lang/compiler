@@ -4,7 +4,7 @@
    `recs[idx[i]]` does, waits on a miss each time round that the processor
    cannot see coming; with the address of the read [distance] iterations
    on known at the top of this one, a prefetch can start it early. Each
-   read is the CGT's; reading the tree only, this module decides what to
+   read is the CGT's; reading the tree only, this module picks the reads to
    fetch, and Emit emits it ([Emit.prefetch]).
 
    An address qualifies when it is made, through the body's own [let]s and
@@ -17,7 +17,7 @@
    counter does not move is the same each time round.
 
    Nothing about the program changes. A prefetch never faults and its
-   address is only a hint, so it need not be the one the read will use: a
+   address is only a hint, so it need not be the address the read will use: a
    local the body [let]s and then assigns is taken at its [let]'s value,
    when the body assigns it only in a loop inside it, whose first time
    round reads that value, as a probe's first slot is, and not from an
@@ -252,7 +252,7 @@ let bound_in body =
 
 (* Whether every step of an address goes into a struct's member, from a
    slot or a pointer. A step into a variant's case reaches a payload that is
-   there only while that case is the one held, which is not known at the
+   there only while the value holds that case, which is not known at the
    top of the loop: another case's bytes may read as a list with a count and
    no block. An element of another list ([invariant_lists] names one) is
    read with a check, which could stop the program here. *)

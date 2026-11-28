@@ -4,7 +4,7 @@
 
    They are not packages, so they are not read from source. Most intrinsic
    operations have exactly one signature. The overloads the spec states are
-   the exceptions: methods that share a name on different subjects, the
+   the exceptions: methods that share a verb name on different subjects, the
    machine operations of `@operators$` and the math functions of `@math$`,
    one per operand type, and a scalar's constructors, which take the scalar's
    concept and each scalar that converts into it exactly (syntax.md §2.7,
@@ -135,7 +135,7 @@ let negated_digits s =
    operators of operators.md §2.1 are written over, one overload per operand
    type, both operands of that one type. There is no subtraction, since
    `a - b` is `a + ~b` (operators.md §4.2). `Bool` has its own three
-   operations, named for what they do rather than for the operators `core`
+   operations, named for their operation rather than for the operators `core`
    spells them with, and `String` has its join; equality is one operation on
    every type. *)
 let operator_functions =
@@ -565,7 +565,7 @@ let pool_start_hidden (s : S.t) =
   | S.Intrinsic ("@primitives$startAlone" | "@primitives$startAloneOn") -> Some 1
   | _ -> None
 
-(* What a publish function value calls (§6.5): the event goes to the
+(* The intrinsic a publish function value calls (§6.5): the event goes to the
    funnel of the pool whose work is running. No program names it; the
    checker writes the call (Supplied.pool_publish). *)
 let publish_function =
@@ -668,7 +668,7 @@ let concept_names = [ "Int"; "Float"; "String"; "Array"; "Map"; "Block" ]
 (* The catalogue the language server reads                                *)
 (* ---------------------------------------------------------------------- *)
 
-(* Every intrinsic verb, the hidden ones included. *)
+(* Every intrinsic verb, the hidden verbs included. *)
 let every_verb =
   List.map snd constructors @ List.map snd methods @ List.map snd functions @ subscripts @ [ publish_function ]
 

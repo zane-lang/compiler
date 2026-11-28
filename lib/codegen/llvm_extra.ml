@@ -3,7 +3,7 @@
 
 external set_ordering : Llvm.llvalue -> bool -> unit = "zane_set_ordering"
 
-(* Whether a load or store is atomic (llvm_stubs.c). *)
+(* Tests whether a load or store is atomic (llvm_stubs.c). *)
 external is_atomic : Llvm.llvalue -> bool = "zane_is_atomic"
 
 (* Whether an add, sub, mul or shl is marked `nuw`: its unsigned result

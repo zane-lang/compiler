@@ -2,8 +2,8 @@
    language server answers "what is this name", "where is it declared" and
    "where else is it used" from (docs/design/language-server.md).
 
-   Semantics already decides what each name means; this records the
-   decision where it is made, instead of a second resolver deciding it again.
+   Semantics already resolves each identifier; this records the
+   resolution where semantics makes it, instead of a second resolver making it again.
    A check records nothing unless it was asked to, so a build pays nothing
    for it. *)
 

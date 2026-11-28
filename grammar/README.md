@@ -52,7 +52,7 @@ identical to the previous grammar.
 | `editors/tree-sitter-zane/queries/highlights.scm` | Tree-sitter highlighting, and the start of Neovim's query |
 | `editors/tree-sitter-zane/tree-sitter.json`, `package.json` | Tree-sitter build metadata and pinned CLI |
 | `editors/typst/Zane.sublime-syntax` | Typst `raw(syntaxes: ...)` |
-| `editors/neovim/queries/highlights.scm` | Neovim's query, which nvim-treesitter installs: the shared one plus Neovim-only captures |
+| `editors/neovim/queries/highlights.scm` | Neovim's query, which nvim-treesitter installs: the shared query plus Neovim-only captures |
 
 ```sh
 .grammar-venv/bin/python -m tools.grammar
@@ -118,7 +118,7 @@ integers. Compiler and Tree-sitter lexers select longest matches themselves.
 [`renders/sample.zn`](renders/sample.zn) as each editor shows it. Neovim uses
 the Tree-sitter parser and `editors/neovim/queries/highlights.scm`; Typst uses
 `Zane.sublime-syntax`.
-The light Neovim render has one colour per capture. The dark ones use each
+The light Neovim render has one colour per capture. The dark renders use each
 theme's own colours: Kanagawa (wave), Tokyo Night (night) and Catppuccin Mocha
 from their Neovim plugins, and the `.tmTheme` files those projects publish.
 
@@ -263,12 +263,12 @@ An intrinsic is the qualified name whose text starts with `@`, and its captures
 are builtin ones: `@module.builtin` for the namespace, `@type.builtin` for a type,
 `@function.builtin` for a callee and `@constant.builtin` for any other name. The
 language server sends no semantic token for an intrinsic, so these captures
-decide its color (`docs/design/language-server.md` D13). The
+alone set its color (`docs/design/language-server.md` D13). The
 shared query marks a parameter where it is declared. Neovim's query
 also marks each use, through `zane-bound?`, which looks for a parameter of that
 name in an enclosing verb or lambda. That needs no further name resolution
 because a local may not shadow a parameter (`docs/design/semantics.md` D14).
-The overlay's `binders` names the rules that bind a name; the generator passes
+The overlay's `binders` names the rules that bind an identifier; the generator passes
 them to each `zane-bound?` call, with the node types the grammar lets hold one
 as a direct child, so the predicate scans only those and the plugin holds
 nothing grammar-specific. Other Tree-sitter consumers

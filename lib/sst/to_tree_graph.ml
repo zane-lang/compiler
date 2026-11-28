@@ -10,7 +10,7 @@ open Tree_graph
    instead of two. Those absences are the change, and they are easier to see
    here than anywhere else, because this rendering names every field.
 
-   What it does not show is positions. That is the other adapter's job
+   This rendering shows no positions. That is the other adapter's job
    ([To_span_text]), and the two are kept apart for the same reason the CST
    keeps them apart: a structure rendering is for reading, and a span dump is
    for checking that a span points where it should. Neither rendering can do

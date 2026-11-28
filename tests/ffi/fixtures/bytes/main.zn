@@ -4,7 +4,7 @@
 /// elements; as fields of a C-compatible value type, which Zane lays out in
 /// another order than C; and as what a function value C calls takes and
 /// gives, a byte and that value type. The optimized build folds each call
-/// but the one lending an array and a list, through the same conversions.
+/// but the call lending an array and a list, through the same conversions.
 package bytes;
 
 alias Unit = @primitives$Unit;

@@ -27,7 +27,7 @@ void zane_list_new(zane_list *out) { *out = ZL_MAKE(NULL, 0, 0); }
 /* The list's block made at least `needed` bytes. A full list's block
    doubles, from four elements' bytes (zane_list_first_room), in the region that holds its block (§3.6). Up to
    1 MiB it goes into a returned block of the doubled size, or grows in
-   place when it is the last thing at the region's frontier with room after
+   place when it is the last block at the region's frontier with room after
    it, in its chunk or in the scope's frame stretched to hold it, to at
    most a chunk's size (arena.c), or else into new bytes there. Past that it is oversized:
    it grows in place while its reservation holds the doubled size, and
@@ -67,7 +67,7 @@ static void zane_list_move_out(zane_mark *region, char *items, char *block, int6
 	region->heap.live--;
 }
 
-/* The bytes of a list's first block when its first push asks for `bytes`
+/* The bytes of a list's first block when its first push needs `bytes`
    of elements `stride` wide (zane_abi.h). */
 static inline int64_t zane_list_first_room(int64_t bytes, int64_t stride) {
 	int64_t room = 4 * stride;
@@ -365,7 +365,7 @@ static int64_t zane_bytes_hash(const unsigned char *p, size_t n) {
    pivot, so one partition moves the elements equal to it to the front,
    where they are done, and many equal keys cost linear passes. A range
    still being partitioned 2 log2(n) rounds deep is heapsorted; ranges of
-   10 or fewer are insertion sorted. `kind` is what the elements are: 0 a
+   10 or fewer are insertion sorted. `kind` is the element type: 0 a
    signed 32-bit integer, 1 a signed 64-bit one, 2 an unsigned byte. */
 #define ZANE_SORT(NAME, T)                                                             \
 	static void NAME##_insert(T *a, int64_t n) {                                     \
@@ -714,7 +714,7 @@ enum { ZANE_POOL_MOST = INT32_MAX };
 /* Experimental pool reuse (`ZANE_POOL_REUSE=1` when the program runs): a
    new pool starts as large as this thread's last pool grew, up to a
    chunk, so a loop that builds trees of one size grows its pool once.
-   Each new pool's block is at its region's frontier, where the last one
+   Each new pool's block is at its region's frontier, where the last pool
    was when its region drained, so it is the same memory, warm. */
 static _Thread_local int64_t zane_pool_hint;
 static int zane_pool_reusing = -1;

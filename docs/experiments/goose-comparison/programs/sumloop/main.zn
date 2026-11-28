@@ -1,6 +1,6 @@
 /// A loop whose body is one load and one add: a list of N `Int`s summed
 /// 200000 times, the total written into its first element after each round
-/// so that no round's sum is the one before it. N is the program's first
+/// so that no round's sum equals the sum before it. N is the program's first
 /// argument.
 package sumloop;
 

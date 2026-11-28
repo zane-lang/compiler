@@ -125,8 +125,8 @@ Unit main() {
 	check(@operators$equal(chosen(Choice.left(Unit())), String("left!")));
 	check(@operators$equal(refused() ? e { resolve e; }, String("nope")));
 
-	// A long list grows where it is while nothing follows it, and moves
-	// past what does.
+	// A long list grows where it is while no block follows it, and moves
+	// past a block that does.
 	long ListRef<Int> = @primitives$ListRef(Int);
 	j Int(1);
 	j!to(Int(100000)) {

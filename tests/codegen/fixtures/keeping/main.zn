@@ -2,9 +2,9 @@
 /// (docs/design/lowering.md §9). A constructor that moves its `^T`
 /// parameters into its result, a function that builds a roaming result,
 /// and one that pushes what it is given into a list its caller lent all
-/// hold their owners in slots of their own and open no arena, so what they
-/// make is made where the result goes. A callee that drops what it is given,
-/// on any way out, keeps its arena, as does one that keeps it in a local
+/// hold their owners in slots of their own and open no arena, so the blocks
+/// they make are made where the result goes. A callee that drops what it is
+/// given, on any path out, keeps its arena, as does one that keeps it in a local
 /// it then drops, and so does a block that moves a fresh
 /// owner into it, so the owner goes when that block drains, as does a
 /// block that moves one into a function value. A function that gives its

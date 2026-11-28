@@ -8,7 +8,7 @@ Int add(a Int, b Int) => _add(a, b);
 Int shifted(x Int) => add(x, offset);
 Int squared(x Int) => @operators$multiply(x, x);
 // Generic, so its instance is a shared definition, which LLVM's inliner in
-// an unoptimized build leaves a call; lowering writes it out all the same.
+// an unoptimized build leaves a call; lowering still writes it out.
 T kept(value T Type) => value;
 Int sum(n Int) {
     result Int(0);

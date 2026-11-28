@@ -1,5 +1,5 @@
 /// A foreign verb whose C function an interface header declares and no C
-/// source defines, refused when the program links, naming the verb and the
+/// source defines, which the compiler refuses when the program links, naming the verb and the
 /// function, beside one whose C function a source does define.
 package undefinedC;
 

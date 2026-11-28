@@ -31,7 +31,7 @@ type introductions = {
 let introduce env intro ~at span name kind =
   match List.assoc_opt name intro.found with
   | Some p ->
-      (* A later marker such as the second `T Type` names the first one's
+      (* A later marker such as the second `T Type` names the first marker's
          parameter. *)
       Uses.param env.uses ~declaration:false at p;
       if p.Ty.kind <> kind then

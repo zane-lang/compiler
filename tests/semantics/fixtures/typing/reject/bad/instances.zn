@@ -10,7 +10,7 @@ Unit instances() {
 	return Unit();
 }
 
-/// Each instance asks for one at a larger argument, so its chain of
+/// Each instance needs another at a larger argument, so its chain of
 /// instantiations never ends. The limit is on that chain's depth, through
 /// however many declarations it passes.
 Unit ping(value T Type) {
@@ -25,7 +25,7 @@ Unit pong(value T Type) {
 
 /// Two such calls per instance: the chain is followed to its end before the
 /// instances beside it, so the error comes after one chain, not after every
-/// instance the branches would ask for.
+/// instance the branches would need.
 type Sack<T Type> = struct { item T; }
 
 Sack<T>(item T Type) => init{ item; }

@@ -1,9 +1,9 @@
-(* What the runtime's functions do, as LLVM attributes on their
+(* The runtime functions' behaviour, as LLVM attributes on their
    declarations (docs/design/lowering.md §9, "What LLVM is told"). An
    attribute is a contract on the C body, not a hint: one the body breaks is
    a miscompile, so each below is one the body in runtime/*.c is known to
    keep. Only those that change what LLVM makes of a program are given;
-   docs/experiments/runtime-attrs/ records the ones measured and left out.
+   docs/experiments/runtime-attrs/ records the attributes measured and left out.
 
    How each attribute is spelled inside LLVM changes between releases, so
    LLVM's parser makes them, from a declaration written as text ([text]).
@@ -33,7 +33,7 @@ let facts = function
       let reads = "readonly captures(none)" in
       { fn = "memory(read) nounwind willreturn nosync nofree"; ret = ""; params = [ reads; reads ] }
   (* A push, a reserve and a room look the handle's address up to find its
-     region (list.c, arena.c), which reveals something of the address to
+     region (list.c, arena.c), which reveals part of the address to
      the caller, but keep no pointer to the handle: a handle in a slot of the
      caller's own stays the caller's across other calls. *)
   | R.List_push | R.List_reserve | R.List_room -> { none with params = [ "captures(address)" ] }

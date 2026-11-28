@@ -12,7 +12,7 @@ let placeholder ~stamp name =
    `%`, the identity hash's 16 lowercase hexadecimal digits, and `%`. The tag
    is path-safe (§7), so it holds no `%`, which keeps the boundary after it
    unambiguous, and no `@`, which a linker reads as a symbol version. The
-   characters allowed here are the ones every tag scheme in use needs. *)
+   characters allowed here are exactly the characters every tag scheme in use needs. *)
 let is_stamp stamp =
   let n = String.length stamp in
   n > 18
