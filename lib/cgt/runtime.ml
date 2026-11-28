@@ -116,6 +116,16 @@ type fn =
   | Handle_set
   | Callback_attach
   | Callback_detach
+  (* A C-held object's top-level scope (packages.md §8.5, runtime/held.c):
+     made for an owner an exported lambda returns, the owner's blocks
+     settled in it, a value a `this T mut` subject's lambda returns kept
+     in it for C's views, those values ended as the next such call begins,
+     and the scope drained once a lambda that takes the owner has run. *)
+  | C_held_new
+  | C_held_settle
+  | C_held_lend
+  | C_held_renew
+  | C_held_end
   (* A spawned call's subject into a region of its own (runtime/spawn.c). *)
   | Island
   (* A worker pool's runtime (concurrency.md §6, runtime/workers.c): a new
@@ -127,7 +137,7 @@ type fn =
   | Workers_state
   | Workers_elements
 
-let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Tick_start; Tick; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Monotonic_ns; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
+let all = [ Print; Text_join; Text_expect; Text_taken; Text_equal; Text_i32; Text_i64; Text_f32; Text_f64; Text_bytes; List_append; List_copy; List_same; List_hash; List_sort; List_sort_by; Byte_set; Text_find_pair; Text_find_any; Text_hash; Scope_enter; Hold; Too_deep; Promote; Arrive; Copy; Overwrite; Box; List_new; List_push; List_reserve; List_room; List_at; List_remove { scalars = false }; List_swap_remove { scalars = false }; Array_at; Out_of_range; Main_aborted; Scope_drain; Spawn; Join; Set_threads; Set_threads_auto; Tick_start; Tick; Snapshot; Constant_begin; Constant_end; Writeback; Arguments; Monotonic_ns; Parse_i64; Parse_f64; Parse_f64_at; Region_at; Alloc; Alloc_held; Relocate; Box_held; Box_in; Free; Leaves; Defer; Defer_return; Pool_new; Pool_push; Pool_append; Pool_root; Pool_copy; Link; Pool_reserve; Pool_new_unbounded; Overwrite_handles; Overwrite_settled; Handle_made; No_object; Handle_end; Handle_set; Callback_attach; Callback_detach; C_held_new; C_held_settle; C_held_lend; C_held_renew; C_held_end; Island; Workers_new; Workers_start; Workers_publish; Workers_state; Workers_elements ]
 
 let name = function
   | Print -> "zane_print"
@@ -210,6 +220,11 @@ let name = function
   | Handle_end -> "zane_handle_end"
   | Handle_set -> "zane_handle_set"
   | Callback_attach -> "zane_callback_attach"
+  | C_held_new -> "zane_c_held_new"
+  | C_held_settle -> "zane_c_held_settle"
+  | C_held_lend -> "zane_c_held_lend"
+  | C_held_renew -> "zane_c_held_renew"
+  | C_held_end -> "zane_c_held_end"
   | Callback_detach -> "zane_callback_detach"
   | Island -> "zane_island_make"
   | Workers_new -> "zane_workers_new"
@@ -305,6 +320,10 @@ let signature = function
   | Handle_end -> (Void, [ Ptr; Ptr ])
   | Handle_set -> (Void, [ Ptr; Ptr; Ptr ])
   | Callback_attach | Callback_detach -> (Void, [])
+  | C_held_new -> (Ptr, [ I64; I64 ])
+  | C_held_settle -> (Void, [ Ptr; Ptr ])
+  | C_held_lend -> (Void, [ Ptr; Ptr; I64; Ptr ])
+  | C_held_renew | C_held_end -> (Void, [ Ptr ])
   | Island -> (Void, [ Ptr; I64; Ptr; I64 ])
   | Workers_new -> (Ptr, [ I64; Ptr; I64; Ptr; Ptr; Ptr; I64; Ptr; I64 ])
   | Workers_start -> (Void, [ Ptr; Ptr; I64; Ptr; Ptr; Ptr; Ptr; Ptr; I64; Ptr ])

@@ -240,8 +240,10 @@ let library_roots st (root : T.Package.t) =
       match d.T.Decl.node with
       | T.Decl.Verb { signature; body = T.Decl.Checked _ | T.Decl.Foreign _ } -> declared signature
       | T.Decl.Subscript { signature; value = Some _; _ } -> declared signature
-      | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } ->
-          Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda st span ty l) ()
+      (* An exported lambda's adapter passes C-held objects, which a root
+         that exports it calls (docs/design/ffi.md F20). *)
+      | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; export; _ } ->
+          Hashtbl.replace st.exported ("lambda " ^ Lower_lambda.lambda ~export:(Option.is_some export) st span ty l) ()
       | T.Decl.Type { name; params = []; definition = T.Decl.Handle (h, kind); _ } ->
           ignore (handle_thunks st (Tty.Named ({ Tty.package = root.T.Package.name; name }, [])) (h, kind))
       | _ -> ())
@@ -595,7 +597,7 @@ let program ?(library = false) ?(plugin = false) ?(import_bodies = false) ?(fore
                   (fun (d : T.Decl.t) ->
                     match d.T.Decl.node with
                     | T.Decl.Constant { value = { T.Expr.node = T.Expr.Lambda l; ty; span }; _ } when d.T.Decl.id = e.T.Export.decl ->
-                        Some (Lower_lambda.lambda st span ty l)
+                        Some (Lower_lambda.lambda ~export:true st span ty l)
                     | _ -> None)
                   pkg.T.Package.decls)
               p.T.Program.packages

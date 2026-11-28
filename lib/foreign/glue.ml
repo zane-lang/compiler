@@ -281,6 +281,15 @@ let callbacks_file (callbacks : callback list) =
           line "  unsigned char __zane_r = 0;";
           call "&__zane_r";
           line "  return __zane_r != 0;"
+      (* A list an exported lambda lends C (packages.md §8.2): the adapter
+         writes the list's handle, whose bytes and count C's view takes. *)
+      | View { narrow; _ } ->
+          let w = if narrow then "int" else "long long" in
+          line "  struct { const void *__zane_d; %s __zane_n, __zane_r; } __zane_h;" w;
+          line "  __builtin_memset(&__zane_h, 0, sizeof __zane_h);";
+          call "&__zane_h";
+          line "  %s __zane_r = { __zane_h.__zane_d, (__SIZE_TYPE__)__zane_h.__zane_n };" result;
+          line "  return __zane_r;"
       | _ ->
           line "  %s __zane_r;" result;
           line "  __builtin_memset(&__zane_r, 0, sizeof __zane_r);";

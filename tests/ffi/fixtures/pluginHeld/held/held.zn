@@ -1,0 +1,46 @@
+/// C-held objects (packages.md §8.5): `tally_new` gives the host an owner of
+/// a new `Tally`, in a top-level scope of its own; `tally_add` writes one
+/// through its `this Tally mut` subject, which grows the list inside it;
+/// `tally_total` and `tally_sum` borrow objects read-only, as a subject and
+/// as parameters; `tally_seen` lends the host the list of what was added,
+/// which it reads as a view until its next mutable call on the object; and
+/// `tally_end` takes the owner back, after which the object's scope drains.
+/// The host keeps two objects alive at once and ends them in the order
+/// opposite to the one it made them in.
+package held;
+
+alias I64 = @primitives$I64;
+alias Unit = @primitives$Unit;
+alias List<T Type> = @primitives$List<T>;
+
+type Tally = #struct {
+	total I64;
+	seen List<I64>;
+}
+
+Tally(start I64) => init{ total = start; seen = @primitives$List(I64); }
+
+make ^Tally(start I64) {
+	return Tally(start);
+} export "tally_new";
+
+add Unit(this Tally, n I64) mut {
+	this.total = @operators$add(this.total, n);
+	this.seen!push(n);
+	return Unit();
+} export "tally_add";
+
+total I64(this Tally) => this.total export "tally_total";
+
+sum I64(a Tally, b Tally) => @operators$add(a.total, b.total) export "tally_sum";
+
+seen List<I64>(this Tally) mut {
+	copy List<I64> = this.seen;
+	return copy;
+} export "tally_seen";
+
+end Unit(tally ^Tally) {
+	@program$console!print(@operators$concat(@primitives$String.escaped("ended at "), @primitives$String(tally.total)));
+	@program$console!print(@primitives$String.escaped("\n"));
+	return Unit();
+} export "tally_end";

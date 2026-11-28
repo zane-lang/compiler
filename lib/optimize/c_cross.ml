@@ -190,6 +190,9 @@ let rec shape_ty (s : Callback.shape) =
      passes: the program does both. *)
   | Callback.View { text = false; _ } -> stop "a list C passes a function value"
   | Callback.Object _ -> stop "a C object C passes a function value"
+  (* A C-held object's scope lives across a host's calls, which the running
+     program makes (packages.md §8.5). *)
+  | Callback.Held _ | Callback.Lent _ -> stop "a C-held object an exported lambda passes"
 
 (* A value of the shape [s], its members moved between C's order and the
    order Zane lays them out in (Callback.to_c, Callback.of_c): from C's

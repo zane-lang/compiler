@@ -71,7 +71,8 @@ let computes : Runtime.fn -> bool = function
   | Runtime.Print | Runtime.Set_threads | Runtime.Set_threads_auto | Runtime.Tick_start | Runtime.Tick | Runtime.Arguments
   | Runtime.Monotonic_ns  | Runtime.Writeback | Runtime.Spawn | Runtime.Island | Runtime.Join | Runtime.Defer | Runtime.Defer_return
   | Runtime.Main_aborted | Runtime.Workers_new | Runtime.Workers_start | Runtime.Workers_publish
-  | Runtime.Workers_state | Runtime.Workers_elements ->
+  | Runtime.Workers_state | Runtime.Workers_elements | Runtime.C_held_new | Runtime.C_held_settle
+  | Runtime.C_held_lend | Runtime.C_held_renew | Runtime.C_held_end ->
       false
   | _ -> true
 

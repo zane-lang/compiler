@@ -38,6 +38,10 @@ let classify : Cgt.Runtime.fn -> t = function
   (* Whether the thread has a context is a fact of the running program,
      and only a call from C, which no fold makes, runs either. *)
   | Callback_attach | Callback_detach -> Input
+  (* A C-held object's scope lives across a host's calls, which no fold
+     makes, and only an exported lambda's adapter makes, settles, lends
+     from or ends one. *)
+  | C_held_new | C_held_settle | C_held_lend | C_held_renew | C_held_end -> Input
   (* A worker pool's work runs on the running program's threads, beside
      the code after `start`, and a publish is a write the funnel makes
      there, so a fold stops at each (concurrency.md §6.5). *)

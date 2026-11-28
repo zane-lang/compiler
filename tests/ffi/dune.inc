@@ -2971,6 +2971,54 @@
   (diff golden/pluginDepth.plugin.out pluginDepth.plugin.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/pluginHeld))
+ (targets pluginHeld.plugin.library)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --library pluginHeld.plugin.library --package fixtures/pluginHeld/held)))
+
+(rule
+ (deps (source_tree fixtures/pluginHeld))
+ (targets pluginHeld.plugin.optimized.library)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --library pluginHeld.plugin.optimized.library --optimize --package fixtures/pluginHeld/held)))
+
+(rule
+ (deps fixtures/pluginHeld/host.c)
+ (targets pluginHeld.host.exe)
+ (action
+  (run %{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o pluginHeld.host.exe fixtures/pluginHeld/host.c)))
+
+(rule
+ (deps pluginHeld.plugin.library pluginHeld.plugin.optimized.library)
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    pluginHeld.plugin.checked.out.actual
+    (run ./pluginHeld.host.exe pluginHeld.plugin.library pluginHeld.plugin.optimized.library)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pluginHeld.plugin.out pluginHeld.plugin.checked.out.actual)))
+
+(rule
+ (deps pluginHeld.plugin.library pluginHeld.plugin.optimized.library)
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    pluginHeld.plugin.unchecked.out.actual
+    (run ./pluginHeld.host.exe pluginHeld.plugin.optimized.library pluginHeld.plugin.library)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/pluginHeld.plugin.out pluginHeld.plugin.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/reject/absolute))
  (action
   (with-stderr-to

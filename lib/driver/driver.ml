@@ -602,7 +602,9 @@ let c_modules ?target ?(link = []) ?(hashes = []) ?(plugin = false) ~root packag
         | C.View { stride; _ } ->
             if Cgt.Ref32.frames () then Foreign.Glue.View { unit = 1; narrow = true }
             else Foreign.Glue.View { unit = stride; narrow = false }
-        | C.Elements _ | C.Object _ -> Foreign.Glue.Pointer
+        | C.Elements _ | C.Object _ | C.Held _ -> Foreign.Glue.Pointer
+        (* A lent list's handle, which the glue gives C as its view. *)
+        | C.Lent _ -> Foreign.Glue.View { unit = 1; narrow = Cgt.Ref32.frames () }
         | C.Scalar _ -> Diagnostic.bug "codegen: a function value C calls with a type it does not take"
       in
       let callbacks () =

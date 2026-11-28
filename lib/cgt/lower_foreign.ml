@@ -75,6 +75,54 @@ let c_signature st span (fv : Tty.verb) =
     | Some gives when List.for_all Option.is_some takes -> Some (List.filter_map Fun.id takes, gives)
     | _ -> None
 
+(* Whether objects of the Zane type [t], its mode looked through, may be
+   C-held (packages.md §8.5): a reference type that is no foreign handle,
+   as Tst.Foreign_decls.c_held decides. *)
+let c_held st (t : Tty.t) =
+  let t = Tty.strip_mode t in
+  match (t, definition st t) with
+  | Tty.Named _, Some (T.Decl.Handle _, _) -> false
+  | Tty.Named _, Some (_, reference) -> reference
+  | _ -> false
+
+(* The C signature of an exported lambda of the function type [fv]
+   (packages.md §8.2, §8.5): what [c_signature] accepts, and C-held objects
+   too, each passed as a pointer to the object's bytes. A `^T` result is a
+   new object C is given; a `T` parameter or a subject borrows one, and a
+   `this T mut` subject writes it; a `^T` parameter ends one. With a
+   `this T mut` subject, a list of scalars may also be the result, which C
+   reads as a view into the subject's scope. *)
+let export_signature st span (fv : Tty.verb) =
+  if Option.is_some fv.Tty.abort then None
+  else
+    let held role t =
+      let t = Tty.strip_mode t in
+      Callback.Held { role; ty = ty st span t; layout = layout st span t }
+    in
+    let param (t : Tty.t) =
+      match t with
+      | Tty.Roaming inner when c_held st inner -> Some (held Callback.Ended inner)
+      | _ when (not (Tty.is_roaming t)) && c_held st t -> Some (held Callback.Borrowed t)
+      | _ -> c_param st span t
+    in
+    let subject =
+      Option.map (fun t -> if c_held st t then Some (held (if fv.Tty.is_mut then Callback.Written else Callback.Borrowed) t) else None) fv.Tty.this_
+    in
+    let takes = Option.to_list subject @ List.map param fv.Tty.params in
+    let gives =
+      match fv.Tty.ret with
+      | Tty.Roaming inner when c_held st inner -> Some (held Callback.Made inner)
+      | r -> (
+          match Tty.strip_mode r with
+          | Tty.Intrinsic { namespace = "primitives"; name = "Unit"; args = [] } -> Some Callback.Nothing
+          | r when is_list r && fv.Tty.is_mut && Option.is_some fv.Tty.this_ ->
+              Some (Callback.Lent { layout = layout st span r })
+          | r -> c_shape st span r)
+    in
+    match gives with
+    | Some gives when List.for_all Option.is_some takes -> Some (List.filter_map Fun.id takes, gives)
+    | _ -> None
+
 (* How a value of the Zane type [t] is passed to C (spec ffi.md §3.3), which
    semantics has already checked is possible. *)
 let crossing st span (t : Tty.t) : Foreign.crossing =

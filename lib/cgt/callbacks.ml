@@ -24,7 +24,18 @@ let context = { Global.symbol = "zane_self"; linkage = Linkage.Imported; ty = Ty
    for a foreign verb. C's entry calls the adapter, so the adapter is
    exported from this object, and C names it by its symbol; the adapter is
    shared when [f] is not exported, since each object that lifts [f]
-   defines the adapter. *)
+   defines the adapter.
+
+   An exported lambda's adapter also passes C-held objects (packages.md
+   §8.5, runtime/held.c), each as the pointer to its bytes: a borrowed
+   object or a subject as that pointer, which is the address of its place
+   (docs/design/lowering.md L6), and an object a `^T` parameter ends as
+   the value read through the pointer, whose top-level scope drains once
+   the lambda's scope has. A `this T mut` subject first ends the values
+   the calls before lent C. A `^T` result is written into a new top-level
+   scope, its blocks settled there, and C is given its pointer; a list a
+   `this T mut` subject's lambda returns is kept in the subject's scope,
+   and C is given its handle, whose first two words are its view. *)
 let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let ptr node = { Expr.node; ty = Ty.Ptr } in
   let table = Ty.Struct (List.map (fun _ -> Ty.Ptr) f.Func.params) in
@@ -32,7 +43,9 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let next = ref 3 in
   let fresh () = let id = !next in incr next; id in
   let runtime fn args ty = { Expr.node = Expr.Runtime { fn; args }; ty } in
-  let made = ref [] in
+  let made = ref [] and before = ref [] and after = ref [] and subject = ref None in
+  let int n = { Expr.node = Expr.Int (Int64.of_int n); ty = Ty.I64 } in
+  let layout_of l = ptr (Expr.Layout l) in
   let scope = fresh () in
   let arg i (_, t) (shape : Callback.shape) =
     match shape with
@@ -64,6 +77,20 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
           ptr (Expr.Address place)
         end
         else handle
+    | Callback.Held { role; _ } -> (
+        let held = fresh () in
+        let at = ptr (Expr.Local held) in
+        before := !before @ [ Stat.Let { id = held; value = ptr (Expr.Deref (slot i)) } ];
+        match role with
+        | Callback.Ended ->
+            after := !after @ [ Stat.Eval (runtime Runtime.C_held_end [ at ] Ty.Void) ];
+            { Expr.node = Expr.Deref at; ty = t }
+        | Callback.Written ->
+            subject := Some at;
+            before := !before @ [ Stat.Eval (runtime Runtime.C_held_renew [ at ] Ty.Void) ];
+            at
+        | Callback.Borrowed | Callback.Made -> at)
+    | Callback.Lent _ -> Diagnostic.bug "lowering: a function value C calls takes a lent list"
     | s when Callback.moved s -> Callback.of_c s { Expr.node = Expr.Deref (slot i); ty = Callback.c s }
     | Callback.Scalar _ | Callback.Truth | Callback.Nothing | Callback.Record _ -> { Expr.node = Expr.Deref (slot i); ty = t }
   in
@@ -74,6 +101,36 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
   let self = { Expr.node = Expr.Deref (ptr (Expr.Global context.Global.symbol)); ty = Ty.I64 } in
   let fresh_context = { Expr.node = Expr.Local 2; ty = Ty.I1 } in
   let around fn = Stat.If { cond = fresh_context; body = [ Stat.Eval (runtime fn [] Ty.Void) ] } in
+  let into_c value = Stat.Store { address = ptr (Expr.Local 1); value } in
+  let returned = { Expr.node = Expr.Local result; ty = f.Func.ret } in
+  let finish =
+    match c.Callback.gives with
+    | Callback.Held { ty; layout; _ } ->
+        let held = fresh () in
+        let at = ptr (Expr.Local held) in
+        let size, align = Ty.size_align ty in
+        (if f.Func.ret = Ty.Void then [ Stat.Eval call ] else [ Stat.Let { id = result; value = call } ])
+        @ [ Stat.Let { id = held; value = runtime Runtime.C_held_new [ int size; int align ] Ty.Ptr } ]
+        @ (if f.Func.ret = Ty.Void then [] else [ Stat.Store { address = at; value = returned } ])
+        @ [ Stat.Eval (runtime Runtime.C_held_settle [ at; layout_of layout ] Ty.Void); into_c at ]
+    | Callback.Lent { layout } ->
+        let at =
+          match !subject with
+          | Some at -> at
+          | None -> Diagnostic.bug "lowering: an exported lambda lends a list from no `this T mut` subject"
+        in
+        [
+          Stat.Let { id = result; value = call };
+          Stat.Eval
+            (runtime Runtime.C_held_lend
+               [ at; ptr (Expr.Address result); int (fst (Ty.size_align f.Func.ret)); layout_of layout ]
+               Ty.Void);
+          into_c returned;
+        ]
+    | _ when f.Func.ret = Ty.Void -> [ Stat.Eval call ]
+    | _ when gives -> [ Stat.Let { id = result; value = call }; into_c (Callback.to_c c.Callback.gives returned) ]
+    | _ -> [ into_c call ]
+  in
   {
     Func.symbol = Callback.adapter f.Func.symbol;
     linkage = (if f.Func.linkage = Linkage.Exported then Linkage.Exported else Linkage.Shared);
@@ -85,26 +142,11 @@ let adapter (c : Callback.t) (f : Func.t) : Func.t =
         Stat.Let
           { id = 2; value = { Expr.node = Expr.Binary { op = Expr.Eq; left = self; right = { Expr.node = Expr.Int 0L; ty = Ty.I64 } }; ty = Ty.I1 } };
         around Runtime.Callback_attach;
-        Stat.Scope
-          {
-            id = scope;
-            body =
-              !made
-              @
-              if f.Func.ret = Ty.Void then [ Stat.Eval call ]
-              else if gives then
-                [
-                  Stat.Let { id = result; value = call };
-                  Stat.Store
-                    {
-                      address = ptr (Expr.Local 1);
-                      value = Callback.to_c c.Callback.gives { Expr.node = Expr.Local result; ty = f.Func.ret };
-                    };
-                ]
-              else [ Stat.Store { address = ptr (Expr.Local 1); value = call } ];
-          };
-        around Runtime.Callback_detach;
-      ];
+      ]
+      @ !before
+      @ [ Stat.Scope { id = scope; body = !made @ finish } ]
+      @ !after
+      @ [ around Runtime.Callback_detach ];
     values = [];
   }
 

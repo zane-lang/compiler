@@ -789,6 +789,23 @@ module Callback = struct
     (* A data handle's C object C passes as a pointer: a borrow, or, when
        [owned], a roaming owner the lambda's parameter takes. *)
     | Object of { owned : bool }
+    (* A C-held object (packages.md §8.5), which C holds as a pointer to
+       its bytes, of the layout [ty], in a top-level scope of its own, and
+       whose walks are [layout]'s: one an exported lambda makes, borrows, or
+       ends ([held]). *)
+    | Held of { role : held; ty : Ty.t; layout : Layout.t }
+    (* A list of scalars an exported lambda whose subject is `this T mut`
+       returns, of the walks [layout]: the adapter keeps it in the
+       subject's scope and gives C its `zane_span` view (packages.md §8.2),
+       which stays valid until the next call that borrows the subject
+       mutably or ends it. *)
+    | Lent of { layout : Layout.t }
+
+  (* How an exported lambda uses a C-held object: a `^T` result makes one,
+     a `T` parameter or a `this T` subject borrows one, a `this T mut`
+     subject borrows one mutably, and a `^T` parameter ends one. *)
+  and held = Made | Borrowed | Written | Ended
+
   type t = { symbol : string; takes : shape list; gives : shape; here : bool; entry : string }
 
   let entry symbol = symbol ^ ".c"
@@ -805,6 +822,9 @@ module Callback = struct
     | View _ -> "view"
     | Elements (s, n) -> Printf.sprintf "*[%d x %s]" n (spell s)
     | Object { owned } -> if owned then "^object" else "object"
+    | Held { role; _ } -> (
+        match role with Made -> "^held result" | Borrowed -> "held" | Written -> "held mut" | Ended -> "^held")
+    | Lent _ -> "lent view"
 
   (* A value of a C-compatible type is passed to C, and back, in C's layout:
      its fields in declaration order (docs/design/ffi.md F10). In Zane the
@@ -824,7 +844,9 @@ module Callback = struct
         | ts -> if c then Ty.Struct ts else Ty.tight (Ty.Struct (Ty.placed ts ts)))
     (* A view, an array's pointer and a C object hold no struct that either
        language reorders, so the Zane and C layouts match. *)
-    | View _ | Object _ -> Ty.Ptr
+    | View _ | Object _ | Held _ -> Ty.Ptr
+    (* A lent list's handle, which C reads the first two words of. *)
+    | Lent _ -> Ty.list_handle ()
     | Elements (s, n) -> Ty.Array (layout ~c s, n)
 
   (* Zane lays out an array of no elements as holding nothing
