@@ -108,7 +108,8 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
    by the C name of the renamed definition, with default visibility, and
    on COFF marked for a DLL to export, so that a host finds the symbol by
    the name it looks it up by. The renamed definition stays the one the
-   program's own code reaches. */
+   program's own code reaches, and is hidden, so a library offers it under
+   one name. */
 extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value coff) {
   CAMLparam4(mod, prefix, labels, coff);
   llvm::Module *m = module_of(mod);
@@ -121,6 +122,7 @@ extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value
                                         label, g, m);
     a->setVisibility(llvm::GlobalValue::DefaultVisibility);
     if (Bool_val(coff)) a->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+    g->setVisibility(llvm::GlobalValue::HiddenVisibility);
   }
   CAMLreturn(Val_unit);
 }

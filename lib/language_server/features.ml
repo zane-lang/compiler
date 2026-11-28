@@ -648,7 +648,7 @@ let completion encoding t (d : P.document) (line, character) =
   in
   let root =
     match (if Option.is_some index then index else fallback) with
-    | Some (index : Index.t) -> index.Index.is_root ~path:d.P.path
+    | Some (index : Index.t) -> index.Index.reaches_program ~path:d.P.path ~offset:start
     | None -> false
   in
   let intrinsics site =

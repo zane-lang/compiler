@@ -105,7 +105,7 @@ case "${1-}" in
 			fi
 			next=''
 			case "$argument" in
-				--build | --object | --tier-up | --compile-commands | --link | --c-hashes | --bundle-runtime)
+				--build | --library | --object | --tier-up | --compile-commands | --link | --c-hashes | --bundle-runtime)
 					next=path ;;
 				--package)
 					next=package ;;

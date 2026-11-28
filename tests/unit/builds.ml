@@ -312,15 +312,16 @@ let bundled_runtime () =
   let bundle optimize = Build.bundle_runtime ~target:host ~optimize bundled in
   check "a runtime is bundled" (Result.is_ok (bundle false));
   check "into a directory made for it"
-    (List.sort compare (List.map Filename.extension (Array.to_list (Sys.readdir bundled))) = [ ""; ".o" ]);
+    (List.sort compare (List.map Filename.extension (Array.to_list (Sys.readdir bundled))) = [ ""; ".o"; ".o" ]);
   let cc = Build.cc () in
-  let found ?target ?(triple = normal) ~optimize () =
-    match Build.runtime_object ~bundled ~cache ~cc ~triple ?target ~optimize work with
+  let found ?target ?(triple = normal) ?library ~optimize () =
+    match Build.runtime_object ~bundled ~cache ?library ~cc ~triple ?target ~optimize work with
     | Ok path -> String.starts_with ~prefix:bundled path
     | Error _ -> false
   in
   check "a build for the host links the bundled runtime" (found ~optimize:false ());
   check "as does one naming the host as its target" (found ~target:host ~optimize:false ());
+  check "a dynamic library links the library runtime bundled beside it" (found ~library:true ~optimize:false ());
   check "and the cache is left alone" (not (Sys.file_exists cache));
   check "an optimized build compiles its own" (not (found ~optimize:true ()));
   check "as does a build for another triple" (not (found ~triple:"x86_64-unknown-linux-musl" ~optimize:false ()));

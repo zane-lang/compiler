@@ -27,8 +27,8 @@ let namespaces =
        (control-flow.md §4)." );
     ("@runtime$", "The types of the program's console and runtime, and their methods (effects.md §6.6).");
     ( "@program$",
-      "The console and the runtime of the running program. Only the root package reaches this namespace; it \
-       passes them to other packages as arguments (effects.md §6.6)." );
+      "The console and the runtime of the running program. Only the root package and exported lambdas reach \
+       this namespace; they pass them to other packages as arguments (effects.md §6.6, packages.md §8.4)." );
   ]
 
 let types =

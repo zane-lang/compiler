@@ -59,9 +59,10 @@ type t = {
      members its imports bring bare, each with its kind and description,
      and the qualifiers it may write before `$`. *)
   in_scope : path:string -> (string * kind * string) list * string list;
-  (* Whether the file at [path] belongs to the build's root package, the
-     one package that reaches `@program$` (effects.md §6.6). *)
-  is_root : path:string -> bool;
+  (* Whether code at [offset] of the file at [path] reaches `@program$`
+     (effects.md §6.6): code of the build's root package, or the body of an
+     exported lambda in any package (packages.md §8.4). *)
+  reaches_program : path:string -> offset:int -> bool;
   (* The package identities of the build, the root first. *)
   packages : string list;
 }
@@ -270,8 +271,19 @@ let build env (uses : Uses.t) : t =
     members_of;
     type_members_of;
     in_scope;
-    is_root =
-      (fun ~path ->
-        List.exists (fun (f : file) -> String.equal f.path path && (package env f.package).is_root) (files ()));
+    reaches_program =
+      (fun ~path ~offset ->
+        List.exists
+          (fun (f : file) ->
+            String.equal f.path path
+            && ((package env f.package).is_root
+               || List.exists
+                    (fun (d : decl) ->
+                      String.equal d.file.path path
+                      && (match d.kind with Constant { export = Some _; _ } -> true | _ -> false)
+                      && d.span.Span.start_.Lexing.pos_cnum <= offset
+                      && offset <= d.span.Span.end_.Lexing.pos_cnum)
+                    (package env f.package).decls))
+          (files ()));
     packages = Names.package_order env.names;
   }
