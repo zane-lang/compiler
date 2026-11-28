@@ -6669,6 +6669,128 @@
   (diff golden/math.out math.tiered.unchecked.out.actual)))
 
 (rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mouldConstructors.exe --package fixtures/mouldConstructors)))
+
+(rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.optimized.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mouldConstructors.optimized.exe --optimize --package fixtures/mouldConstructors)))
+
+(rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.tiered.exe)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --build mouldConstructors.tiered.exe --tiered --package fixtures/mouldConstructors)))
+
+(rule
+ (deps (source_tree fixtures/mouldConstructors))
+ (targets mouldConstructors.tier1)
+ (action
+  (run %{exe:../../bin/zanec/zanec.exe} --tier-up mouldConstructors.tier1 --package fixtures/mouldConstructors)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    mouldConstructors.checked.out.actual
+    (run ./mouldConstructors.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    mouldConstructors.unchecked.out.actual
+    (run ./mouldConstructors.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.unchecked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    mouldConstructors.optimized.checked.out.actual
+    (run ./mouldConstructors.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.optimized.checked.out.actual)))
+
+(rule
+ (action
+  (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    mouldConstructors.optimized.unchecked.out.actual
+    (run ./mouldConstructors.optimized.exe)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.optimized.unchecked.out.actual)))
+
+(rule
+ (deps mouldConstructors.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./mouldConstructors.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   1
+   (with-stdout-to
+    mouldConstructors.tiered.checked.out.actual
+    (run ./mouldConstructors.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.tiered.checked.out.actual)))
+
+(rule
+ (deps mouldConstructors.tier1)
+ (action
+  (setenv
+   ZANE_TIER_UP
+   ./mouldConstructors.tier1
+   (setenv
+    ZANE_TIER_WAIT
+    1
+    (setenv
+   ZANE_CHECK
+   0
+   (with-stdout-to
+    mouldConstructors.tiered.unchecked.out.actual
+    (run ./mouldConstructors.tiered.exe)))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff golden/mouldConstructors.out mouldConstructors.tiered.unchecked.out.actual)))
+
+(rule
  (deps (source_tree fixtures/movedOut))
  (action
   (with-stdout-to
