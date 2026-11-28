@@ -47,7 +47,7 @@ static int64_t zane_blocked;
 /* How many threads the pool keeps now: one fewer than it has deques at
    most. */
 /* Whether the pool is stopping, as a dynamic library is unloaded: it then
-   wants no thread (zane_pool_stop). */
+   keeps no thread (zane_pool_stop). */
 static int zane_stopping;
 
 static int64_t zane_target(void) {
@@ -151,7 +151,7 @@ static void *zane_worker(void *deque) {
 		if (zane_threads > zane_target()) {
 			zane_threads--;
 			zane_deques[zane_mine].kept = 0;
-			/* A thread the pool no longer wants leaves on its own; one a
+			/* A thread the pool no longer keeps leaves on its own; one a
 			   stopping pool sends away is joined there. */
 			if (!zane_stopping) pthread_detach(pthread_self());
 			pthread_mutex_unlock(&zane_pool);

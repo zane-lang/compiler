@@ -44,7 +44,7 @@
      the C host `fixtures/NAME/host.c` prints, given the fixture built into
      a dynamic library twice, unoptimized and optimized, which it loads
      both of (packages.md §8.1): with its drains checked, the unoptimized
-     library first, and unchecked, the optimized one first. A fixture holding `.zn` files is one package; any
+     library first, and unchecked, the optimized library first. A fixture holding `.zn` files is one package; any
      other is a build of its subdirectories, in name order, so the first
      is the root. Its `flags` file, one per line, is what it is built with
      besides. A directory `NAME.archive` anywhere in a fixture holds the C
@@ -298,7 +298,7 @@ let ffi () =
             "(rule\n (deps %s/host.c)\n (targets %s.host.exe)\n (action\n  (run %%{exe:../gen/host_cc.exe} --loads-libraries -std=c11 -O1 -pthread -o %s.host.exe %s/host.c)))\n\n"
             dir name name dir;
           (* The checked run loads the unoptimized library first, and the
-             unchecked run the optimized one, so two libraries load into one
+             unchecked run the optimized library first, so two libraries load into one
              host in either order. *)
           let plain = name ^ ".plugin.library" and optimized = name ^ ".plugin.optimized.library" in
           List.iter

@@ -565,7 +565,7 @@ let shared_extension triple =
 
 (* The libraries a plugin's dynamic library for [target] links with
    besides libc: those a program links with (packages.md §8.1), but for the
-   ones only a program's own start-up needs, the command line and the main
+   libraries only a program's own start-up needs, the command line and the main
    thread's stack. *)
 let library_system_libraries target =
   if windows target then [] else if darwin target then [ "-lm" ] else [ "-lm"; "-Wl,--as-needed"; "-ldl"; "-Wl,--no-as-needed" ]

@@ -1020,7 +1020,7 @@ class ExportTests(ParserSyntaxTestCase):
             rate F64() => F64(48000.0) export "synth_rate";
             """
         )
-        # `export` is a keyword wherever a name could stand.
+        # `export` is a keyword wherever an identifier could stand.
         self.assert_rejects("Unit use() { export Int = Int(1); }")
 
     def test_export_takes_its_terminator_and_names_a_string(self) -> None:

@@ -56,14 +56,15 @@ val analyze : ?c:Foreign.package list -> ?placeholder:string -> Tst.Assembly.pac
     into a dynamic library a host calls through its exports. *)
 type root_kind = Program | Plugin
 
-(** The root's kind: a root without `main` is a plugin's when it carries
-    an export line or declares an exported lambda, and an error otherwise.
+(** Whether the root is a program's or a plugin's: a root without `main` is
+    a plugin's when it carries an export line or declares an exported lambda,
+    and an error otherwise.
     This is the only check for `main`; lowering assumes it. *)
 val root_kind : Tst.Nodes.Program.t -> (root_kind, failure) result
 
-(** Checks that a root of the kind given builds into what the view asks
-    for: a program's root into an executable or an object, a plugin's into
-    a dynamic library. *)
+(** Checks that the root builds into the output the view requests: a
+    program's root into an executable or an object, a plugin's into a
+    dynamic library. *)
 val built_as : root_kind -> [ `Executable | `Library | `Other ] -> (unit, failure) result
 
 (** Checks that a build with [root], as `--root` or `--no-root` sets it, may

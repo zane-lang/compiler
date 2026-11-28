@@ -238,8 +238,8 @@ module Decl = struct
       }
     | Alias of { name : string; params : Ty.param list; target : Ty.t }
     (* [export] is the C symbol of an exported lambda (packages.md §8.2),
-       which it has in every build; [Program.exports] lists the ones this
-       build gives C symbols. *)
+       which it has in every build; [Program.exports] lists the exported
+       lambdas this build gives C symbols. *)
     | Constant of { name : string; ty : Ty.t; value : Expr.t; export : string option }
     | Verb of { signature : Signature.t; body : body }
     | Subscript of { signature : Signature.t; params : Local.t list; value : Expr.t option }

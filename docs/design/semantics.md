@@ -941,7 +941,7 @@ package, and a package named twice. The grammar has no form yet for a
 line naming an instance of a parameterized package, `export lib<Args>;`,
 since zanec does not support parameterized packages. Pass 5 checks an exported lambda's signature (no abort
 type, no subject, parameters and a result C passes and takes, a C
-identifier for a name), checks its body with root-package rights, and
+identifier for a lambda name), checks its body with root-package rights, and
 refuses a name resolving to one in any package but the root. A root that
 declares `main` carries no export lines unless it is a test package, named
 `test`. The program lists the exports the build gives C symbols, each C

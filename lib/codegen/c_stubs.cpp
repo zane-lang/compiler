@@ -108,8 +108,8 @@ extern "C" value zane_rename_c_globals(value mod, value prefix, value global_pre
    [zane_rename_c_globals] renamed, that the module defines, an alias named
    by the C name of the renamed definition, with default visibility, and
    on COFF marked for a DLL to export, so that a host finds the symbol by
-   the name it looks it up by. The renamed definition stays the one the
-   program's own code reaches, and is hidden, so a library offers it under
+   the name it looks it up by. The program's own code still reaches the renamed
+   definition, which is hidden, so a library offers the definition under
    one name. */
 extern "C" value zane_offer_c_names(value mod, value prefix, value labels, value coff) {
   CAMLparam4(mod, prefix, labels, coff);

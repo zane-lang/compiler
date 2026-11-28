@@ -1,9 +1,9 @@
-(* Exported lambdas (packages.md §8.2, §8.3): what each one's signature may
-   be, and which of them a build gives C symbols.
+(* Exported lambdas (packages.md §8.2, §8.3): the signatures an exported
+   lambda may have, and which exported lambdas a build gives C symbols.
 
    Entry-point rights (§8.4) are given where a body is checked
    ([Program.package_context]), and the rule that only root-package code
-   names an exported lambda where a name is resolved ([Check]). *)
+   names an exported lambda where an identifier is resolved ([Check]). *)
 
 open Env
 module N = Sst.Nodes

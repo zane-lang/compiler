@@ -650,9 +650,9 @@ looks up by a fixed name, such as CLAP's `clap_entry`, and the C that
 defines it calls exported lambdas by their C names (`packages.md` §8.1).
 A build holds one copy of its root, so the C names of no two copies can
 meet. The rule lives in that one predicate: `ffi.md` §2.5 renames every
-package's C, and the spec does not yet say which C names a dynamic
+package's C, and the spec does not yet fix which C names a dynamic
 library offers, so the predicate is where a later rule would change it.
-Only what the root's sources and glue define gets an alias; its archives'
+Only the definitions of the root's sources and glue get an alias; its archives'
 members and the objects assembled from its sources holding assembly keep
 the renamed names only. On COFF a root's C does not mark a definition
 `__declspec(dllexport)` itself: the directive it writes names the C name
@@ -1185,7 +1185,7 @@ call (`Tst.Check.Exports.check_lambda`, using the same tests of
 parameter and result types as `ffi.md` §3.6, `Foreign_decls.function_param`
 and `function_result`): no abort type, no subject (a subject borrows a
 C-held object, `packages.md` §8.5, which zanec does not build yet), and
-a C identifier for a name. The program's `exports` lists the exported
+a C identifier for a lambda name. The program's `exports` lists the exported
 lambdas the build gives C symbols: the root's own and those of the
 libraries its export lines name, each C name once (§8.3), and none in a
 build without a root, where an exported lambda stays an ordinary lambda

@@ -439,7 +439,7 @@ export line, whose next token is a package name (`LIDENT`), and the
 suffix's branch reads it as the suffix, whose next token is a string
 (`STRING`). No sentence continues both, so one branch dies at the token
 after `export`, and the two never both reach acceptance. A grammar change
-that lets an export line start with a string, or the suffix take a name,
+that lets an export line start with a string, or the suffix take an identifier,
 invalidates this argument.
 
 ## A type is never parenthesised

@@ -3,7 +3,7 @@
    threads it starts itself. A library named without a directory is the
    file of that name beside the host, so the host finds its libraries
    wherever dev/bin/check-programs runs it. The test runs it with the
-   unoptimized library first and with the optimized one first, so the two
+   unoptimized library first and with the optimized library first, so the two
    load in either order. */
 #define _POSIX_C_SOURCE 200809L
 #include <stdint.h>
